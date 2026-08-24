@@ -1,0 +1,601 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:pages="clr-namespace:CrimsonX.Pages"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="CrimsonX.Pages.SettingsPage">
+    <UserControl.Styles>
+        <Style Selector="ToggleButton.pillToggle">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="14,8,14,8"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="ToggleButton.pillToggle:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="ToggleButton.pillToggle:pointerover">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+        </Style>
+        <Style Selector="ToggleButton.pillToggle:checked /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ToggleButton.pillToggle:checked">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+    </UserControl.Styles>
+    <Grid>
+                            <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Margin="0,0,0,0" BringIntoViewOnFocusChange="False">
+        <ScrollViewer.OpacityMask>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,18%">
+                <GradientStop Offset="0" Color="Transparent"/>
+                <GradientStop Offset="0.5" Color="#80FFFFFF"/>
+                <GradientStop Offset="1" Color="White"/>
+            </LinearGradientBrush>
+        </ScrollViewer.OpacityMask>
+                                <Panel MinHeight="{Binding #Scroller.Bounds.Height}">
+                                    <Border Background="Transparent" BorderThickness="0" Padding="6,8,6,7" Margin="0,50,20,20" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                                        <StackPanel Spacing="6">
+                                    <TextBlock x:Name="lblSectionStartup" Text="START-UP" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Center"/>
+                                    <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto">
+                                        <Border Grid.Row="0" Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,6">
+                                            <Grid x:Name="panLaunchOnStartup" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                    <PathIcon Data="M13.13 22.19L11.5 18.36C13.07 17.78 14.54 17 15.9 16.09L13.13 22.19M5.64 12.5L1.81 10.87L7.91 8.1C7 9.46 6.22 10.93 5.64 12.5M21.61 2.39C21.61 2.39 16.66 .269 11 5.93C8.81 8.12 7.5 10.53 6.65 12.64L3.05 11.33L1.58 12.8L6.47 14.86L3.92 17.41L5 18.5L7.55 15.95L9.61 20.84L11.08 19.37L9.77 15.77C11.88 14.92 14.29 13.61 16.48 11.42C22.14 5.76 20.02 .81 20.02 .81L21.61 2.39Z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                    <TextBlock x:Name="lblLaunchOnStartup" Classes="settingTitle" Text="LAUNCH ON START-UP" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <ToggleSwitch x:Name="btnBootTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <Border Grid.Row="0" Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,6">
+                                            <Grid x:Name="panAutoConnect" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                    <PathIcon Data="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                    <TextBlock x:Name="lblAutoConnect" Classes="settingTitle" Text="AUTO-CONNECT" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <ToggleSwitch x:Name="btnAutoTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <Border Grid.Row="1" Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
+                                            <Grid x:Name="panStartMinimized" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                    <PathIcon Data="M19 13H5v-2h14v2z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                    <TextBlock x:Name="lblStartMinimized" Classes="settingTitle" Text="START MINIMIZED" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <ToggleSwitch x:Name="btnStartMinTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <Border Grid.Row="1" Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
+                                            <Grid x:Name="panMinimizeToTray" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                    <PathIcon Data="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7h2v3h-2z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                    <TextBlock x:Name="lblMinimizeToTray" Classes="settingTitle" Text="MINIMIZE TO TRAY" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <ToggleSwitch x:Name="btnTrayTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                    
+                                    <TextBlock x:Name="lblSectionConnection" Text="CONNECTION" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                                    <StackPanel Spacing="8">
+                                        
+
+
+                                        <StackPanel Spacing="0">
+                                            <Border x:Name="panExcludeLocationsToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                                <Button x:Name="btnExcludeLocationsToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnExcludeLocationsToggle_Click">
+                                                    <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="36">
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                            <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                            <TextBlock x:Name="lblExcludeLocations" Classes="settingTitle" Text="EXCLUDE LOCATIONS" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Configs from these continents will be excluded from speed testing and connections."/>
+                                                        </StackPanel>
+                                                        <ToggleSwitch Grid.Column="2" x:Name="togExcludeLocations" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,10,0" IsCheckedChanged="togExcludeLocations_IsCheckedChanged"/>
+                                                        <PathIcon x:Name="icoExcludeLocationsExpander" Grid.Column="3" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center">
+                                                            <PathIcon.Transitions>
+                                                                <Transitions>
+                                                                    <DoubleTransition Property="RotateTransform.Angle" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                                                </Transitions>
+                                                            </PathIcon.Transitions>
+                                                        </PathIcon>
+                                                    </Grid>
+                                                </Button>
+                                            </Border>
+                                            
+                                            <Border x:Name="panExcludeLocations" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                                                <Border.Transitions>
+                                                    <Transitions>
+                                                        <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                        <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                    </Transitions>
+                                                </Border.Transitions>
+                                                <StackPanel Margin="15,15,15,15" Spacing="10">
+                                                    <WrapPanel Orientation="Horizontal" x:Name="wrapExcludeLocations">
+                                                        <ToggleButton x:Name="btnExcAS" Content="ASIA" Classes="pillToggle" Click="ContinentPill_Click" Tag="AS"/>
+                                                        <ToggleButton x:Name="btnExcEU" Content="EUROPE" Classes="pillToggle" Click="ContinentPill_Click" Tag="EU"/>
+                                                        <ToggleButton x:Name="btnExcNA" Content="NORTH AMERICA" Classes="pillToggle" Click="ContinentPill_Click" Tag="NA"/>
+                                                        <ToggleButton x:Name="btnExcSA" Content="SOUTH AMERICA" Classes="pillToggle" Click="ContinentPill_Click" Tag="SA"/>
+                                                        <ToggleButton x:Name="btnExcAF" Content="AFRICA" Classes="pillToggle" Click="ContinentPill_Click" Tag="AF"/>
+                                                        <ToggleButton x:Name="btnExcOC" Content="OCEANIA" Classes="pillToggle" Click="ContinentPill_Click" Tag="OC"/>
+                                                        <ToggleButton x:Name="btnExcAN" Content="ANTARCTICA" Classes="pillToggle" Click="ContinentPill_Click" Tag="AN"/>
+                                                    </WrapPanel>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="0">
+                                            <Border x:Name="panCustomConfigsToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                                <Button x:Name="btnCustomConfigsToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnCustomConfigsToggle_Click">
+                                                    <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="36">
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                            <PathIcon Data="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                            <TextBlock x:Name="lblCustomConfigsTitle" Classes="settingTitle" Text="CUSTOM CONFIGS" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <ToggleSwitch Grid.Column="2" x:Name="togCustomConfigs" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,10,0" IsCheckedChanged="togCustomConfigs_IsCheckedChanged"/>
+                                                        <PathIcon x:Name="icoCustomConfigsExpander" Grid.Column="3" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center">
+                                                            <PathIcon.Transitions>
+                                                                <Transitions>
+                                                                    <DoubleTransition Property="RotateTransform.Angle" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                                                </Transitions>
+                                                            </PathIcon.Transitions>
+                                                        </PathIcon>
+                                                    </Grid>
+                                                </Button>
+                                            </Border>
+                                            
+                                            <Border x:Name="panCustomConfigs" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                                                <Border.Transitions>
+                                                    <Transitions>
+                                                        <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                        <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                    </Transitions>
+                                                </Border.Transitions>
+                                                <StackPanel Margin="15,15,15,15" Spacing="10">
+                                                    <Grid ColumnDefinitions="*,10,*">
+                                                        <TextBox x:Name="txtCustomConfig1" Grid.Column="0" Height="30" AcceptsReturn="False" PlaceholderText="Config 1 (vless://, vmess://, etc.)" Background="#1A1C20" Foreground="{DynamicResource ThemeGlowBrush}" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4" VerticalAlignment="Stretch" VerticalContentAlignment="Center"/>
+                                                        <TextBox x:Name="txtCustomConfig2" Grid.Column="2" Height="30" AcceptsReturn="False" PlaceholderText="Config 2 (vless://, vmess://, etc.)" Background="#1A1C20" Foreground="{DynamicResource ThemeGlowBrush}" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4" VerticalAlignment="Stretch" VerticalContentAlignment="Center"/>
+                                                    </Grid>
+                                                    
+                                                    <Grid ColumnDefinitions="*, Auto">
+                                                        <CheckBox x:Name="chkAllowOneCustomConfig" Grid.Column="0" Content="ALLOW CONNECTING WITH ONE CONFIG" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" IsCheckedChanged="chkAllowOneCustomConfig_IsCheckedChanged"/>
+                                                        <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="3" BorderBrush="#2D3748" BorderThickness="1" HorizontalAlignment="Right" VerticalAlignment="Center" Width="210" Height="26" Margin="0">
+                                                            <Grid ColumnDefinitions="*, 1, *, 1, *">
+                                                                <Button x:Name="btnCustomConfigsPing" Click="btnCustomConfigsPing_Click" Grid.Column="0" Content="PING" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="3,0,0,3">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                </Button>
+                                                                <Border Grid.Column="1" Background="#2D3748"/>
+                                                                <Button x:Name="btnCustomConfigsClear" Click="btnCustomConfigsClear_Click" Grid.Column="2" Content="CLEAR" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="0">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                </Button>
+                                                                <Border Grid.Column="3" Background="#2D3748"/>
+                                                                <Button x:Name="btnCustomConfigsSave" Click="btnCustomConfigsSave_Click" Grid.Column="4" Content="SAVE" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="0,3,3,0">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                </Button>
+                                                            </Grid>
+                                                        </Border>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                        
+
+                                        
+                                        <StackPanel Spacing="0">
+                                            <Border x:Name="panXrayExitNodeToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                                <Button x:Name="btnXrayExitNodeToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnXrayExitNodeToggle_Click">
+                                                    <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="36">
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                            <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="lblCustomXrayExit" Classes="settingTitle" Text="CUSTOM XRAY EXIT-NODE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" />
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                        <ToggleSwitch Grid.Column="2" x:Name="togXrayExitNode" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,10,0" IsCheckedChanged="togXrayExitNode_IsCheckedChanged"/>
+                                                        <PathIcon x:Name="icoXrayExitNodeExpander" Grid.Column="3" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center">
+                                                            <PathIcon.Transitions>
+                                                                <Transitions>
+                                                                    <DoubleTransition Property="RotateTransform.Angle" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                                                </Transitions>
+                                                            </PathIcon.Transitions>
+                                                        </PathIcon>
+                                                    </Grid>
+                                                </Button>
+                                            </Border>
+                                            <Border x:Name="panXrayExitNode" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                                                <Border.Transitions>
+                                                    <Transitions>
+                                                        <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                        <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                    </Transitions>
+                                                </Border.Transitions>
+                                                <StackPanel Margin="15,15,15,15" Spacing="10">
+                                                    <TextBox x:Name="txtXrayJson" TextChanged="txtXrayJson_TextChanged" Height="120" AcceptsReturn="True" TextWrapping="Wrap" Background="#1A1C20" Foreground="{DynamicResource ThemeGlowBrush}" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4" VerticalAlignment="Stretch"/>
+                                                    
+                                                    <Grid ColumnDefinitions="Auto, *">
+                                                        <Button Grid.Column="0" x:Name="btnXrayImport" Click="btnXrayImport_Click" Content="IMPORT .JSON" Classes="optBtn" FontSize="10" FontWeight="Bold" Background="#1AFFFFFF" Padding="12,6" VerticalAlignment="Center"/>
+                                                        
+                                                        <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="3" BorderBrush="#2D3748" BorderThickness="1" HorizontalAlignment="Right" VerticalAlignment="Center" Width="140" Height="26" Margin="0">
+                                                            <Grid ColumnDefinitions="*, 1, *">
+                                                                <Button x:Name="btnXraySave" Click="btnXraySave_Click" Grid.Column="0" Content="SAVE" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="3,0,0,3">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                            </Button>
+                                                            <Border Grid.Column="1" Background="#2D3748"/>
+                                                            <Button x:Name="btnXrayCancel" Click="btnXrayCancel_Click" Grid.Column="2" Content="CANCEL" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="0,3,3,0">
+                                                                <Button.Styles>
+                                                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                        <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    </Style>
+                                                                </Button.Styles>
+                                                            </Button>
+                                                        </Grid>
+                                                    </Border>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="0">
+                                            <Border x:Name="panAdapterBindingToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                                <Button x:Name="btnAdapterBindingToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnAdapterBindingToggle_Click">
+                                                    <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="36">
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                            <PathIcon Data="M21 3H3C1.89 3 1 3.89 1 5v14c0 1.11.89 2 2 2h18c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm-1 14H4V7h16v10z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="lblAdapterBindingTitle" Classes="settingTitle" Text="BIND ADAPTER" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" />
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                        <ToggleSwitch Grid.Column="2" x:Name="togAdapterBinding" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,10,0" IsCheckedChanged="togAdapterBinding_IsCheckedChanged"/>
+                                                        <PathIcon x:Name="icoAdapterBindingExpander" Grid.Column="3" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center">
+                                                            <PathIcon.Transitions>
+                                                                <Transitions>
+                                                                    <DoubleTransition Property="RotateTransform.Angle" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                                                </Transitions>
+                                                            </PathIcon.Transitions>
+                                                        </PathIcon>
+                                                    </Grid>
+                                                </Button>
+                                            </Border>
+                                            <Border x:Name="panAdapterBinding" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                                                <Border.Transitions>
+                                                    <Transitions>
+                                                        <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                        <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                    </Transitions>
+                                                </Border.Transitions>
+                                                <StackPanel Margin="15,15,15,15" Spacing="10">
+                                                    <Grid ColumnDefinitions="*, Auto">
+                                                        <ComboBox Grid.Column="0" x:Name="cmbAdapters" HorizontalAlignment="Stretch" Margin="0,0,10,0" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" PlaceholderText="Select an adapter..." SelectionChanged="cmbAdapters_SelectionChanged"/>
+                                                        <Button Grid.Column="1" x:Name="btnScanAdapters" Click="btnScanAdapters_Click" Content="SCAN" Classes="optBtn" FontSize="10" FontWeight="Bold" Background="#1AFFFFFF" Padding="12,6" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                        <StackPanel Spacing="0">
+                                            <Border x:Name="panDnsToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                                <Button x:Name="btnDnsToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnDnsToggle_Click">
+                                                    <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                            <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="lblDnsSettingTitle" Classes="settingTitle" Text="DNS SETTINGS" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Resolve DNS through encrypted DNS-over-HTTPS (DoH) instead of plaintext queries. Reduces DNS leaks and censorship. Pick a provider or enter a custom DoH URL; applies in proxy mode (Xray) and VPN mode (sing-box)."/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+                                                        <PathIcon x:Name="icoDnsExpander" Grid.Column="2" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center">
+                                                            <PathIcon.Transitions>
+                                                                <Transitions>
+                                                                    <DoubleTransition Property="RotateTransform.Angle" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                                                </Transitions>
+                                                            </PathIcon.Transitions>
+                                                        </PathIcon>
+                                                    </Grid>
+                                                </Button>
+                                            </Border>
+                                            <Border x:Name="panDnsSettings" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                                                <Border.Transitions>
+                                                    <Transitions>
+                                                        <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                        <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                    </Transitions>
+                                                </Border.Transitions>
+                                                <StackPanel Margin="15,9,15,12" Spacing="7">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                                        <TextBlock x:Name="lblUpstreamDoh" Grid.Column="0" Text="UPSTREAM DOH URL" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" VerticalAlignment="Center"/>
+                                                        <ToggleSwitch Grid.Column="2" x:Name="togDnsSettings" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,-5,0" IsCheckedChanged="togDnsSettings_IsCheckedChanged">
+                                                            <ToggleSwitch.RenderTransform>
+                                                                <ScaleTransform ScaleX="0.78" ScaleY="0.78"/>
+                                                            </ToggleSwitch.RenderTransform>
+                                                        </ToggleSwitch>
+                                                    </Grid>
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <ComboBox x:Name="cmbDohUrl" Grid.Column="0" IsEditable="True" Background="#1A1C20" Foreground="{DynamicResource ThemeGlowBrush}" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" Margin="0,0,0,0">
+                                                            <ComboBox.Styles>
+                                                                <Style Selector="TextBox">
+                                                                    <Setter Property="Padding" Value="8,4,8,0" />
+                                                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                                                    <Setter Property="VerticalContentAlignment" Value="Center" />
+                                                                </Style>
+                                                            </ComboBox.Styles>
+                                                            <ComboBoxItem Content="https://cloudflare-dns.com/dns-query" />
+                                                            <ComboBoxItem Content="https://dns.google/dns-query" />
+                                                            <ComboBoxItem Content="https://dns.quad9.net/dns-query" />
+                                                            <ComboBoxItem Content="https://dns.adguard.com/dns-query" />
+                                                            <ComboBoxItem Content="https://doh.opendns.com/dns-query" />
+                                                        </ComboBox>
+                                                        <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="52" MinHeight="26">
+                                                            <Button x:Name="btnDohSave" Click="btnDohSave_Click" Content="SAVE" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
+                                                                <Button.Styles>
+                                                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                        <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                        <Setter Property="TextBlock.Foreground" Value="{DynamicResource ThemeAccent}"/>
+                                                                    </Style>
+                                                                </Button.Styles>
+                                                            </Button>
+                                                        </Border>
+                                                    </Grid>
+                                                    <Border Background="#2D3748" Height="1" Margin="-15,3,-15,0"/>
+                                                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,-3,0,0">
+                                                        <TextBlock x:Name="lblSysDnsTitle" Grid.Column="0" Text="SYSTEM DNS" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" VerticalAlignment="Center" />
+                                                        <ToggleSwitch Grid.Column="2" x:Name="togSysDns" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,-5,0" IsCheckedChanged="togSysDns_IsCheckedChanged">
+                                                            <ToggleSwitch.RenderTransform>
+                                                                <ScaleTransform ScaleX="0.78" ScaleY="0.78"/>
+                                                            </ToggleSwitch.RenderTransform>
+                                                        </ToggleSwitch>
+                                                    </Grid>
+                                                    <Grid ColumnDefinitions="*,6,*,1,Auto">
+                                                        <TextBox x:Name="txtSysDnsPrimary" Grid.Column="0" Background="#1A1C20" Foreground="{DynamicResource ThemeGlowBrush}" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" Padding="8,4,8,4" PlaceholderText="Primary e.g. 1.1.1.1"/>
+                                                        <TextBox x:Name="txtSysDnsSecondary" Grid.Column="2" Background="#1A1C20" Foreground="{DynamicResource ThemeGlowBrush}" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="0" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" Padding="8,4,8,4" PlaceholderText="Secondary e.g. 1.0.0.1"/>
+                                                        <Border Grid.Column="3" Background="#2D3748" Width="1"/>
+                                                        <Border Grid.Column="4" Background="#0A0C0F" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="52" MinHeight="26">
+                                                            <Button x:Name="btnSysDnsSave" Click="btnSysDnsSave_Click" Content="SAVE" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
+                                                                <Button.Styles>
+                                                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                        <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                        <Setter Property="TextBlock.Foreground" Value="{DynamicResource ThemeAccent}"/>
+                                                                    </Style>
+                                                                </Button.Styles>
+                                                            </Button>
+                                                        </Border>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                        <StackPanel Spacing="0">
+                                            <Border x:Name="panLanToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                                <Button x:Name="btnLanToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnLanToggle_Click">
+                                                    <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                            <PathIcon Data="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                            <TextBlock x:Name="lblAllowLanSetting" Classes="settingTitle" Text="ALLOW LAN CONNECTIONS" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                            <ToggleSwitch x:Name="btnLanTog" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
+                                                            <PathIcon x:Name="icoLanExpander" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center">
+                                                                <PathIcon.Transitions>
+                                                                    <Transitions>
+                                                                        <DoubleTransition Property="RotateTransform.Angle" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                                                    </Transitions>
+                                                                </PathIcon.Transitions>
+                                                            </PathIcon>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Button>
+                                            </Border>
+                                            <Border x:Name="panLanSettings" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                                                <Border.Transitions>
+                                                    <Transitions>
+                                                        <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                        <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                    </Transitions>
+                                                </Border.Transitions>
+                                                <StackPanel Margin="15,12,15,12" Spacing="2">
+                                                    <!-- Authentication toggle row -->
+                                                    <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="30">
+                                                        <TextBlock x:Name="lblLanAuthTitle" Grid.Column="0" Text="AUTHENTICATION" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" VerticalAlignment="Center"/>
+                                                        <ToggleSwitch x:Name="togLanAuth" Grid.Column="2" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,-5,0" IsCheckedChanged="togLanAuth_IsCheckedChanged">
+                                                            <ToggleSwitch.RenderTransform>
+                                                                <ScaleTransform ScaleX="0.78" ScaleY="0.78"/>
+                                                            </ToggleSwitch.RenderTransform>
+                                                        </ToggleSwitch>
+                                                    </Grid>
+                                                    <!-- Username / Password / Save -->
+                                                    <Grid ColumnDefinitions="*,6,*,1,Auto">
+                                                        <TextBox x:Name="txtLanUser" Grid.Column="0" Background="#1A1C20" Foreground="{DynamicResource ThemeGlowBrush}" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" Padding="8,4,8,4" PlaceholderText="Username"/>
+                                                        <Grid Grid.Column="2">
+                                                            <TextBox x:Name="txtLanPass" Background="#1A1C20" Foreground="{DynamicResource ThemeGlowBrush}" BorderBrush="#2D3748" BorderThickness="1,1,0,1" CornerRadius="0" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" Padding="8,4,30,4" PlaceholderText="Password" PasswordChar="&#x2022;"/>
+                                                            <Button x:Name="btnLanPassEye" Click="btnLanPassEye_Click" Background="Transparent" BorderThickness="0" Width="26" Height="24" HorizontalAlignment="Right" Margin="0,0,1,0" Padding="0" Cursor="Hand" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                                                                <PathIcon x:Name="icoLanPassEye" Data="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" Width="13" Height="13" Foreground="#718096"/>
+                                                                <Button.Styles>
+                                                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                        <Setter Property="Background" Value="#1AFFFFFF"/>
+                                                                    </Style>
+                                                                </Button.Styles>
+                                                            </Button>
+                                                        </Grid>
+                                                        <Border Grid.Column="3" Background="#2D3748" Width="1"/>
+                                                        <Border Grid.Column="4" Background="#0A0C0F" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="52" MinHeight="26">
+                                                            <Button x:Name="btnLanAuthSave" Click="btnLanAuthSave_Click" Content="SAVE" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
+                                                                <Button.Styles>
+                                                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                        <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                        <Setter Property="TextBlock.Foreground" Value="{DynamicResource ThemeAccent}"/>
+                                                                    </Style>
+                                                                </Button.Styles>
+                                                            </Button>
+                                                        </Border>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <Grid ColumnDefinitions="*, *">
+                                        <Border Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
+                                            <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                    <PathIcon Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                    <TextBlock x:Name="lblAdBlockerSetting" Classes="settingTitle" Text="AD AND TRACKER BLOCKER" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Drop requests to known ad and tracker domains before they leave your PC. Xray routes matching domains to a blackhole outbound. Only affects traffic going through the local proxyÃ¢â‚¬â€ not apps on split-tunnel bypass."/>
+                                                </StackPanel>
+                                                <ToggleSwitch x:Name="btnAdBlockTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <Border Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
+                                            <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                    <PathIcon Data="M4 15h16v-2H4v2zm0 4h16v-2H4v2zm0-8h16V9H4v2zm0-6v2h16V5H4z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                    <TextBlock x:Name="lblLbPolicy" Classes="settingTitle" Text="LOAD-BALANCE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Controls how Xray distributes connections across your proxy nodes."/>
+                                                </StackPanel>
+                                                <Button x:Name="btnLbPolicy" Grid.Column="2" Classes="optBtn" Click="BtnLbPolicy_Click" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1" CornerRadius="4" Width="113" MinHeight="26" Height="26" Padding="8,0" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand">
+                                                    <Grid ColumnDefinitions="*, Auto">
+                                                        <TextBlock x:Name="lblCurrentLbPolicy" Grid.Column="0" Text="ROUND ROBIN" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                                        <PathIcon Grid.Column="1" Data="M7 10l5 5 5-5z" Width="10" Height="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="3,0,0,0" HorizontalAlignment="Right"/>
+                                                    </Grid>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                    <TextBlock x:Name="lblSectionSystem" Text="SYSTEM" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                                    <StackPanel Spacing="8">
+                                        <Grid ColumnDefinitions="*, *">
+                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                        <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                        <TextBlock x:Name="lblDisableBgChecks" Classes="settingTitle" Text="DISABLE BACKGROUND CHECK" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <ToggleSwitch x:Name="togDisableBgChecks" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                        <PathIcon Data="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                        <TextBlock x:Name="lblDisableRefreshTimer" Classes="settingTitle" Text="DISABLE 4H REFRESH" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <ToggleSwitch x:Name="togDisableRefreshTimer" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*, *">
+                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                        <PathIcon Data="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.09 13.36 4 12.69 4 12s.09-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.34.16-2h4.68c.09.66.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.17.64.26 1.31.26 2s-.09 1.36-.26 2h-3.38z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                        <TextBlock x:Name="lblLanguageSetting" Classes="settingTitle" Text="LANGUAGE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Change the application language. Reopening the app may be required for all changes to take effect."/>
+                                                    </StackPanel>
+                                                    <Button x:Name="btnLanguage" Grid.Column="2" Classes="optBtn" Click="BtnLanguage_Click" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1" CornerRadius="4" Width="90" MinHeight="26" Height="26" Padding="8,0" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand">
+                                                        <Grid ColumnDefinitions="*, Auto">
+                                                            <TextBlock x:Name="lblCurrentLanguage" Grid.Column="0" Text="ENGLISH" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                                            <PathIcon Grid.Column="1" Data="M7 10l5 5 5-5z" Width="10" Height="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="3,0,0,0" HorizontalAlignment="Right"/>
+                                                        </Grid>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                        <PathIcon Data="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zm-2-1h-6v-2h6v2zM7.5 17l-1.41-1.41L8.67 13l-2.59-2.59L7.5 9l4 4-4 4z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                        <TextBlock x:Name="lblDebugMode" Classes="settingTitle" Text="DEBUG MODE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Show console windows for Tor, Xray, and sing-box instead of hiding them. Helpful for reading live logs when something fails to connect. Does not change routing or security—only visibility."/>
+                                                    </StackPanel>
+                                                    <ToggleSwitch x:Name="btnDebugTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*, *">
+                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                        <PathIcon Data="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                        <TextBlock x:Name="lblDesktopShortcut" Text="DESKTOP SHORTCUT" FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="2" x:Name="btnDesktopShortcut" Content="CREATE" Classes="optBtn" FontSize="10" Padding="8,4" Background="#1AFFFFFF" Click="Shortcut_Click"/>
+                                                </Grid>
+                                            </Border>
+                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                        <PathIcon Data="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                        <TextBlock x:Name="lblStartMenuShortcut" Text="START MENU SHORTCUT" FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="2" x:Name="btnStartMenuShortcut" Content="CREATE" Classes="optBtn" FontSize="10" Padding="8,4" Background="#1AFFFFFF" Click="Shortcut_Click"/>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </Panel>
+                            </ScrollViewer>
+
+                    <Popup x:Name="LanguagePopup" IsLightDismissEnabled="False">
+                        <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="90" Padding="2">
+                            <StackPanel>
+                                <Button Classes="countryControl" Tag="ENGLISH" Click="LanguageOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4">
+                                    <TextBlock Text="ENGLISH" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                                <Button Classes="countryControl" Tag="PERSIAN" Click="LanguageOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4">
+                                    <TextBlock Text="PERSIAN" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+
+                    <Popup x:Name="LbPolicyPopup" IsLightDismissEnabled="False">
+                        <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="113" Padding="2">
+                            <StackPanel>
+                                <Button x:Name="btnLbLeastLoad" Classes="countryControl" Tag="leastload" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Distributes each new connection to the least-loaded proxy node. Best for mixed traffic with varying connection size.">
+                                    <TextBlock Text="LEAST LOAD" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                                <Button x:Name="btnLbRoundRobin" Classes="countryControl" Tag="roundrobin" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Distributes connections evenly across all proxy nodes in order, cycling through them one by one. Good for consistent, equal distribution.">
+                                    <TextBlock Text="ROUND ROBIN" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                                <Button x:Name="btnLbLeastPing" Classes="countryControl" Tag="leastping" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Picks the proxy node with the lowest recent ping. Best for latency-sensitive traffic.">
+                                    <TextBlock Text="LEAST PING" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                                <Button x:Name="btnLbRandom" Classes="countryControl" Tag="random" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Picks a proxy node at random for each new connection. Statistically even over time but with more variance than Round Robin.">
+                                    <TextBlock Text="RANDOM" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+
+    </Grid>
+</UserControl>

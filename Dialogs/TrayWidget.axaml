@@ -1,0 +1,44 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        x:Class="CrimsonX.Dialogs.TrayWidget"
+        Title="Tray Widget" Height="195" Width="220"
+        WindowStartupLocation="Manual"
+        WindowDecorations="None" 
+        Background="Transparent"
+        Topmost="True" 
+        ShowInTaskbar="False" 
+        CanResize="False"
+        Deactivated="Window_Deactivated">
+    <Border Background="#E6121417" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" Padding="15" Margin="10" BoxShadow="0 2 10 0 #80000000">
+        <Grid>
+            <Button Name="btnClose" Content="CLOSE THE APP" Foreground="#A0AEC0" Background="Transparent" BorderThickness="0" FontSize="10" FontFamily="Segoe UI, Inter, sans-serif" FontWeight="Bold" Cursor="Hand" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-10,-10,0" Click="BtnClose_Click"/>
+            <StackPanel VerticalAlignment="Center" Margin="0,15,0,0">
+                <TextBlock Name="lblStatus" Text="NOT CONNECTED" Foreground="#E2E8F0" FontFamily="Segoe UI, Inter, sans-serif" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                <TextBlock Name="lblSpeed" Text="Speed: 0 KB/s&#x0a;Total: 0 MB" Foreground="#68D391" FontFamily="Consolas, Courier New, monospace" FontSize="12" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,10"/>
+                <Button Name="btnToggle" Content="CONNECT" Background="#2D3748" Foreground="#E2E8F0" FontFamily="Segoe UI, Inter, sans-serif" FontWeight="Bold" BorderThickness="0" Height="28" Cursor="Hand" Click="BtnToggle_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                </Button>
+                <Button Name="btnShowWindow" Content="SHOW WINDOW" Background="Transparent" Foreground="#A0AEC0" FontFamily="Segoe UI, Inter, sans-serif" FontWeight="Bold" BorderThickness="0" Height="28" Cursor="Hand" Click="BtnShowWindow_Click" Margin="0,5,0,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

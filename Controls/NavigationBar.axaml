@@ -1,0 +1,117 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="CrimsonX.Controls.NavigationBar"
+             SizeChanged="UserControl_SizeChanged">
+    <UserControl.Styles>
+        <Style Selector="RadioButton.navBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#909090"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid>
+                        <Border x:Name="BackgroundBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="{TemplateBinding CornerRadius}"/>
+                        
+                        <Border x:Name="ThemeAnimatedBackground" Opacity="0" ClipToBounds="True" CornerRadius="{TemplateBinding CornerRadius}">
+                            <Border.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                                </Transitions>
+                            </Border.Transitions>
+                            <Panel>
+                                <Rectangle Fill="{DynamicResource ThemeCurrentBrush}"/>
+                                <Rectangle Classes="activeThemeGradient" Margin="-75" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Fill="{DynamicResource ThemeCurrentBrush}">
+                                    <Rectangle.RenderTransform><RotateTransform Angle="0"/></Rectangle.RenderTransform>
+                                </Rectangle>
+                            </Panel>
+                        </Border>
+
+                        <ContentPresenter x:Name="PART_ContentPresenter"
+                                          Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <!-- Hover State -->
+        <Style Selector="RadioButton.navBtn:pointerover /template/ Border#BackgroundBorder">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="RadioButton.navBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="#E0E0E0"/>
+        </Style>
+
+        <!-- Checked State -->
+        <Style Selector="RadioButton.navBtn:checked /template/ Border#BackgroundBorder">
+            <Setter Property="Background" Value="#33FFFFFF"/>
+        </Style>
+        <Style Selector="RadioButton.navBtn:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        
+        <!-- Checked State for Themes button -->
+        <Style Selector="RadioButton.themeNavBtn:checked /template/ Border#BackgroundBorder">
+            <Setter Property="Opacity" Value="0"/>
+        </Style>
+        <Style Selector="RadioButton.themeNavBtn:checked /template/ Border#ThemeAnimatedBackground">
+            <Setter Property="Opacity" Value="0.8"/>
+        </Style>
+
+        <Style Selector="Rectangle.activeThemeGradient">
+            <Style.Animations>
+                <Animation Duration="0:0:3" IterationCount="INFINITE">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="RotateTransform.Angle" Value="0"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="RotateTransform.Angle" Value="360"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="2" HorizontalAlignment="Center" Margin="0,0,0,0">
+        <Panel x:Name="MainContainer">
+            <StackPanel x:Name="NavStack" Orientation="Horizontal" Spacing="4">
+                <RadioButton x:Name="btnNavHome" Classes="navBtn" Content="HOME" GroupName="NavGroup" IsChecked="True" Tag="Home" IsCheckedChanged="NavButton_Checked"/>
+                <RadioButton x:Name="btnNavSplit" Classes="navBtn" Content="SPLIT TUNNELING" GroupName="NavGroup" Tag="SplitTunneling" IsCheckedChanged="NavButton_Checked"/>
+                <RadioButton x:Name="btnNavSettings" Classes="navBtn" Content="SETTINGS" GroupName="NavGroup" Tag="Settings" IsCheckedChanged="NavButton_Checked"/>
+                <RadioButton x:Name="btnNavAbout" Classes="navBtn" Content="ABOUT" GroupName="NavGroup" Tag="About" IsCheckedChanged="NavButton_Checked"/>
+                <RadioButton x:Name="btnNavThemes" Classes="navBtn themeNavBtn" Content="THEMES" GroupName="NavGroup" Tag="Themes" IsCheckedChanged="NavButton_Checked"/>
+            </StackPanel>
+            
+            
+        </Panel>
+    </Border>
+</UserControl>

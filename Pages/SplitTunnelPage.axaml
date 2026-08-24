@@ -1,0 +1,216 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             xmlns:pages="clr-namespace:CrimsonX.Pages"
+             x:Class="CrimsonX.Pages.SplitTunnelPage">
+    <UserControl.Styles>
+        <Style Selector="TextBox:readonly /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="TextBox:disabled /template/ Border#PART_BorderElement">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+    </UserControl.Styles>
+    
+    <Grid>
+        <ScrollViewer x:Name="Scroller" Margin="0,0,0,0" BringIntoViewOnFocusChange="False">
+        <ScrollViewer.OpacityMask>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,18%">
+                <GradientStop Offset="0" Color="Transparent"/>
+                <GradientStop Offset="0.5" Color="#80FFFFFF"/>
+                <GradientStop Offset="1" Color="White"/>
+            </LinearGradientBrush>
+        </ScrollViewer.OpacityMask>
+        <Panel MinHeight="{Binding #Scroller.Bounds.Height}">
+            <Border Background="#99141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="12" Padding="6" Margin="20,50,40,20" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <StackPanel Margin="0" Spacing="6">
+                
+                <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
+                <StackPanel Spacing="0">
+                    
+                    <Grid ColumnDefinitions="*, Auto">
+                        <TextBlock x:Name="lblSplitTunnelingHeader" Grid.Column="0" Text="SPLIT TUNNELING" FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                        
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="btnSplitDisabled" Classes="optBtn activeOpt" Click="SplitTunnel_Click" ToolTip.Tip="Split tunneling is disabled."><TextBlock Text="DISABLED" FontSize="11" FontWeight="SemiBold"/></Button>
+                            <Button x:Name="btnSplitExclusive" Classes="optBtn" Click="SplitTunnel_Click" ToolTip.Tip="Only bypass the proxy for the apps, domains, IPs and ports listed here."><TextBlock Text="EXCLUSIVE" FontSize="11" FontWeight="SemiBold"/></Button>
+                            <Button x:Name="btnSplitInclusive" Classes="optBtn" Click="SplitTunnel_Click" ToolTip.Tip="Only route the apps, domains, IPs and ports listed here through the proxy."><TextBlock Text="INCLUSIVE" FontSize="11" FontWeight="SemiBold"/></Button>
+                        </StackPanel>
+                    </Grid>
+                    
+                    <Border x:Name="panSplitConfig" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                        <Border.Transitions>
+                            <Transitions>
+                                <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                            </Transitions>
+                        </Border.Transitions>
+                        <StackPanel Spacing="13" Margin="0,13,0,0">
+                            <TextBlock x:Name="lblSplitExplanation" FontSize="11.5" Foreground="#A0AEC0" TextWrapping="Wrap" LineHeight="17" Margin="2,0,2,2" />
+                            
+                            <Grid>
+                                <StackPanel x:Name="panSplitDomains" Spacing="0">
+                                    <Border x:Name="panDomainsToggle" Background="#101112" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Padding="0">
+                                        <Grid ColumnDefinitions="*, Auto">
+                                            <Border Padding="15,5" VerticalAlignment="Center">
+                                                <TextBlock x:Name="lblDomainsAndIps" Text="DOMAINS, IPs &amp; PORTS" FontSize="11" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" />
+                                            </Border>
+                                            <Button Grid.Column="1" x:Name="btnToggleDomains" Classes="optBtn" CornerRadius="0,3,3,0" BorderThickness="1,0,0,0" BorderBrush="#2D3748" Padding="15,5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="SplitToggle_Click" Content="ADD" FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                    <Border x:Name="panDomainsEdit" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4" Height="0" ClipToBounds="True">
+                                        <Border.Transitions>
+                                            <Transitions>
+                                                <DoubleTransition Property="Height" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                            </Transitions>
+                                        </Border.Transitions>
+                                        <StackPanel Margin="10,0,10,0">
+                                            <Border Margin="0,3,0,0">
+                                                <TextBox x:Name="txtSplitDomains" Height="20" LineHeight="17" Background="Transparent" BorderThickness="0" PlaceholderText="example.com, 1.2.3.4, 443" FontSize="11" Foreground="#E2E8F0" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="txtSplit_TextChanged"/>
+                                            </Border>
+                                            <Border Background="#101112" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" HorizontalAlignment="Right" Margin="0,10,0,0" Width="140">
+                                                <Grid ColumnDefinitions="*, 1, *">
+                                                    <Button Grid.Column="0" x:Name="btnSaveDomains" Content="SAVE" FontSize="10" FontWeight="Bold" Background="Transparent" Foreground="#E2E8F0" Padding="0,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="SplitSave_Click"/>
+                                                    <Border Grid.Column="1" Background="#2D3748" Width="1"/>
+                                                    <Button Grid.Column="2" x:Name="btnCancelDomains" Content="CANCEL" FontSize="10" FontWeight="Bold" Background="Transparent" Foreground="#8B949E" Padding="0,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="SplitCancel_Click"/>
+                                                </Grid>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid>
+                                <StackPanel x:Name="panSplitApps" Spacing="0">
+                                    <Border x:Name="panAppsToggle" Background="#101112" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Padding="0">
+                                        <Grid ColumnDefinitions="*, Auto">
+                                            <Border Grid.Column="0" Padding="15,5" VerticalAlignment="Center">
+                                                <TextBlock x:Name="lblApplications" Text="APPLICATIONS" FontSize="11" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" />
+                                            </Border>
+                                            <Button Grid.Column="1" x:Name="btnAddApp" Classes="optBtn" CornerRadius="0,3,3,0" BorderThickness="1,0,0,0" BorderBrush="#2D3748" Padding="15,5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="BrowseApp_Click" Content="ADD" FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                    <Border x:Name="panAppsGrid" Background="#101112" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4">
+                                        <ItemsControl x:Name="lstApps" Margin="10">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="pages:AppItem">
+                                                    <Grid Margin="3" Width="36" Height="36" Background="Transparent" ToolTip.Tip="{Binding ExeName}" ToolTip.ShowDelay="200">
+                                                        <Grid.Styles>
+                                                            <Style Selector="Grid > Button.delBtn">
+                                                                <Setter Property="Opacity" Value="0"/>
+                                                            </Style>
+                                                            <Style Selector="Grid:pointerover > Button.delBtn">
+                                                                <Setter Property="Opacity" Value="1"/>
+                                                            </Style>
+                                                        </Grid.Styles>
+                                                        <StackPanel VerticalAlignment="Center">
+                                                            <Image Source="{Binding Icon}" Width="24" Height="24" Stretch="Uniform" HorizontalAlignment="Center">
+                                                                <Image.IsVisible>
+                                                                    <Binding Path="Icon" Converter="{x:Static ObjectConverters.IsNotNull}"/>
+                                                                </Image.IsVisible>
+                                                            </Image>
+                                                            
+                                                            <Border Width="24" Height="24" Background="#2D3748" CornerRadius="6" HorizontalAlignment="Center">
+                                                                <Border.IsVisible>
+                                                                    <Binding Path="Icon" Converter="{x:Static ObjectConverters.IsNull}"/>
+                                                                </Border.IsVisible>
+                                                                <PathIcon Data="M20,4H4C2.89,4 2,4.89 2,6V18C2,19.1 2.9,20 4,20H20C21.1,20 22,19.1 22,18V6C22,4.89 21.1,4 20,4M20,18H4V6H20V18M8.5,15H11L12.5,11.5L14,15H16.5L13.5,10L16.5,5H14L12.5,8.5L11,5H8.5L11.5,10L8.5,15Z" Width="12" Height="12" Foreground="#8B949E"/>
+                                                            </Border>
+                                                        </StackPanel>
+
+                                                        <Button Classes="delBtn" Cursor="Hand" Click="RemoveApp_Click" Width="16" Height="16" CornerRadius="8" Background="#99E53E3E" Padding="0" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-4,0">
+                                                            <Button.Transitions>
+                                                                <Transitions>
+                                                                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                                                                </Transitions>
+                                                            </Button.Transitions>
+                                                            <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Width="8" Height="8" Foreground="White"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel x:Name="panSplitBlock" Spacing="0">
+                                <Border x:Name="panBlockToggle" Background="#101112" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Padding="0">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <Border Padding="15,5" VerticalAlignment="Center">
+                                            <TextBlock x:Name="lblBlockedDomainsIps" Text="BLOCKED DOMAINS, IPs &amp; PORTS" FontSize="11" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" />
+                                        </Border>
+                                        <Button Grid.Column="1" x:Name="btnToggleBlock" Classes="optBtn" CornerRadius="0,3,3,0" BorderThickness="1,0,0,0" BorderBrush="#2D3748" Padding="15,5" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="SplitToggle_Click" Content="ADD" FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                                <Border x:Name="panBlockEdit" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4" Height="0" ClipToBounds="True">
+                                    <Border.Transitions>
+                                        <Transitions>
+                                            <DoubleTransition Property="Height" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                        </Transitions>
+                                    </Border.Transitions>
+                                    <StackPanel Margin="10,0,10,0">
+                                        <Border Margin="0,3,0,0">
+                                            <TextBox x:Name="txtSplitBlock" Height="20" LineHeight="17" Background="Transparent" BorderThickness="0" PlaceholderText="malicious.com, 5.6.7.8, 443" FontSize="11" Foreground="#E2E8F0" AcceptsReturn="True" TextWrapping="Wrap" TextChanged="txtSplit_TextChanged"/>
+                                        </Border>
+                                        <Border Background="#101112" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" HorizontalAlignment="Right" Margin="0,10,0,0" Width="140">
+                                            <Grid ColumnDefinitions="*, 1, *">
+                                                <Button Grid.Column="0" x:Name="btnSaveBlock" Content="SAVE" FontSize="10" FontWeight="Bold" Background="Transparent" Foreground="#E2E8F0" Padding="0,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="SplitSave_Click"/>
+                                                <Border Grid.Column="1" Background="#2D3748" Width="1"/>
+                                                <Button Grid.Column="2" x:Name="btnCancelBlock" Content="CANCEL" FontSize="10" FontWeight="Bold" Background="Transparent" Foreground="#8B949E" Padding="0,4" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="SplitCancel_Click"/>
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                            
+                        </StackPanel>
+                    </Border>
+                    
+                </StackPanel>
+            </Border>
+
+            <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,7" Margin="0">
+                <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock x:Name="lblDirectUdpHeader" Classes="settingTitle" Text="DIRECT UDP" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" HorizontalAlignment="Left" TextAlignment="Left" />
+                        <TextBlock x:Name="lblDirectUdpDesc" Text="This option can help with video games, discord voice or other udp dependant platforms." FontSize="10" Foreground="#A0AEC0" TextWrapping="Wrap" HorizontalAlignment="Left" TextAlignment="Left" />
+                    </StackPanel>
+                    <ToggleSwitch Grid.Column="1" x:Name="togDirectUDP" IsCheckedChanged="togDirectUDP_IsCheckedChanged" Theme="{DynamicResource FluentToggleSwitchTheme}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,-5,0" />
+                </Grid>
+            </Border>
+                    </StackPanel>
+            </Border>
+        </Panel>
+    </ScrollViewer>
+    </Grid>
+</UserControl>

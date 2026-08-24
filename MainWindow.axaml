@@ -1,0 +1,735 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CrimsonX"
+        xmlns:controls="clr-namespace:CrimsonX.Controls"
+        xmlns:pages="clr-namespace:CrimsonX.Pages"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
+        x:Class="CrimsonX.MainWindow"
+        x:DataType="local:MainWindow"
+        Title="CrimsonX" Width="650" Height="550" CanResize="False"
+        Icon="avares://CrimsonX/Assets/CrimsonX.ico"
+        WindowDecorations="None" WindowStartupLocation="CenterScreen"
+        Background="Transparent" TransparencyLevelHint="Transparent" 
+        Foreground="#E2E8F0" FontFamily="Segoe UI" ToolTip.ShowDelay="1500" ToolTip.BetweenShowDelay="0">
+        
+    <Window.Resources>
+        <LinearGradientBrush x:Key="ThemeCrimsonBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#4A0811" Offset="0"/>
+            <GradientStop Color="#B82E42" Offset="0.5"/>
+            <GradientStop Color="#FF6B83" Offset="1"/>
+        </LinearGradientBrush>
+        
+        <LinearGradientBrush x:Key="ThemeBlueBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#1A365D" Offset="0"/>
+            <GradientStop Color="#3182CE" Offset="0.5"/>
+            <GradientStop Color="#90CDF4" Offset="1"/>
+        </LinearGradientBrush>
+        
+        <LinearGradientBrush x:Key="ThemePurpleBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#44337A" Offset="0"/>
+            <GradientStop Color="#805AD5" Offset="0.5"/>
+            <GradientStop Color="#D6BCFA" Offset="1"/>
+        </LinearGradientBrush>
+        
+        <LinearGradientBrush x:Key="ThemeGreenBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#1C4532" Offset="0"/>
+            <GradientStop Color="#38A169" Offset="0.5"/>
+            <GradientStop Color="#9AE6B4" Offset="1"/>
+        </LinearGradientBrush>
+        
+        <LinearGradientBrush x:Key="ThemePinkBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#702459" Offset="0"/>
+            <GradientStop Color="#D53F8C" Offset="0.5"/>
+            <GradientStop Color="#FBB6CE" Offset="1"/>
+        </LinearGradientBrush>
+        
+        <LinearGradientBrush x:Key="ThemeYellowBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#744210" Offset="0"/>
+            <GradientStop Color="#D69E2E" Offset="0.5"/>
+            <GradientStop Color="#FEFCBF" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="ThemeAllBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#FF6B83" Offset="0"/>
+            <GradientStop Color="#805AD5" Offset="0.5"/>
+            <GradientStop Color="#3182CE" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="ThemeCurrentBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#4A0811" Offset="0"/>
+            <GradientStop Color="#E53E3E" Offset="0.5"/>
+            <GradientStop Color="#FEB2B2" Offset="1"/>
+        </LinearGradientBrush>
+    </Window.Resources>
+
+    <Window.Styles>
+        <Style Selector="Button.ThemeColorButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+                <Style Selector="Rectangle.rectGradient">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.4" Easing="CubicEaseInOut"/>
+                </Transitions>
+            </Setter>
+            <Style.Animations>
+                <Animation Duration="0:0:3" IterationCount="Infinite">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="RotateTransform.Angle" Value="0" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="RotateTransform.Angle" Value="360" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Button:pointerover Rectangle.rectGradient">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+        <Style Selector="ComboBox /template/ Popup > Border">
+            <Style.Animations>
+                <Animation Duration="0:0:0.2" Easing="CubicEaseOut">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0"/>
+                        <Setter Property="TranslateTransform.Y" Value="-10"/>
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1"/>
+                        <Setter Property="TranslateTransform.Y" Value="0"/>
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+        <Style Selector="Button.windowControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#718096"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.windowControl:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#33FFFFFF"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+        </Style>
+        <Style Selector="Button.closeControl:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#E81123"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.countryControl:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#2D3136"/>
+        </Style>
+        <Style Selector="Button.connectBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="Button.modeBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="Button.modeBtn:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.modeBtn:disabled TextBlock.modeText">
+            <Setter Property="Foreground" Value="#8B949E"/>
+        </Style>
+        <Style Selector="TextBlock.modeText">
+            <Setter Property="Foreground" Value="#8B949E"/>
+        </Style>
+        <Style Selector="Button.activeMode TextBlock.modeText">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="Button.modeBtn:pointerover TextBlock.modeText">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+        </Style>
+        <Style Selector="Button.sidebarControl">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Padding" Value="0,12,0,12"/>
+            <Setter Property="Margin" Value="6,0,6,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.sidebarControl:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#2D3136"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+        </Style>
+
+        <Style Selector="Border.sidebar">
+            <Setter Property="Width" Value="64"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Width" Duration="0:0:0.25" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.sidebar:pointerover">
+            <Setter Property="Width" Value="175"/>
+        </Style>
+        
+        <Style Selector="Border.sidebar TextBlock.sidebarText">
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.25" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.sidebar:pointerover TextBlock.sidebarText">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+
+
+
+        <Style Selector="TextBlock.settingTitle">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="TextBlock.settingTitle:pointerover">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+        </Style>
+
+        <Style Selector="Border.popupContent">
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="RenderTransform" Value="translateY(-10px)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.popupContent.popupOpen">
+            <Setter Property="Opacity" Value="1"/>
+            <Setter Property="RenderTransform" Value="none"/>
+        </Style>
+
+        <Style Selector="Button.optBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Padding" Value="8,4,8,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.optBtn:pointerover">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Background" Value="#33FFFFFF"/>
+        </Style>
+        <Style Selector="Button.optBtn.noHoverBg:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.optBtn.activeOpt">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+
+        <Style Selector="TextBlock.portHoverText">
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="TextBlock.portHoverText:pointerover">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style Selector="Button.graphHover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.graphHover:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+    </Window.Styles>
+
+    <Border CornerRadius="8" ClipToBounds="True" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1">
+        <Grid>
+            <controls:AnimatedBackground  IsHitTestVisible="False" />
+            
+            <Border x:Name="panTabDarken" Background="#B3000000" Opacity="0" IsHitTestVisible="False">
+                <Border.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
+                    </Transitions>
+                </Border.Transitions>
+            </Border>
+
+            <Grid RowDefinitions="45, *">
+                
+                  <Grid Grid.Row="0" Background="#110A0C0F" PointerPressed="TitleBar_PointerPressed" FlowDirection="LeftToRight">
+                      
+                      <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="15,0,0,0" IsHitTestVisible="False">
+                          <Image Source="avares://CrimsonX/Assets/CrimsonX-gray.png" Width="20" Height="20" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                          <TextBlock Text="CrimsonX" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="16" FontFamily="Segoe UI" FontWeight="SemiBold" Foreground="#E2E8F0"/>
+                      </StackPanel>
+
+                      <Button Name="btnTitleUpdate" Content="NEW UPDATE AVAILABLE" IsVisible="False"
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Background="Transparent" Foreground="{DynamicResource ThemeGlowBrush}" FontWeight="Bold" FontSize="12"
+                              Cursor="Hand" BorderThickness="0" Click="BtnTitleUpdate_Click"/>
+  
+                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                        <Button Classes="windowControl" Content="&#x2013;" FontSize="14" Click="Minimize_Click"/>
+                        <Button Classes="windowControl closeControl" Content="&#x2715;" FontSize="12" Click="Close_Click"/>
+                    </StackPanel>
+                </Grid>
+
+                <Grid Grid.Row="1">
+                    
+                    <Grid x:Name="panMainInteraction" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="20,20,0,0">
+                        <Carousel x:Name="MainCarousel" Margin="0,0,0,0">
+                            <Carousel.PageTransition>
+                                <PageSlide Duration="0:0:0.3" Orientation="Horizontal" />
+                            </Carousel.PageTransition>
+                            
+                            <!-- viewHome -->
+                            <Grid x:Name="viewHome" RowDefinitions="*, Auto" Margin="0,0,20,0">
+                                
+                                  <Panel Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,40,0,0">
+                                  <Border x:Name="panConnectGlow" CornerRadius="13" ClipToBounds="True" Opacity="0" Margin="-2">
+                                      <Border.Transitions>
+                                          <Transitions>
+                                              <DoubleTransition Property="Opacity" Duration="0:0:0.4" Easing="CubicEaseInOut"/>
+                                          </Transitions>
+                                      </Border.Transitions>
+                                      <Panel>
+                                          <Panel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                              <Rectangle Width="800" Height="800" Margin="-400">
+                                                  <Rectangle.RenderTransform><RotateTransform Angle="0"/></Rectangle.RenderTransform>
+                                                  <Rectangle.Fill>
+                                                      <ConicGradientBrush Center="50%,50%" Angle="0">
+                                                          <GradientStop Color="#00000000" Offset="0"/>
+                                                          <GradientStop Color="{DynamicResource ThemeGlow}" Offset="0.1"/>
+                                                          <GradientStop Color="#00000000" Offset="0.15"/>
+                                                          <GradientStop Color="#00000000" Offset="0.5"/>
+                                                          <GradientStop Color="{DynamicResource ThemeGlow}" Offset="0.6"/>
+                                                          <GradientStop Color="#00000000" Offset="0.65"/>
+                                                      </ConicGradientBrush>
+                                                  </Rectangle.Fill>
+                                                  <Rectangle.Styles>
+                                                      <Style Selector="Rectangle">
+                                                          <Style.Animations>
+                                                              <Animation Duration="0:0:3" IterationCount="INFINITE">
+                                                                  <KeyFrame Cue="0%">
+                                                                      <Setter Property="RotateTransform.Angle" Value="0"/>
+                                                                  </KeyFrame>
+                                                                  <KeyFrame Cue="100%">
+                                                                      <Setter Property="RotateTransform.Angle" Value="360"/>
+                                                                  </KeyFrame>
+                                                              </Animation>
+                                                          </Style.Animations>
+                                                      </Style>
+                                                  </Rectangle.Styles>
+                                              </Rectangle>
+                                          </Panel>
+                                          
+                                          <Border Margin="2" CornerRadius="12" Background="#0A0C0F" />
+                                      </Panel>
+                                  </Border>
+
+                                  <Border x:Name="panConnectBox" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="12" Padding="3">
+                                      <Grid RowDefinitions="Auto, Auto">
+                                          
+                                            <Button x:Name="btnConnect" Grid.Row="0" Classes="connectBtn" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Background="Transparent" BorderThickness="0" CornerRadius="8" Padding="0" Cursor="Hand" Margin="2,2,2,2" Click="btnConnect_Click">
+                                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <!-- Main Text (CONNECT / CONNECTING) -->
+                                                    <TextBlock x:Name="txtConnectBtn" Text="CONNECT" FontSize="19" FontWeight="Bold" LetterSpacing="2" Foreground="#E2E8F0" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,8,0,8">
+                                                        <TextBlock.Transitions>
+                                                            <Transitions>
+                                                                <DoubleTransition Property="Opacity" Duration="0:0:0.4" Easing="CubicEaseInOut"/>
+                                                            </Transitions>
+                                                        </TextBlock.Transitions>
+                                                    </TextBlock>
+                                                    
+                                                    <!-- Success Text (CONNECTED) -->
+                                                    <TextBlock x:Name="txtConnectedBtn" Text="CONNECTED" FontSize="19" FontWeight="Bold" LetterSpacing="2" Foreground="{DynamicResource ThemeGlowBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,8,0,8" Opacity="0" IsHitTestVisible="False">
+                                                        <TextBlock.Transitions>
+                                                            <Transitions>
+                                                                <DoubleTransition Property="Opacity" Duration="0:0:0.4" Easing="CubicEaseInOut"/>
+                                                            </Transitions>
+                                                        </TextBlock.Transitions>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </Button>
+
+                                          <Grid Grid.Row="1" ColumnDefinitions="Auto, Auto, Auto, Auto, Auto" Margin="0">
+                                              <Button x:Name="btnProxyMode" Grid.Column="0" Classes="modeBtn activeMode" Background="Transparent" BorderThickness="0" CornerRadius="6" Padding="14,8,14,8" Margin="2,2,2,2" Cursor="Hand" Click="Mode_Click" >
+                                                  <TextBlock x:Name="lblProxyMode" Classes="modeText" Text="PROXY MODE" FontSize="11" FontWeight="SemiBold"/>
+                                              </Button>
+                                              
+                                              <Border Grid.Column="1" Width="1" Background="#2D3748" Margin="0,6,0,6"/>
+                                              
+                                              <Panel x:Name="panVpnMode" Grid.Column="2" Background="Transparent" Margin="2,2,2,2">
+                                                  <Button x:Name="btnVpnMode" Classes="modeBtn" Background="Transparent" BorderThickness="0" CornerRadius="6" Padding="14,8,14,8" Cursor="Hand" Click="Mode_Click" >
+                                                      <TextBlock x:Name="lblVpnMode" Classes="modeText" Text="VPN MODE" FontSize="11" FontWeight="SemiBold"/>
+                                                  </Button>
+                                              </Panel>
+                                              
+                                              <Border Grid.Column="3" Width="1" Background="#2D3748" Margin="0,6,0,6"/>
+                                              
+                                              <Button x:Name="btnClearProxy" Grid.Column="4" Classes="modeBtn" Background="Transparent" BorderThickness="0" CornerRadius="6" Padding="14,8,14,8" Margin="2,2,2,2" Cursor="Hand" Click="Mode_Click" >
+                                                  <TextBlock x:Name="lblClearProxy" Classes="modeText" Text="CLEAR PROXY" FontSize="11" FontWeight="SemiBold"/>
+                                              </Button>
+                                          </Grid>
+                                      </Grid>
+                                  </Border>
+                              </Panel>
+
+
+                            <Border x:Name="panMainConfig" Grid.Row="1" Background="Transparent" BorderThickness="0" CornerRadius="12" Padding="6" Margin="0,0,0,15" HorizontalAlignment="Stretch">
+                                <StackPanel Spacing="6">
+                                    
+
+
+                                      <!-- Hidden backend-required elements (no UI) -->
+                                      <StackPanel IsVisible="False">
+                                          <TextBlock x:Name="lblLogsStatus"/>
+                                          <TextBlock x:Name="lblXrayLogHeader"/>
+                                          <ToggleSwitch x:Name="chkLogs" IsCheckedChanged="chkLogs_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}"/>
+                                          <Border x:Name="panLogs">
+                                              <StackPanel>
+                                              </StackPanel>
+                                          </Border>
+                                      </StackPanel>
+
+                                      <controls:QuickSettingsPanel x:Name="quickSettings" />
+
+                                      <!-- Stats + Logs panel -->
+                                      <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8">
+                                          <StackPanel>
+                                              <Border x:Name="panStats" Background="Transparent" BorderThickness="0">
+                                                  <StackPanel Spacing="6">
+
+                                                      <!-- STATS / LOGS mini-nav -->
+                                                      <Panel x:Name="panMiniNavContainer" HorizontalAlignment="Left" Margin="0,0,0,2">
+                                                          <StackPanel Orientation="Horizontal">
+                                                              <Button x:Name="btnStatNav" Click="StatNav_Click" Background="Transparent" CornerRadius="4" Padding="8,4" Cursor="Hand" BorderThickness="0">
+                                                                  <Button.Styles>
+                                                                      <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                          <Setter Property="Background" Value="Transparent"/>
+                                                                      </Style>
+                                                                  </Button.Styles>
+                                                                  <TextBlock x:Name="lblStatNav" Text="STATS" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1"/>
+                                                              </Button>
+                                                              <Button x:Name="btnLogNav" Click="LogNav_Click" Background="Transparent" CornerRadius="4" Padding="8,4" Cursor="Hand" BorderThickness="0">
+                                                                  <Button.Styles>
+                                                                      <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                          <Setter Property="Background" Value="Transparent"/>
+                                                                      </Style>
+                                                                  </Button.Styles>
+                                                                  <TextBlock x:Name="lblLogNav" Text="LOGS" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1"/>
+                                                              </Button>
+                                                          </StackPanel>
+                                                          <Rectangle x:Name="rectStatsUnderline" Height="2" Fill="{DynamicResource ThemeGlowBrush}" Width="28" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="11,0,0,0" RadiusX="1" RadiusY="1">
+                                                              <Rectangle.Transitions>
+                                                                  <Transitions>
+                                                                      <ThicknessTransition Property="Margin" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                                  </Transitions>
+                                                              </Rectangle.Transitions>
+                                                          </Rectangle>
+                                                      </Panel>
+
+                                                        <!-- STATS / LOGS CAROUSEL -->
+                                                        <Carousel x:Name="statsCarousel" SelectedIndex="0" Height="84">
+                                                            <Carousel.PageTransition>
+                                                                <PageSlide Duration="0:0:0.3" Orientation="Horizontal" SlideInEasing="CubicEaseOut" SlideOutEasing="CubicEaseOut"/>
+                                                            </Carousel.PageTransition>
+
+                                                            <!-- Page 0: STATS VIEW -->
+                                                            <Grid x:Name="panStatsView" VerticalAlignment="Center" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowDefinitions="Auto,Auto">
+
+                                                            <!-- Col 0 Row 0: SESSION -->
+                                                            <Button Grid.Column="0" Grid.Row="0" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Top" CornerRadius="4">
+                                                                <StackPanel>
+                                                                    <TextBlock x:Name="lblSessionLabel" Text="SESSION:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                                    <Panel>
+                                                                        <TextBlock x:Name="lblDisconnected" Text="Disconnected" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
+                                                                        <StackPanel x:Name="panTimerContent" Orientation="Vertical" IsVisible="False" Spacing="1">
+                                                                            <TextBlock x:Name="lblTimer" Text="00:00:00" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText" LetterSpacing="1"/>
+                                                                            <TextBlock x:Name="lblConnectedTo" IsVisible="False"/>
+                                                                        </StackPanel>
+                                                                    </Panel>
+                                                                </StackPanel>
+                                                            </Button>
+
+                                                            <!-- Col 0 Row 1: LOCATION -->
+                                                            <Button x:Name="btnRefreshLocation" Click="RefreshPing_Click" Grid.Column="0" Grid.Row="1" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Top" CornerRadius="4">
+                                                                <StackPanel>
+                                                                    <TextBlock x:Name="lblLocationLabel" Text="LOCATION:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                                    <TextBlock x:Name="lblCountryName" Text="Disconnected" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
+                                                                </StackPanel>
+                                                            </Button>
+
+                                                            <!-- Col 1: LOCAL PORT / LAN PORT -->
+                                                            <Grid x:Name="panLeftStats" Grid.Column="1" Grid.Row="0" Grid.RowSpan="2" RowDefinitions="Auto,Auto">
+                                                                <!-- LOCAL PORT -->
+                                                                <Button Click="LocalPort_Click" Grid.Row="0" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Top" CornerRadius="4">
+                                                                    <StackPanel>
+                                                                        <TextBlock x:Name="lblLocalPortLabel" Text="LOCAL PORT:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                                        <TextBlock x:Name="lblLocalIp" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
+                                                                    </StackPanel>
+                                                                </Button>
+                                                                <!-- LAN PORT -->
+                                                                <Button Click="LanPort_Click" Grid.Row="1" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Top" CornerRadius="4">
+                                                                    <StackPanel>
+                                                                        <TextBlock x:Name="lblLanPortLabel" Text="LAN PORT:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                                        <TextBlock x:Name="lblLanIp" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
+                                                                    </StackPanel>
+                                                                </Button>
+                                                            </Grid>
+
+                                                            <!-- Col 3 Row 0: PING (Auto width) -->
+                                                            <Button x:Name="btnRefreshPing" Grid.Column="3" Grid.Row="0" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" Click="RefreshPing_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Top" CornerRadius="4">
+                                                                <StackPanel>
+                                                                    <TextBlock x:Name="lblPingLabel" Text="PING:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                                    <TextBlock x:Name="lblPing" Text="0 ms" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
+                                                                </StackPanel>
+                                                            </Button>
+
+                                                            <!-- Col 3 Row 1: TOTAL (Auto width) -->
+                                                            <Button Grid.Column="3" Grid.Row="1" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Top" CornerRadius="4">
+                                                                <StackPanel>
+                                                                    <TextBlock x:Name="lblTotalLabel" Text="TOTAL:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                                    <TextBlock x:Name="lblTotalData" Text="0 MB" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
+                                                                </StackPanel>
+                                                            </Button>
+
+                                                            <!-- Col 4 Row 0: DOWNLOAD -->
+                                                            <Button Grid.Column="4" Grid.Row="0" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Top" CornerRadius="4">
+                                                                <StackPanel>
+                                                                    <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,0,2">
+                                                                        <Rectangle Width="8" Height="2" Fill="#A0AEC0" VerticalAlignment="Center" RadiusX="1" RadiusY="1"/>
+                                                                        <TextBlock x:Name="lblDownloadLabel" Text="DOWNLOAD:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"/>
+                                                                    </StackPanel>
+                                                                    <TextBlock x:Name="lblDownloadSpeed" Text="0 KB/s" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText" Margin="12,0,0,0"/>
+                                                                </StackPanel>
+                                                            </Button>
+
+                                                            <!-- Col 4 Row 1: UPLOAD -->
+                                                            <Button Grid.Column="4" Grid.Row="1" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Top" CornerRadius="4">
+                                                                <StackPanel>
+                                                                    <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,0,2">
+                                                                        <Rectangle Width="8" Height="1" Fill="#718096" VerticalAlignment="Center" RadiusX="0.5" RadiusY="0.5"/>
+                                                                        <TextBlock x:Name="lblUploadLabel" Text="UPLOAD:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"/>
+                                                                    </StackPanel>
+                                                                    <TextBlock x:Name="lblUploadSpeed" Text="0 KB/s" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText" Margin="12,0,0,0"/>
+                                                                </StackPanel>
+                                                            </Button>
+
+                                                            <!-- Col 5: Graph -->
+                                                            <Border x:Name="panGraphRow" Grid.Column="5" Grid.Row="0" Grid.RowSpan="2" Background="Transparent" BorderThickness="0" VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+                                                                <Button Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" CornerRadius="4" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" VerticalContentAlignment="Center" HorizontalContentAlignment="Right">
+                                                                    <Grid Width="150" Height="40" ClipToBounds="True">
+                                                                        <Grid.OpacityMask>
+                                                                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                                                                                <GradientStop Color="#00000000" Offset="0"/>
+                                                                                <GradientStop Color="#FFFFFFFF" Offset="0.15"/>
+                                                                                <GradientStop Color="#FFFFFFFF" Offset="0.85"/>
+                                                                                <GradientStop Color="#00000000" Offset="1"/>
+                                                                            </LinearGradientBrush>
+                                                                        </Grid.OpacityMask>
+                                                                        <Canvas x:Name="graphCanvas" Width="150" Height="40" ClipToBounds="False" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                                            <Canvas.RenderTransform>
+                                                                                <TranslateTransform X="0"/>
+                                                                            </Canvas.RenderTransform>
+                                                                            <Path x:Name="graphDownloadFill" Fill="#2A8B949E"/>
+                                                                            <Path x:Name="graphUploadFill" Fill="#1A718096"/>
+                                                                            <Path x:Name="graphUpload" Stroke="#718096" StrokeThickness="1"/>
+                                                                            <Path x:Name="graphDownload" Stroke="#A0AEC0" StrokeThickness="2" StrokeJoin="Round"/>
+                                                                        </Canvas>
+                                                                    </Grid>
+                                                                </Button>
+                                                            </Border>
+
+                                                            </Grid>
+
+                                                      <!-- Page 1: LOGS VIEW -->
+                                                      <Grid x:Name="panLogsView" ColumnDefinitions="Auto,*">
+                                                          <!-- Left: live speeds -->
+                                                          <StackPanel Grid.Column="0" Spacing="6" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                              <StackPanel>
+                                                                  <TextBlock x:Name="lblLogsDownloadLabel" Text="DOWNLOAD:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"/>
+                                                                  <TextBlock Text="{Binding #lblDownloadSpeed.Text}" FontSize="10" Foreground="#8B949E"/>
+                                                              </StackPanel>
+                                                              <StackPanel>
+                                                                  <TextBlock x:Name="lblLogsUploadLabel" Text="UPLOAD:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"/>
+                                                                  <TextBlock Text="{Binding #lblUploadSpeed.Text}" FontSize="10" Foreground="#8B949E"/>
+                                                              </StackPanel>
+                                                          </StackPanel>
+                                                          <!-- Right: xray log textbox (actual element, not a binding) -->
+                                                          <TextBox Grid.Column="1" x:Name="txtXrayLogs" Height="84" AcceptsReturn="True" TextWrapping="Wrap" Background="#1A1C20" Foreground="{DynamicResource ThemeGlowBrush}" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="10" CornerRadius="4" IsReadOnly="True" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                                      </Grid>
+                                                        </Carousel>
+
+                                                  </StackPanel>
+                                              </Border>
+                                          </StackPanel>
+                                      </Border>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                        
+                        <!-- Other views -->
+                        <Panel x:Name="viewSplitTunneling" Margin="0">
+                            <pages:SplitTunnelPage />
+                        </Panel>
+                        <Panel x:Name="viewSettings" Margin="0">
+                            <pages:SettingsPage />
+                        </Panel>
+                        <Panel x:Name="viewAbout" Margin="0,0,20,0">
+                            <pages:AboutPage />
+                        </Panel>
+                        <Panel x:Name="viewThemes" Margin="0,0,20,0">
+                            <pages:ThemesPage />
+                        </Panel>
+                        </Carousel>
+                        
+                        <controls:NavigationBar x:Name="navBar" VerticalAlignment="Top" Margin="0,0,20,0" NavChanged="NavBar_NavChanged"/>
+                    </Grid>
+
+
+                    <Border x:Name="LightDismissOverlay" Grid.ColumnSpan="2" Background="#01000000" IsVisible="False" PointerPressed="LightDismissOverlay_PointerPressed" ZIndex="200"/>
+
+                    <Popup x:Name="LanguagePopup" IsLightDismissEnabled="False">
+                        <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="90" Padding="2">
+                            <StackPanel>
+                                <Button Classes="countryControl" Tag="ENGLISH" Click="LanguageOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4">
+                                    <TextBlock Text="ENGLISH" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                                <Button Classes="countryControl" Tag="PERSIAN" Click="LanguageOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4">
+                                    <TextBlock Text="PERSIAN" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+
+                    <Popup x:Name="LbPolicyPopup" IsLightDismissEnabled="False">
+                        <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="137" Padding="2">
+                            <StackPanel>
+                                <Button x:Name="btnLbLeastLoad" Classes="countryControl" Tag="leastload" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Distributes each new connection to the least-loaded proxy node. Best for mixed traffic with varying connection size.">
+                                    <TextBlock Text="LEAST LOAD" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                                <Button x:Name="btnLbRoundRobin" Classes="countryControl" Tag="roundrobin" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Distributes connections evenly across all proxy nodes in order, cycling through them one by one. Good for consistent, equal distribution.">
+                                    <TextBlock Text="ROUND ROBIN" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                                <Button x:Name="btnLbLeastPing" Classes="countryControl" Tag="leastping" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Picks the proxy node with the lowest recent ping. Best for latency-sensitive traffic.">
+                                    <TextBlock Text="LEAST PING" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                                <Button x:Name="btnLbRandom" Classes="countryControl" Tag="random" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Picks a proxy node at random for each new connection. Statistically even over time but with more variance than Round Robin.">
+                                    <TextBlock Text="RANDOM" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                    
+                </Grid>
+
+                <Border x:Name="ToastBorder"
+                        Grid.Row="1"
+                        Grid.ColumnSpan="2"
+                        IsVisible="False"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Margin="0,0,0,25"
+                        ZIndex="1000"
+                        Background="#E6101116"
+                        BorderBrush="#2D3748"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="18,12,18,12"
+                        IsHitTestVisible="False">
+                    <Border.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                        </Transitions>
+                    </Border.Transitions>
+                    <TextBlock x:Name="ToastText"
+                               Text=""
+                               FontSize="12"
+                               FontWeight="Bold"
+                               LetterSpacing="1"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               MaxWidth="350"
+                               HorizontalAlignment="Center"/>
+                </Border>
+
+            </Grid>
+
+
+        </Grid>
+    </Border>
+</Window>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

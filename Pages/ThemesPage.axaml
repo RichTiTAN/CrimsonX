@@ -1,0 +1,117 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="CrimsonX.Pages.ThemesPage">
+    
+    <Grid>
+        <Border Background="Transparent" BorderThickness="0" Padding="6" Margin="20,15,20,20" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <StackPanel Margin="0" Spacing="6">
+                
+                <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,15,0">
+                            <!-- Palette Icon -->
+                            <PathIcon Data="M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21A9,9 0 0,0 21,12C21,10.62 19.88,9.5 18.5,9.5C17.79,9.5 17.15,9.79 16.69,10.26C16.5,10.45 16.27,10.57 16,10.57C15.45,10.57 15,10.12 15,9.57V8.5C15,5.46 13.66,3 12,3M6.5,10C5.67,10 5,9.33 5,8.5C5,7.67 5.67,7 6.5,7C7.33,7 8,7.67 8,8.5C8,9.33 7.33,10 6.5,10M9,6C8.17,6 7.5,5.33 7.5,4.5C7.5,3.67 8.17,3 9,3C9.83,3 10.5,3.67 10.5,4.5C10.5,5.33 9.83,6 9,6M15,6C14.17,6 13.5,5.33 13.5,4.5C13.5,3.67 14.17,3 15,3C15.83,3 16.5,3.67 16.5,4.5C16.5,5.33 15.83,6 15,6Z" Width="14" Height="14" Foreground="#8B949E"/>
+                            <TextBlock x:Name="lblChooseAColour" Text="CHOOSE A COLOUR" FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <Grid Grid.Column="1" ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <!-- Crimson -->
+                            <Button Classes="ThemeColorButton" Grid.Row="0" Grid.Column="0" Cursor="Hand" Click="ThemeSelect_Click" CommandParameter="Crimson" Margin="0,0,6,6" Background="Transparent" Padding="0" BorderThickness="0" Width="80">
+                                <Border Height="30" HorizontalAlignment="Stretch" CornerRadius="4" ClipToBounds="True">
+                                    <Panel Classes="animatedGradient" Background="Transparent">
+                                        <Rectangle Fill="{DynamicResource ThemeCrimsonBrush}" RadiusX="4" RadiusY="4"/>
+                                        <Rectangle Classes="rectGradient" Width="150" Height="150" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="{DynamicResource ThemeCrimsonBrush}">
+                                            <Rectangle.RenderTransform><RotateTransform Angle="0"/></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <TextBlock x:Name="lblColorCrimson" Text="CRIMSON" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#1C1C1C" FontWeight="Bold" FontSize="10" LetterSpacing="1"/>
+                                    </Panel>
+                                </Border>
+                            </Button>
+                            <!-- Blue -->
+                            <Button Classes="ThemeColorButton" Grid.Row="0" Grid.Column="1" Cursor="Hand" Click="ThemeSelect_Click" CommandParameter="Blue" Margin="0,0,6,6" Background="Transparent" Padding="0" BorderThickness="0" Width="80">
+                                <Border Height="30" HorizontalAlignment="Stretch" CornerRadius="4" ClipToBounds="True">
+                                    <Panel Classes="animatedGradient" Background="Transparent">
+                                        <Rectangle Fill="{DynamicResource ThemeBlueBrush}" RadiusX="4" RadiusY="4"/>
+                                        <Rectangle Classes="rectGradient" Width="150" Height="150" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="{DynamicResource ThemeBlueBrush}">
+                                            <Rectangle.RenderTransform><RotateTransform Angle="0"/></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <TextBlock x:Name="lblColorBlue" Text="BLUE" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#1C1C1C" FontWeight="Bold" FontSize="10" LetterSpacing="1"/>
+                                    </Panel>
+                                </Border>
+                            </Button>
+                            <!-- Purple -->
+                            <Button Classes="ThemeColorButton" Grid.Row="0" Grid.Column="2" Cursor="Hand" Click="ThemeSelect_Click" CommandParameter="Purple" Margin="0,0,0,6" Background="Transparent" Padding="0" BorderThickness="0" Width="80">
+                                <Border Height="30" HorizontalAlignment="Stretch" CornerRadius="4" ClipToBounds="True">
+                                    <Panel Classes="animatedGradient" Background="Transparent">
+                                        <Rectangle Fill="{DynamicResource ThemePurpleBrush}" RadiusX="4" RadiusY="4"/>
+                                        <Rectangle Classes="rectGradient" Width="150" Height="150" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="{DynamicResource ThemePurpleBrush}">
+                                            <Rectangle.RenderTransform><RotateTransform Angle="0"/></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <TextBlock x:Name="lblColorPurple" Text="PURPLE" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#1C1C1C" FontWeight="Bold" FontSize="10" LetterSpacing="1"/>
+                                    </Panel>
+                                </Border>
+                            </Button>
+                            <!-- Green -->
+                            <Button Classes="ThemeColorButton" Grid.Row="1" Grid.Column="0" Cursor="Hand" Click="ThemeSelect_Click" CommandParameter="Green" Margin="0,0,6,0" Background="Transparent" Padding="0" BorderThickness="0" Width="80">
+                                <Border Height="30" HorizontalAlignment="Stretch" CornerRadius="4" ClipToBounds="True">
+                                    <Panel Classes="animatedGradient" Background="Transparent">
+                                        <Rectangle Fill="{DynamicResource ThemeGreenBrush}" RadiusX="4" RadiusY="4"/>
+                                        <Rectangle Classes="rectGradient" Width="150" Height="150" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="{DynamicResource ThemeGreenBrush}">
+                                            <Rectangle.RenderTransform><RotateTransform Angle="0"/></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <TextBlock x:Name="lblColorGreen" Text="GREEN" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#1C1C1C" FontWeight="Bold" FontSize="10" LetterSpacing="1"/>
+                                    </Panel>
+                                </Border>
+                            </Button>
+                            <!-- Pink -->
+                            <Button Classes="ThemeColorButton" Grid.Row="1" Grid.Column="1" Cursor="Hand" Click="ThemeSelect_Click" CommandParameter="Pink" Margin="0,0,6,0" Background="Transparent" Padding="0" BorderThickness="0" Width="80">
+                                <Border Height="30" HorizontalAlignment="Stretch" CornerRadius="4" ClipToBounds="True">
+                                    <Panel Classes="animatedGradient" Background="Transparent">
+                                        <Rectangle Fill="{DynamicResource ThemePinkBrush}" RadiusX="4" RadiusY="4"/>
+                                        <Rectangle Classes="rectGradient" Width="150" Height="150" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="{DynamicResource ThemePinkBrush}">
+                                            <Rectangle.RenderTransform><RotateTransform Angle="0"/></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <TextBlock x:Name="lblColorPink" Text="PINK" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#1C1C1C" FontWeight="Bold" FontSize="10" LetterSpacing="1"/>
+                                    </Panel>
+                                </Border>
+                            </Button>
+                            <!-- Yellow -->
+                            <Button Classes="ThemeColorButton" Grid.Row="1" Grid.Column="2" Cursor="Hand" Click="ThemeSelect_Click" CommandParameter="Yellow" Margin="0,0,0,0" Background="Transparent" Padding="0" BorderThickness="0" Width="80">
+                                <Border Height="30" HorizontalAlignment="Stretch" CornerRadius="4" ClipToBounds="True">
+                                    <Panel Classes="animatedGradient" Background="Transparent">
+                                        <Rectangle Fill="{DynamicResource ThemeYellowBrush}" RadiusX="4" RadiusY="4"/>
+                                        <Rectangle Classes="rectGradient" Width="150" Height="150" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="{DynamicResource ThemeYellowBrush}">
+                                            <Rectangle.RenderTransform><RotateTransform Angle="0"/></Rectangle.RenderTransform>
+                                        </Rectangle>
+                                        <TextBlock x:Name="lblColorYellow" Text="YELLOW" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#1C1C1C" FontWeight="Bold" FontSize="10" LetterSpacing="1"/>
+                                    </Panel>
+                                </Border>
+                            </Button>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

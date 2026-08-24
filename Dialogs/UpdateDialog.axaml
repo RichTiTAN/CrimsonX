@@ -1,0 +1,48 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dialogs="clr-namespace:CrimsonX.Dialogs"
+        x:Class="CrimsonX.Dialogs.UpdateDialog"
+        x:DataType="dialogs:UpdateDialog"
+        Title="{Binding DialogTitle}"
+        Width="450" SizeToContent="Height"
+        CanResize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E" Foreground="White"
+        FontFamily="Segoe UI, Tahoma, sans-serif">
+    
+    <Grid RowDefinitions="Auto,*,Auto" Margin="25">
+        
+        <TextBlock Grid.Row="0" Text="{Binding DialogTitle}" FontWeight="Bold" FontSize="18" Margin="0,0,0,15" Foreground="#FF4500" />
+        
+        <TextBlock Grid.Row="1" Text="{Binding DialogMessage}" TextWrapping="Wrap" FontSize="14" Margin="0,0,0,25" LineHeight="22" />
+        
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="{Binding PrimaryButtonText}" Command="{Binding ButtonCommand}" CommandParameter="Primary" 
+                    Background="#FF4500" Foreground="White" FontWeight="Bold" Padding="12,6" FontSize="11" Cursor="Hand" />
+            
+            <Button Content="{Binding SecondaryButtonText}" Command="{Binding ButtonCommand}" CommandParameter="Secondary" 
+                    Background="#333333" Foreground="White" Padding="12,6" FontSize="11" Cursor="Hand" />
+            
+            <Button Content="{Binding CancelButtonText}" Command="{Binding ButtonCommand}" CommandParameter="Cancel" 
+                    Background="Transparent" Foreground="#AAAAAA" Padding="12,6" FontSize="11" Cursor="Hand" />
+        </StackPanel>
+        
+    </Grid>
+</Window>

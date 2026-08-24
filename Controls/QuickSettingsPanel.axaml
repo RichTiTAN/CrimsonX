@@ -1,0 +1,159 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="200"
+             x:Class="CrimsonX.Controls.QuickSettingsPanel">
+             
+    <Panel>
+        <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="6">
+            <StackPanel Spacing="6">
+                <!-- Header -->
+                <Grid ColumnDefinitions="*, Auto">
+                    <TextBlock x:Name="lblQuickSettings" Grid.Column="0" Text="QUICK SETTINGS" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    
+                    <Panel Grid.Column="1" HorizontalAlignment="Right">
+                        <!-- Default mode button -->
+                        <Button x:Name="btnCustomize" Click="btnCustomize_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="8,4" CornerRadius="4" Opacity="1" HorizontalAlignment="Right">
+                            <Button.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                                </Transitions>
+                            </Button.Transitions>
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                    <Setter Property="Background" Value="#1AFFFFFF"/>
+                                </Style>
+                            </Button.Styles>
+                            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <PathIcon Data="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" Width="8" Height="8" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="lblCustomize" Text="CUSTOMIZE" FontSize="8" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Edit mode buttons -->
+                        <StackPanel x:Name="panEditButtons" Orientation="Horizontal" Spacing="6" Opacity="0" IsHitTestVisible="False">
+                            <StackPanel.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                                </Transitions>
+                            </StackPanel.Transitions>
+                            
+                            <Button x:Name="btnSave" Click="btnSave_Click" Background="#2034D399" BorderThickness="0" Cursor="Hand" Padding="8,4" CornerRadius="4" Width="60" HorizontalContentAlignment="Center">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                        <Setter Property="Background" Value="#3034D399"/>
+                                    </Style>
+                                </Button.Styles>
+                                <TextBlock x:Name="lblSave" Text="SAVE" FontSize="10" FontWeight="Bold" Foreground="#34D399" LetterSpacing="1" VerticalAlignment="Center"/>
+                            </Button>
+
+                            <Button x:Name="btnCancel" Click="btnCancel_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="8,4" CornerRadius="4" Width="60" HorizontalContentAlignment="Center">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                        <Setter Property="Background" Value="#1AFFFFFF"/>
+                                    </Style>
+                                </Button.Styles>
+                                <TextBlock x:Name="lblCancel" Text="CANCEL" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                            </Button>
+                        </StackPanel>
+                    </Panel>
+                </Grid>
+
+                <!-- Slots -->
+                <Grid ColumnDefinitions="*, 6, *" Margin="0,0,0,0">
+                    
+                    <!-- Slot 1 -->
+                    <Border Grid.Column="0" BorderBrush="#2D3748" BorderThickness="1" Background="Transparent" CornerRadius="8" Padding="12,5.5">
+                        <Panel>
+                            <Grid x:Name="panSlot1Content" ColumnDefinitions="*, Auto" MinHeight="20" Opacity="1">
+                                <Grid.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                                    </Transitions>
+                                </Grid.Transitions>
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Grid.Column="0">
+                                    <PathIcon x:Name="icoSlot1" Width="12" Height="12" Foreground="#8B949E"/>
+                                    <TextBlock x:Name="lblSlot1" Classes="settingTitle" ToolTip.Tip="Placeholder" Text="DIRECT UDP" FontSize="10" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <Viewbox Grid.Column="1" Stretch="Uniform" Height="24" HorizontalAlignment="Right"><ToggleSwitch x:Name="togSlot1" OnContent="{x:Null}" OffContent="{x:Null}" IsCheckedChanged="TogSlot1_IsCheckedChanged"/></Viewbox>
+                            </Grid>
+                            <PathIcon x:Name="iconArrow1" Data="M7 10l5 5 5-5z" Width="12" Height="12" Foreground="#8B949E" Opacity="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <PathIcon.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                                    </Transitions>
+                                </PathIcon.Transitions>
+                            </PathIcon>
+                            <Button x:Name="btnSlot1" Opacity="0" IsHitTestVisible="False" Cursor="Hand" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnSlot1_Click"/>
+                        </Panel>
+                    </Border>
+                    
+                    <!-- Slot 2 -->
+                    <Border Grid.Column="2" BorderBrush="#2D3748" BorderThickness="1" Background="Transparent" CornerRadius="8" Padding="12,5.5">
+                        <Panel>
+                            <Grid x:Name="panSlot2Content" ColumnDefinitions="*, Auto" MinHeight="20" Opacity="1">
+                                <Grid.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                                    </Transitions>
+                                </Grid.Transitions>
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Grid.Column="0">
+                                    <PathIcon x:Name="icoSlot2" Width="12" Height="12" Foreground="#8B949E"/>
+                                    <TextBlock x:Name="lblSlot2" Classes="settingTitle" ToolTip.Tip="Placeholder" Text="AUTO-CONNECT" FontSize="10" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <Viewbox Grid.Column="1" Stretch="Uniform" Height="24" HorizontalAlignment="Right"><ToggleSwitch x:Name="togSlot2" OnContent="{x:Null}" OffContent="{x:Null}" IsCheckedChanged="TogSlot2_IsCheckedChanged"/></Viewbox>
+                            </Grid>
+                            <PathIcon x:Name="iconArrow2" Data="M7 10l5 5 5-5z" Width="12" Height="12" Foreground="#8B949E" Opacity="0" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <PathIcon.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                                    </Transitions>
+                                </PathIcon.Transitions>
+                            </PathIcon>
+                            <Button x:Name="btnSlot2" Opacity="0" IsHitTestVisible="False" Cursor="Hand" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnSlot2_Click"/>
+                        </Panel>
+                    </Border>
+
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Popups -->
+        <Popup x:Name="PopupSlot1" IsLightDismissEnabled="False">
+            <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="195" Padding="2">
+                <ScrollViewer MaxHeight="300">
+                    <StackPanel x:Name="panPopupSlot1Items">
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Popup>
+
+        <Popup x:Name="PopupSlot2" IsLightDismissEnabled="False">
+            <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="195" Padding="2">
+                <ScrollViewer MaxHeight="300">
+                    <StackPanel x:Name="panPopupSlot2Items">
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Popup>
+    </Panel>
+</UserControl>

@@ -1,0 +1,69 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:behaviors="clr-namespace:CrimsonX.Behaviors"
+             x:Class="CrimsonX.App"
+             RequestedThemeVariant="Default">
+
+    <Application.Resources>
+        <!-- Theme Colors (Default to Crimson) -->
+        <SolidColorBrush x:Key="ThemeAccent" Color="#B82E42"/>
+        <SolidColorBrush x:Key="ThemeAccentPointerOver" Color="#D13A51"/>
+        <SolidColorBrush x:Key="ThemeAccentPressed" Color="#932535"/>
+        <Color x:Key="ThemeGlow">#FFE64A62</Color>
+
+        <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#B82E42"/>
+        <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#D13A51"/>
+        <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#932535"/>
+        <SolidColorBrush x:Key="ToggleSwitchStrokeOn" Color="Transparent"/>
+        <SolidColorBrush x:Key="ToggleSwitchStrokeOnPointerOver" Color="Transparent"/>
+        <SolidColorBrush x:Key="ToggleSwitchStrokeOnPressed" Color="Transparent"/>
+        
+        <SolidColorBrush x:Key="SliderThumbBackground" Color="#B82E42"/>
+        <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#D13A51"/>
+        <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#932535"/>
+        <SolidColorBrush x:Key="SliderTrackValueFill" Color="#B82E42"/>
+        <SolidColorBrush x:Key="SliderTrackValueFillPointerOver" Color="#D13A51"/>
+        <SolidColorBrush x:Key="SliderTrackValueFillPressed" Color="#932535"/>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+        <Style Selector="Control">
+            <Setter Property="ToolTip.ShowDelay" Value="1500"/>
+        </Style>
+        <Style Selector="ScrollViewer">
+            <Setter Property="(behaviors:SmoothScrollBehavior.IsEnabled)" Value="True"/>
+            <Setter Property="BringIntoViewOnFocusChange" Value="False"/>
+        </Style>
+    
+        <Style Selector="Border.hoverBox">
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.hoverBox:pointerover">
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+        </Style>
+    </Application.Styles>
+</Application>

@@ -1,0 +1,86 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="CrimsonX.Controls.AnimatedBackground">
+    <Grid>
+        <Canvas IsHitTestVisible="False">
+
+            <!-- Blue Glow -->
+            <Border x:Name="b1" Canvas.Left="150" Canvas.Top="100">
+                <Border.RenderTransform>
+                    <TranslateTransform X="-150" Y="10"/>
+                </Border.RenderTransform>
+                <Ellipse x:Name="e1" Width="350" Height="350" IsHitTestVisible="False" Opacity="0.6">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush GradientOrigin="50%,50%" Center="50%,50%" RadiusX="50%" RadiusY="50%">
+                            <GradientStop Color="#FF2B6CB0" Offset="0"/>
+                            <GradientStop Color="#002B6CB0" Offset="1"/>
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                    <Ellipse.RenderTransform>
+                        <ScaleTransform ScaleX="1.4" ScaleY="0.7"/>
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+            </Border>
+
+            <!-- Purple Glow -->
+            <Border x:Name="b2" Canvas.Left="150" Canvas.Top="100">
+                <Border.RenderTransform>
+                    <TranslateTransform X="20" Y="-150"/>
+                </Border.RenderTransform>
+                <Ellipse x:Name="e2" Width="350" Height="350" IsHitTestVisible="False" Opacity="0.7">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush GradientOrigin="50%,50%" Center="50%,50%" RadiusX="50%" RadiusY="50%">
+                            <GradientStop Color="#FF805AD5" Offset="0"/>
+                            <GradientStop Color="#00805AD5" Offset="1"/>
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                    <Ellipse.RenderTransform>
+                        <ScaleTransform ScaleX="0.7" ScaleY="1.4"/>
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+            </Border>
+
+            <!-- Crimson Glow -->
+            <Border x:Name="b3" Canvas.Left="150" Canvas.Top="100">
+                <Border.RenderTransform>
+                    <TranslateTransform X="150" Y="60"/>
+                </Border.RenderTransform>
+                <Ellipse x:Name="e3" Width="350" Height="350" IsHitTestVisible="False" Opacity="0.6">
+                    <Ellipse.Fill>
+                        <RadialGradientBrush GradientOrigin="50%,50%" Center="50%,50%" RadiusX="50%" RadiusY="50%">
+                            <GradientStop Color="#FFE53E3E" Offset="0"/>
+                            <GradientStop Color="#00E53E3E" Offset="1"/>
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                    <Ellipse.RenderTransform>
+                        <ScaleTransform ScaleX="1.3" ScaleY="0.8"/>
+                    </Ellipse.RenderTransform>
+                </Ellipse>
+            </Border>
+
+        </Canvas>
+
+        <Image x:Name="imgDotOverlay" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Stretch="None" IsHitTestVisible="False" Opacity="1.0" />
+    </Grid>
+</UserControl>
