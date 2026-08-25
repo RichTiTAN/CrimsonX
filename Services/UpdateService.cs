@@ -97,6 +97,13 @@ namespace CrimsonX.Services
                     var streamTotal = total;
                     
                     using var fs = new FileStream(zipPath, existingLen > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+                    
+                    if (existingLen > 0 && dlResponse.StatusCode == System.Net.HttpStatusCode.OK)
+                    {
+                        existingLen = 0;
+                        fs.SetLength(0);
+                    }
+                    
                     using var stream = await dlResponse.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
                     var buffer = new byte[81920];
                     long downloaded = existingLen;
@@ -118,19 +125,22 @@ namespace CrimsonX.Services
                         }
                     }
                 
-                    if (streamTotal > 0 && new FileInfo(zipPath).Length != streamTotal)
-                    {
-                        throw new Exception("Downloaded file size does not match expected size. Download may be corrupted.");
-                    }
                 }
 
                 if (Directory.Exists(extPath)) Directory.Delete(extPath, true);
                 Dispatcher.UIThread.Post(() => progressCallback("EXTRACTING UPDATE..."));
                 
-                await Task.Run(() => {
-                    token.ThrowIfCancellationRequested();
-                    System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, extPath, true);
-                }, token).ConfigureAwait(false);
+                try
+                {
+                    await Task.Run(() => {
+                        token.ThrowIfCancellationRequested();
+                        System.IO.Compression.ZipFile.ExtractToDirectory(zipPath, extPath, true);
+                    }, token).ConfigureAwait(false);
+                }
+                catch (System.IO.InvalidDataException)
+                {
+                    throw new Exception("The downloaded update file is corrupt. It will be re-downloaded next time.");
+                }
 
                 var exeFile = Directory.GetFiles(extPath, "CrimsonX.exe", SearchOption.AllDirectories).FirstOrDefault();
                 if (exeFile == null) throw new Exception("CrimsonX.exe not found in the downloaded ZIP!");
@@ -163,9 +173,13 @@ namespace CrimsonX.Services
                 {
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                try { if (File.Exists(zipPath)) File.Delete(zipPath); } catch { }
+                bool isCorrupt = ex.Message.Contains("corrupt") || ex is System.IO.InvalidDataException;
+                if (isCorrupt)
+                {
+                    try { if (File.Exists(zipPath)) File.Delete(zipPath); } catch { }
+                }
                 try { if (Directory.Exists(extPath)) Directory.Delete(extPath, true); } catch { }
                 throw;
             }
