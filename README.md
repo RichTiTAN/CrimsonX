@@ -57,7 +57,10 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 If you don't want to rely on the automated scrapers, you can inject up to 2 of your own VLESS/VMESS/Shadowsocks configs directly in the Settings tab.
 
 ### 3. Load Balance Policies
-Head to the **Settings** tab to adjust how CrimsonX distributes connections. If you're downloading large files, **Least Load** or **Round Robin** is recommended. For gaming or VoIP, **Least Ping** ensures the lowest latency.
+Head to the **Settings** tab to adjust how CrimsonX distributes connections. If you're downloading large files, **Least Ping** or **Round Robin** is recommended.  
+
+### 4. Seamless Swap:
+The app constantly checks if your current configs are working and if they are not it will seamlessly replace them with working configs without disconnecting you from the internet.
 
 ### TROUBLESHOOTING:
 - Check the [Documentation file](./DOCUMENTATION.md) for detailed instructions.
