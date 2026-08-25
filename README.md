@@ -76,9 +76,7 @@ See the [LICENSE](LICENSE) file for more details.
 Creator: [@itsTiTANVPN](https://t.me/itsTitanVPN)  
 
 __Credits:__  
-HAProxy: https://github.com/xjoker/HAProxyForWindows  
-xray: https://github.com/xtls/xray-core  
-Tor: https://www.torproject.org/  
+xray: https://github.com/xtls/xray-core 
 Sing_Box: https://github.com/SagerNet/sing-box  
 Avalonia: https://github.com/avaloniaui
 
