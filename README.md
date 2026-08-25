@@ -18,6 +18,7 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 ## ✨ Key Features
 
 - 🚀 **Seamless Proxy and VPN integration:** Uses `Xray-core` for proxying and load-balancing, and `sing-box` for seamless system-wide VPN Mode (TUN).
+- 🔄️ **Seamless Swapping mechanism:** Actively checking and swapping dead configs for healthy ones.
 - ⚖️ **Intelligent Load Balancing:** Distribute traffic using multiple policies:
   - **Round Robin:** Evenly distributes connections across all active nodes.
   - **Least Ping:** Routes traffic through the node with the lowest latency.
@@ -28,7 +29,6 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
   - Exclude specific continents (Geo-IP based routing).
   - Enable Ad-Blocker to filter malicious and tracking requests.
   - Bypass proxy for specific apps or IPs (Direct UDP support).
-- 🌍 **Multi-Language & Theming:** Full RTL support for Persian (`فارسی`), and 5 beautiful gradient themes (Crimson, Blue, Purple, Green, Pink, Yellow).
 - 📡 **LAN Sharing:** Share your VPN connection over the local network, with optional Username/Password authentication.
 - 🔒 **DNS Control:** Built-in support for secure DNS-over-HTTPS (DoH) and customizable System DNS fallbacks.
 
@@ -59,7 +59,7 @@ If you don't want to rely on the automated scrapers, you can inject up to 2 of y
 ### 3. Load Balance Policies
 Head to the **Settings** tab to adjust how CrimsonX distributes connections. If you're downloading large files, **Least Ping** or **Round Robin** is recommended.  
 
-### 4. Seamless Swap:
+### 4. Seamless Swap
 The app constantly checks if your current configs are working and if they are not it will seamlessly replace them with working configs without disconnecting you from the internet.
 
 ### TROUBLESHOOTING:
