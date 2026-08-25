@@ -51,10 +51,19 @@ namespace CrimsonX.Services
         public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false)
         {
             var res = new ConfigTestResult { Link = link };
-            if (!XrayLinkParser.TryParseLink(link, out string outboundJsonStr))
-                return res;
+            string outboundJsonStr = string.Empty;
 
-            res.OutboundJson = outboundJsonStr;
+            if (link.TrimStart().StartsWith("{"))
+            {
+                outboundJsonStr = link;
+                res.OutboundJson = outboundJsonStr;
+            }
+            else
+            {
+                if (!XrayLinkParser.TryParseLink(link, out outboundJsonStr))
+                    return res;
+                res.OutboundJson = outboundJsonStr;
+            }
 
             int port = GetFreePort();
             string tempId = Guid.NewGuid().ToString("N");

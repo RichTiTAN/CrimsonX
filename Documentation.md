@@ -29,7 +29,7 @@ Located on the Home screen, this panel provides fast access to frequently toggle
 - **EXCLUDE LOCATIONS**
 - **CUSTOM CONFIGS**
 - **DISABLE BACKGROUND CHECK**
-- **DISABLE 4H REFRESH**
+- **DISABLE SEAMLESS SWAP**
 
 ### 🔄 Operating Modes
 Click the text beneath the Connect button to cycle through the operating modes:
@@ -101,7 +101,7 @@ The heart of CrimsonX's customization, broken down into specific sections:
 
 ### SYSTEM
 - **DISABLE BACKGROUND CHECK**: Stops the app from continuously testing new configs in the background while you are connected.
-- **DISABLE 4H REFRESH**: Prevents the app from fetching entirely new config lists from the cloud every 4 hours.
+- **DISABLE SEAMLESS SWAP**: Prevents the app from fetching entirely new config lists from the cloud every 1 hour and swapping them seamlessly.
 - **LANGUAGE**: Switch the entire interface between English and Persian (`فارسی`). Features full Right-To-Left (RTL) layout mirroring.
 - **DEBUG MODE**: Enables detailed error logging. Useful for reading logs in `error.log` when something fails to connect.
 - **DESKTOP SHORTCUT**: One-click button to create a CrimsonX shortcut on your desktop.

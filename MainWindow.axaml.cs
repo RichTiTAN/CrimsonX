@@ -293,7 +293,7 @@ public partial class MainWindow : Window
                 var btnTitleUpdate = this.FindControl<global::Avalonia.Controls.Button>("btnTitleUpdate");
                 if (btnTitleUpdate != null) btnTitleUpdate.IsVisible = true;
                 
-                string msg = CrimsonX.Localization.AppStrings.IsPersian ? "بروزرسانی جدید در دسترس است" : "NEW UPDATE AVAILABLE";
+                string msg = CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable;
                 SetUpdateUIStatus(msg);
             }
         }
@@ -337,19 +337,15 @@ public partial class MainWindow : Window
             }
             else
             {
-                ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                    ? "اتصال هنگام دانلود بروزرسانی قطع شد."
-                    : "Connection timed out while downloading the update.");
+                ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateDownloadTimeout);
             }
-            string msg = CrimsonX.Localization.AppStrings.IsPersian ? "بروزرسانی جدید در دسترس است" : "NEW UPDATE AVAILABLE";
+            string msg = CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable;
             SetUpdateUIStatus(msg);
         }
         catch (Exception ex)
         {
-            ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? $"خطا در بروزرسانی: {ex.Message}"
-                : $"Failed to update: {ex.Message}");
-            string msg = CrimsonX.Localization.AppStrings.IsPersian ? "بروزرسانی جدید در دسترس است" : "NEW UPDATE AVAILABLE";
+            ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateFailedPrefix + ex.Message);
+            string msg = CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable;
             SetUpdateUIStatus(msg);
         }
         finally
@@ -460,7 +456,7 @@ public partial class MainWindow : Window
             var btnTitleUpdate = this.FindControl<global::Avalonia.Controls.Button>("btnTitleUpdate");
             if (btnTitleUpdate != null) btnTitleUpdate.IsVisible = true;
 
-            string msg = CrimsonX.Localization.AppStrings.IsPersian ? "بروزرسانی جدید در دسترس است" : "NEW UPDATE AVAILABLE";
+            string msg = CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable;
             SetUpdateUIStatus(msg);
 
             _updateCts?.Dispose();
@@ -488,17 +484,13 @@ public partial class MainWindow : Window
             }
             else
             {
-                ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                    ? "اتصال هنگام بررسی بروزرسانی قطع شد."
-                    : "Connection timed out while checking for updates.");
+                ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateCheckTimeout);
             }
             Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.CheckForUpdates);
         }
         catch (Exception ex)
         {
-            ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? $"خطا در بروزرسانی: {ex.Message}"
-                : $"Failed to update: {ex.Message}");
+            ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateFailedPrefix + ex.Message);
             Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.CheckForUpdates);
         }
         finally
@@ -806,7 +798,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         AppStrings.Apply(F("lblDomainsAndIps"), AppStrings.DomainsAndIps);
         AppStrings.Apply(F("lblApplications"), AppStrings.Applications);
         var lblSplitAppsWarning = this.FindControl<TextBlock>("lblSplitAppsWarning");
-        if (lblSplitAppsWarning != null) lblSplitAppsWarning.Text = AppStrings.IsPersian ? "هشدار: به حروف بزرگ و کوچک حساس است" : "Warning: Case sensitive";
+        if (lblSplitAppsWarning != null) lblSplitAppsWarning.Text = CrimsonX.Localization.AppStrings.WarningCaseSensitive;
         AppStrings.Apply(F("lblBlockedDomainsIps"), AppStrings.BlockedDomains);
         AppStrings.Apply(F("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDP);
         AppStrings.ApplyToolTip(F("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDPTooltip);
@@ -915,9 +907,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
                 
                 if (_state.IsEngineRunning)
                 {
-                    ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                        ? "برای اعمال تغییرات دوباره متصل شوید."
-                        : "Reconnect to apply the changes.");
+                    ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
                 }
                 else
                 {

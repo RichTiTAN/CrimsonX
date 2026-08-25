@@ -96,6 +96,7 @@ namespace CrimsonX.Services
             }
 
             rules.Insert(0, new { type = "field", inboundTag = new[] { "api" }, outboundTag = "api" });
+            rules.Insert(1, new { type = "field", domain = new[] { "domain:crimsonx.itstitan.workers.dev", "domain:crimsonx.richtitan.workers.dev" }, outboundTag = "direct" });
             
             if (preferDirectDefault)
             {
@@ -127,6 +128,7 @@ namespace CrimsonX.Services
             var outbounds = new List<object>();
             var proxyCloneTags = new List<string>();
 
+            string sessionSuffix = Guid.NewGuid().ToString("N").Substring(0, 6);
             if (config.EnableV2rayChain && !string.IsNullOrWhiteSpace(config.V2rayChainJson))
             {
                 try
@@ -148,12 +150,12 @@ namespace CrimsonX.Services
                     {
                         for (int i = 1; i <= nodeCount; i++)
                         {
-                            string cloneTag = $"proxy-clone-{i}";
+                            string cloneTag = $"proxy-clone-{sessionSuffix}-{i}";
                             proxyCloneTags.Add(cloneTag);
 
                             var clone = (JObject)v2ob.DeepClone();
                             clone["tag"] = cloneTag;
-                            clone["proxySettings"] = JObject.FromObject(new { tag = $"proxy-node{i}" });
+                            clone["proxySettings"] = JObject.FromObject(new { tag = $"proxy-node-{sessionSuffix}-{i}" });
 
                             outbounds.Add(clone);
                         }
@@ -174,7 +176,7 @@ namespace CrimsonX.Services
             {
                 for (int i = 0; i < activeOutbounds.Count; i++)
                 {
-                    string tag = $"proxy-node{i + 1}";
+                    string tag = $"proxy-node-{sessionSuffix}-{i + 1}";
                     nodeOutboundTags.Add(tag);
                     var ob = (JObject)activeOutbounds[i].DeepClone();
                     ob["tag"] = tag;
@@ -201,8 +203,8 @@ namespace CrimsonX.Services
             allRules.AddRange(rules);
 
             var balancerSelector = useCustomChain && proxyCloneTags.Count > 0
-                ? proxyCloneTags.ToArray()
-                : nodeOutboundTags.ToArray();
+                ? new[] { "proxy-clone-" }
+                : new[] { "proxy-node-" };
 
             var balancers = new List<object>
             {
@@ -213,7 +215,7 @@ namespace CrimsonX.Services
             {
                 ["log"] = new { loglevel = "info", access = Path.Combine(xrayDir, "access.log").Replace("\\", "/"), error = Path.Combine(xrayDir, "error.log").Replace("\\", "/") },
                 ["stats"] = new { },
-                ["api"] = new { tag = "api", services = new[] { "StatsService" } },
+                ["api"] = new { tag = "api", services = new[] { "StatsService", "HandlerService" } },
                 ["policy"] = new
                 {
                     system = new
@@ -423,6 +425,7 @@ namespace CrimsonX.Services
                 new { protocol = "dns", action = "hijack-dns" },
                 new { port = new[] { 53 }, network = "udp", action = "hijack-dns" },
                 new { port = new[] { 53 }, network = "tcp", action = "hijack-dns" },
+                new { domain = new[] { "crimsonx.itstitan.workers.dev", "crimsonx.richtitan.workers.dev" }, action = "route", outbound = "direct" },
                 new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" }
             };
 

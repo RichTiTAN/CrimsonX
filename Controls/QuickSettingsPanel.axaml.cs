@@ -62,7 +62,7 @@ namespace CrimsonX.Controls
             "SYSTEM DNS", "AD BLOCKER", "LAN CONNECTIONS", 
             "LAUNCH ON START-UP", "AUTO-CONNECT", "START MINIMIZED", 
             "MINIMIZE TO TRAY", "EXCLUDE LOCATIONS", "CUSTOM CONFIGS", 
-            "DISABLE BACKGROUND CHECK", "DISABLE 4H REFRESH"
+            "DISABLE BACKGROUND CHECK", "DISABLE SEAMLESS SWAP"
         };
 
         private bool _isUpdating = false;
@@ -94,7 +94,7 @@ namespace CrimsonX.Controls
                 case "EXCLUDE LOCATIONS": return CrimsonX.Localization.AppStrings.ExcludeLocationsTitle;
                 case "CUSTOM CONFIGS": return CrimsonX.Localization.AppStrings.CustomConfigsTitle;
                 case "DISABLE BACKGROUND CHECK": return CrimsonX.Localization.AppStrings.DisableBackgroundChecks;
-                case "DISABLE 4H REFRESH": return CrimsonX.Localization.AppStrings.DisableRefreshTimer;
+                case "DISABLE SEAMLESS SWAP": return CrimsonX.Localization.AppStrings.DisableRefreshTimer;
                 default: return key;
             }
         }
@@ -120,7 +120,7 @@ namespace CrimsonX.Controls
                 case "MINIMIZE TO TRAY": return CrimsonX.Localization.AppStrings.TtMinimizeToTray;
                 case "CUSTOM CONFIGS": return null;
                 case "DISABLE BACKGROUND CHECK": return CrimsonX.Localization.AppStrings.TtDisableBackgroundChecks;
-                case "DISABLE 4H REFRESH": return CrimsonX.Localization.AppStrings.TtDisableRefreshTimer;
+                case "DISABLE SEAMLESS SWAP": return CrimsonX.Localization.AppStrings.TtDisableRefreshTimer;
                 default: return null;
             }
         }
@@ -143,7 +143,7 @@ namespace CrimsonX.Controls
                 "EXCLUDE LOCATIONS" => "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z",
                 "CUSTOM CONFIGS" => "M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z",
                 "DISABLE BACKGROUND CHECK" => "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z",
-                "DISABLE 4H REFRESH" => "M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z",
+                "DISABLE SEAMLESS SWAP" => "M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z",
                 _ => ""
             };
             
@@ -226,7 +226,7 @@ namespace CrimsonX.Controls
             {
                 { "START-UP", new List<string> { "LAUNCH ON START-UP", "AUTO-CONNECT", "START MINIMIZED", "MINIMIZE TO TRAY" } },
                 { "SPLIT TUNNELING", new List<string> { "DIRECT UDP", "EXCLUDE LOCATIONS", "AD BLOCKER" } },
-                { "SYSTEM", new List<string> { "DISABLE BACKGROUND CHECK", "DISABLE 4H REFRESH" } },
+                { "SYSTEM", new List<string> { "DISABLE BACKGROUND CHECK", "DISABLE SEAMLESS SWAP" } },
                 { "CONNECTION", new List<string> { "XRAY EXIT-NODE", "BIND ADAPTER", "DOH", "SYSTEM DNS", "LAN CONNECTIONS", "CUSTOM CONFIGS" } }
             };
 
@@ -373,7 +373,7 @@ namespace CrimsonX.Controls
                 case "EXCLUDE LOCATIONS": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togExcludeLocations");
                 case "CUSTOM CONFIGS": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togCustomConfigs");
                 case "DISABLE BACKGROUND CHECK": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togDisableBgChecks");
-                case "DISABLE 4H REFRESH": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togDisableRefreshTimer");
+                case "DISABLE SEAMLESS SWAP": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togDisableRefreshTimer");
             }
             return null;
         }

@@ -7,8 +7,7 @@
   *Automated config scraping, intelligent load-balancing, and seamless tunneling for Windows.*
 </div>
 
----  
-[Persian readme](https://github.com/RichTiTAN/CrimsonX/blob/main/README_fa.md)
+---
 
 ## 🌟 Overview
 
@@ -35,7 +34,7 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 
 ## 📸 Screenshots
 
-<img width="651" height="551" alt="Screenshot 2026-08-24 101948" src="https://github.com/user-attachments/assets/848df839-7d3e-456f-96ec-b89382f7e91a" />
+*(Add screenshots of your application here)*
 
 ## 📥 Installation
 
@@ -60,7 +59,7 @@ If you don't want to rely on the automated scrapers, you can inject up to 2 of y
 Head to the **Settings** tab to adjust how CrimsonX distributes connections. If you're downloading large files, **Least Load** or **Round Robin** is recommended. For gaming or VoIP, **Least Ping** ensures the lowest latency.
 
 ### TROUBLESHOOTING:
-- Check the [Documentation file](./DOCUMENTATION.md) for detailed instructions or [Persian Documentation](https://github.com/RichTiTAN/CrimsonX/blob/main/Documentation_fa.md).
+- Check the [Documentation file](./DOCUMENTATION.md) for detailed instructions.
 
 ## 📜 License
 
@@ -72,26 +71,3 @@ See the [LICENSE](LICENSE) file for more details.
 <div align="center">
   <i>Developed with ❤️ by RichTiTAN</i>
 </div>
-
-# Credits and Donations  
-Creator: [@itsTiTANVPN](https://t.me/itsTitanVPN)  
-
-__Credits:__  
-xray: https://github.com/xtls/xray-core  
-Sing_Box: https://github.com/SagerNet/sing-box  
-Avalonia: https://github.com/avaloniaui
-
-__Donations:__ 
-- If you want to support the project or me you can do so by sending your desired amount to one of these wallet addresses:
-
-USDT (BEP20)  
-`0xFc1d71C22DC2604f6C13Ca540ed842535cbE6d75`
-
-USDT (TRC20)  
-`TNMaNGDMG7BzbjkXeiguFWzDHZ4hCUU9R8`
-
-BITCOIN  
-`bc1quzdzuhrfse520r0wkqgkvsl7nv354r8sj5u9f9`  
-
-TON  
-`UQCB3bvk4nXMiokNWprb7CwPjurU8WOUfVSgAVXMMke0CxdW`

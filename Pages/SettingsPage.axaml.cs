@@ -369,6 +369,29 @@ namespace CrimsonX.Pages
             }
             MainWindow.Instance.Config.EnableCustomConfigs = tog.IsChecked.Value;
             MainWindow.Instance.RequestConfigSave();
+            NotifyCustomConfigsChanged(showSaveToast: false);
+        }
+    }
+
+    private void NotifyCustomConfigsChanged(bool showSaveToast)
+    {
+        if (MainWindow.Instance.State.IsEngineRunning)
+        {
+            if (MainWindow.Instance.Config.LastXrayMode == "VPN Mode")
+            {
+                if (showSaveToast) MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastSavedReconnect, success: true);
+                else MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+            }
+            else
+            {
+                MainWindow.Instance.SmartRestartXray();
+                if (showSaveToast) MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastSavedApplied, success: true);
+                else MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastChangesApplied, success: true);
+            }
+        }
+        else if (showSaveToast)
+        {
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastSaved, success: true);
         }
     }
 
@@ -380,6 +403,7 @@ namespace CrimsonX.Pages
         {
             MainWindow.Instance.Config.AllowOneCustomConfig = chk.IsChecked.Value;
             MainWindow.Instance.RequestConfigSave();
+            NotifyCustomConfigsChanged(showSaveToast: false);
         }
     }
 
@@ -401,6 +425,7 @@ namespace CrimsonX.Pages
         if (tog != null) tog.IsChecked = false;
         
         MainWindow.Instance.RequestConfigSave();
+        NotifyCustomConfigsChanged(showSaveToast: false);
     }
 
     private void btnCustomConfigsSave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -420,7 +445,7 @@ namespace CrimsonX.Pages
         }
 
         MainWindow.Instance.RequestConfigSave();
-        MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian ? "ذخیره شد!" : "Saved!", success: true);
+        NotifyCustomConfigsChanged(showSaveToast: true);
     }
 
     private async void btnCustomConfigsPing_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -1441,6 +1466,10 @@ private async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         
         _cfg.EnableExcludedContinents = tog.IsChecked.Value;
         MainWindow.Instance.RequestConfigSave();
+        if (MainWindow.Instance.State.IsEngineRunning)
+        {
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+        }
     }
     
     private void ContinentPill_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -1471,6 +1500,11 @@ private async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
                 _cfg.ExcludedContinents.Remove(fullContinentName);
             }
             MainWindow.Instance.RequestConfigSave();
+            
+            if (MainWindow.Instance.State.IsEngineRunning)
+            {
+                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+            }
             
             var togExcludeLocations = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togExcludeLocations");
             if (togExcludeLocations != null)

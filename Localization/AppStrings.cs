@@ -151,7 +151,7 @@ namespace CrimsonX.Localization
         public static string InvalidConfig => IsPersian ? "کانفیگ نامعتبر!" : "INVALID CONFIG!";
 
         public static string DisableBackgroundChecks => IsPersian ? "غیرفعال کردن بررسی پس‌زمینه" : "DISABLE BACKGROUND CHECK";
-        public static string DisableRefreshTimer     => IsPersian ? "غیرفعال کردن به‌روزرسانی ۴ساعته" : "DISABLE 4H REFRESH";
+        public static string DisableRefreshTimer     => IsPersian ? "غیرفعال کردن تعویض یکپارچه" : "DISABLE SEAMLESS SWAP";
 
         public static string CustomXrayExit     => IsPersian ? "نود خروجی Xray" : "CUSTOM XRAY EXIT-NODE";
         public static string OutboundProxy      => IsPersian ? "پروکسی خروجی"     : "OUTBOUND PROXY";
@@ -229,10 +229,30 @@ namespace CrimsonX.Localization
         public static string ToastShortcutCreated => IsPersian ? "شورتکات با موفقیت ایجاد شد!" : "Shortcut created successfully!";
         public static string ToastShortcutFailed => IsPersian ? "ایجاد شورتکات ناموفق بود." : "Failed to create shortcut.";
         public static string ToastReconnectChanges  => IsPersian ? "لطفا برای اعمال تغییرات مجددا متصل شوید." : "Please reconnect to apply the changes.";
-        public static string ToastReconnectSafely   => IsPersian ? "لطفاً برای اعمال ایمن تغییرات دوباره متصل شوید." : "Please reconnect to apply the changes safely.";
-        public static string ToastReconnectDns      => IsPersian ? "برای اعمال تغییرات DNS دوباره متصل شوید." : "Reconnect to apply the DNS changes.";
+        public static string ToastReconnectSafely   => ToastReconnectChanges;
+        public static string ToastReconnectDns      => ToastReconnectChanges;
         public static string ToastAddressCopied     => IsPersian ? "آدرس در کلیپ بورد کپی شد!" : "Address copied to clipboard!";
-        public static string RoutingOptimized   => IsPersian ? "بهینه"             : "OPTIMIZED";
+        public static string ToastSavedApplied      => IsPersian ? "ذخیره و اعمال شد!" : "Saved and applied!";
+        public static string ToastChangesApplied    => IsPersian ? "تغییرات اعمال شد!" : "Changes applied!";
+        public static string ToastSaved             => IsPersian ? "ذخیره شد!" : "Saved!";
+        public static string ToastSavedReconnect    => IsPersian ? "ذخیره شد! برای اعمال تغییرات اتصال را مجدد برقرار کنید." : "Saved! Reconnect to apply changes.";
+        public static string RoutingOptimized       => IsPersian ? "بهینه" : "OPTIMIZED";
+        public static string ToastCopiedToClipboard => IsPersian ? "کپی شد!" : "Copied to clipboard!";
+        public static string ToastAdapterNotAvailable => IsPersian ? "آداپتور انتخاب شده در دسترس نیست!" : "Selected adapter is not available!";
+        public static string ToastAdapterNoLongerAvail => IsPersian ? "آداپتور شبکه قبلی شما دیگر در دسترس نیست." : "Your previously selected network adapter is no longer available.";
+        public static string ToastEngineStartFailedPrefix => IsPersian ? "خطا در شروع موتور: " : "Engine start failed: ";
+        public static string ToastInvalidDnsPrimary => IsPersian ? "لطفاً یک آدرس IPv4 معتبر برای DNS اول وارد کنید." : "Please enter a valid IPv4 address for the primary DNS.";
+        public static string ToastInvalidDnsSecondary => IsPersian ? "لطفاً یک آدرس IPv4 معتبر برای DNS دوم وارد کنید." : "Please enter a valid IPv4 address for the secondary DNS.";
+        public static string ToastUsernameEmpty => IsPersian ? "لطفاً نام کاربری را وارد کنید." : "Please enter a username.";
+        public static string ToastPasswordEmpty => IsPersian ? "لطفاً رمز عبور را وارد کنید." : "Please enter a password.";
+        public static string ToastCredentialsSaved => IsPersian ? "اطلاعات ورود ذخیره شد." : "Credentials saved.";
+        public static string ToastUpdateCheckTimeout => IsPersian ? "اتصال هنگام بررسی بروزرسانی قطع شد." : "Connection timed out while checking for updates.";
+        public static string ToastUpdateDownloadTimeout => IsPersian ? "اتصال هنگام دانلود بروزرسانی قطع شد." : "Connection timed out while downloading the update.";
+        public static string ToastUpdateFailedPrefix => IsPersian ? "خطا در بروزرسانی: " : "Failed to update: ";
+        public static string ToastUpdateInstallFailedPrefix => IsPersian ? "خطا در نصب بروزرسانی: " : "Failed to install the update: ";
+        public static string ToastUpdateDownloadFailed => IsPersian ? "دانلود یا اعمال آپدیت ناموفق بود." : "Failed to download or apply the update.";
+        public static string ToastNewUpdateAvailable => IsPersian ? "بروزرسانی جدید در دسترس است" : "NEW UPDATE AVAILABLE";
+        public static string WarningCaseSensitive => IsPersian ? "هشدار: به حروف بزرگ و کوچک حساس است" : "Warning: Case sensitive";
 
         public static string DonationsTitle     => IsPersian ? "حمایت مالی"         : "DONATIONS";
         public static string DonationsDesc      => IsPersian ? "اگر می‌خواهید از من یا پروژه حمایت کنید، می‌توانید با ارسال مبلغ دلخواه به یکی از آدرس‌های کیف پول زیر این کار را انجام دهید،" : "if u want to support me or the project you can do so by sending your desired amount to one of these wallet addresses,";
@@ -245,7 +265,7 @@ namespace CrimsonX.Localization
         public static string TrayDisconnect     => IsPersian ? "قطع اتصال"         : "DISCONNECT";
         public static string TrayShowWindow     => IsPersian ? "نمایش پنجره"       : "SHOW WINDOW";
 
-        public static string TtCustomXray   => IsPersian ? "یک نود پروکسی شخصی تنظیم کنید. یک خروجی JSON جایگذاری کنید یا یک لینک اشتراک‌گذاری (VLESS, VMess, Trojan, SS-2022) وارد کنید." : "Configure a custom proxy node. Paste an outbound JSON or import a share link (VLESS, VMess, Trojan, SS-2022).";
+        public static string TtCustomXray   => IsPersian ? "یک نود پروکسی شخصی تنظیم کنید تا به عنوان نود خروجی شما عمل کند. ترافیک شما از طریق این سرور عبور کرده و وب‌سایت‌ها آدرس IP این سرور را خواهند دید. یک خروجی JSON جایگذاری کنید یا یک لینک اشتراک‌گذاری (VLESS, VMess, Trojan, SS-2022) وارد کنید." : "Configure a custom proxy node to act as your exit node. Your traffic will be routed through this server, and websites will see its IP address. Paste an outbound JSON or import a share link (VLESS, VMess, Trojan, SS-2022).";
         public static string TtOutboundProxy => IsPersian ? "کل اتصال پروکسی را از طریق یک پروکسی خروجی SOCKS5 یا HTTPS خارجی عبور می‌دهد. این بر نحوه بوت شدن پروکسی تأثیر می‌گذارد." : "Send the proxy's connection to the network through an external SOCKS5 or HTTPS proxy. This affects how the proxy boots up.";
         public static string TtAdapterBinding => IsPersian ? "کل ترافیک پروکسی را مجبور می‌کند منحصراً از طریق آداپتور شبکه انتخاب شده خارج شود. " : "Forces all proxy traffic to exclusively exit through the selected network adapter. ";
         public static string TtDnsSettings  => IsPersian ? "تنظیمات DNS رمزگذاری‌شده را کنترل می‌کند. DoH: DNS را از طریق HTTPS رمزگذاری می‌کند تا نشت و سانسور کاهش یابد؛ برای حالت پروکسی (Xray) و VPN (sing-box) اعمال می‌شود. DNS سیستم: DNS آداپتور شبکه اصلی ویندوز را هنگام اتصال تغییر می‌دهد تا پروکسی بتواند بوت‌استرپ کند؛ پس از قطع اتصال یا بستن برنامه بازگردانده می‌شود." : "Controls encrypted DNS settings. DoH: resolves DNS over HTTPS to reduce leaks and censorship; applies in proxy mode (Xray) and VPN mode (sing-box). System Proxy DNS: changes the Windows DNS on your main adapter at connect time so the proxy can bootstrap; restored on disconnect or app close.";
@@ -284,8 +304,8 @@ namespace CrimsonX.Localization
             : "Background checks continuously test new configs and store them in a reserve pool for faster failover if a connection drops. Enabling this stops the between-session reserve pool from being updated.";
 
         public static string TtDisableRefreshTimer => IsPersian
-            ? "هر ۴ ساعت یک‌بار، برنامه لیست کانفیگ‌های سرور را از اینترنت دریافت می‌کند تا مطمئن شود از جدیدترین کانفیگ‌ها استفاده می‌کند. با فعال کردن این گزینه، اتصال بین‌جلسه‌ای به‌روز نمی‌شود و ممکن است در طول زمان کندتر شود."
-            : "Every 4 hours the app fetches updated server configs from the network to ensure you are using the freshest nodes. Enabling this stops the mid-session refresh, which may cause performance to degrade over time.";
+            ? "هر ۱ ساعت یک‌بار، برنامه کانفیگ‌های جدید را دانلود کرده و در صورت نیاز آن‌ها را بدون قطع شدن اتصال شما به‌صورت یکپارچه جایگزین می‌کند. با فعال کردن این گزینه، این تعویض هوشمند بین‌جلسه‌ای غیرفعال می‌شود."
+            : "Every 1 hour the app fetches updated configs and seamlessly swaps them in the background without dropping your connection. Enabling this stops the mid-session seamless swap.";
 
         public static string SplitExplanationExclusive => IsPersian ? "فقط برنامه ها، دامنه ها، آیپی ها و پورت های لیست شده در اینجا از پروکسی مستثنی می شوند." : "Only bypass the proxy for the apps, domains, IPs and ports listed below.";
         public static string SplitExplanationInclusive => IsPersian ? "فقط برنامه ها، دامنه ها، آیپی ها و پورت های لیست شده در اینجا از طریق پروکسی هدایت می شوند." : "Only route the apps, domains, IPs and ports listed below through the proxy.";

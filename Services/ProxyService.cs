@@ -42,7 +42,7 @@ namespace CrimsonX.Services
                         if (enable)
                         {
                             key.SetValue("ProxyEnable", 1, RegistryValueKind.DWord);
-                            key.SetValue("ProxyServer", "127.0.0.1:10818", RegistryValueKind.String);
+                            key.SetValue("ProxyServer", "127.0.0.1:10919", RegistryValueKind.String);
                         }
                         else
                         {

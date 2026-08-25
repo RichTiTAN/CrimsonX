@@ -80,7 +80,7 @@ namespace CrimsonX.Models
         public string Language { get; set; } = "ENGLISH";
         public string ThemeColor { get; set; } = "Crimson";
         [JsonProperty("HaProxyBalancePolicy")]
-        public string XrayBalancePolicy { get; set; } = "roundrobin";
+        public string XrayBalancePolicy { get; set; } = "leastping";
     }
 
     public class AppState

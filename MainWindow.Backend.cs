@@ -698,7 +698,7 @@ public partial class MainWindow
             var clipboard = global::Avalonia.Controls.TopLevel.GetTopLevel(this)?.Clipboard;
             if (clipboard != null) _ = clipboard.SetTextAsync(text);
             
-            string msg = CrimsonX.Localization.AppStrings.IsPersian ? "کپی شد!" : "Copied to clipboard!";
+            string msg = CrimsonX.Localization.AppStrings.ToastCopiedToClipboard;
             ShowToast(msg, success: true);
         }
     }
@@ -759,7 +759,7 @@ public partial class MainWindow
             }
             if (!exists)
             {
-                ShowToast(CrimsonX.Localization.AppStrings.IsPersian ? "آداپتور انتخاب شده در دسترس نیست!" : "Selected adapter is not available!");
+                ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNotAvailable);
                 return;
             }
         }
@@ -781,9 +781,7 @@ public partial class MainWindow
         catch (Exception ex)
         {
             CrimsonX.Services.SimpleLogger.Log(ex);
-            ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? $"خطا در شروع موتور: {ex.Message}"
-                : $"Engine start failed: {ex.Message}");
+            ShowToast(CrimsonX.Localization.AppStrings.ToastEngineStartFailedPrefix + ex.Message);
             StopAllEngines();
         }
     }
@@ -791,13 +789,14 @@ public partial class MainWindow
 
     public void SmartRestartXray()
     {
-
         if (_cfg.LastXrayMode == "VPN Mode")
         {
             if (_state.IsConnected)
                 ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectSafely);
             else if (_state.IsEngineRunning)
                 ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+                
+            return;
         }
 
         if (_state.IsEngineRunning || _state.IsConnected)
@@ -828,7 +827,8 @@ public partial class MainWindow
         await CrimsonX.Services.XrayPipelineManager.SwapOutboundsAsync(
             CrimsonX.Services.XrayPipelineManager.ActiveOutbounds, 
             _cfg, 
-            _cfg.XrayDir);
+            _cfg.XrayDir,
+            true);
 
         ProxyService.SetSystemProxy(_cfg.LastXrayMode == "Proxy Mode");
 
@@ -1128,7 +1128,6 @@ public partial class MainWindow
 
     private void StartGeoPing()
     {
-        CrimsonX.Services.SimpleLogger.Log("StartGeoPing called from: " + new System.Diagnostics.StackTrace().ToString());
         _state.IsGeoTracing = true;
 
         var lblCountry = this.FindControl<TextBlock>("lblCountryName");
@@ -2114,7 +2113,7 @@ public partial class MainWindow
             }
             else
             {
-                ShowToast(CrimsonX.Localization.AppStrings.IsPersian ? "آداپتور شبکه قبلی شما دیگر در دسترس نیست." : "Your previously selected network adapter is no longer available.");
+                ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNoLongerAvail);
                 _cfg.SelectedAdapterName = "";
                 _cfg.SelectedAdapterIp = "";
                 RequestConfigSave();
@@ -2260,16 +2259,12 @@ public partial class MainWindow
 
         if (!DnsService.IsValidIpv4(primary))
         {
-            ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? "لطفاً یک آدرس IPv4 معتبر برای DNS اول وارد کنید."
-                : "Please enter a valid IPv4 address for the primary DNS.");
+            ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsPrimary);
             return;
         }
         if (!string.IsNullOrWhiteSpace(secondary) && !DnsService.IsValidIpv4(secondary))
         {
-            ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? "لطفاً یک آدرس IPv4 معتبر برای DNS دوم وارد کنید."
-                : "Please enter a valid IPv4 address for the secondary DNS.");
+            ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsSecondary);
             return;
         }
 
@@ -2304,17 +2299,13 @@ public partial class MainWindow
             {
                 if (!DnsService.IsValidIpv4(livePrimary))
                 {
-                    ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                        ? "لطفاً یک آدرس IPv4 معتبر برای DNS اول وارد کنید."
-                        : "Please enter a valid IPv4 address for the primary DNS.");
+                    ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsPrimary);
                     global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
                     return;
                 }
                 if (!string.IsNullOrWhiteSpace(liveSecondary) && !DnsService.IsValidIpv4(liveSecondary))
                 {
-                    ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                        ? "لطفاً یک آدرس IPv4 معتبر برای DNS دوم وارد کنید."
-                        : "Please enter a valid IPv4 address for the secondary DNS.");
+                    ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsSecondary);
                     global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
                     return;
                 }
@@ -2419,9 +2410,7 @@ public partial class MainWindow
             if (_state.IsEngineRunning)
             {
                 if (_pollMode == "VPN Mode")
-                    ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                        ? "\u0628\u0631\u0627\u06cc \u0627\u0639\u0645\u0627\u0644 \u062a\u063a\u06cc\u06cc\u0631\u0627\u062a \u062f\u0648\u0628\u0627\u0631\u0647 \u0645\u062a\u0635\u0644 \u0634\u0648\u06cc\u062f."
-                        : "Reconnect to apply the changes.");
+                    ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
                 else
                     SmartRestartXray();
             }
@@ -2436,9 +2425,7 @@ public partial class MainWindow
                 if (_state.IsEngineRunning)
                 {
                     if (_pollMode == "VPN Mode")
-                        ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                            ? "\u0628\u0631\u0627\u06cc \u0627\u0639\u0645\u0627\u0644 \u062a\u063a\u06cc\u06cc\u0631\u0627\u062a \u062f\u0648\u0628\u0627\u0631\u0647 \u0645\u062a\u0635\u0644 \u0634\u0648\u06cc\u062f."
-                        : "Reconnect to apply the changes.");
+                        ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
                     else
                         SmartRestartXray();
                 }
@@ -2458,9 +2445,7 @@ public partial class MainWindow
 
         if (string.IsNullOrWhiteSpace(user))
         {
-            ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? "\u0644\u0637\u0641\u0627\u064b \u0646\u0627\u0645 \u06a9\u0627\u0631\u0628\u0631\u06cc \u0631\u0627 \u0648\u0627\u0631\u062f \u06a9\u0646\u06cc\u062f."
-                : "Please enter a username.");
+            ShowToast(CrimsonX.Localization.AppStrings.ToastUsernameEmpty);
             return;
         }
 
@@ -2477,17 +2462,13 @@ public partial class MainWindow
         if (_state.IsEngineRunning)
         {
             if (_pollMode == "VPN Mode")
-                ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                    ? "\u0628\u0631\u0627\u06cc \u0627\u0639\u0645\u0627\u0644 \u062a\u063a\u06cc\u06cc\u0631\u0627\u062a \u062f\u0648\u0628\u0627\u0631\u0647 \u0645\u062a\u0635\u0644 \u0634\u0648\u06cc\u062f."
-                    : "Reconnect to apply the changes.");
+                ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
             else
                 SmartRestartXray();
         }
         else
         {
-            ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? "\u0627\u0637\u0644\u0627\u0639\u0627\u062a \u0648\u0631\u0648\u062f \u0630\u062e\u06cc\u0631\u0647 \u0634\u062f."
-                : "Credentials saved.", success: true);
+            ShowToast(CrimsonX.Localization.AppStrings.ToastCredentialsSaved, success: true);
         }
     }
 
