@@ -93,3 +93,6 @@ USDT (TRC20)
 
 BITCOIN  
 `bc1quzdzuhrfse520r0wkqgkvsl7nv354r8sj5u9f9`
+
+TON
+`UQCB3bvk4nXMiokNWprb7CwPjurU8WOUfVSgAVXMMke0CxdW`
