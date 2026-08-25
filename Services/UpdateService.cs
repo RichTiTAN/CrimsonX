@@ -33,6 +33,7 @@ namespace CrimsonX.Services
         public const string AppVersion = "1.0.1";
         
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        private static readonly HttpClient _dlClient = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
 
         public static async Task<(string? remoteVer, string? remoteMin)> CheckForUpdatesAsync(CancellationToken token = default)
         {
@@ -59,44 +60,71 @@ namespace CrimsonX.Services
             var zipPath = Path.Combine(baseDir, "update_temp.zip");
             var extPath = Path.Combine(baseDir, "update_extracted");
             
-            if (Directory.Exists(extPath)) Directory.Delete(extPath, true);
-
-            Dispatcher.UIThread.Post(() => progressCallback($"DOWNLOADING UPDATE... 0% (CLICK TO CANCEL)"));
-
             try
             {
-                using var dlResponse = await _httpClient.GetAsync(zipUrl, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
-                dlResponse.EnsureSuccessStatusCode();
+                long existingLen = 0;
+                if (File.Exists(zipPath))
+                    existingLen = new FileInfo(zipPath).Length;
+
+                using var headReq = new HttpRequestMessage(HttpMethod.Head, zipUrl);
+                using var headRes = await _httpClient.SendAsync(headReq, token).ConfigureAwait(false);
+                headRes.EnsureSuccessStatusCode();
                 
-                var total = dlResponse.Content.Headers.ContentLength ?? -1L;
+                var total = headRes.Content.Headers.ContentLength ?? -1L;
                 
-                using var fs = File.Create(zipPath);
-                using var stream = await dlResponse.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
-                var buffer = new byte[81920];
-                long downloaded = 0;
-                int read;
-                int lastPct = -1;
-                
-                while ((read = await stream.ReadAsync(buffer, token).ConfigureAwait(false)) > 0)
+                if (total > 0 && existingLen == total)
                 {
-                    await fs.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
-                    downloaded += read;
-                    if (total > 0)
+                    Dispatcher.UIThread.Post(() => progressCallback($"UPDATE ALREADY DOWNLOADED... EXTRACTING"));
+                }
+                else
+                {
+                    using var req = new HttpRequestMessage(HttpMethod.Get, zipUrl);
+                    if (existingLen > 0 && existingLen < total)
                     {
-                        int pct = (int)(downloaded * 100 / total);
-                        if (pct != lastPct)
+                        req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(existingLen, null);
+                        Dispatcher.UIThread.Post(() => progressCallback($"RESUMING DOWNLOAD..."));
+                    }
+                    else
+                    {
+                        existingLen = 0;
+                        if (File.Exists(zipPath)) File.Delete(zipPath);
+                        Dispatcher.UIThread.Post(() => progressCallback($"DOWNLOADING UPDATE... 0% (CLICK TO CANCEL)"));
+                    }
+
+                    using var dlResponse = await _dlClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+                    dlResponse.EnsureSuccessStatusCode();
+                    
+                    var streamTotal = total;
+                    
+                    using var fs = new FileStream(zipPath, existingLen > 0 ? FileMode.Append : FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+                    using var stream = await dlResponse.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
+                    var buffer = new byte[81920];
+                    long downloaded = existingLen;
+                    int read;
+                    int lastPct = -1;
+                    
+                    while ((read = await stream.ReadAsync(buffer, token).ConfigureAwait(false)) > 0)
+                    {
+                        await fs.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
+                        downloaded += read;
+                        if (streamTotal > 0)
                         {
-                            lastPct = pct;
-                            Dispatcher.UIThread.Post(() => progressCallback($"DOWNLOADING UPDATE... {pct}% (CLICK TO CANCEL)"));
+                            int pct = (int)(downloaded * 100 / streamTotal);
+                            if (pct != lastPct)
+                            {
+                                lastPct = pct;
+                                Dispatcher.UIThread.Post(() => progressCallback($"DOWNLOADING UPDATE... {pct}% (CLICK TO CANCEL)"));
+                            }
                         }
+                    }
+                
+                    if (streamTotal > 0 && new FileInfo(zipPath).Length != streamTotal)
+                    {
+                        throw new Exception("Downloaded file size does not match expected size. Download may be corrupted.");
                     }
                 }
 
-                if (total > 0 && new FileInfo(zipPath).Length != total)
-                {
-                    throw new Exception("Downloaded file size does not match expected size. Download may be corrupted.");
-                }
-
+                if (Directory.Exists(extPath)) Directory.Delete(extPath, true);
                 Dispatcher.UIThread.Post(() => progressCallback("EXTRACTING UPDATE..."));
                 
                 await Task.Run(() => {
@@ -110,9 +138,28 @@ namespace CrimsonX.Services
                 var sourceDir = Path.GetDirectoryName(exeFile)!;
                 var currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? "";
                 
-                var cmdArgs = $"/c ping 127.0.0.1 -n 4 > nul & xcopy /Y /E /H /C /I \"{sourceDir}\\*\" \"{baseDir}\" & rmdir /S /Q \"{extPath}\" & del /Q \"{zipPath}\" & start \"\" \"{currentExe}\"";
+                var batContent = "@echo off\n" +
+":waitloop\n" +
+"tasklist | find /i \"CrimsonX.exe\" > nul\n" +
+"if not errorlevel 1 (\n" +
+"    timeout /t 1 > nul\n" +
+"    goto waitloop\n" +
+")\n" +
+":copyloop\n" +
+"xcopy /Y /E /H /C /I \"" + sourceDir + "\\*\" \"" + baseDir + "\"\n" +
+"if errorlevel 1 (\n" +
+"    timeout /t 1 > nul\n" +
+"    goto copyloop\n" +
+")\n" +
+"rmdir /S /Q \"" + extPath + "\"\n" +
+"del /Q \"" + zipPath + "\"\n" +
+"start \"\" \"" + currentExe + "\"\n" +
+"del \"%~f0\"\n";
 
-                using (Process.Start(new ProcessStartInfo("cmd.exe", cmdArgs) { WindowStyle = ProcessWindowStyle.Hidden, CreateNoWindow = true }))
+                var batPath = Path.Combine(baseDir, "updater.bat");
+                File.WriteAllText(batPath, batContent);
+
+                using (Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{batPath}\"") { WindowStyle = ProcessWindowStyle.Hidden, CreateNoWindow = true }))
                 {
                 }
             }
