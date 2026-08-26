@@ -34,7 +34,7 @@
 
 ## 📸 اسکرین‌شات‌ها
 
-*(اسکرین‌شات‌های برنامه خود را اینجا اضافه کنید)*
+<img width="651" height="551" alt="Screenshot 2026-08-24 101948" src="https://github.com/user-attachments/assets/90de8995-ddac-489c-a5d4-b5b9ddc6ad5c" />
 
 ## 📥 نصب
 
