@@ -69,6 +69,7 @@ Split Tunneling gives you granular control over what traffic is routed through t
 
 ### Direct UDP
 - **DIRECT UDP Toggle**: Forces all UDP traffic (like Discord voice or competitive games) to bypass the proxy and use your direct internet connection, ensuring minimal latency while keeping TCP traffic proxied.
+- You can also choose which adapter should handle your Direct UDP traffic.
 
 ---
 
