@@ -9,28 +9,28 @@
 
 ---
 
-## 🌟 Overview
+##  Overview
 
 **CrimsonX** is an advanced proxy/vpn client for Windows built with C# and Avalonia UI. It takes advantage of the powerful **Xray-core** and **sing-box** engines under the hood, wrapping them in a beautiful, highly animated, and user-friendly interface.
 
 Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantly pulls, tests, and caches the fastest configurations in the background. It automatically load-balances traffic across multiple nodes to ensure uninterrupted, high-speed connectivity.
 
-## ✨ Key Features
+##  Key Features
 
-- 🚀 **Seamless Proxy and VPN integration:** Uses `Xray-core` for proxying and load-balancing, and `sing-box` for seamless system-wide VPN Mode (TUN).
-- 🔄️ **Seamless Swapping mechanism:** Actively checking and swapping dead configs for healthy ones.
-- ⚖️ **Intelligent Load Balancing:** Distribute traffic using multiple policies:
+-  **Seamless Proxy and VPN integration:** Uses `Xray-core` for proxying and load-balancing, and `sing-box` for seamless system-wide VPN Mode (TUN).
+-  **Seamless Swapping mechanism:** Actively checking and swapping dead configs for healthy ones.
+-  **Intelligent Load Balancing:** Distribute traffic using multiple policies:
   - **Round Robin:** Evenly distributes connections across all active nodes.
   - **Least Ping:** Routes traffic through the node with the lowest latency.
   - **Least Load:** Dynamically selects the node with the fewest active connections.
   - **Random:** Picks a node at random for statistical distribution.
-- 🔄 **Dynamic Config Pipeline:** Automatically scrapes, background-tests, and caches working proxy configurations from remote workers, prioritizing cached configs on the next startup.
-- 🛡️ **Advanced Split Tunneling:** Fine-tune your routing rules:
+-  **Dynamic Config Pipeline:** Automatically scrapes, background-tests, and caches working proxy configurations from remote workers, prioritizing cached configs on the next startup.
+-  **Advanced Split Tunneling:** Fine-tune your routing rules:
   - Exclude specific continents (Geo-IP based routing).
   - Enable Ad-Blocker to filter malicious and tracking requests.
   - Bypass proxy for specific apps or IPs (Direct UDP support).
-- 📡 **LAN Sharing:** Share your VPN connection over the local network, with optional Username/Password authentication.
-- 🔒 **DNS Control:** Built-in support for secure DNS-over-HTTPS (DoH) and customizable System DNS fallbacks.
+-  **LAN Sharing:** Share your VPN connection over the local network, with optional Username/Password authentication.
+-  **DNS Control:** Built-in support for secure DNS-over-HTTPS (DoH) and customizable System DNS fallbacks.
 
 ## 📸 Screenshots
 
