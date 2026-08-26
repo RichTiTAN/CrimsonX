@@ -63,7 +63,7 @@ Head to the **Settings** tab to adjust how CrimsonX distributes connections. If 
 The app constantly checks if your current configs are working and if they are not it will seamlessly replace them with working configs without disconnecting you from the internet.
 
 ### TROUBLESHOOTING:
-- Check the [Documentation file](./DOCUMENTATION.md) for detailed instructions.
+- Check the [Documentation file](https://github.com/RichTiTAN/CrimsonX/blob/main/Documentation.md) for detailed instructions.
 
 ## 📜 License
 
