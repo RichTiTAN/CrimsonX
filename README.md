@@ -20,10 +20,10 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 -  **Seamless Proxy and VPN integration:** Uses `Xray-core` for proxying and load-balancing, and `sing-box` for seamless system-wide VPN Mode (TUN).
 -  **Seamless Swapping mechanism:** Actively checking and swapping dead configs for healthy ones.
 -  **Intelligent Load Balancing:** Distribute traffic using multiple policies:
-  - **Round Robin:** Evenly distributes connections across all active nodes.
-  - **Least Ping:** Routes traffic through the node with the lowest latency.
-  - **Least Load:** Dynamically selects the node with the fewest active connections.
-  - **Random:** Picks a node at random for statistical distribution.
+  - Round Robin: Evenly distributes connections across all active nodes.
+  - Least Ping: Routes traffic through the node with the lowest latency.
+  - Least Load: Dynamically selects the node with the fewest active connections.
+  - Random: Picks a node at random for statistical distribution.
 -  **Dynamic Config Pipeline:** Automatically scrapes, background-tests, and caches working proxy configurations from remote workers, prioritizing cached configs on the next startup.
 -  **Advanced Split Tunneling:** Fine-tune your routing rules:
   - Exclude specific continents (Geo-IP based routing).
