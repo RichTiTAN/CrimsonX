@@ -71,3 +71,26 @@
 <div align="center">
   <i>توسعه یافته با ❤️ توسط RichTiTAN</i>
 </div>
+
+# Credits and Donations  
+Creator: [@itsTiTANVPN](https://t.me/itsTitanVPN)  
+
+__Credits:__  
+xray: https://github.com/xtls/xray-core  
+Sing_Box: https://github.com/SagerNet/sing-box  
+Avalonia: https://github.com/avaloniaui
+
+__Donations:__ 
+- If you want to support the project or me you can do so by sending your desired amount to one of these wallet addresses:
+
+USDT (BEP20)  
+`0xFc1d71C22DC2604f6C13Ca540ed842535cbE6d75`
+
+USDT (TRC20)  
+`TNMaNGDMG7BzbjkXeiguFWzDHZ4hCUU9R8`
+
+BITCOIN  
+`bc1quzdzuhrfse520r0wkqgkvsl7nv354r8sj5u9f9`
+
+TON  
+`UQCB3bvk4nXMiokNWprb7CwPjurU8WOUfVSgAVXMMke0CxdW`
