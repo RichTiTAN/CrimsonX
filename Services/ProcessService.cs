@@ -39,8 +39,42 @@ namespace CrimsonX.Services
                     CreateNoWindow = hidden,
                     WindowStyle = hidden ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal
                 };
+
+                if (hidden)
+                {
+                    psi.RedirectStandardError = true;
+                    psi.RedirectStandardOutput = true;
+                }
+
                 var process = new Process { StartInfo = psi };
+
+                if (hidden)
+                {
+                    string pName = Path.GetFileName(filePath);
+                    process.ErrorDataReceived += (s, e) =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(e.Data) && (e.Data.IndexOf("FATAL", StringComparison.OrdinalIgnoreCase) >= 0 || e.Data.IndexOf("ERROR", StringComparison.OrdinalIgnoreCase) >= 0))
+                        {
+                            CrimsonX.Services.SimpleLogger.Log($"[{pName}] {e.Data}");
+                        }
+                    };
+                    process.OutputDataReceived += (s, e) =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(e.Data) && e.Data.IndexOf("FATAL", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            CrimsonX.Services.SimpleLogger.Log($"[{pName}] {e.Data}");
+                        }
+                    };
+                }
+
                 process.Start();
+
+                if (hidden)
+                {
+                    process.BeginErrorReadLine();
+                    process.BeginOutputReadLine();
+                }
+
                 try { JobManager.AddProcess(process); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
                 try { if (!process.HasExited) process.PriorityClass = ProcessPriorityClass.BelowNormal; } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
                 return process;

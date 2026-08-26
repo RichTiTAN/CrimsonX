@@ -51,13 +51,32 @@ namespace CrimsonX.Pages
 
         private string _tempBlock = "";
 
+        private bool _isInitializingSettings = false;
+
         public SplitTunnelPage()
         {
             Instance = this;
+            _isInitializingSettings = true;
             InitializeComponent();
             ApplyLanguage();
             var lstApps = this.FindControl<Avalonia.Controls.ItemsControl>("lstApps");
             if (lstApps != null) lstApps.ItemsSource = AppItems;
+            _isInitializingSettings = false;
+        }
+
+
+        public void SyncUI()
+        {
+            _isInitializingSettings = true;
+            try 
+            {
+                var togDirectUDP = this.FindControl<ToggleSwitch>("togDirectUDP");
+                if (togDirectUDP != null) togDirectUDP.IsChecked = MainWindow.Instance.Config.EnableDirectUDP;
+            }
+            finally
+            {
+                _isInitializingSettings = false;
+            }
         }
 
         public void ApplyLanguage()
@@ -179,7 +198,6 @@ namespace CrimsonX.Pages
             if (lblSplitAppsWarning != null) lblSplitAppsWarning.Text = AppStrings.IsPersian ? "هشدار: به حروف بزرگ و کوچک حساس است" : "Warning: Case sensitive";
             
             var togDirectUDP = this.FindControl<ToggleSwitch>("togDirectUDP");
-            if (togDirectUDP != null) togDirectUDP.IsChecked = _cfg.EnableDirectUDP;
 
             UpdateSplitTunnelUI();
         }
@@ -558,13 +576,14 @@ namespace CrimsonX.Pages
 
         private void togDirectUDP_IsCheckedChanged(object? sender, RoutedEventArgs e)
         {
+            if (_isInitializingSettings) return;
             if (sender is ToggleSwitch tog)
             {
                 bool val = tog.IsChecked ?? false;
                 if (_cfg.EnableDirectUDP != val)
                 {
                     _cfg.EnableDirectUDP = val;
-                    MainWindow.Instance.RequestSave();
+                    MainWindow.Instance.SaveConfig();
                     if (_state.IsEngineRunning)
                         MainWindow.Instance.RestartXray();
                 }
@@ -574,5 +593,141 @@ namespace CrimsonX.Pages
         private void txtSplit_TextChanged(object? sender, TextChangedEventArgs e)
         {
         }
+
+        private bool _isDirectUdpExpanded = false;
+
+        private void btnDirectUdpToggle_Click(object? sender, RoutedEventArgs e)
+        {
+            if (e != null)
+            {
+                var src = e.Source as global::Avalonia.Controls.Control;
+                while (src != null)
+                {
+                    if (src.Name == "togDirectUDP") return;
+                    src = src.Parent as global::Avalonia.Controls.Control;
+                }
+            }
+
+            _isDirectUdpExpanded = !_isDirectUdpExpanded;
+            var pan = this.FindControl<Border>("panDirectUdpExpanded");
+            var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoDirectUdpExpander");
+            
+            var panToggle = this.FindControl<Border>("panDirectUdpToggle");
+            var btnToggle = this.FindControl<Button>("btnDirectUdpToggle");
+
+            if (panToggle != null) panToggle.CornerRadius = _isDirectUdpExpanded ? new Avalonia.CornerRadius(8, 8, 0, 0) : new Avalonia.CornerRadius(8);
+            if (btnToggle != null) btnToggle.CornerRadius = _isDirectUdpExpanded ? new Avalonia.CornerRadius(8, 8, 0, 0) : new Avalonia.CornerRadius(8);
+            
+            if (pan != null)
+            {
+                if (_isDirectUdpExpanded)
+                {
+                    pan.MaxHeight = 200;
+                    pan.Opacity = 1;
+                    if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(180);
+                    
+                    var cmb = this.FindControl<ComboBox>("cmbUdpAdapters");
+                    if (cmb != null && cmb.Items.Count == 0)
+                    {
+                        btnScanUdpAdapters_Click(null, null);
+                    }
+                }
+                else
+                {
+                    pan.MaxHeight = 0;
+                    pan.Opacity = 0;
+                    if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(0);
+                }
+            }
+        }
+
+        private bool _isScanningUdpAdapters = false;
+
+        private void btnScanUdpAdapters_Click(object? sender, RoutedEventArgs e)
+        {
+            var cmb = this.FindControl<ComboBox>("cmbUdpAdapters");
+            if (cmb == null) return;
+            
+            _isScanningUdpAdapters = true;
+            try {
+                cmb.Items.Clear();
+                cmb.Items.Add("Default");
+            var adapters = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
+            foreach (var adapter in adapters)
+            {
+                if (adapter.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up && 
+                    adapter.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
+                {
+                    var properties = adapter.GetIPProperties();
+                    var ipv4 = properties.UnicastAddresses.FirstOrDefault(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+                    if (ipv4 != null && !string.IsNullOrWhiteSpace(ipv4.Address.ToString()))
+                    {
+                        cmb.Items.Add($"{adapter.Name} - {ipv4.Address}");
+                    }
+                }
+            }
+            
+            if (!string.IsNullOrWhiteSpace(_cfg.DirectUdpAdapterName) && !string.IsNullOrWhiteSpace(_cfg.DirectUdpAdapterIp))
+            {
+                string target = $"{_cfg.DirectUdpAdapterName} - {_cfg.DirectUdpAdapterIp}";
+                if (cmb.Items.Contains(target))
+                {
+                    cmb.SelectedItem = target;
+                }
+                else
+                {
+                    cmb.Items.Add(target);
+                    cmb.SelectedItem = target;
+                }
+            }
+            else
+            {
+                cmb.SelectedIndex = 0;
+            }
+            } finally {
+                _isScanningUdpAdapters = false;
+            }
+        }
+
+        private void cmbUdpAdapters_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_isScanningUdpAdapters) return;
+            var cmb = sender as ComboBox;
+            if (cmb != null && cmb.SelectedItem is string selectedText)
+            {
+                if (selectedText == "Default")
+                {
+                    if (!string.IsNullOrWhiteSpace(_cfg.DirectUdpAdapterName) || !string.IsNullOrWhiteSpace(_cfg.DirectUdpAdapterIp))
+                    {
+                        _cfg.DirectUdpAdapterName = "";
+                        _cfg.DirectUdpAdapterIp = "";
+                        MainWindow.Instance.SaveConfig();
+                        if (_state.IsEngineRunning)
+                            MainWindow.Instance.RestartXray();
+                    }
+                }
+                else
+                {
+                    var parts = selectedText.Split(new[] { " - " }, StringSplitOptions.None);
+                    if (parts.Length >= 2)
+                    {
+                        var newIp   = parts[parts.Length - 1];
+                        var newName = string.Join(" - ", parts, 0, parts.Length - 1);
+
+                        bool changed = newIp != _cfg.DirectUdpAdapterIp || newName != _cfg.DirectUdpAdapterName;
+                        if (changed)
+                        {
+                            _cfg.DirectUdpAdapterName = newName;
+                            _cfg.DirectUdpAdapterIp = newIp;
+                            MainWindow.Instance.RequestSave();
+                            if (_state.IsEngineRunning)
+                                MainWindow.Instance.RestartXray();
+                        }
+                    }
+                }
+            }
+        }
     }
 }
+
+

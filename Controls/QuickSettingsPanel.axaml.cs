@@ -352,14 +352,9 @@ namespace CrimsonX.Controls
             if (MainWindow.Instance == null) return null;
             if (Pages.SettingsPage.Instance == null) return null;
 
-            var pnlSplit = MainWindow.Instance.FindControl<Panel>("viewSplitTunneling");
-            Pages.SplitTunnelPage? splitTunnel = null;
-            if (pnlSplit != null && pnlSplit.Children.Count > 0)
-                splitTunnel = pnlSplit.Children[0] as Pages.SplitTunnelPage;
-
             switch (name)
             {
-                case "DIRECT UDP": return splitTunnel?.FindControl<ToggleSwitch>("togDirectUDP");
+                case "DIRECT UDP": return Pages.SplitTunnelPage.Instance?.FindControl<ToggleSwitch>("togDirectUDP");
                 case "XRAY EXIT-NODE": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togXrayExitNode");
                 case "BIND ADAPTER": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togAdapterBinding");
                 case "DOH": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togDnsSettings");

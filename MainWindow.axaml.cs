@@ -115,17 +115,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         Instance = this;
-        InitializeComponent();
-        DataContext = this;
-
-        this.Deactivated += (s, e) => CloseAllOverlays();
-
-        this.LayoutUpdated += (s, e) => UpdateMiniNavUnderline();
-        
-        var lblVer = this.FindControl<global::Avalonia.Controls.TextBlock>("lblVersion");
-        if (lblVer != null) lblVer.Text = Services.UpdateService.AppVersion;
-
-        DataContext = this;
 
         _cfg   = new AppConfig();
         _state = new AppState();
@@ -140,6 +129,17 @@ public partial class MainWindow : Window
         ConfigService.Load(_cfg, _state, _cfg.CfgFile);
         CrimsonX.Services.SimpleLogger.EnableLogging = _cfg.DebugMode;
         CrimsonX.Services.SimpleLogger.Log($"[Startup] CrimsonX v{Services.UpdateService.AppVersion} — Mode={_cfg.LastXrayMode}");
+
+        InitializeComponent();
+        DataContext = this;
+
+        this.Deactivated += (s, e) => CloseAllOverlays();
+
+        this.LayoutUpdated += (s, e) => UpdateMiniNavUnderline();
+        
+        var lblVer = this.FindControl<global::Avalonia.Controls.TextBlock>("lblVersion");
+        if (lblVer != null) lblVer.Text = Services.UpdateService.AppVersion;
+
         ApplyTheme(_cfg.ThemeColor);
         _pollMode = _cfg.LastXrayMode ?? "Proxy Mode";
 
@@ -1041,6 +1041,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         if (langLbl != null) langLbl.Text = _cfg.Language;
         ApplyLanguage();
         CrimsonX.Pages.SettingsPage.Instance?.SyncUI();
+        CrimsonX.Pages.SplitTunnelPage.Instance?.SyncUI();
 
         var lbLbl = this.FindControl<TextBlock>("lblCurrentLbPolicy");
         if (lbLbl != null)

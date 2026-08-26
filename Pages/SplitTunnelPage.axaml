@@ -199,15 +199,41 @@
                 </StackPanel>
             </Border>
 
-            <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,7" Margin="0">
-                <Grid ColumnDefinitions="*, Auto">
-                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                        <TextBlock x:Name="lblDirectUdpHeader" Classes="settingTitle" Text="DIRECT UDP" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" HorizontalAlignment="Left" TextAlignment="Left" />
-                        <TextBlock x:Name="lblDirectUdpDesc" Text="This option can help with video games, discord voice or other udp dependant platforms." FontSize="10" Foreground="#A0AEC0" TextWrapping="Wrap" HorizontalAlignment="Left" TextAlignment="Left" />
+            <StackPanel Spacing="0">
+                <Border x:Name="panDirectUdpToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                    <Button x:Name="btnDirectUdpToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="15,7" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnDirectUdpToggle_Click">
+                        <Grid ColumnDefinitions="*, Auto, Auto">
+                            <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                <TextBlock x:Name="lblDirectUdpHeader" Classes="settingTitle" Text="DIRECT UDP" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" HorizontalAlignment="Left" TextAlignment="Left" />
+                                <TextBlock x:Name="lblDirectUdpDesc" Text="This option can help with video games, discord voice or other udp dependant platforms." FontSize="10" Foreground="#A0AEC0" TextWrapping="Wrap" HorizontalAlignment="Left" TextAlignment="Left" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1" x:Name="togDirectUDP" IsCheckedChanged="togDirectUDP_IsCheckedChanged" Theme="{DynamicResource FluentToggleSwitchTheme}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,10,0" />
+                            <PathIcon x:Name="icoDirectUdpExpander" Grid.Column="2" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center">
+                                <PathIcon.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="RotateTransform.Angle" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                    </Transitions>
+                                </PathIcon.Transitions>
+                            </PathIcon>
+                        </Grid>
+                    </Button>
+                </Border>
+                <Border x:Name="panDirectUdpExpanded" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                    <Border.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                        </Transitions>
+                    </Border.Transitions>
+                    <StackPanel Margin="15,15,15,15" Spacing="10">
+                        <TextBlock x:Name="lblDirectUdpAdapterTitle" Text="UDP ADAPTER BINDING" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" ToolTip.Tip="Select an adapter to force direct UDP traffic through a specific network interface."/>
+                        <Grid ColumnDefinitions="*, Auto" MinHeight="26">
+                            <ComboBox Grid.Column="0" x:Name="cmbUdpAdapters" HorizontalAlignment="Stretch" Margin="0,0,10,0" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" PlaceholderText="Default" SelectionChanged="cmbUdpAdapters_SelectionChanged"/>
+                            <Button Grid.Column="1" x:Name="btnScanUdpAdapters" Click="btnScanUdpAdapters_Click" Content="SCAN" Classes="optBtn" FontSize="10" FontWeight="Bold" Background="#1AFFFFFF" Padding="12,6" VerticalAlignment="Center"/>
+                        </Grid>
                     </StackPanel>
-                    <ToggleSwitch Grid.Column="1" x:Name="togDirectUDP" IsCheckedChanged="togDirectUDP_IsCheckedChanged" Theme="{DynamicResource FluentToggleSwitchTheme}" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,-5,0" />
-                </Grid>
-            </Border>
+                </Border>
+            </StackPanel>
                     </StackPanel>
             </Border>
         </Panel>

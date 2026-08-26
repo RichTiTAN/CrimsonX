@@ -194,11 +194,13 @@ namespace CrimsonX.Services
                 outbounds.Add(new { tag = "block", protocol = "blackhole", settings = new { } });
 
             outbounds.Add(new { tag = "direct", protocol = "freedom", settings = new { } });
+            if (config.EnableDirectUDP && !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp))
+                outbounds.Add(new { tag = "direct-udp", protocol = "freedom", settings = new { }, sendThrough = config.DirectUdpAdapterIp });
 
             var allRules = new List<object>();
             if (config.EnableDirectUDP)
             {
-                allRules.Add(new { type = "field", network = "udp", outboundTag = "direct" });
+                allRules.Add(new { type = "field", network = "udp", outboundTag = !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp) ? "direct-udp" : "direct" });
             }
             allRules.AddRange(rules);
 
@@ -431,7 +433,7 @@ namespace CrimsonX.Services
 
             if (config.EnableDirectUDP)
             {
-                sbRules.Add(new { network = "udp", action = "route", outbound = "direct" });
+                sbRules.Add(new { network = "udp", action = "route", outbound = !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp) ? "direct-udp" : "direct" });
             }
 
             if (userApps.Count > 0)
@@ -534,11 +536,14 @@ namespace CrimsonX.Services
                         stack = "mixed", endpoint_independent_nat = true
                     }
                 },
-                outbounds = new object[]
-                {
+                outbounds = (new System.Collections.Generic.List<object> {
                     new { type = "socks", tag = "proxy", server = "127.0.0.1", server_port = 10919 },
                     new { type = "direct", tag = "direct" }
-                },
+                }.Concat(
+                    (config.EnableDirectUDP && !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp))
+                        ? new object[] { new { type = "direct", tag = "direct-udp", bind_interface = config.DirectUdpAdapterName, inet4_bind_address = config.DirectUdpAdapterIp } }
+                        : new object[0]
+                )).ToArray(),
                 route = new
                 {
                     rules = sbRules.ToArray(),

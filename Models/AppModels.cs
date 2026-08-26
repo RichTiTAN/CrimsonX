@@ -53,6 +53,8 @@ namespace CrimsonX.Models
         public string LastBlockSplit { get; set; } = "";
         public bool EnableDirect { get; set; } = false;
         public bool EnableDirectUDP { get; set; } = false;
+        public string DirectUdpAdapterName { get; set; } = "";
+        public string DirectUdpAdapterIp { get; set; } = "";
         public bool ShowAdvancedRouting { get; set; } = false;
         public bool EnableExcludedContinents { get; set; } = false;
         public List<string> ExcludedContinents { get; set; } = new List<string>();

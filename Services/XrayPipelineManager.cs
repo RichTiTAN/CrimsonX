@@ -122,7 +122,6 @@ namespace CrimsonX.Services
                         catch { }
                     }
 
-                    // 1. Read existing config.json to get old tags before we overwrite it
                     var nodesToRemove = new List<string>();
                     var clonesToRemove = new List<string>();
                     string configJsonPath = Path.Combine(xrayDir, "config.json");
@@ -150,7 +149,6 @@ namespace CrimsonX.Services
                     tagsToRemove.AddRange(clonesToRemove);
                     tagsToRemove.AddRange(nodesToRemove);
 
-                    // 2. Write new config.json (generates new unique tags for proxy-nodes)
                     if (!XrayConfigWriter.Write(config, xrayDir, jOutbounds))
                     {
                         return false;
@@ -165,7 +163,6 @@ namespace CrimsonX.Services
                     {
                         if (!File.Exists(configJsonPath)) return false;
 
-                        // 3. Read the newly generated tags
                         var root = JObject.Parse(File.ReadAllText(configJsonPath));
                         var outboundsArray = root["outbounds"] as JArray;
                         if (outboundsArray == null) return false;
@@ -182,12 +179,10 @@ namespace CrimsonX.Services
                                 clonesToAdd.Add(ob);
                         }
 
-                        // Merge them: nodes first, then clones
                         var proxyOutbounds = new JArray();
                         foreach (var n in nodesToAdd) proxyOutbounds.Add(n);
                         foreach (var c in clonesToAdd) proxyOutbounds.Add(c);
 
-                        // 4. ADD the new outbounds to Xray FIRST (so it never has 0 outbounds)
                         string tempObPath = Path.Combine(xrayDir, "temp_outbounds.json");
                         foreach (var ob in proxyOutbounds)
                         {
@@ -214,7 +209,6 @@ namespace CrimsonX.Services
                         }
                         try { if (File.Exists(tempObPath)) File.Delete(tempObPath); } catch { }
 
-                        // 5. REMOVE the old outbounds from Xray SECOND
                         foreach (string tag in tagsToRemove)
                         {
                             var rmoProc = new Process();

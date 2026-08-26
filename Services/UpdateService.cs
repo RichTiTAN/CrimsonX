@@ -30,7 +30,7 @@ namespace CrimsonX.Services
 {
     public static class UpdateService
     {
-        public const string AppVersion = "1.0.1";
+        public const string AppVersion = "1.0.2";
         
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         private static readonly HttpClient _dlClient = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
