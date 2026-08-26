@@ -32,12 +32,12 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 -  **LAN Sharing:** Share your VPN connection over the local network, with optional Username/Password authentication.
 -  **DNS Control:** Built-in support for secure DNS-over-HTTPS (DoH) and customizable System DNS fallbacks.
 
-## 📸 Screenshots
+##  Screenshots
 
 <img width="651" height="551" alt="Screenshot 2026-08-24 101948" src="https://github.com/user-attachments/assets/90de8995-ddac-489c-a5d4-b5b9ddc6ad5c" />
 
 
-## 📥 Installation
+##  Installation
 
 1. Go to the [Releases](https://github.com/RichTiTAN/CrimsonX/releases) page.
 2. Download the latest `CrimsonX.zip`.
@@ -46,7 +46,7 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 
 *Note: CrimsonX requires Windows 10 or newer.*
 
-## ⚙️ Configuration & Usage
+##  Configuration & Usage
 
 ### 1. Connection Modes
 - **VPN Mode:** Uses sing-box to create a virtual network interface (TUN), forcing all system traffic through the proxy.
@@ -65,7 +65,7 @@ The app constantly checks if your current configs are working and if they are no
 ### TROUBLESHOOTING:
 - Check the [Documentation file](https://github.com/RichTiTAN/CrimsonX/blob/main/Documentation.md) for detailed instructions.
 
-## 📜 License
+##  License
 
 This program is free software: you can redistribute it and/or modify it under the terms of the **GNU General Public License (v3)** as published by the Free Software Foundation.
 
