@@ -54,7 +54,7 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 - **Clear Proxy Mode:** Disables the system proxy settings, allowing direct connection to the internet. while exposing the proxy to apps that support manual proxy configuration.
 
 ### 2. Custom Configs
-If you don't want to rely on the automated scrapers, you can inject up to 2 of your own VLESS/VMESS/Shadowsocks configs directly in the Settings tab.
+If you don't want to rely on the automated scrapers, you can inject up to 2 of your own VLESS/VMESS/Shadowsocks/Socks/Wireguard configs directly in the Settings tab.
 
 ### 3. Load Balance Policies
 Head to the **Settings** tab to adjust how CrimsonX distributes connections. If you're downloading large files, **Least Ping** or **Round Robin** is recommended.  
