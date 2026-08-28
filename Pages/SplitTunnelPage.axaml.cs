@@ -676,8 +676,11 @@ namespace CrimsonX.Pages
                 }
                 else
                 {
-                    cmb.Items.Add(target);
-                    cmb.SelectedItem = target;
+                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNoLongerAvail);
+                    _cfg.DirectUdpAdapterName = "";
+                    _cfg.DirectUdpAdapterIp = "";
+                    MainWindow.Instance.SaveConfig();
+                    cmb.SelectedIndex = 0;
                 }
             }
             else

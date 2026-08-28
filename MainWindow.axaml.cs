@@ -883,37 +883,53 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
 
 
 
-    private void Mode_Click(object? sender, RoutedEventArgs e)
+    private async void Mode_Click(object? sender, RoutedEventArgs e)
     {
-        if (sender is Button clickedBtn)
+        if (sender is not Button clickedBtn) return;
+        if (clickedBtn.Name == "btnVpnMode" && _activeBridge == "snowflake" && !_cfg.EnableDirectUDP) return;
+        if (_isModeHotSwapping) return;
+
+        string newMode;
+        if (clickedBtn.Name == "btnProxyMode")       newMode = "Proxy Mode";
+        else if (clickedBtn.Name == "btnVpnMode")    newMode = "VPN Mode";
+        else if (clickedBtn.Name == "btnClearProxy") newMode = "Clear Proxy";
+        else                                         newMode = "Proxy Mode";
+
+        string oldMode = _cfg.LastXrayMode ?? "Proxy Mode";
+        if (oldMode == newMode) return;
+
+        bool live = _state.IsEngineRunning || _state.IsConnected;
+        if (live && newMode == "VPN Mode" && IsVpnAdapterInUse())
         {
-            if (clickedBtn.Name == "btnVpnMode" && _activeBridge == "snowflake" && !_cfg.EnableDirectUDP) return;
+            bool isFa = AppStrings.IsPersian;
+            ShowToast(isFa
+                ? "آداپتور VPN از قبل توسط برنامه دیگری در حال استفاده است!"
+                : "VPN adapter is already in use by another app!");
+            return;
+        }
 
-            string newMode;
-            if (clickedBtn.Name == "btnProxyMode")       newMode = "Proxy Mode";
-            else if (clickedBtn.Name == "btnVpnMode")    newMode = "VPN Mode";
-            else if (clickedBtn.Name == "btnClearProxy") newMode = "Clear Proxy";
-            else                                         newMode = "Proxy Mode";
+        _cfg.LastXrayMode = newMode;
+        _pollMode = newMode;
+        ApplyModeUI(newMode);
+        RequestConfigSave();
 
-            bool modeChanged = _cfg.LastXrayMode != newMode;
-            if (modeChanged) _cfg.LastXrayMode = newMode;
+        if (!live) return;
 
-            ApplyModeUI(newMode);
-
-            if (modeChanged)
+        _isModeHotSwapping = true;
+        try
+        {
+            if (!await HotSwapConnectionModeAsync(oldMode, newMode))
             {
-                _pollMode         = newMode;
+                _cfg.LastXrayMode = oldMode;
+                _pollMode = oldMode;
+                ApplyModeUI(oldMode);
                 RequestConfigSave();
-                
-                if (_state.IsEngineRunning)
-                {
-                    ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
-                }
-                else
-                {
-                    SmartRestartXray();
-                }
+                await HotSwapConnectionModeAsync(newMode, oldMode);
             }
+        }
+        finally
+        {
+            _isModeHotSwapping = false;
         }
     }
 

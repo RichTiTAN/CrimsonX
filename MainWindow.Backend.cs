@@ -36,6 +36,7 @@ namespace CrimsonX;
 public partial class MainWindow
 {
     private bool _isInitializingSettings = false;
+    private bool _isModeHotSwapping = false;
     private global::Avalonia.Threading.DispatcherTimer? _saveDebounceTimer;
     private global::Avalonia.Threading.DispatcherTimer? _xrayRestartTimer;
     private global::Avalonia.Threading.DispatcherTimer? _sessionClockTimer;
@@ -723,24 +724,14 @@ public partial class MainWindow
 
         if (_cfg.LastXrayMode == "VPN Mode")
         {
-            try
+            if (IsVpnAdapterInUse())
             {
-                bool tunExists = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
-                    .Any(ni => (ni.Name.IndexOf("singbox", StringComparison.OrdinalIgnoreCase) >= 0 
-                             || ni.Name.IndexOf("wintun", StringComparison.OrdinalIgnoreCase) >= 0
-                             || ni.Description.IndexOf("wintun", StringComparison.OrdinalIgnoreCase) >= 0)
-                            && ni.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up);
-
-                if (tunExists)
-                {
-                    bool isFa = CrimsonX.Localization.AppStrings.IsPersian;
-                    ShowToast(isFa
-                        ? "آداپتور VPN از قبل توسط برنامه دیگری در حال استفاده است!"
-                        : "VPN adapter is already in use by another app!");
-                    return;
-                }
+                bool isFa = CrimsonX.Localization.AppStrings.IsPersian;
+                ShowToast(isFa
+                    ? "آداپتور VPN از قبل توسط برنامه دیگری در حال استفاده است!"
+                    : "VPN adapter is already in use by another app!");
+                return;
             }
-            catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
         }
 
 
@@ -764,7 +755,126 @@ public partial class MainWindow
             }
         }
 
+        if (_cfg.EnableDirectUDP && !string.IsNullOrWhiteSpace(_cfg.DirectUdpAdapterName))
+        {
+            var udpAdapters = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
+            bool udpAdapterExists = false;
+            foreach (var adapter in udpAdapters)
+            {
+                if (adapter.Name == _cfg.DirectUdpAdapterName && adapter.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up)
+                {
+                    udpAdapterExists = true;
+                    break;
+                }
+            }
+            if (!udpAdapterExists)
+            {
+                ShowToast(CrimsonX.Localization.AppStrings.ToastDirectUdpAdapterFallback);
+                _cfg.DirectUdpAdapterName = "";
+                _cfg.DirectUdpAdapterIp = "";
+                RequestConfigSave();
+            }
+        }
+
         StartEnginesAsync();
+    }
+
+    private bool IsVpnAdapterInUse()
+    {
+        try
+        {
+            return System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
+                .Any(ni => (ni.Name.IndexOf("singbox", StringComparison.OrdinalIgnoreCase) >= 0
+                         || ni.Name.IndexOf("wintun", StringComparison.OrdinalIgnoreCase) >= 0
+                         || ni.Description.IndexOf("wintun", StringComparison.OrdinalIgnoreCase) >= 0)
+                        && ni.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up);
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+            return false;
+        }
+    }
+
+    private async Task<bool> HotSwapConnectionModeAsync(string oldMode, string newMode)
+    {
+        bool wasVpn = oldMode == "VPN Mode";
+        bool isVpn = newMode == "VPN Mode";
+
+        try
+        {
+            if (wasVpn == isVpn)
+            {
+                ProxyService.SetSystemProxy(newMode == "Proxy Mode");
+                CrimsonX.Services.SimpleLogger.Log($"[ModeHotSwap] {oldMode} -> {newMode} (system proxy only)");
+                return true;
+            }
+
+            if (isVpn)
+            {
+                ProxyService.SetSystemProxy(false);
+
+                var outbounds = CrimsonX.Services.XrayPipelineManager.ActiveOutbounds;
+                if (outbounds == null || outbounds.Count == 0)
+                {
+                    ShowToast(CrimsonX.Localization.AppStrings.IsPersian
+                        ? "تعویض حالت ناموفق بود."
+                        : "Mode switch failed.");
+                    return false;
+                }
+
+                await CrimsonX.Services.XrayPipelineManager.SwapOutboundsAsync(outbounds, _cfg, _cfg.XrayDir, true);
+
+                if (!SingboxConfigWriter.Write(_cfg, _cfg.SbDir))
+                {
+                    ShowToast(CrimsonX.Localization.AppStrings.IsPersian
+                        ? "نوشتن تنظیمات VPN ناموفق بود."
+                        : "Failed to write VPN config.");
+                    return false;
+                }
+
+                var sbProc = ProcessService.StartProcessDirect(
+                    GetAppPath(@"Data\sing_box\sing-box.exe"), "run -c config.json", _cfg.SbDir);
+                if (sbProc == null)
+                {
+                    ShowToast(CrimsonX.Localization.AppStrings.IsPersian
+                        ? "راه‌اندازی VPN ناموفق بود."
+                        : "Failed to start VPN.");
+                    return false;
+                }
+                _sbPid = sbProc.Id;
+                CrimsonX.Services.SimpleLogger.Log($"[ModeHotSwap] {oldMode} -> VPN Mode (sing-box pid={_sbPid})");
+            }
+            else
+            {
+                int? sbPid = _sbPid;
+                _sbPid = null;
+                KillPid(sbPid);
+
+                var outbounds = CrimsonX.Services.XrayPipelineManager.ActiveOutbounds;
+                if (outbounds != null && outbounds.Count > 0)
+                    await CrimsonX.Services.XrayPipelineManager.SwapOutboundsAsync(outbounds, _cfg, _cfg.XrayDir, true);
+
+                ProxyService.SetSystemProxy(newMode == "Proxy Mode");
+                CrimsonX.Services.SimpleLogger.Log($"[ModeHotSwap] VPN Mode -> {newMode} (sing-box stopped)");
+            }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                UpdateLocalPortUI();
+                UpdateLanPortUI();
+            });
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+            ShowToast(CrimsonX.Localization.AppStrings.IsPersian
+                ? "تعویض حالت ناموفق بود."
+                : "Mode switch failed.");
+            return false;
+        }
     }
 
 

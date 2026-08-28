@@ -301,6 +301,22 @@ namespace CrimsonX.Pages
             SyncUI();
         }
 
+    private void SetCustomConfigsExpanded(bool expanded)
+    {
+        var pan = this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigs");
+        var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoCustomConfigsExpander");
+        var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigsToggle");
+        var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnCustomConfigsToggle");
+        if (pan != null)
+        {
+            pan.MaxHeight = expanded ? 250 : 0;
+            pan.Opacity = expanded ? 1 : 0;
+            if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(expanded ? 180 : 0);
+            if (panToggle != null) panToggle.CornerRadius = expanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+            if (btnToggle != null) btnToggle.CornerRadius = expanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+        }
+    }
+
     private void btnCustomConfigsToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var src = e.Source as global::Avalonia.Controls.Control;
@@ -311,27 +327,9 @@ namespace CrimsonX.Pages
         }
 
         var pan = this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigs");
-        var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoCustomConfigsExpander");
-        var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigsToggle");
-        var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnCustomConfigsToggle");
         if (pan != null)
         {
-            if (pan.MaxHeight == 0)
-            {
-                pan.MaxHeight = 250;
-                pan.Opacity = 1;
-                if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(180);
-                if (panToggle != null) panToggle.CornerRadius = new global::Avalonia.CornerRadius(8, 8, 0, 0);
-                if (btnToggle != null) btnToggle.CornerRadius = new global::Avalonia.CornerRadius(8, 8, 0, 0);
-            }
-            else
-            {
-                pan.MaxHeight = 0;
-                pan.Opacity = 0;
-                if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(0);
-                if (panToggle != null) panToggle.CornerRadius = new global::Avalonia.CornerRadius(8);
-                if (btnToggle != null) btnToggle.CornerRadius = new global::Avalonia.CornerRadius(8);
-            }
+            SetCustomConfigsExpanded(pan.MaxHeight == 0);
         }
     }
 
@@ -346,26 +344,16 @@ namespace CrimsonX.Pages
                 var txt1 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig1");
                 var txt2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
                 bool isEmpty = string.IsNullOrWhiteSpace(txt1?.Text) && string.IsNullOrWhiteSpace(txt2?.Text);
-                
+
                 if (isEmpty)
                 {
                     global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
-                    
-                    var pan = this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigs");
-                    var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoCustomConfigsExpander");
-                    var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigsToggle");
-                    var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnCustomConfigsToggle");
-                    
-                    if (pan != null && pan.MaxHeight == 0)
-                    {
-                        pan.MaxHeight = 250;
-                        pan.Opacity = 1;
-                        if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(180);
-                        if (panToggle != null) panToggle.CornerRadius = new global::Avalonia.CornerRadius(8, 8, 0, 0);
-                        if (btnToggle != null) btnToggle.CornerRadius = new global::Avalonia.CornerRadius(8, 8, 0, 0);
-                    }
+                    SetCustomConfigsExpanded(true);
                     return;
                 }
+
+                if (txt1 != null) MainWindow.Instance.Config.CustomConfig1 = txt1.Text ?? "";
+                if (txt2 != null) MainWindow.Instance.Config.CustomConfig2 = txt2.Text ?? "";
             }
             MainWindow.Instance.Config.EnableCustomConfigs = tog.IsChecked.Value;
             MainWindow.Instance.RequestConfigSave();
@@ -433,16 +421,24 @@ namespace CrimsonX.Pages
         var txt1 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig1");
         var txt2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
         var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
-        
+
         if (txt1 != null) MainWindow.Instance.Config.CustomConfig1 = txt1.Text ?? "";
         if (txt2 != null) MainWindow.Instance.Config.CustomConfig2 = txt2.Text ?? "";
         if (chk != null) MainWindow.Instance.Config.AllowOneCustomConfig = chk.IsChecked ?? false;
-        
-        if (string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1) && string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2))
+
+        bool hasConfig = !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1) ||
+                         !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2);
+
+        var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togCustomConfigs");
+        if (tog != null && tog.IsChecked != hasConfig)
         {
-            var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togCustomConfigs");
-            if (tog != null) tog.IsChecked = false;
+            _isInitializingSettings = true;
+            tog.IsChecked = hasConfig;
+            _isInitializingSettings = false;
         }
+        MainWindow.Instance.Config.EnableCustomConfigs = hasConfig;
+
+        SetCustomConfigsExpanded(false);
 
         MainWindow.Instance.RequestConfigSave();
         NotifyCustomConfigsChanged(showSaveToast: true);

@@ -96,7 +96,7 @@ namespace CrimsonX.Services
             }
 
             rules.Insert(0, new { type = "field", inboundTag = new[] { "api" }, outboundTag = "api" });
-            rules.Insert(1, new { type = "field", domain = new[] { "domain:crimsonx.itstitan.workers.dev", "domain:crimsonx.richtitan.workers.dev" }, outboundTag = "direct" });
+            rules.Insert(1, new { type = "field", domain = AppSecrets.WorkerDomains.Select(d => $"domain:{d}").ToArray(), outboundTag = "direct" });
             
             if (preferDirectDefault)
             {
@@ -427,7 +427,7 @@ namespace CrimsonX.Services
                 new { protocol = "dns", action = "hijack-dns" },
                 new { port = new[] { 53 }, network = "udp", action = "hijack-dns" },
                 new { port = new[] { 53 }, network = "tcp", action = "hijack-dns" },
-                new { domain = new[] { "crimsonx.itstitan.workers.dev", "crimsonx.richtitan.workers.dev" }, action = "route", outbound = "direct" },
+                new { domain = AppSecrets.WorkerDomains, action = "route", outbound = "direct" },
                 new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" }
             };
 

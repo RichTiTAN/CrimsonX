@@ -34,9 +34,8 @@ namespace CrimsonX
         private CancellationTokenSource _pipelineCts;
         private ConcurrentQueue<string> _untestedConfigs = new ConcurrentQueue<string>();
         private List<string> _reservePool = new List<string>();
+        private HashSet<string> _customOutboundJsons = new HashSet<string>();
         private static readonly HttpClient _workerClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        private const string WORKER_URL_0 = "https://crimsonx.itstitan.workers.dev";
-        private const string WORKER_URL_1 = "https://crimsonx.richtitan.workers.dev"; 
 
         private async Task RunDynamicPipelineAsyncCore()
         {
@@ -78,6 +77,7 @@ namespace CrimsonX
 
             bool customConfigApplied = false;
             List<string> customTopConfigs = new List<string>();
+            _customOutboundJsons.Clear();
 
             if (_cfg.EnableCustomConfigs)
             {
@@ -94,6 +94,9 @@ namespace CrimsonX
 
                     bool t1Ok = t1 != null && t1.Success;
                     bool t2Ok = t2 != null && t2.Success;
+
+                    if (t1Ok) _customOutboundJsons.Add(t1.OutboundJson);
+                    if (t2Ok) _customOutboundJsons.Add(t2.OutboundJson);
 
                     if (t1Ok && t2Ok)
                     {
@@ -166,7 +169,7 @@ namespace CrimsonX
                 }
                 else
                 {
-                    ProxyService.SetSystemProxy(true);
+                    ProxyService.SetSystemProxy(_cfg.LastXrayMode == "Proxy Mode");
                 }
 
                 _state.IsConnected = true;
@@ -320,7 +323,7 @@ namespace CrimsonX
             }
             else
             {
-                ProxyService.SetSystemProxy(true);
+                ProxyService.SetSystemProxy(_cfg.LastXrayMode == "Proxy Mode");
             }
 
             _state.IsConnected = true;
@@ -343,7 +346,7 @@ namespace CrimsonX
 
         private async Task<List<string>> FetchConfigsFromWorker(int index, CancellationToken ct)
         {
-            string[] workers = { WORKER_URL_0, WORKER_URL_1 };
+            string[] workers = CrimsonX.Services.AppSecrets.WorkerUrls;
             foreach (var worker in workers)
             {
                 try
@@ -474,7 +477,7 @@ namespace CrimsonX
             try
             {
                 string[] lastShas = new string[5];
-                string[] workers = { WORKER_URL_0, WORKER_URL_1 };
+                string[] workers = CrimsonX.Services.AppSecrets.WorkerUrls;
 
                 while (!ct.IsCancellationRequested && _state.IsConnected)
                 {
@@ -543,6 +546,12 @@ namespace CrimsonX
                             var res = await ConfigTester.TestConfigAsync(cfgStr, _cfg, ct, isWatchdog: true);
                             if (!res.Success)
                             {
+                                if (_customOutboundJsons.Contains(cfgStr))
+                                {
+                                    if (_cfg.DebugMode)
+                                        CrimsonX.Services.SimpleLogger.Log("[RefreshTimer] Custom config failed the watchdog ping and will not be replaced.");
+                                    return cfgStr;
+                                }
                                 CrimsonX.Services.ConfigCache.RemoveFromCache(GetAppPath(@"Data\cache\cache.bin"), cfgStr);
                                 lock (_reservePool) { _reservePool.Remove(cfgStr); }
                                 return null;

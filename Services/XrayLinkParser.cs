@@ -196,7 +196,7 @@ namespace CrimsonX.Services
                         if (portStr.StartsWith(":"))
                         {
                             var portText = portStr.Substring(1).Trim();
-                            if (int.TryParse(portText, out int parsedPort)) port = parsedPort; // FIX
+                            if (int.TryParse(portText, out int parsedPort)) port = parsedPort; 
                         }
                     }
                 }
@@ -207,7 +207,7 @@ namespace CrimsonX.Services
                     {
                         host = hostPort.Substring(0, colonIdx);
                         var portText = hostPort.Substring(colonIdx + 1).Trim();
-                        if (int.TryParse(portText, out int parsedPort)) port = parsedPort; // FIX
+                        if (int.TryParse(portText, out int parsedPort)) port = parsedPort; 
                     }
                     else
                     {

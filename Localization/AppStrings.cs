@@ -240,6 +240,7 @@ namespace CrimsonX.Localization
         public static string ToastCopiedToClipboard => IsPersian ? "کپی شد!" : "Copied to clipboard!";
         public static string ToastAdapterNotAvailable => IsPersian ? "آداپتور انتخاب شده در دسترس نیست!" : "Selected adapter is not available!";
         public static string ToastAdapterNoLongerAvail => IsPersian ? "آداپتور شبکه قبلی شما دیگر در دسترس نیست." : "Your previously selected network adapter is no longer available.";
+        public static string ToastDirectUdpAdapterFallback => IsPersian ? "آداپتور UDP مستقیم قبلی شما دیگر در دسترس نیست. با آداپتور پیش‌فرض ادامه می‌دهیم." : "Your Direct UDP adapter is no longer available. Continuing with the default adapter.";
         public static string ToastEngineStartFailedPrefix => IsPersian ? "خطا در شروع موتور: " : "Engine start failed: ";
         public static string ToastInvalidDnsPrimary => IsPersian ? "لطفاً یک آدرس IPv4 معتبر برای DNS اول وارد کنید." : "Please enter a valid IPv4 address for the primary DNS.";
         public static string ToastInvalidDnsSecondary => IsPersian ? "لطفاً یک آدرس IPv4 معتبر برای DNS دوم وارد کنید." : "Please enter a valid IPv4 address for the secondary DNS.";
@@ -296,8 +297,8 @@ namespace CrimsonX.Localization
         public static string TtDisabledOutboundProxy => IsPersian ? "غیرفعال است زیرا اتصال به آداپتور فعال است." : "Disabled because Adapter Binding is enabled.";
 
         public static string TtCustomConfigs => IsPersian
-            ? "کانفیگ‌های شخصی خود را برای اتصال مستقیم وارد کنید. اگر دو کانفیگ معتبر باشند، برنامه مستقیم با هر دو وصل می‌شود. اگر یک کانفیگ معتبر باشد و «اجازه اتصال با یک کانفیگ» فعال باشد، فقط با همان یکی وصل می‌شود. در غیر این صورت، برنامه بهترین کانفیگ سرور را پیدا کرده و کنار کانفیگ شما از آن استفاده می‌کند."
-            : "Enter your own proxy configs for direct connection. If both configs are valid, the app connects with them immediately. If one is valid and 'Allow connecting with one config' is on, it connects with just that one. Otherwise the app finds the fastest server config and pairs it with yours.";
+            ? "کانفیگ‌های شخصی خود را برای اتصال مستقیم وارد کنید. اگر دو کانفیگ معتبر باشند، برنامه مستقیم با هر دو وصل می‌شود. اگر یک کانفیگ معتبر باشد و «اجازه اتصال با یک کانفیگ» فعال باشد، فقط با همان یکی وصل می‌شود. در غیر این صورت، برنامه بهترین کانفیگ سرور را پیدا کرده و کنار کانفیگ شما از آن استفاده می‌کند. کانفیگ‌های شخصی در صورت خرابی به‌صورت خودکار جایگزین نمی‌شوند."
+            : "Enter your own proxy configs for direct connection. If both configs are valid, the app connects with them immediately. If one is valid and 'Allow connecting with one config' is on, it connects with just that one. Otherwise the app finds the fastest server config and pairs it with yours. Custom configs will not be replaced automatically if they fail a connection health check.";
 
         public static string TtDisableBackgroundChecks => IsPersian
             ? "بررسی پس‌زمینه به‌طور مداوم کانفیگ‌های جدید را آزمایش می‌کند و آنها را در استخر ذخیره می‌کند تا در صورت قطع اتصال جایگزین سریع‌تری در دسترس باشد. با فعال کردن این گزینه، استخر ذخیره بین‌جلسه‌ای به‌روز نمی‌شود."

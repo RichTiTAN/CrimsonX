@@ -28,8 +28,8 @@ namespace CrimsonX.Services
 {
     public static class ConfigCache
     {
-        private static readonly byte[] Key = Encoding.UTF8.GetBytes("crimsonx_cache_key_very_secret_!"); // 32 bytes
-        private static readonly byte[] Iv = Encoding.UTF8.GetBytes("crimsonx_init_v_"); // 16 bytes
+        private static readonly byte[] Key = Encoding.UTF8.GetBytes(AppSecrets.CacheKey); // 32 bytes
+        private static readonly byte[] Iv = Encoding.UTF8.GetBytes(AppSecrets.CacheIv); // 16 bytes
 
         public static List<string> LoadCache(string path)
         {
