@@ -46,6 +46,15 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 
 *Note: CrimsonX requires Windows 10 or newer.*
 
+###  Building from source
+Private worker URLs and the local cache-encryption key live in a **gitignored** file (`Services/AppSecrets.cs`) so they never end up in the public repository. After cloning, create it from the template before building:
+
+```
+copy Services\AppSecrets.cs.example Services\AppSecrets.cs
+```
+
+Then open `Services/AppSecrets.cs` and fill in your own worker URLs plus a freshly generated 32-byte cache key and 16-byte IV.
+
 ##  Configuration & Usage
 
 ### 1. Connection Modes
