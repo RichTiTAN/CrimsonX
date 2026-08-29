@@ -1,0 +1,12 @@
+custom:
+  # 1. Card-to-Crypto (USDT on BSC) via MoonPay
+  - 'https://buy.moonpay.com/?currencyCode=usdt_bsc&walletAddress=0xFc1d71C22DC2604f6C13Ca540ed842535cbE6d75'
+  
+  # 2. Direct Bitcoin (BTC) Explorer Link
+  - 'https://mempool.space/address/bc1quzdzuhrfse520r0wkqgkvsl7nv354r8sj5u9f9'
+  
+  # 3. Direct TON Explorer Link
+  - 'https://tonscan.org/address/UQCB3bvk4nXMiokNWprb7CwPjurU8WOUfVSgAVXMMke0CxdW'
+
+  # 4. Direct USDT (Tron / TRC-20) Explorer Link
+  - 'https://tronscan.org/#/address/TNMaNGDMG7BzbjkXeiguFWzDHZ4hCUU9R8'
