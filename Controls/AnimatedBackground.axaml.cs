@@ -30,8 +30,51 @@ namespace CrimsonX.Controls
     {
         public static AnimatedBackground? Instance { get; private set; }
 
-        private DispatcherTimer? _bgTimer;
+                        private DispatcherTimer? _bgTimer;
+        private bool _isPaused = false;
+        private bool _isDisabled = false;
+        private bool _isWindowFocused = true;
+
+    // ── Glow State Control (Pause / Disable / Focus) ──
+
+        public void ApplySettings(bool pauseGlows, bool disableGlows)
+        {
+            _isPaused = pauseGlows;
+            _isDisabled = disableGlows;
+            this.IsVisible = !_isDisabled;
+            EvaluateTimer();
+        }
+
+        public void SetFocusState(bool isFocused)
+        {
+            _isWindowFocused = isFocused;
+            EvaluateTimer();
+        }
+
+                private void EvaluateTimer()
+        {
+            if (_bgTimer == null) return;
+
+            bool shouldRun = !_isDisabled && !_isPaused && _isWindowFocused;
+            
+            if (shouldRun && !_bgTimer.IsEnabled)
+            {
+                if (_pauseStartTime.HasValue)
+                {
+                    _startTime += (DateTime.UtcNow - _pauseStartTime.Value);
+                    _pauseStartTime = null;
+                }
+                _bgTimer.Start();
+            }
+            else if (!shouldRun && _bgTimer.IsEnabled)
+            {
+                _pauseStartTime = DateTime.UtcNow;
+                _bgTimer.Stop();
+            }
+        }
+
         private DateTime _startTime;
+        private DateTime? _pauseStartTime;
 
         private TranslateTransform? _b1Trans, _b2Trans, _b3Trans;
         private ScaleTransform?    _e1Scale, _e2Scale, _e3Scale;
@@ -57,6 +100,14 @@ namespace CrimsonX.Controls
             Instance = this;
             InitializeComponent();
             GenerateDotMatrixOverlay();
+
+            _e1 = this.FindControl<Ellipse>("e1");
+            _e2 = this.FindControl<Ellipse>("e2");
+            _e3 = this.FindControl<Ellipse>("e3");
+
+            ResolveGradientStops(_e1, out _gs1Center, out _gs1Edge);
+            ResolveGradientStops(_e2, out _gs2Center, out _gs2Edge);
+            ResolveGradientStops(_e3, out _gs3Center, out _gs3Edge);
         }
 
         protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
@@ -70,22 +121,15 @@ namespace CrimsonX.Controls
             if (this.FindControl<Border>("b3") is { } b3 &&
                 b3.RenderTransform is TranslateTransform bt3) _b3Trans = bt3;
 
-            _e1 = this.FindControl<Ellipse>("e1");
-            _e2 = this.FindControl<Ellipse>("e2");
-            _e3 = this.FindControl<Ellipse>("e3");
-
             if (_e1?.RenderTransform is ScaleTransform st1) _e1Scale = st1;
             if (_e2?.RenderTransform is ScaleTransform st2) _e2Scale = st2;
             if (_e3?.RenderTransform is ScaleTransform st3) _e3Scale = st3;
 
-            ResolveGradientStops(_e1, out _gs1Center, out _gs1Edge);
-            ResolveGradientStops(_e2, out _gs2Center, out _gs2Edge);
-            ResolveGradientStops(_e3, out _gs3Center, out _gs3Edge);
-
             _startTime = DateTime.UtcNow;
+            _pauseStartTime = DateTime.UtcNow;
             _bgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) }; 
             _bgTimer.Tick += BgTimer_Tick;
-            _bgTimer.Start();
+                        EvaluateTimer();
         }
 
         protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
@@ -104,6 +148,8 @@ namespace CrimsonX.Controls
                 edge   = rgb.GradientStops[1];
             }
         }
+
+    // ── Glow Blob Animation ──
 
         private void BgTimer_Tick(object? sender, EventArgs e)
         {
@@ -155,6 +201,8 @@ namespace CrimsonX.Controls
 
         private static double Lerp(double a, double b, double t) => a + (b - a) * t;
 
+    // ── Theme Colour Update ──
+
         public void UpdateTheme(Color c1, Color c2, Color c3)
         {
             if (_gs1Center != null) _gs1Center.Color = c1;
@@ -166,6 +214,8 @@ namespace CrimsonX.Controls
             if (_gs3Center != null) _gs3Center.Color = c3;
             if (_gs3Edge   != null) _gs3Edge.Color   = Color.FromArgb(0, c3.R, c3.G, c3.B);
         }
+
+    // ── Dot-Matrix Background Overlay ──
 
         private void GenerateDotMatrixOverlay()
         {

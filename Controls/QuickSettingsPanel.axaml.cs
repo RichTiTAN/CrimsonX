@@ -76,6 +76,8 @@ namespace CrimsonX.Controls
             InitializeComponent();
         }
 
+    // ── Localized Setting Names ──
+
         private string GetLocalizedSettingName(string key)
         {
             switch (key)
@@ -129,7 +131,7 @@ namespace CrimsonX.Controls
         {
             string pathData = key switch
             {
-                "DIRECT UDP" => "M20,4H4C2.89,4 2,4.89 2,6V18C2,19.1 2.9,20 4,20H20C21.1,20 22,19.1 22,18V6C22,4.89 21.1,4 20,4M20,18H4V6H20V18M8.5,15H11L12.5,11.5L14,15H16.5L13.5,10L16.5,5H14L12.5,8.5L11,5H8.5L11.5,10L8.5,15Z",
+                "DIRECT UDP" => "M13,2.5L2,14.5L10.5,14.5L9,25.5L20,13.5L11.5,13.5L13,2.5Z",
                 "XRAY EXIT-NODE" => "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z",
                 "BIND ADAPTER" => "M21 3H3C1.89 3 1 3.89 1 5v14c0 1.11.89 2 2 2h18c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm-1 14H4V7h16v10z",
                 "DOH" => "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z",
@@ -156,8 +158,8 @@ namespace CrimsonX.Controls
             var F = new System.Func<string, Avalonia.Controls.TextBlock>(name => this.FindControl<Avalonia.Controls.TextBlock>(name));
             CrimsonX.Localization.AppStrings.Apply(F("lblQuickSettings"), CrimsonX.Localization.AppStrings.QuickSettings);
             CrimsonX.Localization.AppStrings.Apply(F("lblCustomize"), CrimsonX.Localization.AppStrings.Customize);
-            CrimsonX.Localization.AppStrings.Apply(F("lblSave"), CrimsonX.Localization.AppStrings.IsPersian ? "ذخیره" : "SAVE");
-            CrimsonX.Localization.AppStrings.Apply(F("lblCancel"), CrimsonX.Localization.AppStrings.IsPersian ? "لغو" : "CANCEL");
+            CrimsonX.Localization.AppStrings.Apply(F("lblSave"), CrimsonX.Localization.AppStrings.Save);
+            CrimsonX.Localization.AppStrings.Apply(F("lblCancel"), CrimsonX.Localization.AppStrings.Cancel);
             
             _panPopupSlot1Items.Children.Clear();
             _panPopupSlot2Items.Children.Clear();
@@ -219,6 +221,8 @@ namespace CrimsonX.Controls
                 timer.Start();
             };
         }
+
+    // ── Slot UI Build & Refresh ──
 
         private void PopulatePopupItems(StackPanel container, int slotNumber)
         {
@@ -305,10 +309,10 @@ namespace CrimsonX.Controls
         {
             switch (key)
             {
-                case "START-UP": return "اجرا";
-                case "SPLIT TUNNELING": return "تونل‌بندی مجزا";
-                case "SYSTEM": return "سیستم";
-                case "CONNECTION": return "اتصال";
+                case "START-UP": return CrimsonX.Localization.AppStrings.SectionStartup;
+                case "SPLIT TUNNELING": return CrimsonX.Localization.AppStrings.NavSplitTunneling;
+                case "SYSTEM": return CrimsonX.Localization.AppStrings.SectionSystem;
+                case "CONNECTION": return CrimsonX.Localization.AppStrings.SectionConnection;
                 default: return key;
             }
         }
@@ -365,7 +369,7 @@ namespace CrimsonX.Controls
                 case "AUTO-CONNECT": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("btnAutoTog");
                 case "START MINIMIZED": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("btnStartMinTog");
                 case "MINIMIZE TO TRAY": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("btnTrayTog");
-                case "EXCLUDE LOCATIONS": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togExcludeLocations");
+                case "EXCLUDE LOCATIONS": return Pages.SplitTunnelPage.Instance?.FindControl<ToggleSwitch>("togExcludeLocations");
                 case "CUSTOM CONFIGS": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togCustomConfigs");
                 case "DISABLE BACKGROUND CHECK": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togDisableBgChecks");
                 case "DISABLE SEAMLESS SWAP": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togDisableRefreshTimer");
@@ -390,6 +394,8 @@ namespace CrimsonX.Controls
             _btnSlot1.IsHitTestVisible = editMode;
             _btnSlot2.IsHitTestVisible = editMode;
         }
+
+    // ── Customize Actions (Save / Cancel) ──
 
         private void btnCustomize_Click(object? sender, RoutedEventArgs e)
         {
@@ -418,6 +424,8 @@ namespace CrimsonX.Controls
             SetEditMode(false);
             ClosePopups();
         }
+
+    // ── Slot Popups (Choose a Setting) ──
 
         private async void btnSlot1_Click(object? sender, RoutedEventArgs e)
         {
@@ -482,6 +490,8 @@ namespace CrimsonX.Controls
             _ = ClosePopupAnimatedAsync();
         }
 
+    // ── Slot Toggle Bridge ──
+
         private void TogSlot1_IsCheckedChanged(object? sender, RoutedEventArgs e)
         {
             if (_isUpdating) return;
@@ -501,3 +511,5 @@ namespace CrimsonX.Controls
         }
     }
 }
+
+

@@ -97,6 +97,26 @@ namespace CrimsonX.Services
             catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
         }
 
+        public static void KillVpnProcess(int? pid)
+        {
+            if (pid == null) return;
+            try
+            {
+                using var p = Process.GetProcessById(pid.Value);
+                var name = p.ProcessName;
+                if ((name.IndexOf("xray",     StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     name.IndexOf("sing-box", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     name.IndexOf("sing_box", StringComparison.OrdinalIgnoreCase) >= 0) &&
+                    !p.HasExited)
+                {
+                    p.Kill();
+                    p.WaitForExit(1000);
+                }
+            }
+            catch (ArgumentException) { /* PID no longer exists — normal race condition */ }
+            catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
+        }
+
         public static void KillAppProcesses(string[] names, string[] appPaths)
         {
             foreach (var name in names)

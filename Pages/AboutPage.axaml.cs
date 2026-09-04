@@ -40,6 +40,8 @@ public partial class AboutPage : UserControl
         }
     }
 
+    // ── External Links ──
+
     private void BtnGithub_Click(object? sender, RoutedEventArgs e)
     {
         Process.Start(new ProcessStartInfo("https://github.com/RichTiTAN") { UseShellExecute = true })?.Dispose();
@@ -55,11 +57,15 @@ public partial class AboutPage : UserControl
         Process.Start(new ProcessStartInfo("https://github.com/RichTiTAN/CrimsonOnion") { UseShellExecute = true })?.Dispose();
     }
 
+    // ── Language & Localization ──
+
     public void ApplyLanguage()
     {
         var F = new System.Func<string, Avalonia.Controls.TextBlock>(name => this.FindControl<Avalonia.Controls.TextBlock>(name));
         CrimsonX.Localization.AppStrings.Apply(F("lblOtherApps"), CrimsonX.Localization.AppStrings.OtherApps);
     }
+
+    // ── Copy Wallet Address ──
 
     private async void BtnCopyAddress_Click(object? sender, RoutedEventArgs e)
     {
@@ -74,6 +80,8 @@ public partial class AboutPage : UserControl
         }
     }
 
+    // ── Update Check & Status ──
+
     private void BtnCheckUpdate_Click(object? sender, RoutedEventArgs e)
     {
         MainWindow.Instance.BtnCheckUpdate_Click(sender, e);
@@ -84,6 +92,8 @@ public partial class AboutPage : UserControl
         var btnCheckUpdate = this.FindControl<Button>("btnCheckUpdate");
         if (btnCheckUpdate != null) btnCheckUpdate.Content = status;
     }
+
+    // ── Localized Text Refresh ──
 
     internal void UpdateLocalization()
     {

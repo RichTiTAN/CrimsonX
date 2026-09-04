@@ -64,7 +64,7 @@ namespace CrimsonX.Dialogs
             }
 
             SecondaryButtonText = CrimsonX.Localization.AppStrings.BtnChangeLog;
-            CancelButtonText = CrimsonX.Localization.AppStrings.BtnCancel;
+            CancelButtonText = CrimsonX.Localization.AppStrings.Cancel;
             
             if (CrimsonX.Localization.AppStrings.IsPersian)
             {

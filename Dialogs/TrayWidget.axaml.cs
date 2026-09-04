@@ -46,6 +46,7 @@ namespace CrimsonX.Dialogs
             _timer.Tick += (s, e) => UpdateUI();
             _timer.Start();
             UpdateUI();
+            ApplyLanguage(AppStrings.IsPersian);
         }
 
         private void UpdateUI()
@@ -53,21 +54,21 @@ namespace CrimsonX.Dialogs
             bool fa = AppStrings.IsPersian;
             if (_main.GetState().IsConnected)
             {
-                lblStatus.Text = fa ? "متصل"           : "CONNECTED";
+                lblStatus.Text = AppStrings.StatusConnected;
                 lblStatus.Foreground = new SolidColorBrush(Color.Parse("#68D391"));
-                btnToggle.Content    = fa ? "قطع اتصال" : "DISCONNECT";
+                btnToggle.Content    = AppStrings.StatusDisconnect;
             }
             else if (_main.GetState().IsEngineRunning)
             {
-                lblStatus.Text = fa ? "در حال اتصال..." : "CONNECTING...";
+                lblStatus.Text = AppStrings.StatusConnecting;
                 lblStatus.Foreground = new SolidColorBrush(Color.Parse("#E2E8F0"));
-                btnToggle.Content    = fa ? "توقف موتور"  : "STOP ENGINE";
+                btnToggle.Content    = AppStrings.StatusStopEngine;
             }
             else
             {
-                lblStatus.Text = fa ? "متصل نیست"  : "NOT CONNECTED";
+                lblStatus.Text = AppStrings.StatusNotConnected;
                 lblStatus.Foreground = new SolidColorBrush(Color.Parse("#E2E8F0"));
-                btnToggle.Content    = fa ? "اتصال"   : "CONNECT";
+                btnToggle.Content    = AppStrings.StatusConnect;
             }
             lblSpeed.Text = _main.GetSpeedText();
         }
@@ -77,8 +78,8 @@ namespace CrimsonX.Dialogs
             UpdateUI();
 
             bool fa = isPersian;
-            btnClose.Content      = fa ? "بستن برنامه"  : "CLOSE THE APP";
-            btnShowWindow.Content = fa ? "نمایش پنجره" : "SHOW WINDOW";
+            btnClose.Content      = AppStrings.TrayClose;
+            btnShowWindow.Content = AppStrings.TrayShowWindow;
 
             lblStatus.FlowDirection = fa
                 ? global::Avalonia.Media.FlowDirection.RightToLeft
@@ -89,6 +90,7 @@ namespace CrimsonX.Dialogs
         {
             _main.ConnectDisconnect();
             UpdateUI();
+            ApplyLanguage(AppStrings.IsPersian);
         }
 
         private void BtnShowWindow_Click(object sender, RoutedEventArgs e)

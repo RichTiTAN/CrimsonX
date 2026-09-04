@@ -24,7 +24,7 @@
              x:Class="CrimsonX.Pages.ThemesPage">
     
     <Grid>
-        <Border Background="Transparent" BorderThickness="0" Padding="6" Margin="20,15,20,20" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+        <Border Background="Transparent" BorderThickness="0" Padding="6" Margin="0,50,20,20" HorizontalAlignment="Stretch" VerticalAlignment="Center">
             <StackPanel Margin="0" Spacing="6">
                 
                 <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
@@ -111,7 +111,32 @@
                         </Grid>
                     </Grid>
                 </Border>
-            </StackPanel>
+            
+                    <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- Sparkle Icon -->
+                            <PathIcon Data="M19,3H18V2H17V3H16V4H17V5H18V4H19V3M14,1H12V3H10V5H12V7H14V5H16V3H14V1M22,9H20V7H18V9H16V11H18V13H20V11H22V9M12.5,9.5L10,4L7.5,9.5L2,12L7.5,14.5L10,20L12.5,14.5L18,12L12.5,9.5Z" Width="14" Height="14" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            
+                            <TextBlock x:Name="lblManageGlow" Text="MANAGE GLOW" Grid.Column="1" Foreground="#8B949E" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                            
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <Button x:Name="btnPauseGlows" Classes="modeBtn" Background="Transparent" BorderThickness="0" CornerRadius="6" Padding="14,8" Cursor="Hand" Click="btnPauseGlows_Click">
+                                    <TextBlock x:Name="lblPauseGlows" Classes="modeText" Text="PAUSE" FontSize="11" FontWeight="SemiBold"/>
+                                </Button>
+                                
+                                <Button x:Name="btnDisableGlows" Classes="modeBtn" Background="Transparent" BorderThickness="0" CornerRadius="6" Padding="14,8" Cursor="Hand" Click="btnDisableGlows_Click">
+                                    <TextBlock x:Name="lblDisableGlows" Classes="modeText" Text="DISABLE" FontSize="11" FontWeight="SemiBold"/>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+</StackPanel>
         </Border>
     </Grid>
 </UserControl>

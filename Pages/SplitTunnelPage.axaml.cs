@@ -37,12 +37,22 @@ namespace CrimsonX.Pages
         public string ExeName { get; set; } = "";
         public Avalonia.Media.Imaging.Bitmap? Icon { get; set; }
     }
+    public class ContinentItem
+    {
+        public string Tag { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public bool IsExcluded { get; set; }
+        public bool IsNotExcluded => !IsExcluded;
+        public int OriginalOrder { get; set; }
+    }
 
     public partial class SplitTunnelPage : UserControl
     {
         public static SplitTunnelPage? Instance { get; private set; }
 
         public ObservableCollection<AppItem> AppItems { get; } = new();
+        public ObservableCollection<ContinentItem> Continents { get; } = new();
+
 
         private AppConfig _cfg => MainWindow.Instance.Config;
         private AppState _state => MainWindow.Instance.State;
@@ -65,6 +75,8 @@ namespace CrimsonX.Pages
         }
 
 
+    // ── Page Sync & Localization ──
+
         public void SyncUI()
         {
             _isInitializingSettings = true;
@@ -72,6 +84,52 @@ namespace CrimsonX.Pages
             {
                 var togDirectUDP = this.FindControl<ToggleSwitch>("togDirectUDP");
                 if (togDirectUDP != null) togDirectUDP.IsChecked = MainWindow.Instance.Config.EnableDirectUDP;
+
+            SanitizeExcludedContinents();
+
+            var togExcludeLocations = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togExcludeLocations");
+            if (togExcludeLocations != null)
+            {
+                int validCount = ValidExcludedCount();
+                bool excludeOn = validCount > 0 && validCount < KnownContinentNames.Length;
+                togExcludeLocations.IsChecked = excludeOn;
+                _cfg.EnableExcludedContinents = excludeOn;
+            }
+
+            var allContinents = new System.Collections.Generic.List<ContinentItem> {
+                new ContinentItem { Tag = "AS", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentAsia, OriginalOrder = 1 },
+                new ContinentItem { Tag = "EU", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentEurope, OriginalOrder = 2 },
+                new ContinentItem { Tag = "NA", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentNorthAmerica, OriginalOrder = 3 },
+                new ContinentItem { Tag = "SA", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentSouthAmerica, OriginalOrder = 4 },
+                new ContinentItem { Tag = "AF", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentAfrica, OriginalOrder = 5 },
+                new ContinentItem { Tag = "OC", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentOceania, OriginalOrder = 6 }
+            };
+
+            Continents.Clear();
+
+            var cfgContinents = MainWindow.Instance.Config.ExcludedContinents ?? new System.Collections.Generic.List<string>();
+            foreach (var c in allContinents)
+            {
+                string full = ContinentFull(c.Tag);
+                c.IsExcluded = cfgContinents.Contains(full);
+                Continents.Add(c);
+            }
+
+            var sortedList = Continents.OrderByDescending(x => x.IsExcluded).ThenBy(x => x.OriginalOrder).ToList();
+            Continents.Clear();
+            foreach (var c in sortedList) Continents.Add(c);
+
+            var lstC = this.FindControl<global::Avalonia.Controls.ItemsControl>("lstContinents");
+            if (lstC != null) lstC.ItemsSource = Continents;
+            UpdateSplitTunnelUI();
+
+
+            var lblExcludeLocations = this.FindControl<global::Avalonia.Controls.TextBlock>("lblExcludeLocations");
+            if (lblExcludeLocations != null) 
+            {
+                lblExcludeLocations.Text = CrimsonX.Localization.AppStrings.ExcludeLocationsTitle;
+                global::Avalonia.Controls.ToolTip.SetTip(lblExcludeLocations, CrimsonX.Localization.AppStrings.ExcludeLocationsTooltip);
+            }
             }
             finally
             {
@@ -81,28 +139,35 @@ namespace CrimsonX.Pages
 
         public void ApplyLanguage()
         {
+            var lblExcludeLocations = this.FindControl<TextBlock>("lblExcludeLocations");
+            if (lblExcludeLocations != null) 
+            {
+                lblExcludeLocations.Text = CrimsonX.Localization.AppStrings.ExcludeLocationsTitle;
+                global::Avalonia.Controls.ToolTip.SetTip(lblExcludeLocations, CrimsonX.Localization.AppStrings.ExcludeLocationsTooltip);
+            }
+            
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() => SyncUI());
+    
             TextBlock? F(string name) => this.FindControl<TextBlock>(name);
             Button? B(string name) => this.FindControl<Button>(name);
             
             bool fa = CrimsonX.Localization.AppStrings.IsPersian;
 
-            CrimsonX.Localization.AppStrings.Apply(F("lblSplitTunnelingHeader"), CrimsonX.Localization.AppStrings.SplitTunneling, forceLtr: true);
+            CrimsonX.Localization.AppStrings.Apply(F("lblSplitTunnelingHeader"), CrimsonX.Localization.AppStrings.NavSplitTunneling, forceLtr: true);
             CrimsonX.Localization.AppStrings.Apply(F("lblDomainsAndIps"), CrimsonX.Localization.AppStrings.DomainsAndIps);
             CrimsonX.Localization.AppStrings.Apply(F("lblApplications"), CrimsonX.Localization.AppStrings.Applications);
             var lblSplitAppsWarning = this.FindControl<TextBlock>("lblSplitAppsWarning");
-            if (lblSplitAppsWarning != null) lblSplitAppsWarning.Text = fa ? "هشدار: به حروف بزرگ و کوچک حساس است" : "Warning: Case sensitive";
+            if (lblSplitAppsWarning != null) lblSplitAppsWarning.Text = CrimsonX.Localization.AppStrings.WarningCaseSensitive;
             CrimsonX.Localization.AppStrings.Apply(F("lblBlockedDomainsIps"), CrimsonX.Localization.AppStrings.BlockedDomains);
             CrimsonX.Localization.AppStrings.Apply(F("lblDirectUdpHeader"), CrimsonX.Localization.AppStrings.SplitTunnelDirectUDP);
             CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblDirectUdpHeader"), CrimsonX.Localization.AppStrings.SplitTunnelDirectUDPTooltip);
-            CrimsonX.Localization.AppStrings.Apply(F("lblDirectUdpDesc"), CrimsonX.Localization.AppStrings.SplitTunnelDirectUDPDesc);
-            
             var btnSplitDisabled = this.FindControl<Button>("btnSplitDisabled");
             var btnSplitExclusive = this.FindControl<Button>("btnSplitExclusive");
             var btnSplitInclusive = this.FindControl<Button>("btnSplitInclusive");
             
             CrimsonX.Localization.AppStrings.ApplyToolTip(btnSplitDisabled, CrimsonX.Localization.AppStrings.TtSplitDis);
-            CrimsonX.Localization.AppStrings.ApplyToolTip(btnSplitExclusive, CrimsonX.Localization.AppStrings.TtSplitExc);
-            CrimsonX.Localization.AppStrings.ApplyToolTip(btnSplitInclusive, CrimsonX.Localization.AppStrings.TtSplitInc);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(btnSplitExclusive, CrimsonX.Localization.AppStrings.SplitExplanationExclusive);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(btnSplitInclusive, CrimsonX.Localization.AppStrings.SplitExplanationInclusive);
             
             if (btnSplitDisabled?.Content is TextBlock tbDis) CrimsonX.Localization.AppStrings.Apply(tbDis, CrimsonX.Localization.AppStrings.Disabled);
             if (btnSplitExclusive?.Content is TextBlock tbEx) CrimsonX.Localization.AppStrings.Apply(tbEx, CrimsonX.Localization.AppStrings.Exclusive);
@@ -172,18 +237,16 @@ namespace CrimsonX.Pages
         {
             base.OnAttachedToVisualTree(e);
             
-            AppStrings.Apply(this.FindControl<TextBlock>("lblSplitTunnelingHeader"), AppStrings.SplitTunneling, forceLtr: true);
+            AppStrings.Apply(this.FindControl<TextBlock>("lblSplitTunnelingHeader"), AppStrings.NavSplitTunneling, forceLtr: true);
             AppStrings.Apply(this.FindControl<TextBlock>("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDP);
             AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDPTooltip);
-            AppStrings.Apply(this.FindControl<TextBlock>("lblDirectUdpDesc"), AppStrings.SplitTunnelDirectUDPDesc);
-            
             var btnSplitDisabled = this.FindControl<Button>("btnSplitDisabled");
             var btnSplitExclusive = this.FindControl<Button>("btnSplitExclusive");
             var btnSplitInclusive = this.FindControl<Button>("btnSplitInclusive");
             
             AppStrings.ApplyToolTip(btnSplitDisabled, AppStrings.TtSplitDis);
-            AppStrings.ApplyToolTip(btnSplitExclusive, AppStrings.TtSplitExc);
-            AppStrings.ApplyToolTip(btnSplitInclusive, AppStrings.TtSplitInc);
+            AppStrings.ApplyToolTip(btnSplitExclusive, AppStrings.SplitExplanationExclusive);
+            AppStrings.ApplyToolTip(btnSplitInclusive, AppStrings.SplitExplanationInclusive);
             
             if (btnSplitDisabled?.Content is TextBlock tbDis) AppStrings.Apply(tbDis, AppStrings.Disabled);
             if (btnSplitExclusive?.Content is TextBlock tbEx) AppStrings.Apply(tbEx, AppStrings.Exclusive);
@@ -195,12 +258,14 @@ namespace CrimsonX.Pages
             AppStrings.ApplyBtn(this.FindControl<Button>("btnCancelBlock"), AppStrings.Cancel);
 
             var lblSplitAppsWarning = this.FindControl<TextBlock>("lblSplitAppsWarning");
-            if (lblSplitAppsWarning != null) lblSplitAppsWarning.Text = AppStrings.IsPersian ? "هشدار: به حروف بزرگ و کوچک حساس است" : "Warning: Case sensitive";
+            if (lblSplitAppsWarning != null) lblSplitAppsWarning.Text = CrimsonX.Localization.AppStrings.WarningCaseSensitive;
             
             var togDirectUDP = this.FindControl<ToggleSwitch>("togDirectUDP");
 
             UpdateSplitTunnelUI();
         }
+
+    // ── Split Mode & Rules Refresh ──
 
         public void UpdateSplitTunnelUI()
         {
@@ -249,16 +314,20 @@ namespace CrimsonX.Pages
                 if (_cfg.LastXrayMode == "VPN Mode")
                 {
                     panSplitDomains.IsEnabled = false;
-                    panSplitDomains.Opacity = 0.3;
+                    panSplitDomains.IsVisible = false;
+                    
                     panSplitApps.IsEnabled = true;
-                    panSplitApps.Opacity = 1.0;
+                    panSplitApps.IsVisible = true;
+                    
                 }
                 else
                 {
                     panSplitDomains.IsEnabled = true;
+                    panSplitDomains.IsVisible = true;
                     panSplitDomains.Opacity = 1.0;
                     panSplitApps.IsEnabled = false;
-                    panSplitApps.Opacity = 0.3;
+                    panSplitApps.IsVisible = false;
+                    
                 }
             }
             
@@ -266,7 +335,7 @@ namespace CrimsonX.Pages
             if (txtSplitDomains != null)
             {
                 if (txtSplitDomains.Text != _cfg.LastManualSplit) txtSplitDomains.Text = _cfg.LastManualSplit;
-                InitPanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, txtSplitDomains, this.FindControl<Button>("btnToggleDomains")!);
+                InitPanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, txtSplitDomains, this.FindControl<Button>("btnToggleDomains")!, this.FindControl<Border>("panDomainsBtns")!);
             }
                 
             AppItems.Clear();
@@ -309,7 +378,7 @@ namespace CrimsonX.Pages
             if (txtSplitBlock != null)
             {
                 if (txtSplitBlock.Text != _cfg.LastBlockSplit) txtSplitBlock.Text = _cfg.LastBlockSplit;
-                InitPanel(this.FindControl<Border>("panBlockEdit")!, this.FindControl<Border>("panBlockToggle")!, txtSplitBlock, this.FindControl<Button>("btnToggleBlock")!);
+                InitPanel(this.FindControl<Border>("panBlockEdit")!, this.FindControl<Border>("panBlockToggle")!, txtSplitBlock, this.FindControl<Button>("btnToggleBlock")!, this.FindControl<Border>("panBlockBtns")!);
             }
         }
 
@@ -344,7 +413,9 @@ namespace CrimsonX.Pages
             }
         }
 
-        private void InitPanel(Border panel, Border togglePanel, TextBox tb, Button btnToggle)
+    // ── Add / Edit Panel Helpers ──
+
+        private void InitPanel(Border panel, Border togglePanel, TextBox tb, Button btnToggle, Border btnPanel)
         {
             bool hasText = !string.IsNullOrWhiteSpace(tb.Text);
             panel.Height = hasText ? 34 : 0;
@@ -354,7 +425,6 @@ namespace CrimsonX.Pages
             if (hasText)
             {
                 tb.Height = 17;
-                tb.Margin = new Avalonia.Thickness(0);
                 tb.IsHitTestVisible = false;
                 tb.IsReadOnly = true;
                 tb.Focusable = false;
@@ -362,22 +432,23 @@ namespace CrimsonX.Pages
             }
             else
             {
-                tb.Height = 46;
+                tb.Height = 34;
                 tb.IsHitTestVisible = true;
                 tb.IsReadOnly = false;
                 tb.Focusable = true;
                 tb.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Ibeam);
             }
+            
+            if (btnPanel != null) btnPanel.IsVisible = false;
         }
 
-        private void TogglePanel(Border panel, Border togglePanel, TextBox tb, Button btnToggle, ref string tempStore)
+        private void TogglePanel(Border panel, Border togglePanel, TextBox tb, Button btnToggle, Border btnPanel, ref string tempStore)
         {
-            if (panel.Height < 110)
+            if (panel.Height < 51)
             {
                 tempStore = tb.Text ?? "";
                 
-                tb.Height = 56;
-                tb.Margin = new Avalonia.Thickness(0, 5, 0, 0);
+                tb.Height = 34;
                 tb.IsHitTestVisible = true;
                 tb.IsReadOnly = false;
                 tb.Focusable = true;
@@ -385,16 +456,17 @@ namespace CrimsonX.Pages
                 btnToggle.Content = AppStrings.Edit;
                 togglePanel.CornerRadius = new Avalonia.CornerRadius(4, 4, 0, 0);
                 
-                panel.Height = 110;
+                panel.Height = 51;
+                if (btnPanel != null) btnPanel.IsVisible = true;
                 tb.Focus();
             }
             else
             {
-                ClosePanel(panel, togglePanel, tb, btnToggle);
+                ClosePanel(panel, togglePanel, tb, btnToggle, btnPanel);
             }
         }
 
-        private void ClosePanel(Border panel, Border togglePanel, TextBox tb, Button btnToggle)
+        private void ClosePanel(Border panel, Border togglePanel, TextBox tb, Button btnToggle, Border btnPanel)
         {
             bool hasText = !string.IsNullOrWhiteSpace(tb.Text);
             
@@ -404,7 +476,6 @@ namespace CrimsonX.Pages
             if (hasText)
             {
                 tb.Height = 17;
-                tb.Margin = new Avalonia.Thickness(0);
                 tb.IsHitTestVisible = false;
                 tb.IsReadOnly = true;
                 tb.Focusable = false;
@@ -412,15 +483,18 @@ namespace CrimsonX.Pages
             }
             
             panel.Height = hasText ? 34 : 0;
+            if (btnPanel != null) btnPanel.IsVisible = false;
         }
+
+    // ── Split Entries (Add / Save / Remove / Browse) ──
 
         private void SplitToggle_Click(object? sender, RoutedEventArgs e)
         {
             if (sender is Button btn)
             {
-                if (btn.Name == "btnToggleDomains") TogglePanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, this.FindControl<TextBox>("txtSplitDomains")!, btn, ref _tempDomains);
+                if (btn.Name == "btnToggleDomains") TogglePanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, this.FindControl<TextBox>("txtSplitDomains")!, btn, this.FindControl<Border>("panDomainsBtns")!, ref _tempDomains);
                 
-                else if (btn.Name == "btnToggleBlock") TogglePanel(this.FindControl<Border>("panBlockEdit")!, this.FindControl<Border>("panBlockToggle")!, this.FindControl<TextBox>("txtSplitBlock")!, btn, ref _tempBlock);
+                else if (btn.Name == "btnToggleBlock") TogglePanel(this.FindControl<Border>("panBlockEdit")!, this.FindControl<Border>("panBlockToggle")!, this.FindControl<TextBox>("txtSplitBlock")!, btn, this.FindControl<Border>("panBlockBtns")!, ref _tempBlock);
             }
         }
 
@@ -438,7 +512,7 @@ namespace CrimsonX.Pages
                         _cfg.LastManualSplit = newVal;
                         changed = true;
                     }
-                    ClosePanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, tb, this.FindControl<Button>("btnToggleDomains")!);
+                    ClosePanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, tb, this.FindControl<Button>("btnToggleDomains")!, this.FindControl<Border>("panDomainsBtns")!);
                 }
                 
                 else if (btn.Name == "btnSaveBlock")
@@ -450,7 +524,7 @@ namespace CrimsonX.Pages
                         _cfg.LastBlockSplit = newVal;
                         changed = true;
                     }
-                    ClosePanel(this.FindControl<Border>("panBlockEdit")!, this.FindControl<Border>("panBlockToggle")!, tb, this.FindControl<Button>("btnToggleBlock")!);
+                    ClosePanel(this.FindControl<Border>("panBlockEdit")!, this.FindControl<Border>("panBlockToggle")!, tb, this.FindControl<Button>("btnToggleBlock")!, this.FindControl<Border>("panBlockBtns")!);
                 }
                 
                 if (changed)
@@ -470,14 +544,14 @@ namespace CrimsonX.Pages
                 {
                     var tb = this.FindControl<TextBox>("txtSplitDomains")!;
                     tb.Text = _tempDomains;
-                    ClosePanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, tb, this.FindControl<Button>("btnToggleDomains")!);
+                    ClosePanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, tb, this.FindControl<Button>("btnToggleDomains")!, this.FindControl<Border>("panDomainsBtns")!);
                 }
                 
                 else if (btn.Name == "btnCancelBlock")
                 {
                     var tb = this.FindControl<TextBox>("txtSplitBlock")!;
                     tb.Text = _tempBlock;
-                    ClosePanel(this.FindControl<Border>("panBlockEdit")!, this.FindControl<Border>("panBlockToggle")!, tb, this.FindControl<Button>("btnToggleBlock")!);
+                    ClosePanel(this.FindControl<Border>("panBlockEdit")!, this.FindControl<Border>("panBlockToggle")!, tb, this.FindControl<Button>("btnToggleBlock")!, this.FindControl<Border>("panBlockBtns")!);
                 }
             }
         }
@@ -573,6 +647,8 @@ namespace CrimsonX.Pages
                 }
             }
         }
+
+    // ── Direct UDP (Adapter) ──
 
         private void togDirectUDP_IsCheckedChanged(object? sender, RoutedEventArgs e)
         {
@@ -730,7 +806,206 @@ namespace CrimsonX.Pages
                 }
             }
         }
+    
+private bool _isExcludeLocationsExpanded = false;
+
+        private static readonly string[] KnownContinentNames =
+        {
+            "Asia", "Europe", "North America", "South America", "Africa", "Oceania"
+        };
+
+        private int ValidExcludedCount()
+        {
+            var stored = _cfg.ExcludedContinents;
+            if (stored == null || stored.Count == 0) return 0;
+            int count = 0;
+            foreach (var name in KnownContinentNames)
+                if (stored.Contains(name)) count++;
+            return count;
+        }
+
+        private void SanitizeExcludedContinents()
+        {
+            var stored = _cfg.ExcludedContinents;
+            if (stored == null) { _cfg.ExcludedContinents = new System.Collections.Generic.List<string>(); return; }
+
+            bool changed = false;
+            var result = new System.Collections.Generic.List<string>();
+            var seen = new System.Collections.Generic.HashSet<string>();
+            foreach (var name in stored)
+            {
+                if (!KnownContinentNames.Contains(name)) { changed = true; continue; }
+                if (seen.Add(name)) result.Add(name);
+                else changed = true;
+            }
+
+            if (changed)
+            {
+                _cfg.ExcludedContinents = result;
+                MainWindow.Instance.RequestConfigSave();
+            }
+        }
+
+    // ── Exclude Locations (Continents) ──
+
+    private void btnExcludeLocationsToggle_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (e != null)
+        {
+            var src = e.Source as global::Avalonia.Controls.Control;
+            while (src != null)
+            {
+                if (src.Name == "togExcludeLocations") return;
+                src = src.Parent as global::Avalonia.Controls.Control;
+            }
+        }
+        
+        var pan = this.FindControl<global::Avalonia.Controls.Border>("panExcludeLocations");
+        var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoExcludeLocationsExpander");
+        if (pan == null || ico == null) return;
+        
+        _isExcludeLocationsExpanded = !_isExcludeLocationsExpanded;
+        pan.MaxHeight = _isExcludeLocationsExpanded ? 500 : 0;
+        pan.Opacity = _isExcludeLocationsExpanded ? 1 : 0;
+        
+        var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panExcludeLocationsToggle");
+        var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnExcludeLocationsToggle");
+        if (panToggle != null) panToggle.CornerRadius = _isExcludeLocationsExpanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+        if (btnToggle != null) btnToggle.CornerRadius = _isExcludeLocationsExpanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+        
+        if (ico.RenderTransform is global::Avalonia.Media.RotateTransform rt)
+        {
+            rt.Angle = _isExcludeLocationsExpanded ? 180 : 0;
+        }
+        else
+        {
+            ico.RenderTransform = new global::Avalonia.Media.RotateTransform { Angle = _isExcludeLocationsExpanded ? 180 : 0 };
+        }
     }
+    
+    private void togExcludeLocations_IsCheckedChanged(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_isInitializingSettings) return;
+        var tog = sender as global::Avalonia.Controls.ToggleSwitch;
+        if (tog == null || !tog.IsChecked.HasValue) return;
+        
+        var _cfg = MainWindow.Instance.Config;
+        
+        if (tog.IsChecked.Value)
+        {
+            if (ValidExcludedCount() == 0)
+            {
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    _isInitializingSettings = true;
+                    tog.IsChecked = false;
+                    _isInitializingSettings = false;
+                });
+                
+                if (!_isExcludeLocationsExpanded)
+                {
+                    btnExcludeLocationsToggle_Click(null, new Avalonia.Interactivity.RoutedEventArgs());
+                }
+                return;
+            }
+            else if (ValidExcludedCount() == KnownContinentNames.Length)
+            {
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                    _isInitializingSettings = true;
+                    tog.IsChecked = false;
+                    _isInitializingSettings = false;
+                });
+                
+                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastAllExcluded);
+                
+                if (!_isExcludeLocationsExpanded)
+                {
+                    btnExcludeLocationsToggle_Click(null, new Avalonia.Interactivity.RoutedEventArgs());
+                }
+                return;
+            }
+        }
+        
+        _cfg.EnableExcludedContinents = tog.IsChecked.Value;
+        MainWindow.Instance.RequestConfigSave();
+        if (MainWindow.Instance.State.IsEngineRunning)
+        {
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+        }
+    } 
+
+        
+        private string ContinentFull(string tag)
+        {
+            return tag switch {
+                "AS" => "Asia",
+                "EU" => "Europe",
+                "NA" => "North America",
+                "SA" => "South America",
+                "AF" => "Africa",
+                "OC" => "Oceania",
+                "AN" => "Antarctica",
+                _ => tag
+            };
+        }
+
+        private void Continent_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (sender is global::Avalonia.Controls.Control c && c.DataContext is ContinentItem item)
+            {
+                Continents.Remove(item);
+                item.IsExcluded = !item.IsExcluded;
+                
+                var _cfg = MainWindow.Instance.Config;
+                if (_cfg.ExcludedContinents == null) _cfg.ExcludedContinents = new System.Collections.Generic.List<string>();
+                
+                string full = ContinentFull(item.Tag);
+                if (item.IsExcluded)
+                {
+                    if (!_cfg.ExcludedContinents.Contains(full))
+                        _cfg.ExcludedContinents.Add(full);
+                }
+                else
+                {
+                    _cfg.ExcludedContinents.Remove(full);
+                }
+                
+                SanitizeExcludedContinents();
+                
+                var sorted = Continents.ToList();
+                sorted.Add(item);
+                sorted = sorted.OrderByDescending(x => x.IsExcluded).ThenBy(x => x.OriginalOrder).ToList();
+                int index = sorted.IndexOf(item);
+                Continents.Insert(index, item);
+                
+                MainWindow.Instance.RequestConfigSave();
+                
+                if (MainWindow.Instance.State.IsEngineRunning)
+                {
+                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+                }
+                
+                var togExcludeLocations = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togExcludeLocations");
+                if (togExcludeLocations != null)
+                {
+                    int excludedCount = ValidExcludedCount();
+                    bool shouldBeChecked = excludedCount > 0 && excludedCount < KnownContinentNames.Length;
+                    if (excludedCount == KnownContinentNames.Length)
+                    {
+                        MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastAllExcluded);
+                    }
+                    if (togExcludeLocations.IsChecked != shouldBeChecked)
+                    {
+                        global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
+                            _isInitializingSettings = true;
+                            togExcludeLocations.IsChecked = shouldBeChecked;
+                            _isInitializingSettings = false;
+                        });
+                        
+                        _cfg.EnableExcludedContinents = shouldBeChecked;
+                        MainWindow.Instance.RequestConfigSave();
+                    }
+                }
+            }
+        }
 }
-
-
+}

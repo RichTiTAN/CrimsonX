@@ -87,18 +87,7 @@
             <Setter Property="Opacity" Value="0.8"/>
         </Style>
 
-        <Style Selector="Rectangle.activeThemeGradient">
-            <Style.Animations>
-                <Animation Duration="0:0:3" IterationCount="INFINITE">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="RotateTransform.Angle" Value="0"/>
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="RotateTransform.Angle" Value="360"/>
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
+
     </UserControl.Styles>
 
     <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="2" HorizontalAlignment="Center" Margin="0,0,0,0">
@@ -107,8 +96,9 @@
                 <RadioButton x:Name="btnNavHome" Classes="navBtn" Content="HOME" GroupName="NavGroup" IsChecked="True" Tag="Home" IsCheckedChanged="NavButton_Checked"/>
                 <RadioButton x:Name="btnNavSplit" Classes="navBtn" Content="SPLIT TUNNELING" GroupName="NavGroup" Tag="SplitTunneling" IsCheckedChanged="NavButton_Checked"/>
                 <RadioButton x:Name="btnNavSettings" Classes="navBtn" Content="SETTINGS" GroupName="NavGroup" Tag="Settings" IsCheckedChanged="NavButton_Checked"/>
-                <RadioButton x:Name="btnNavAbout" Classes="navBtn" Content="ABOUT" GroupName="NavGroup" Tag="About" IsCheckedChanged="NavButton_Checked"/>
                 <RadioButton x:Name="btnNavThemes" Classes="navBtn themeNavBtn" Content="THEMES" GroupName="NavGroup" Tag="Themes" IsCheckedChanged="NavButton_Checked"/>
+                <RadioButton x:Name="btnNavAbout" Classes="navBtn" Content="ABOUT" GroupName="NavGroup" Tag="About" IsCheckedChanged="NavButton_Checked"/>
+                <RadioButton x:Name="btnNavAppsGames" Classes="navBtn" Content="APPS &amp; GAMES" GroupName="NavGroup" Tag="AppsGames" IsCheckedChanged="NavButton_Checked"/>
             </StackPanel>
             
             

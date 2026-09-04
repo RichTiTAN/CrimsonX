@@ -1,4 +1,4 @@
-/*
+﻿/*
  * CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
  * Copyright (C) 2026 RichTiTAN
  *
@@ -44,9 +44,7 @@ namespace CrimsonX.Services
             var rules = new List<object>
             {
                 new { type = "field", ip = new[] { "127.0.0.0/8", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16" }, outboundTag = "direct" },
-                preferDirectDefault
-                    ? new { type = "field", domain = new[] { "domain:get.geojs.io" }, outboundTag = "direct" }
-                    : new { type = "field", domain = new[] { "domain:get.geojs.io" }, balancerTag = "proxy" }
+                new { type = "field", domain = new[] { "domain:get.geojs.io" }, balancerTag = "proxy" }
             };
 
             var blockDomains = new List<string>();
@@ -120,7 +118,7 @@ namespace CrimsonX.Services
             {
                 new { listen = config.AllowLanConnections ? "0.0.0.0" : "127.0.0.1", port = 10919, protocol = "mixed", tag = "mixed-in",
                       settings = mixedSettings,
-                      sniffing = new { enabled = true, destOverride = new[] { "http", "tls", "quic", "fakedns" } } },
+                      sniffing = new { enabled = true, destOverride = new[] { "http", "tls", "quic", "fakedns" }, routeOnly = true } },
                 new { listen = "127.0.0.1", port = 10999, protocol = "dokodemo-door", tag = "api",
                       settings = new { address = "127.0.0.1" } }
             };
@@ -420,6 +418,8 @@ namespace CrimsonX.Services
                 }
             }
 
+            var appRules = AppRulesSingboxBuilder.Build(config);
+
             var sbRules = new List<object>
             {
                 new { action = "sniff" },
@@ -430,6 +430,9 @@ namespace CrimsonX.Services
                 new { domain = AppSecrets.WorkerDomains, action = "route", outbound = "direct" },
                 new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" }
             };
+
+            if (appRules.RouteRules.Count > 0)
+                sbRules.AddRange(appRules.RouteRules);
 
             if (config.EnableDirectUDP)
             {
@@ -495,6 +498,9 @@ namespace CrimsonX.Services
                 new { domain_keyword = new[] { "stun", "cdn77", "datapacket" }, action = "route", server = "dns_direct" }
             };
 
+            if (appRules.DnsRules.Count > 0)
+                dnsRules.AddRange(appRules.DnsRules);
+
             if (config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE")
             {
                 if (userApps.Count > 0)
@@ -536,17 +542,18 @@ namespace CrimsonX.Services
                         stack = "mixed", endpoint_independent_nat = true
                     }
                 },
-                outbounds = (new System.Collections.Generic.List<object> {
+                outbounds = new System.Collections.Generic.List<object> {
                     new { type = "socks", tag = "proxy", server = "127.0.0.1", server_port = 10919 },
                     new { type = "direct", tag = "direct" }
                 }.Concat(
                     (config.EnableDirectUDP && !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp))
                         ? new object[] { new { type = "direct", tag = "direct-udp", bind_interface = config.DirectUdpAdapterName, inet4_bind_address = config.DirectUdpAdapterIp } }
                         : new object[0]
-                )).ToArray(),
+                ).Concat(appRules.Outbounds).ToArray(),
                 route = new
                 {
                     rules = sbRules.ToArray(),
+                    rule_set = appRules.RuleSets.ToArray(),
                     final = config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE" ? "direct" : "proxy",
                     default_domain_resolver = new { server = "dns_direct" },
                     auto_detect_interface = true,

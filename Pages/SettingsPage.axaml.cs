@@ -46,6 +46,8 @@ namespace CrimsonX.Pages
             Instance = this;
         }
 
+        // ── Page Sync & Localization ──
+
         public void SyncUI()
     {
         _isInitializingSettings = true;
@@ -65,63 +67,9 @@ namespace CrimsonX.Pages
 
             var _cfg = MainWindow.Instance.Config;
             
-            var togExcludeLocations = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togExcludeLocations");
-            if (togExcludeLocations != null) togExcludeLocations.IsChecked = _cfg.EnableExcludedContinents;
             
-            var wrapExcludeLocations = this.FindControl<global::Avalonia.Controls.WrapPanel>("wrapExcludeLocations");
-            if (wrapExcludeLocations != null && _cfg.ExcludedContinents != null)
-            {
-                foreach (var child in wrapExcludeLocations.Children)
-                {
-                    if (child is global::Avalonia.Controls.Primitives.ToggleButton tb && tb.Tag is string tag)
-                    {
-                        string fullContinentName = tag switch {
-                            "AS" => "Asia",
-                            "EU" => "Europe",
-                            "NA" => "North America",
-                            "SA" => "South America",
-                            "AF" => "Africa",
-                            "OC" => "Oceania",
-                            "AN" => "Antarctica",
-                            _ => tag
-                        };
-                        tb.IsChecked = _cfg.ExcludedContinents.Contains(fullContinentName);
-                    }
-                }
-            }
             
-            var lblExcludeLocations = this.FindControl<global::Avalonia.Controls.TextBlock>("lblExcludeLocations");
-            if (lblExcludeLocations != null) 
-            {
-                lblExcludeLocations.Text = CrimsonX.Localization.AppStrings.ExcludeLocationsTitle;
-                global::Avalonia.Controls.ToolTip.SetTip(lblExcludeLocations, CrimsonX.Localization.AppStrings.ExcludeLocationsTooltip);
-            }
             
-            var cmbExcludeContinents = this.FindControl<global::Avalonia.Controls.ComboBox>("cmbExcludeContinents");
-            if (cmbExcludeContinents != null)
-            {
-                cmbExcludeContinents.PlaceholderText = CrimsonX.Localization.AppStrings.ExcludeContinentSelect.Replace("...", "").ToUpperInvariant();
-                cmbExcludeContinents.SelectedIndex = -1;
-                
-                if (cmbExcludeContinents.Items is global::Avalonia.Controls.ItemCollection items && items.Count >= 7)
-                {
-                    if (items[0] is global::Avalonia.Controls.ComboBoxItem i0) i0.Content = CrimsonX.Localization.AppStrings.ExcludeContinentAsia.ToUpperInvariant();
-                    if (items[1] is global::Avalonia.Controls.ComboBoxItem i1) i1.Content = CrimsonX.Localization.AppStrings.ExcludeContinentEurope.ToUpperInvariant();
-                    if (items[2] is global::Avalonia.Controls.ComboBoxItem i2) i2.Content = CrimsonX.Localization.AppStrings.ExcludeContinentNorthAmerica.ToUpperInvariant();
-                    if (items[3] is global::Avalonia.Controls.ComboBoxItem i3) i3.Content = CrimsonX.Localization.AppStrings.ExcludeContinentSouthAmerica.ToUpperInvariant();
-                    if (items[4] is global::Avalonia.Controls.ComboBoxItem i4) i4.Content = CrimsonX.Localization.AppStrings.ExcludeContinentAfrica.ToUpperInvariant();
-                    if (items[5] is global::Avalonia.Controls.ComboBoxItem i5) i5.Content = CrimsonX.Localization.AppStrings.ExcludeContinentOceania.ToUpperInvariant();
-                    if (items[6] is global::Avalonia.Controls.ComboBoxItem i6) i6.Content = CrimsonX.Localization.AppStrings.ExcludeContinentAntarctica.ToUpperInvariant();
-                }
-            }
-            
-            var panExcludedContinents = this.FindControl<global::Avalonia.Controls.Border>("panExcludedContinents");
-            if (panExcludedContinents != null)
-            {
-                bool hasItems = _cfg.ExcludedContinents != null && _cfg.ExcludedContinents.Count > 0;
-                panExcludedContinents.MaxHeight = hasItems ? 45 : 0;
-                panExcludedContinents.Opacity = hasItems ? 1 : 0;
-            }
 
             
             var btnBootTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("btnBootTog");
@@ -203,7 +151,7 @@ namespace CrimsonX.Pages
             bool fa = CrimsonX.Localization.AppStrings.IsPersian;
 
             var lblLanguage = F("lblCurrentLanguage");
-            if (lblLanguage != null) lblLanguage.Text = fa ? "فارسی" : "ENGLISH";
+            if (lblLanguage != null) lblLanguage.Text = CrimsonX.Localization.AppStrings.LblLanguageName;
 
             CrimsonX.Localization.AppStrings.Apply(F("lblSectionStartup"), CrimsonX.Localization.AppStrings.SectionStartup);
             CrimsonX.Localization.AppStrings.Apply(F("lblLaunchOnStartup"),  CrimsonX.Localization.AppStrings.LaunchOnStartup);
@@ -218,12 +166,26 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnRefreshPing"), CrimsonX.Localization.AppStrings.TtPingRefresh);
 
             CrimsonX.Localization.AppStrings.Apply(F("lblCustomConfigsTitle"), CrimsonX.Localization.AppStrings.CustomConfigsTitle);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblAllowOneCustomConfig"), CrimsonX.Localization.AppStrings.OneConfigTooltip);
+            var btn1 = B("btnCustomConfigsPing1");
+            if (btn1 != null) btn1.Content = CrimsonX.Localization.AppStrings.PingBtn;
+            var btn2 = B("btnCustomConfigsPing2");
+            if (btn2 != null) btn2.Content = CrimsonX.Localization.AppStrings.PingBtn;
             var chkAllow = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
             if (chkAllow != null)
             {
-                chkAllow.Content = CrimsonX.Localization.AppStrings.AllowOneCustomConfig;
-                chkAllow.FontFamily = fa ? new global::Avalonia.Media.FontFamily("Segoe UI") : global::Avalonia.Media.FontFamily.Default;
-                chkAllow.FlowDirection = fa ? global::Avalonia.Media.FlowDirection.RightToLeft : global::Avalonia.Media.FlowDirection.LeftToRight;
+                if (chkAllow.Content is global::Avalonia.Controls.TextBlock tb)
+                {
+                    tb.Text = CrimsonX.Localization.AppStrings.AllowOneCustomConfig;
+                    tb.FontFamily = fa ? new global::Avalonia.Media.FontFamily("Segoe UI") : global::Avalonia.Media.FontFamily.Default;
+                    tb.FlowDirection = fa ? global::Avalonia.Media.FlowDirection.RightToLeft : global::Avalonia.Media.FlowDirection.LeftToRight;
+                }
+                else
+                {
+                    chkAllow.Content = CrimsonX.Localization.AppStrings.AllowOneCustomConfig;
+                    chkAllow.FontFamily = fa ? new global::Avalonia.Media.FontFamily("Segoe UI") : global::Avalonia.Media.FontFamily.Default;
+                    chkAllow.FlowDirection = fa ? global::Avalonia.Media.FlowDirection.RightToLeft : global::Avalonia.Media.FlowDirection.LeftToRight;
+                }
             }
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsPing"), CrimsonX.Localization.AppStrings.PingBtn);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsClear"), CrimsonX.Localization.AppStrings.Clear);
@@ -256,7 +218,7 @@ namespace CrimsonX.Pages
             var tbAllowLan = this.FindControl<TextBlock>("lblAllowLanSetting");
             CrimsonX.Localization.AppStrings.Apply(tbAllowLan, CrimsonX.Localization.AppStrings.AllowLan);
             CrimsonX.Localization.AppStrings.ApplyToolTip(tbAllowLan, CrimsonX.Localization.AppStrings.TtAllowLan);
-            CrimsonX.Localization.AppStrings.Apply(this.FindControl<TextBlock>("lblLanAuthTitle"), CrimsonX.Localization.AppStrings.LanAuth);
+            CrimsonX.Localization.AppStrings.Apply(this.FindControl<TextBlock>("lblLanAuthTitle"), CrimsonX.Localization.AppStrings.Authentication);
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.TextBlock>("lblLanAuthTitle"), CrimsonX.Localization.AppStrings.TtLanAuth);
 
             CrimsonX.Localization.AppStrings.Apply(F("lblOutboundType"), CrimsonX.Localization.AppStrings.ProxyType);
@@ -297,11 +259,18 @@ namespace CrimsonX.Pages
 
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnDesktopShortcut"), CrimsonX.Localization.AppStrings.Create);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnStartMenuShortcut"), CrimsonX.Localization.AppStrings.Create);
+
+            CrimsonX.Localization.AppStrings.Apply(F("lblClearWorkingCache"),  CrimsonX.Localization.AppStrings.ClearWorkingCache);
+            CrimsonX.Localization.AppStrings.Apply(F("lblClearFetchedCache"),  CrimsonX.Localization.AppStrings.ClearFetchedCache);
+            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnClearWorkingCache"), CrimsonX.Localization.AppStrings.Clear);
+            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnClearFetchedCache"), CrimsonX.Localization.AppStrings.Clear);
             
             SyncUI();
         }
 
-    private void SetCustomConfigsExpanded(bool expanded)
+        // ── Custom Configs ──
+
+        private void SetCustomConfigsExpanded(bool expanded)
     {
         var pan = this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigs");
         var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoCustomConfigsExpander");
@@ -444,22 +413,22 @@ namespace CrimsonX.Pages
         NotifyCustomConfigsChanged(showSaveToast: true);
     }
 
-    private async void btnCustomConfigsPing_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    private bool _isPinging1 = false;
+    private bool _isPinging2 = false;
+
+    private async void btnCustomConfigsPing1_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
+        if (_isPinging1) return;
+        _isPinging1 = true;
+        
         var btn = sender as global::Avalonia.Controls.Button;
-        if (btn != null) btn.Content = CrimsonX.Localization.AppStrings.ValidatingConfig;
+        if (btn != null) btn.IsEnabled = false;
 
         var txt1 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig1");
-        var txt2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
-        var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
-        
         if (txt1 != null) MainWindow.Instance.Config.CustomConfig1 = txt1.Text ?? "";
-        if (txt2 != null) MainWindow.Instance.Config.CustomConfig2 = txt2.Text ?? "";
-        if (chk != null) MainWindow.Instance.Config.AllowOneCustomConfig = chk.IsChecked ?? false;
         MainWindow.Instance.RequestConfigSave();
 
         long ping1 = -1;
-        long ping2 = -1;
         var ct = new System.Threading.CancellationTokenSource(15000).Token;
 
         if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1))
@@ -468,23 +437,46 @@ namespace CrimsonX.Pages
             if (r1 != null && r1.Success) ping1 = r1.Ping;
         }
 
+        if (btn != null) btn.IsEnabled = true;
+
+        string msg = ping1 != -1 ? $"Config 1: {ping1}ms" : CrimsonX.Localization.AppStrings.InvalidConfig;
+        MainWindow.Instance.ShowToast(msg, ping1 == -1);
+        
+        _isPinging1 = false;
+    }
+
+    private async void btnCustomConfigsPing2_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_isPinging2) return;
+        _isPinging2 = true;
+        
+        var btn = sender as global::Avalonia.Controls.Button;
+        if (btn != null) btn.IsEnabled = false;
+
+        var txt2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
+        if (txt2 != null) MainWindow.Instance.Config.CustomConfig2 = txt2.Text ?? "";
+        MainWindow.Instance.RequestConfigSave();
+
+        long ping2 = -1;
+        var ct = new System.Threading.CancellationTokenSource(15000).Token;
+
         if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2))
         {
             var r2 = await CrimsonX.Services.ConfigTester.TestConfigAsync(MainWindow.Instance.Config.CustomConfig2, MainWindow.Instance.Config, ct, false);
             if (r2 != null && r2.Success) ping2 = r2.Ping;
         }
 
-        if (btn != null) btn.Content = CrimsonX.Localization.AppStrings.PingBtn;
+        if (btn != null) btn.IsEnabled = true;
 
-        string msg = "";
-        if (ping1 != -1) msg += $"Config 1: {ping1}ms  ";
-        if (ping2 != -1) msg += $"Config 2: {ping2}ms";
-        if (ping1 == -1 && ping2 == -1) msg = CrimsonX.Localization.AppStrings.InvalidConfig;
-
-        MainWindow.Instance.ShowToast(msg.Trim(), ping1 == -1 && ping2 == -1);
+        string msg = ping2 != -1 ? $"Config 2: {ping2}ms" : CrimsonX.Localization.AppStrings.InvalidConfig;
+        MainWindow.Instance.ShowToast(msg, ping2 == -1);
+        
+        _isPinging2 = false;
     }
 
-    private void btnAdapterBindingToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        // ── Adapter Binding Panel ──
+
+        private void btnAdapterBindingToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var src = e.Source as global::Avalonia.Controls.Control;
         while (src != null)
@@ -524,7 +516,9 @@ namespace CrimsonX.Pages
         }
     }
 
-    private void btnDnsToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        // ── DNS Settings Panel (DoH / System DNS) ──
+
+        private void btnDnsToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var src = e.Source as global::Avalonia.Controls.Control;
         while (src != null)
@@ -592,7 +586,9 @@ namespace CrimsonX.Pages
         }
     }
 
-    private void btnLanAuthSave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        // ── LAN Connections & Authentication ──
+
+        private void btnLanAuthSave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var txtUser = this.FindControl<global::Avalonia.Controls.TextBox>("txtLanUser");
         var txtPass = this.FindControl<global::Avalonia.Controls.TextBox>("txtLanPass");
@@ -692,7 +688,9 @@ namespace CrimsonX.Pages
         }
     }
 
-    private void btnScanAdapters_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs? e = null)
+        // ── Scan Network Adapters ──
+
+        private void btnScanAdapters_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs? e = null)
     {
         var cmb = this.FindControl<global::Avalonia.Controls.ComboBox>("cmbAdapters");
         if (cmb == null) return;
@@ -724,7 +722,7 @@ namespace CrimsonX.Pages
             }
             else
             {
-                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian ? "آداپتور شبکه قبلی شما دیگر در دسترس نیست." : "Your previously selected network adapter is no longer available.");
+                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNoLongerAvail);
                 MainWindow.Instance.Config.SelectedAdapterName = "";
                 MainWindow.Instance.Config.SelectedAdapterIp = "";
                 MainWindow.Instance.RequestConfigSave();
@@ -738,7 +736,9 @@ namespace CrimsonX.Pages
         }
     }
 
-    private void btnSysDnsSave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        // ── System DNS Save ──
+
+        private void btnSysDnsSave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var txtPrimary   = this.FindControl<global::Avalonia.Controls.TextBox>("txtSysDnsPrimary");
         var txtSecondary = this.FindControl<global::Avalonia.Controls.TextBox>("txtSysDnsSecondary");
@@ -749,16 +749,12 @@ namespace CrimsonX.Pages
 
         if (!CrimsonX.Services.DnsService.IsValidIpv4(primary))
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? "لطفاً یک آدرس IPv4 معتبر برای DNS اول وارد کنید."
-                : "Please enter a valid IPv4 address for the primary DNS.");
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsPrimary);
             return;
         }
         if (!string.IsNullOrWhiteSpace(secondary) && !CrimsonX.Services.DnsService.IsValidIpv4(secondary))
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? "لطفاً یک آدرس IPv4 معتبر برای DNS دوم وارد کنید."
-                : "Please enter a valid IPv4 address for the secondary DNS.");
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsSecondary);
             return;
         }
 
@@ -775,7 +771,9 @@ namespace CrimsonX.Pages
             MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectDns);
     }
 
-    private void btnXrayCancel_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        // ── Custom Xray Exit Node Panel ──
+
+        private void btnXrayCancel_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var pan = this.FindControl<global::Avalonia.Controls.Border>("panXrayExitNode");
         var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoXrayExitNodeExpander");
@@ -912,7 +910,7 @@ namespace CrimsonX.Pages
                     {
                         if (flow.ToString().Contains("vision"))
                         {
-                            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian ? "کانفیگ های XTLS Vision به عنوان نود خروجی پشتیبانی نمی‌شوند." : "XTLS Vision configs cannot be used as a Custom Exit Node.");
+                            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.XtlsVisionNotSupported);
                             return;
                         }
                     }
@@ -982,7 +980,9 @@ namespace CrimsonX.Pages
         }
     }
 
-    private async void SettingTog_CheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        // ── Startup & System Setting Toggles ──
+
+        private async void SettingTog_CheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_isInitializingSettings) return;
 
@@ -1038,7 +1038,9 @@ namespace CrimsonX.Pages
         MainWindow.Instance.RequestConfigSave();
     }
 
-    private void Shortcut_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        // ── Desktop / Start-Menu Shortcuts ──
+
+        private void Shortcut_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var btn = sender as global::Avalonia.Controls.Button;
         if (btn == null) return;
@@ -1074,7 +1076,48 @@ namespace CrimsonX.Pages
         }
     }
 
-    private void togAdapterBinding_IsCheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        // ── Clear Cache Actions ──
+
+        private void ClearWorkingCache_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        try
+        {
+            string cachePath = MainWindow.Instance.GetAppPath(@"Data\cache\cache.bin");
+            if (System.IO.File.Exists(cachePath))
+                System.IO.File.Delete(cachePath);
+
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheCleared, success: true);
+        }
+        catch
+        {
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheClearFailed);
+        }
+    }
+
+    private void ClearFetchedCache_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        try
+        {
+            string cacheDir = MainWindow.Instance.GetAppPath(@"Data\cache");
+            if (System.IO.Directory.Exists(cacheDir))
+            {
+                foreach (var file in System.IO.Directory.GetFiles(cacheDir, "worker_*.bin"))
+                {
+                    try { System.IO.File.Delete(file); } catch { }
+                }
+            }
+
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheCleared, success: true);
+        }
+        catch
+        {
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheClearFailed);
+        }
+    }
+
+        // ── Enable Toggles (Adapter / DNS / LAN / Xray) ──
+
+        private void togAdapterBinding_IsCheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_isInitializingSettings) return;
 
@@ -1234,17 +1277,13 @@ namespace CrimsonX.Pages
             {
                 if (!CrimsonX.Services.DnsService.IsValidIpv4(livePrimary))
                 {
-                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                        ? "لطفاً یک آدرس IPv4 معتبر برای DNS اول وارد کنید."
-                        : "Please enter a valid IPv4 address for the primary DNS.");
+                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsPrimary);
                     global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
                     return;
                 }
                 if (!string.IsNullOrWhiteSpace(liveSecondary) && !CrimsonX.Services.DnsService.IsValidIpv4(liveSecondary))
                 {
-                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                        ? "لطفاً یک آدرس IPv4 معتبر برای DNS دوم وارد کنید."
-                        : "Please enter a valid IPv4 address for the secondary DNS.");
+                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsSecondary);
                     global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
                     return;
                 }
@@ -1365,7 +1404,9 @@ namespace CrimsonX.Pages
         }
     }
 
-private async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
+        // ── Language & Load-Balance Popups ──
+
+        private async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
     {
         bool isSelf = LanguagePopup != null && LanguagePopup.IsOpen && LanguagePopup.PlacementTarget?.Name == "btnLanguage";
         if (isSelf)
@@ -1398,128 +1439,7 @@ private async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         }
     }
 
-    private bool _isExcludeLocationsExpanded = false;
-    private void btnExcludeLocationsToggle_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (e != null)
-        {
-            var src = e.Source as global::Avalonia.Controls.Control;
-            while (src != null)
-            {
-                if (src.Name == "togExcludeLocations") return;
-                src = src.Parent as global::Avalonia.Controls.Control;
-            }
-        }
-        
-        var pan = this.FindControl<global::Avalonia.Controls.Border>("panExcludeLocations");
-        var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoExcludeLocationsExpander");
-        if (pan == null || ico == null) return;
-        
-        _isExcludeLocationsExpanded = !_isExcludeLocationsExpanded;
-        pan.MaxHeight = _isExcludeLocationsExpanded ? 500 : 0;
-        pan.Opacity = _isExcludeLocationsExpanded ? 1 : 0;
-        
-        var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panExcludeLocationsToggle");
-        var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnExcludeLocationsToggle");
-        if (panToggle != null) panToggle.CornerRadius = _isExcludeLocationsExpanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
-        if (btnToggle != null) btnToggle.CornerRadius = _isExcludeLocationsExpanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
-        
-        if (ico.RenderTransform is global::Avalonia.Media.RotateTransform rt)
-        {
-            rt.Angle = _isExcludeLocationsExpanded ? 180 : 0;
-        }
-        else
-        {
-            ico.RenderTransform = new global::Avalonia.Media.RotateTransform { Angle = _isExcludeLocationsExpanded ? 180 : 0 };
-        }
-    }
     
-    private void togExcludeLocations_IsCheckedChanged(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (_isInitializingSettings) return;
-        var tog = sender as global::Avalonia.Controls.ToggleSwitch;
-        if (tog == null || !tog.IsChecked.HasValue) return;
-        
-        var _cfg = MainWindow.Instance.Config;
-        
-        if (tog.IsChecked.Value)
-        {
-            if (_cfg.ExcludedContinents == null || _cfg.ExcludedContinents.Count == 0)
-            {
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    _isInitializingSettings = true;
-                    tog.IsChecked = false;
-                    _isInitializingSettings = false;
-                });
-                
-                if (!_isExcludeLocationsExpanded)
-                {
-                    btnExcludeLocationsToggle_Click(null, new Avalonia.Interactivity.RoutedEventArgs());
-                }
-                return;
-            }
-        }
-        
-        _cfg.EnableExcludedContinents = tog.IsChecked.Value;
-        MainWindow.Instance.RequestConfigSave();
-        if (MainWindow.Instance.State.IsEngineRunning)
-        {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
-        }
-    }
-    
-    private void ContinentPill_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (sender is global::Avalonia.Controls.Primitives.ToggleButton tb && tb.Tag is string tag)
-        {
-            var _cfg = MainWindow.Instance.Config;
-            if (_cfg.ExcludedContinents == null) _cfg.ExcludedContinents = new System.Collections.Generic.List<string>();
-            
-            string fullContinentName = tag switch {
-                "AS" => "Asia",
-                "EU" => "Europe",
-                "NA" => "North America",
-                "SA" => "South America",
-                "AF" => "Africa",
-                "OC" => "Oceania",
-                "AN" => "Antarctica",
-                _ => tag
-            };
-            
-            if (tb.IsChecked.GetValueOrDefault())
-            {
-                if (!_cfg.ExcludedContinents.Contains(fullContinentName))
-                    _cfg.ExcludedContinents.Add(fullContinentName);
-            }
-            else
-            {
-                _cfg.ExcludedContinents.Remove(fullContinentName);
-            }
-            MainWindow.Instance.RequestConfigSave();
-            
-            if (MainWindow.Instance.State.IsEngineRunning)
-            {
-                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
-            }
-            
-            var togExcludeLocations = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togExcludeLocations");
-            if (togExcludeLocations != null)
-            {
-                bool shouldBeChecked = _cfg.ExcludedContinents.Count > 0;
-                if (togExcludeLocations.IsChecked != shouldBeChecked)
-                {
-                    global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                        _isInitializingSettings = true;
-                        togExcludeLocations.IsChecked = shouldBeChecked;
-                        _isInitializingSettings = false;
-                    });
-                    
-                    _cfg.EnableExcludedContinents = shouldBeChecked;
-                    MainWindow.Instance.RequestConfigSave();
-                }
-            }
-        }
-    }
 
     private async void BtnLbPolicy_Click(object? sender, RoutedEventArgs e)
     {
@@ -1596,6 +1516,8 @@ private async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         }
     }
 
+
+        // ── Xray JSON Validation & Popup Dismissal ──
 
         private static bool CheckBrackets(string json)
         {

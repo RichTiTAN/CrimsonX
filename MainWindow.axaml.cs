@@ -63,6 +63,13 @@ public partial class MainWindow : Window
 
     internal Models.AppState GetState() => _state;
     internal void ConnectDisconnect() => btnConnect_Click(null, new global::Avalonia.Interactivity.RoutedEventArgs());
+    internal void SwitchToVpnMode()
+    {
+        _cfg.LastXrayMode = "VPN Mode";
+        _pollMode = "VPN Mode";
+        ApplyModeUI("VPN Mode");
+        RequestConfigSave();
+    }
     internal string GetSpeedText()
     {
         var down = this.FindControl<global::Avalonia.Controls.TextBlock>("lblDownloadSpeed")?.Text ?? "0 KB/s";
@@ -133,7 +140,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = this;
 
-        this.Deactivated += (s, e) => CloseAllOverlays();
+        this.Deactivated += (s, e) => { CloseAllOverlays(); CrimsonX.Controls.AnimatedBackground.Instance?.SetFocusState(false); };
+        this.Activated += (s, e) => CrimsonX.Controls.AnimatedBackground.Instance?.SetFocusState(true);
 
         this.LayoutUpdated += (s, e) => UpdateMiniNavUnderline();
         
@@ -146,7 +154,10 @@ public partial class MainWindow : Window
         ApplyLoadedSettings();
 
         InitTrayIcon();
+        InitNetDiag();
         InitLogClearTimer();
+
+        
 
         if (!double.IsNaN(_cfg.WindowLeft) && !double.IsNaN(_cfg.WindowTop))
         {
@@ -193,6 +204,8 @@ public partial class MainWindow : Window
         _ = CheckUpdateSilentAsync();
     }
 
+
+    // ── Overlay & Popup Dismissal ──
 
     private async Task ClosePopupAnimatedAsync()
     {
@@ -246,6 +259,8 @@ public partial class MainWindow : Window
 
 
 
+    // ── Social Links & Wallet Copy ──
+
     private void BtnGithub_Click(object? sender, RoutedEventArgs e)
     {
         Process.Start(new ProcessStartInfo("https://github.com/RichTiTAN") { UseShellExecute = true })?.Dispose();
@@ -272,6 +287,8 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _updateCts;
     private string _remoteUpdateVersion = "0.0.0";
     private string _remoteMinUpdateVersion = "0.0.0";
+
+    // ── Update Check & Installation ──
 
         private void SetUpdateUIStatus(string status)
     {
@@ -437,7 +454,7 @@ public partial class MainWindow : Window
              && Version.TryParse(remoteMin ?? "0.0.0", out var remoteMinVer2)
              && localVer2 < remoteMinVer2)
             {
-                Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.UpdateManual);
+                Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.UpdateManualTitle);
                 
                 var dialog = new Dialogs.UpdateDialog(isManual: true, remoteVer);
                 var result = await dialog.ShowDialog<string>(this);
@@ -479,7 +496,7 @@ public partial class MainWindow : Window
             if (token.IsCancellationRequested)
             {
                 ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateCancelled);
-                Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.UpdateCancelled);
+                Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.ToastUpdateCancelled);
                 try { await Task.Delay(2000); } catch { }
             }
             else
@@ -502,6 +519,8 @@ public partial class MainWindow : Window
             }
         }
     }
+
+    // ── Language Selector Popup ──
 
 internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
     {
@@ -551,6 +570,8 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
             _ = ClosePopupAnimatedAsync();
         }
     }
+
+    // ── Load-Balance Policy Popup ──
 
     internal async void BtnLbPolicy_Click(object? sender, RoutedEventArgs e)
     {
@@ -621,6 +642,8 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
     }
 
 
+    // ── Localization ──
+
     public void ApplyLanguage()
     {
         AppStrings.SetLanguage(_cfg.Language);
@@ -640,15 +663,16 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         CrimsonX.Pages.AboutPage.Instance?.ApplyLanguage();
         this.FindControl<CrimsonX.Controls.QuickSettingsPanel>("quickSettings")?.ApplyLanguage();
         CrimsonX.Pages.SplitTunnelPage.Instance?.ApplyLanguage();
+        this.FindControl<global::CrimsonX.Pages.AppsGamesOverlay>("overlayAppsGames")?.ApplyLanguage();
 
         TextBlock? F(string name) => this.FindControl<TextBlock>(name);
         Button? B(string name)    => this.FindControl<Button>(name);
 
-        AppStrings.Apply(F("lblSidebarConnection"),  AppStrings.SidebarConnection);
+        AppStrings.Apply(F("lblSidebarConnection"),  AppStrings.SectionConnection);
 
-        AppStrings.Apply(F("lblSidebarSplitTunnel"), AppStrings.SidebarSplitTunnel);
-        AppStrings.Apply(F("lblSidebarSettings"),    AppStrings.SidebarSettings);
-        AppStrings.Apply(F("lblSidebarAbout"),       AppStrings.SidebarAbout);
+        AppStrings.Apply(F("lblSidebarSplitTunnel"), AppStrings.NavSplitTunneling);
+        AppStrings.Apply(F("lblSidebarSettings"),    AppStrings.NavSettings);
+        AppStrings.Apply(F("lblSidebarAbout"),       AppStrings.NavAbout);
 
         AppStrings.Apply(F("lblStatNav"), AppStrings.NavStats);
         AppStrings.Apply(F("lblLogNav"),  AppStrings.NavLogs);
@@ -695,10 +719,10 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         AppStrings.Apply(F("lblConnectedFor"),  AppStrings.ConnectedFor);
         AppStrings.Apply(F("lblConnectedTo"),   AppStrings.ConnectedTo);
         var lblD = F("lblDisconnected");
-        if (lblD != null) lblD.Text = AppStrings.Disconnected;
+        if (lblD != null) lblD.Text = AppStrings.StatusDisconnected;
         var lblLoc = F("lblCountryName");
         if (lblLoc != null && (lblLoc.Text == "Disconnected" || lblLoc.Text == "منتظر اتصال" || string.IsNullOrWhiteSpace(lblLoc.Text)))
-            lblLoc.Text = AppStrings.PortStatusDisconnected;
+            lblLoc.Text = AppStrings.StatusDisconnected;
         AppStrings.Apply(F("lblLocalPortLabel"), AppStrings.OpenLocalPort);
         AppStrings.Apply(F("lblLanPortLabel"), AppStrings.OpenLanPort);
         AppStrings.Apply(F("lblSessionLabel"),  AppStrings.SessionLabel);
@@ -718,8 +742,8 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
             {
                 bool connected = _state.IsConnected;
                 txt.Text = connected
-                    ? CrimsonX.Localization.AppStrings.ConnectedBtn
-                    : CrimsonX.Localization.AppStrings.Connect;
+                    ? CrimsonX.Localization.AppStrings.StatusConnected
+                    : CrimsonX.Localization.AppStrings.StatusConnect;
                 txt.FlowDirection = fa
                     ? global::Avalonia.Media.FlowDirection.RightToLeft
                     : global::Avalonia.Media.FlowDirection.LeftToRight;
@@ -764,7 +788,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         var tbAllowLan = this.FindControl<TextBlock>("lblAllowLanSetting");
         AppStrings.Apply(tbAllowLan, AppStrings.AllowLan);
         AppStrings.ApplyToolTip(tbAllowLan, AppStrings.TtAllowLan);
-        AppStrings.Apply(this.FindControl<TextBlock>("lblLanAuthTitle"), AppStrings.LanAuth);
+        AppStrings.Apply(this.FindControl<TextBlock>("lblLanAuthTitle"), AppStrings.Authentication);
         AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.TextBlock>("lblLanAuthTitle"), AppStrings.TtLanAuth);
 
         AppStrings.Apply(F("lblOutboundType"), AppStrings.ProxyType);
@@ -794,7 +818,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         AppStrings.ApplyBtn(B("btnDesktopShortcut"), AppStrings.Create);
         AppStrings.ApplyBtn(B("btnStartMenuShortcut"), AppStrings.Create);
 
-        AppStrings.Apply(F("lblSplitTunnelingHeader"), AppStrings.SplitTunneling, forceLtr: true);
+        AppStrings.Apply(F("lblSplitTunnelingHeader"), AppStrings.NavSplitTunneling, forceLtr: true);
         AppStrings.Apply(F("lblDomainsAndIps"), AppStrings.DomainsAndIps);
         AppStrings.Apply(F("lblApplications"), AppStrings.Applications);
         var lblSplitAppsWarning = this.FindControl<TextBlock>("lblSplitAppsWarning");
@@ -811,8 +835,8 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         var btnSplitInclusive = this.FindControl<Button>("btnSplitInclusive");
         
         AppStrings.ApplyToolTip(btnSplitDisabled, AppStrings.TtSplitDis);
-        AppStrings.ApplyToolTip(btnSplitExclusive, AppStrings.TtSplitExc);
-        AppStrings.ApplyToolTip(btnSplitInclusive, AppStrings.TtSplitInc);
+        AppStrings.ApplyToolTip(btnSplitExclusive, AppStrings.SplitExplanationExclusive);
+        AppStrings.ApplyToolTip(btnSplitInclusive, AppStrings.SplitExplanationInclusive);
         
         if (btnSplitDisabled?.Content  is TextBlock tbDis) AppStrings.Apply(tbDis, AppStrings.Disabled);
         if (btnSplitExclusive?.Content is TextBlock tbEx)  AppStrings.Apply(tbEx, AppStrings.Exclusive);
@@ -829,7 +853,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
             btnToggleBlock.Content   = string.IsNullOrWhiteSpace(this.FindControl<TextBox>("txtSplitBlock")?.Text) ? AppStrings.Add : AppStrings.Edit;
 
         var btnBrowseApp = this.FindControl<Button>("btnBrowseApp");
-        if (btnBrowseApp != null) btnBrowseApp.Content = fa ? "مرور" : "BROWSE";
+        if (btnBrowseApp != null) btnBrowseApp.Content = CrimsonX.Localization.AppStrings.Browse;
 
         Pages.AboutPage.Instance?.UpdateLocalization();
         Pages.ThemesPage.Instance?.UpdateLocalization();
@@ -868,20 +892,22 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         var txtConnectedBtn = F("txtConnectedBtn");
         if (_state.IsConnected)
         {
-            if (txtConnectedBtn != null) txtConnectedBtn.Text = AppStrings.ConnectedBtn;
-            if (txtConnectBtn != null) txtConnectBtn.Text = AppStrings.ConnectedBtn;
+            if (txtConnectedBtn != null) txtConnectedBtn.Text = AppStrings.StatusConnected;
+            if (txtConnectBtn != null) txtConnectBtn.Text = AppStrings.StatusConnected;
         }
         else if (_state.IsEngineRunning)
         {
-            if (txtConnectBtn != null) txtConnectBtn.Text = fa ? "در حال اتصال..." : "CONNECTING";
+            if (txtConnectBtn != null) txtConnectBtn.Text = CrimsonX.Localization.AppStrings.StatusConnecting;
         }
         else
         {
-            if (txtConnectBtn != null) txtConnectBtn.Text = AppStrings.Connect;
+            if (txtConnectBtn != null) txtConnectBtn.Text = AppStrings.StatusConnect;
         }
     }
 
 
+
+    // ── Operating Mode Switching ──
 
     private async void Mode_Click(object? sender, RoutedEventArgs e)
     {
@@ -960,6 +986,8 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         }
     }
 
+
+    // ── Apply Settings & Mode UI ──
 
     private void ApplyLoadedSettings()
     {
@@ -1110,7 +1138,8 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
 
 
 
-    // ---------------------------------------------------------------------
+
+    // ── Custom Window Title Bar ──
 
     private void TitleBar_PointerPressed(object? sender, global::Avalonia.Input.PointerPressedEventArgs e)
     {
@@ -1144,29 +1173,17 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
             ConfigService.Save(_cfg, _state, _cfg.CfgFile);
         }
 
-        _autoBootTimer?.Stop(); 
-        if (_statsCts != null) { try { _statsCts.Cancel(); _statsCts.Dispose(); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); } _statsCts = null; }
-        _sessionClockTimer?.Stop();
-        _logTimer?.Stop();
-        _logClearTimer?.Stop();
-
-        if (_pingCts != null) { try { _pingCts.Cancel(); _pingCts.Dispose(); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); } _pingCts = null; }
-        _saveDebounceTimer?.Stop(); _saveDebounceTimer = null;
-        _toastTimer?.Stop();
-
-        _xrayRestartTimer?.Stop();
-        if (_geoCts != null) { try { _geoCts.Cancel(); _geoCts.Dispose(); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); } _geoCts = null; }
-
-
         StopAllEngines(isClosing: true);
 
-        DisposeTrayIcon();
+        Dispose();
     }
 
     
 
     private System.Collections.Generic.Dictionary<global::Avalonia.Media.SolidColorBrush, (global::Avalonia.Media.Color Start, global::Avalonia.Media.Color End, System.DateTime StartTime)> _colorAnimations = new();
     private global::Avalonia.Threading.DispatcherTimer? _colorTimer;
+
+    // ── Theme & Animation Application ──
 
     private void SetAnimatableBrush(string key, global::Avalonia.Media.Color color)
     {
@@ -1233,21 +1250,27 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
                 accentHover = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#3182CE"));
                 accentPressed = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#2C5282"));
                 glow = global::Avalonia.Media.Color.Parse("#63B3ED");
+                glow1Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#2B6CB0"));
+                glow2Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#3182CE"));
+                glow3Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#805AD5"));
                 break;
             case "Purple":
                 accent = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#6B46C1"));
                 accentHover = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#805AD5"));
                 accentPressed = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#553C9A"));
                 glow = global::Avalonia.Media.Color.Parse("#B794F4");
+                glow1Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#6B46C1"));
+                glow2Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#805AD5"));
+                glow3Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#2B6CB0"));
                 break;
             case "Green":
                 accent = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#2F855A"));
                 accentHover = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#38A169"));
                 accentPressed = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#276749"));
                 glow = global::Avalonia.Media.Color.Parse("#68D391");
-                glow1Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#38A169"));
-                glow2Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#D69E2E"));
-                glow3Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#DD6B20"));
+                glow1Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#2F855A"));
+                glow2Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#38A169"));
+                glow3Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#D69E2E"));
                 break;
             case "Pink":
                 accent = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#B83280"));
@@ -1263,7 +1286,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
                 accentHover = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#D69E2E"));
                 accentPressed = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#975A16"));
                 glow = global::Avalonia.Media.Color.Parse("#F6E05E");
-                glow1Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#38A169"));
+                glow1Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#87BA4C"));
                 glow2Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#D69E2E"));
                 glow3Brush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#DD6B20"));
                 break;
@@ -1276,13 +1299,16 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         {
             global::Avalonia.Application.Current.Resources["ThemeGlow"] = glow;
             SetAnimatableBrush("ThemeAccent", accent.Color);
+            SetAnimatableBrush("ThemeMutedBrush", global::Avalonia.Media.Color.FromArgb(80, accent.Color.R, accent.Color.G, accent.Color.B));
+            SetAnimatableBrush("ThemeSelectionBrush", global::Avalonia.Media.Color.FromArgb(140, accent.Color.R, accent.Color.G, accent.Color.B));
             SetAnimatableBrush("ThemeAccentPointerOver", accentHover.Color);
             SetAnimatableBrush("ThemeAccentPressed", accentPressed.Color);
             SetAnimatableBrush("ThemeGlowBrush", glow);
             SetAnimatableBrush("ThemeGlow1Brush", glow1Brush.Color);
             SetAnimatableBrush("ThemeGlow2Brush", glow2Brush.Color);
             SetAnimatableBrush("ThemeGlow3Brush", glow3Brush.Color);
-            CrimsonX.Controls.AnimatedBackground.Instance?.UpdateTheme(glow1Brush.Color, glow2Brush.Color, glow3Brush.Color);
+                        CrimsonX.Controls.AnimatedBackground.Instance?.UpdateTheme(glow1Brush.Color, glow2Brush.Color, glow3Brush.Color);
+            CrimsonX.Controls.AnimatedBackground.Instance?.ApplySettings(_cfg.PauseGlows, _cfg.DisableGlows);
             SetAnimatableBrush("ToggleSwitchFillOn", accent.Color);
             SetAnimatableBrush("ToggleSwitchFillOnPointerOver", accentHover.Color);
             SetAnimatableBrush("ToggleSwitchFillOnPressed", accentPressed.Color);
@@ -1297,7 +1323,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         if (_state != null && _state.IsEngineRunning)
         {
             var txtConnectBtn = this.FindControl<global::Avalonia.Controls.TextBlock>("txtConnectBtn");
-            if (txtConnectBtn != null && txtConnectBtn.Text == CrimsonX.Localization.AppStrings.ConnectedBtn) 
+            if (txtConnectBtn != null && txtConnectBtn.Text == CrimsonX.Localization.AppStrings.StatusConnected) 
                 txtConnectBtn.Foreground = new global::Avalonia.Media.SolidColorBrush(glow);
         }
 
@@ -1310,25 +1336,71 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
     
 
 
+    
+        public void UpdateGlobalAnimations()
+    {
+        bool glowsAllowed = !_cfg.PauseGlows && !_cfg.DisableGlows;
+        
+        if (glowsAllowed)
+        {
+            if (!this.Classes.Contains("anim-glows")) this.Classes.Add("anim-glows");
+        }
+        else
+        {
+            this.Classes.Remove("anim-glows");
+        }
+
+        CrimsonX.Controls.AnimatedBackground.Instance?.ApplySettings(
+            _cfg.PauseGlows, 
+            _cfg.DisableGlows
+        );
+    }
+
+    private string _previousNav = "Home";
+
+    // ── Tab Navigation ──
+
     private void NavBar_NavChanged(object? sender, string viewName)
     {
+        _previousNav = viewName;
         var carousel = this.FindControl<global::Avalonia.Controls.Carousel>("MainCarousel");
         if (carousel == null) return;
 
+        if (viewName == "Themes")
+        {
+            if (!this.Classes.Contains("themes-active")) this.Classes.Add("themes-active");
+        }
+        else
+        {
+            this.Classes.Remove("themes-active");
+        }
+
         switch (viewName)
         {
-            case "Home": carousel.SelectedIndex = 0; break;
+            case "Home": carousel.SelectedIndex = 0; RestoreHomeMiniNav(); break;
             case "SplitTunneling": carousel.SelectedIndex = 1; break;
             case "Settings": carousel.SelectedIndex = 2; break;
-            case "About": carousel.SelectedIndex = 3; break;
-            case "Themes": carousel.SelectedIndex = 4; break;
+            case "Themes": carousel.SelectedIndex = 3; break;
+            case "About": carousel.SelectedIndex = 4; break;
+            case "AppsGames": carousel.SelectedIndex = 5; break;
         }
 
         var panTabDarken = this.FindControl<global::Avalonia.Controls.Border>("panTabDarken");
         if (panTabDarken != null)
         {
-            panTabDarken.Opacity = (carousel.SelectedIndex == 1 || carousel.SelectedIndex == 2) ? 1 : 0;
+            panTabDarken.Opacity = (carousel.SelectedIndex == 1 || carousel.SelectedIndex == 2 || carousel.SelectedIndex == 3 || carousel.SelectedIndex == 4 || carousel.SelectedIndex == 5) ? 1 : 0;
         }
+        
+        if (viewName == "AppsGames")
+{
+    var page = this.FindControl<global::CrimsonX.Pages.AppsGamesOverlay>("overlayAppsGames");
+    if (page != null) page.LoadRules();
+}
+if (viewName == "SplitTunneling")
+{
+    var page = this.FindControl<global::CrimsonX.Pages.SplitTunnelPage>("pageSplit");
+    if (page != null) page.SyncUI();
+}
     }
 }
 

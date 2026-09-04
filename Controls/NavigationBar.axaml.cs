@@ -35,6 +35,8 @@ public partial class NavigationBar : UserControl
         this.LayoutUpdated += (s, e) => UpdateUnderline();
     }
 
+    // ── Localization ──
+
     public void ApplyLanguage()
     {
         bool isFa = CrimsonX.Localization.AppStrings.IsPersian;
@@ -75,6 +77,13 @@ public partial class NavigationBar : UserControl
             btnNavThemes.Content = CrimsonX.Localization.AppStrings.NavThemes;
             btnNavThemes.Padding = isFa ? pWide : pNorm;
         }
+        
+        var btnNavAppsGames = this.FindControl<RadioButton>("btnNavAppsGames");
+        if (btnNavAppsGames != null)
+        {
+            btnNavAppsGames.Content = CrimsonX.Localization.AppStrings.NavAppsGames;
+            btnNavAppsGames.Padding = pNorm;
+        }
 
         this.InvalidateMeasure();
         
@@ -90,6 +99,8 @@ public partial class NavigationBar : UserControl
         
         Dispatcher.UIThread.Post(() => UpdateUnderline(), DispatcherPriority.Render);
     }
+
+    // ── Nav Selection & Animated Underline ──
 
     private void NavButton_Checked(object? sender, RoutedEventArgs e)
     {

@@ -27,9 +27,13 @@ public partial class ThemesPage : UserControl
 
     public ThemesPage()
     {
+        _isInitializing = true;
         InitializeComponent();
         Instance = this;
+        SyncUI();
     }
+
+    // ── Theme Selection ──
 
     private void ThemeSelect_Click(object? sender, RoutedEventArgs e)
     {
@@ -46,6 +50,66 @@ public partial class ThemesPage : UserControl
         }, System.TimeSpan.FromMilliseconds(300));
     }
 
+    
+    private bool _isInitializing = false;
+
+    public void SyncUI()
+    {
+        _isInitializing = true;
+        
+        UpdateGlowButtons();
+
+        MainWindow.Instance.UpdateGlobalAnimations();
+
+        _isInitializing = false;
+    }
+
+    // ── Glow Animation Controls ──
+
+    private void UpdateGlowButtons()
+    {
+        var btnPause = this.FindControl<Button>("btnPauseGlows");
+        var btnDisable = this.FindControl<Button>("btnDisableGlows");
+
+        if (btnPause != null)
+        {
+            if (MainWindow.Instance.Config.PauseGlows)
+                btnPause.Classes.Add("activeMode");
+            else
+                btnPause.Classes.Remove("activeMode");
+        }
+
+        if (btnDisable != null)
+        {
+            if (MainWindow.Instance.Config.DisableGlows)
+                btnDisable.Classes.Add("activeMode");
+            else
+                btnDisable.Classes.Remove("activeMode");
+        }
+    }
+
+    private void btnPauseGlows_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_isInitializing) return;
+        MainWindow.Instance.Config.PauseGlows = !MainWindow.Instance.Config.PauseGlows;
+        UpdateGlowButtons();
+        MainWindow.Instance.RequestSave();
+        
+        MainWindow.Instance.UpdateGlobalAnimations();
+    }
+
+    private void btnDisableGlows_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_isInitializing) return;
+        MainWindow.Instance.Config.DisableGlows = !MainWindow.Instance.Config.DisableGlows;
+        UpdateGlowButtons();
+        MainWindow.Instance.RequestSave();
+        
+        MainWindow.Instance.UpdateGlobalAnimations();
+    }
+
+    // ── Localization ──
+
     internal void UpdateLocalization()
     {
     }
@@ -60,5 +124,9 @@ public partial class ThemesPage : UserControl
         CrimsonX.Localization.AppStrings.Apply(F("lblColorGreen"), CrimsonX.Localization.AppStrings.ColorGreen);
         CrimsonX.Localization.AppStrings.Apply(F("lblColorPink"), CrimsonX.Localization.AppStrings.ColorPink);
         CrimsonX.Localization.AppStrings.Apply(F("lblColorYellow"), CrimsonX.Localization.AppStrings.ColorYellow);
+    
+        CrimsonX.Localization.AppStrings.Apply(F("lblManageGlow"), CrimsonX.Localization.AppStrings.ThemeManageGlow);
+        CrimsonX.Localization.AppStrings.Apply(F("lblPauseGlows"), CrimsonX.Localization.AppStrings.ThemePauseGlows);
+        CrimsonX.Localization.AppStrings.Apply(F("lblDisableGlows"), CrimsonX.Localization.AppStrings.ThemeDisableGlows);
     }
 }

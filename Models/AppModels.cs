@@ -36,6 +36,10 @@ namespace CrimsonX.Models
         public bool DisableBackgroundChecks { get; set; } = false;
         public bool DisableRefreshTimer { get; set; } = false;
 
+        public bool PauseGlows { get; set; } = false;
+        public bool DisableGlows { get; set; } = false;
+
+
         public bool AutoStart { get; set; } = true;
         public bool LaunchOnBoot { get; set; } = false;
         public bool DebugMode { get; set; } = false;
@@ -49,6 +53,7 @@ namespace CrimsonX.Models
         public string LastManualSplit { get; set; } = "";
         [JsonProperty("AppSplit")]
         public string LastAppSplit { get; set; } = "";
+        public bool EnableAppRules { get; set; } = true;
         [JsonProperty("BlockSplit")]
         public string LastBlockSplit { get; set; } = "";
         public bool EnableDirect { get; set; } = false;

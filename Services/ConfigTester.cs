@@ -37,6 +37,7 @@ namespace CrimsonX.Services
         public string Link { get; set; } = "";
         public string OutboundJson { get; set; } = "";
         public string Continent { get; set; } = "";
+        public string CountryCode { get; set; } = "";
     }
 
     public static class ConfigTester
@@ -47,6 +48,7 @@ namespace CrimsonX.Services
             "http://detectportal.firefox.com"
         };
         private const int TimeoutMs = 3000;
+        private const int SpeedTestDurationMs = 5000;
 
         public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false)
         {
@@ -176,6 +178,7 @@ namespace CrimsonX.Services
                         if (geoResp.IsSuccessStatusCode)
                         {
                             var geoJson = Newtonsoft.Json.Linq.JObject.Parse(await geoResp.Content.ReadAsStringAsync(ct));
+                            res.CountryCode = geoJson["country_code"]?.ToString() ?? "";
                             res.Continent = geoJson["continent_code"]?.ToString() ?? "";
                             res.Continent = res.Continent switch
                             {
@@ -300,7 +303,7 @@ namespace CrimsonX.Services
                 byte[] buffer = new byte[8192];
                 long totalBytes = 0;
                 
-                using var timeoutCts = new CancellationTokenSource(3000);
+                using var timeoutCts = new CancellationTokenSource(SpeedTestDurationMs);
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
                 
                 try
