@@ -13,7 +13,8 @@
 
 **CrimsonX** is an advanced proxy/vpn client for Windows built with C# and Avalonia UI. It takes advantage of the powerful **Xray-core** and **sing-box** engines under the hood, wrapping them in a beautiful, highly animated, and user-friendly interface.
 
-Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantly pulls, tests, and caches the fastest configurations in the background. It automatically load-balances traffic across multiple nodes to ensure uninterrupted, high-speed connectivity.
+Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantly pulls, tests, and caches the fastest configurations in the background. It automatically load-balances traffic across multiple nodes to ensure uninterrupted, high-speed connectivity.  
+[Persian READ ME](https://github.com/RichTiTAN/CrimsonX/blob/main/README_fa.md)
 
 ##  Key Features
 
