@@ -34,7 +34,8 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 
 ##  Screenshots
 
-<img width="651" height="551" alt="Screenshot 2026-08-24 101948" src="https://github.com/user-attachments/assets/90de8995-ddac-489c-a5d4-b5b9ddc6ad5c" />
+<img width="652" height="554" alt="image" src="https://github.com/user-attachments/assets/d85ba2c6-4df4-4f39-ab09-bfe2ba63d6e8" />
+
 
 
 ##  Installation
