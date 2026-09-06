@@ -29,6 +29,7 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
       - Exclude specific continents (Geo-IP based routing).
       - Enable Ad-Blocker to filter malicious and tracking requests.
       - Bypass proxy for specific apps or IPs (Direct UDP support).
+-  **Apps & Games Routing:** A dedicated hub to manage TCP/UDP routing, adapter binding, and region matching for specific applications and games.
 -  **LAN Sharing:** Share your VPN connection over the local network, with optional Username/Password authentication.
 -  **DNS Control:** Built-in support for secure DNS-over-HTTPS (DoH) and customizable System DNS fallbacks.
 
@@ -71,6 +72,9 @@ Head to the **Settings** tab to adjust how CrimsonX distributes connections. If 
 
 ### 4. Seamless Swap
 The app constantly checks if your current configs are working and if they are not it will seamlessly replace them with working configs without disconnecting you from the internet.
+
+### 5. Apps & Games Profile Routing
+The **Apps & Games** tab provides pre-configured routing profiles for popular games (Valorant, CS2, League of Legends, etc.) and applications (Discord, Telegram). You can seamlessly route TCP and UDP traffic independently, bind them to specific network adapters, or force regional matchmaking without affecting your global system VPN.
 
 ### TROUBLESHOOTING:
 - Check the [Documentation file](https://github.com/RichTiTAN/CrimsonX/blob/main/Documentation.md) for detailed instructions.
