@@ -273,15 +273,7 @@
         <!-- Global Controlled Glow Animations -->
         
 
-        <!-- Only animate connect button glow when connected AND glows are active -->
-        <Style Selector="Window.anim-glows Rectangle.connectGlowRect.is-connected">
-            <Style.Animations>
-                <Animation Duration="0:0:3" IterationCount="Infinite">
-                    <KeyFrame Cue="0%"><Setter Property="RotateTransform.Angle" Value="0" /></KeyFrame>
-                    <KeyFrame Cue="100%"><Setter Property="RotateTransform.Angle" Value="360" /></KeyFrame>
-                </Animation>
-            </Style.Animations>
-        </Style>
+        
 
         
 </Window.Styles>
@@ -350,20 +342,7 @@
                                                           <GradientStop Color="#00000000" Offset="0.65"/>
                                                       </ConicGradientBrush>
                                                   </Rectangle.Fill>
-                                                  <Rectangle.Styles>
-                                                      <Style Selector="Rectangle.connectGlowRect.is-animating">
-                                                          <Style.Animations>
-                                                              <Animation Duration="0:0:3" IterationCount="INFINITE">
-                                                                  <KeyFrame Cue="0%">
-                                                                      <Setter Property="RotateTransform.Angle" Value="0"/>
-                                                                  </KeyFrame>
-                                                                  <KeyFrame Cue="100%">
-                                                                      <Setter Property="RotateTransform.Angle" Value="360"/>
-                                                                  </KeyFrame>
-                                                              </Animation>
-                                                          </Style.Animations>
-                                                      </Style>
-                                                  </Rectangle.Styles>
+                                                  
                                               </Rectangle>
                                           </Panel>
                                           

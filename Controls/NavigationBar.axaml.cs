@@ -102,6 +102,23 @@ public partial class NavigationBar : UserControl
 
     // ── Nav Selection & Animated Underline ──
 
+
+    public void SelectTab(string tag)
+    {
+        var navStack = this.FindControl<StackPanel>("NavStack");
+        if (navStack != null)
+        {
+            foreach (var child in navStack.Children)
+            {
+                if (child is RadioButton rb && rb.Tag is string rTag && rTag == tag)
+                {
+                    rb.IsChecked = true;
+                    break;
+                }
+            }
+        }
+    }
+
     private void NavButton_Checked(object? sender, RoutedEventArgs e)
     {
         if (sender is RadioButton rb)

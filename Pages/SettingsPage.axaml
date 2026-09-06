@@ -69,6 +69,18 @@
                                     <Border Background="Transparent" BorderThickness="0" Padding="6,8,6,7" Margin="0,50,20,20" HorizontalAlignment="Stretch" VerticalAlignment="Top">
                                         <StackPanel Spacing="6">
                                     <TextBlock x:Name="lblSectionStartup" Text="START-UP" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Center"/>
+                                    <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0">
+                                        <Grid x:Name="panStartupTab" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                <PathIcon Data="M3 3h18v18H3V3zm16 16V7H5v12h14zM7 9h4v2H7V9zm6 0h4v2h-4V9zm-6 4h10v2H7v-2z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                <TextBlock x:Name="lblStartupTab" Classes="settingTitle" Text="START-UP TAB" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                            <ComboBox x:Name="cmbStartupTab" Grid.Column="2" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1" CornerRadius="4" MinHeight="26" Height="26" Padding="8,0" Width="130" FontSize="11" FontWeight="Bold" VerticalContentAlignment="Center" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand" SelectionChanged="CmbStartupTab_SelectionChanged">
+                                                <ComboBoxItem x:Name="cbiHome" Content="HOME" FontSize="11" FontWeight="Bold"/>
+                                                <ComboBoxItem x:Name="cbiAppsGames" Content="APPS &amp; GAMES" FontSize="11" FontWeight="Bold"/>
+                                            </ComboBox>
+                                        </Grid>
+                                    </Border>
                                     <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto">
                                         <Border Grid.Row="0" Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,6">
                                             <Grid x:Name="panLaunchOnStartup" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
@@ -607,7 +619,7 @@
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" Width="14" Height="14" Foreground="#8B949E"/>
-                                                        <TextBlock x:Name="lblClearWorkingCache" Text="CLEAR WORKING CACHE" FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                        <TextBlock x:Name="lblClearWorkingCache" Classes="settingTitle" Text="CLEAR WORKING CACHE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                     <Button Grid.Column="2" x:Name="btnClearWorkingCache" Content="CLEAR" Classes="optBtn" FontSize="10" Padding="8,4" Background="#1AFFFFFF" Click="ClearWorkingCache_Click"/>
                                                 </Grid>
@@ -616,7 +628,7 @@
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" Width="14" Height="14" Foreground="#8B949E"/>
-                                                        <TextBlock x:Name="lblClearFetchedCache" Text="CLEAR FETCHED CACHE" FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                        <TextBlock x:Name="lblClearFetchedCache" Classes="settingTitle" Text="CLEAR FETCHED CACHE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
                                                     </StackPanel>
                                                     <Button Grid.Column="2" x:Name="btnClearFetchedCache" Content="CLEAR" Classes="optBtn" FontSize="10" Padding="8,4" Background="#1AFFFFFF" Click="ClearFetchedCache_Click"/>
                                                 </Grid>

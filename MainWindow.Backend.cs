@@ -256,7 +256,8 @@ public partial class MainWindow
         {
             if (_state.IsConnected || _state.IsEngineRunning)
             {
-                lblLanIp.Text = (_state.LanIp ?? "Unknown") + ":10919";
+                string displayIp = (_cfg.EnableAdapterBinding && !string.IsNullOrWhiteSpace(_cfg.SelectedAdapterIp)) ? _cfg.SelectedAdapterIp : (_state.LanIp ?? "Unknown");
+                    lblLanIp.Text = displayIp + ":10919";
             }
             else
             {

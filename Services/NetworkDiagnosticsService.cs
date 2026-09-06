@@ -119,7 +119,6 @@ namespace CrimsonX.Services
             }, token);
         }
 
-        /// <summary>Cancels any in-flight geo-trace.</summary>
         public void StopGeoTrace()
         {
             if (_geoCts == null) return;

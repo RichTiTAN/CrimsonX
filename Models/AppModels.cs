@@ -41,6 +41,7 @@ namespace CrimsonX.Models
 
 
         public bool AutoStart { get; set; } = true;
+        public string StartupTab { get; set; } = "Home";
         public bool LaunchOnBoot { get; set; } = false;
         public bool DebugMode { get; set; } = false;
         public bool StartMinimized { get; set; } = false;

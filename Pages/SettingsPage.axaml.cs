@@ -36,7 +36,7 @@ namespace CrimsonX.Pages
 
     public partial class SettingsPage : UserControl
     {
-        private bool _isInitializingSettings = false;
+        private bool _isInitializingSettings = true;
         public static SettingsPage Instance { get; private set; }
         
 
@@ -72,6 +72,15 @@ namespace CrimsonX.Pages
             
 
             
+            
+            var cmbStartup = this.FindControl<global::Avalonia.Controls.ComboBox>("cmbStartupTab");
+            if (cmbStartup != null) {
+                int target = (_cfg.StartupTab == "AppsGames") ? 1 : 0;
+                if (cmbStartup.SelectedIndex == target)
+                    cmbStartup.SelectedIndex = -1;   
+                cmbStartup.SelectedIndex = target;
+            }
+
             var btnBootTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("btnBootTog");
             if (btnBootTog != null) btnBootTog.IsChecked = _cfg.LaunchOnBoot;
             
@@ -154,6 +163,14 @@ namespace CrimsonX.Pages
             if (lblLanguage != null) lblLanguage.Text = CrimsonX.Localization.AppStrings.LblLanguageName;
 
             CrimsonX.Localization.AppStrings.Apply(F("lblSectionStartup"), CrimsonX.Localization.AppStrings.SectionStartup);
+            
+            CrimsonX.Localization.AppStrings.Apply(F("lblStartupTab"), CrimsonX.Localization.AppStrings.StartupTabLabel);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblStartupTab"), CrimsonX.Localization.AppStrings.TtStartupTab);
+            var cbiHome = this.FindControl<global::Avalonia.Controls.ComboBoxItem>("cbiHome");
+            if (cbiHome != null) cbiHome.Content = CrimsonX.Localization.AppStrings.TabHome;
+            var cbiAppsGames = this.FindControl<global::Avalonia.Controls.ComboBoxItem>("cbiAppsGames");
+            if (cbiAppsGames != null) cbiAppsGames.Content = CrimsonX.Localization.AppStrings.TabAppsGames;
+
             CrimsonX.Localization.AppStrings.Apply(F("lblLaunchOnStartup"),  CrimsonX.Localization.AppStrings.LaunchOnStartup);
             CrimsonX.Localization.AppStrings.Apply(F("lblAutoConnect"), CrimsonX.Localization.AppStrings.AutoConnect);
             CrimsonX.Localization.AppStrings.Apply(F("lblStartMinimized"), CrimsonX.Localization.AppStrings.StartMinimized);
@@ -262,6 +279,9 @@ namespace CrimsonX.Pages
 
             CrimsonX.Localization.AppStrings.Apply(F("lblClearWorkingCache"),  CrimsonX.Localization.AppStrings.ClearWorkingCache);
             CrimsonX.Localization.AppStrings.Apply(F("lblClearFetchedCache"),  CrimsonX.Localization.AppStrings.ClearFetchedCache);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblClearWorkingCache"), CrimsonX.Localization.AppStrings.TtClearWorkingCache);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblClearFetchedCache"), CrimsonX.Localization.AppStrings.TtClearFetchedCache);
+
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnClearWorkingCache"), CrimsonX.Localization.AppStrings.Clear);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnClearFetchedCache"), CrimsonX.Localization.AppStrings.Clear);
             
@@ -982,7 +1002,21 @@ namespace CrimsonX.Pages
 
         // ── Startup & System Setting Toggles ──
 
-        private async void SettingTog_CheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        
+            private void CmbStartupTab_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializingSettings) return;
+        var cmb = sender as global::Avalonia.Controls.ComboBox;
+        if (cmb != null && cmb.SelectedIndex >= 0)
+        {
+            string newVal = cmb.SelectedIndex == 1 ? "AppsGames" : "Home";
+            CrimsonX.Services.SimpleLogger.Log("[Settings] StartupTab changed to: " + newVal);
+            MainWindow.Instance.Config.StartupTab = newVal;
+            MainWindow.Instance.SaveConfig();
+        }
+    }
+
+    private async void SettingTog_CheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_isInitializingSettings) return;
 

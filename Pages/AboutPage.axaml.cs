@@ -57,6 +57,25 @@ public partial class AboutPage : UserControl
         Process.Start(new ProcessStartInfo("https://github.com/RichTiTAN/CrimsonOnion") { UseShellExecute = true })?.Dispose();
     }
 
+    private void BtnDonateCard_Click(object? sender, RoutedEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo("https://buy.moonpay.com/?currencyCode=usdt_bsc&walletAddress=0xFc1d71C22DC2604f6C13Ca540ed842535cbE6d75") { UseShellExecute = true })?.Dispose();
+    }
+
+    private void BtnWalletToggle_Click(object? sender, RoutedEventArgs e)
+    {
+        var pan = this.FindControl<Border>("panWalletAddresses");
+        var ico = this.FindControl<PathIcon>("icoWalletExpander");
+        var panToggle = this.FindControl<Border>("panWalletToggle");
+        var btnToggle = this.FindControl<Button>("btnWalletToggle");
+        bool expanded = pan != null && pan.MaxHeight == 0;
+
+        if (pan != null) { pan.MaxHeight = expanded ? 260 : 0; pan.Opacity = expanded ? 1 : 0; }
+        if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(expanded ? 180 : 0);
+        if (panToggle != null) panToggle.CornerRadius = expanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+        if (btnToggle != null) btnToggle.CornerRadius = expanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+    }
+
     // ── Language & Localization ──
 
     public void ApplyLanguage()
@@ -104,6 +123,8 @@ public partial class AboutPage : UserControl
         Apply(this.FindControl<TextBlock>("lblAboutLicense"), Localization.AppStrings.AboutLicense);
         Apply(this.FindControl<TextBlock>("lblDonations"), Localization.AppStrings.DonationsTitle);
         Apply(this.FindControl<TextBlock>("lblDonationsDesc"), Localization.AppStrings.DonationsDesc);
+        Apply(this.FindControl<TextBlock>("lblDonateCard"), Localization.AppStrings.DonateCardTitle);
+        Apply(this.FindControl<TextBlock>("lblWalletAddresses"), Localization.AppStrings.WalletAddressesTitle);
         
         var btnCheckUpdate = this.FindControl<Button>("btnCheckUpdate");
         if (btnCheckUpdate != null) btnCheckUpdate.Content = Localization.AppStrings.CheckForUpdates;

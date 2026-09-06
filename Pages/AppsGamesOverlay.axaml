@@ -295,37 +295,52 @@ BorderThickness="1" CornerRadius="8" Padding="15,9.5" Height="45" Margin="0,0,0,
                                         
                                             <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
                                                     CornerRadius="4" Height="26">
-                                                <Grid ColumnDefinitions="*, 1, 80">
-                                                    <Button x:Name="btnSubmit" Grid.Column="0"
-                                                            Content="SUBMIT" Click="BtnSubmit_Click"
-                                                            FontSize="10" FontWeight="Bold" Foreground="#E2E8F0"
-                                                            Background="Transparent" HorizontalAlignment="Stretch"
-                                                            HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
-                                                            VerticalContentAlignment="Center" Padding="20,0"
-                                                            Cursor="Hand" BorderThickness="0" CornerRadius="4,0,0,4">
-                                                        <Button.Styles>
-                                                            <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                            </Style>
-                                                        </Button.Styles>
-                                                    </Button>
-                                                    <Border Grid.Column="1" Background="#2D3748"/>
-                                                    <Button x:Name="btnCancel" Grid.Column="2"
-                                                            Content="CANCEL" Click="BtnCancel_Click"
-                                                            FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"
-                                                            Background="Transparent" HorizontalAlignment="Stretch"
-                                                            HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
-                                                            VerticalContentAlignment="Center"
-                                                            Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
-                                                        <Button.Styles>
-                                                            <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                            </Style>
-                                                        </Button.Styles>
-                                                    </Button>
-                                                </Grid>
+                                                <Grid ColumnDefinitions="Auto, 1, *, 1, 80">
+<Button x:Name="btnScanAdapters" Grid.Column="0"
+Content="SCAN ADAPTERS" Click="BtnScanAdapters_Click"
+FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"
+Background="Transparent" HorizontalAlignment="Stretch"
+HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
+VerticalContentAlignment="Center" Padding="15,0"
+Cursor="Hand" BorderThickness="0" CornerRadius="4,0,0,4">
+<Button.Styles>
+<Style Selector="Button:pointerover /template/ ContentPresenter">
+<Setter Property="Background" Value="#2AFFFFFF"/>
+<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+</Style>
+</Button.Styles>
+</Button>
+<Border Grid.Column="1" Background="#2D3748"/>
+<Button x:Name="btnSubmit" Grid.Column="2"
+Content="SUBMIT" Click="BtnSubmit_Click"
+FontSize="10" FontWeight="Bold" Foreground="#E2E8F0"
+Background="Transparent" HorizontalAlignment="Stretch"
+HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
+VerticalContentAlignment="Center" Padding="20,0"
+Cursor="Hand" BorderThickness="0" CornerRadius="0">
+<Button.Styles>
+<Style Selector="Button:pointerover /template/ ContentPresenter">
+<Setter Property="Background" Value="#2AFFFFFF"/>
+<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+</Style>
+</Button.Styles>
+</Button>
+<Border Grid.Column="3" Background="#2D3748"/>
+<Button x:Name="btnCancel" Grid.Column="4"
+Content="CANCEL" Click="BtnCancel_Click"
+FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"
+Background="Transparent" HorizontalAlignment="Stretch"
+HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
+VerticalContentAlignment="Center"
+Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
+<Button.Styles>
+<Style Selector="Button:pointerover /template/ ContentPresenter">
+<Setter Property="Background" Value="#2AFFFFFF"/>
+<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+</Style>
+</Button.Styles>
+</Button>
+</Grid>
                                             </Border>
                                             </Grid>
                                         </Grid>
@@ -485,37 +500,52 @@ BorderThickness="1" CornerRadius="8" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                 <Grid Grid.Column="1">
                                                     <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
                                                             CornerRadius="4" Height="26">
-                                                        <Grid ColumnDefinitions="*, 1, 80">
-                                                            <Button x:Name="btnDefaultSubmit" Grid.Column="0"
-                                                                    Content="SUBMIT" Click="DefaultSubmit_Click"
-                                                                    FontSize="10" FontWeight="Bold" Foreground="#E2E8F0"
-                                                                    Background="Transparent" HorizontalAlignment="Stretch"
-                                                                    HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
-                                                                    VerticalContentAlignment="Center" Padding="20,0"
-                                                                    Cursor="Hand" BorderThickness="0" CornerRadius="4,0,0,4">
-                                                                <Button.Styles>
-                                                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                        <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                        <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                    </Style>
-                                                                </Button.Styles>
-                                                            </Button>
-                                                            <Border Grid.Column="1" Background="#2D3748"/>
-                                                            <Button x:Name="btnDefaultCancel" Grid.Column="2"
-                                                                    Content="CANCEL" Click="DefaultCancel_Click"
-                                                                    FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"
-                                                                    Background="Transparent" HorizontalAlignment="Stretch"
-                                                                    HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
-                                                                    VerticalContentAlignment="Center"
-                                                                    Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
-                                                                <Button.Styles>
-                                                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                        <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                        <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                    </Style>
-                                                                </Button.Styles>
-                                                            </Button>
-                                                        </Grid>
+                                                        <Grid ColumnDefinitions="Auto, 1, *, 1, 80">
+<Button x:Name="btnDefaultScanAdapters" Grid.Column="0"
+Content="SCAN ADAPTERS" Click="BtnScanAdapters_Click"
+FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"
+Background="Transparent" HorizontalAlignment="Stretch"
+HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
+VerticalContentAlignment="Center" Padding="15,0"
+Cursor="Hand" BorderThickness="0" CornerRadius="4,0,0,4">
+<Button.Styles>
+<Style Selector="Button:pointerover /template/ ContentPresenter">
+<Setter Property="Background" Value="#2AFFFFFF"/>
+<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+</Style>
+</Button.Styles>
+</Button>
+<Border Grid.Column="1" Background="#2D3748"/>
+<Button x:Name="btnDefaultSubmit" Grid.Column="2"
+Content="SUBMIT" Click="DefaultSubmit_Click"
+FontSize="10" FontWeight="Bold" Foreground="#E2E8F0"
+Background="Transparent" HorizontalAlignment="Stretch"
+HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
+VerticalContentAlignment="Center" Padding="20,0"
+Cursor="Hand" BorderThickness="0" CornerRadius="0">
+<Button.Styles>
+<Style Selector="Button:pointerover /template/ ContentPresenter">
+<Setter Property="Background" Value="#2AFFFFFF"/>
+<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+</Style>
+</Button.Styles>
+</Button>
+<Border Grid.Column="3" Background="#2D3748"/>
+<Button x:Name="btnDefaultCancel" Grid.Column="4"
+Content="CANCEL" Click="DefaultCancel_Click"
+FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"
+Background="Transparent" HorizontalAlignment="Stretch"
+HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
+VerticalContentAlignment="Center"
+Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
+<Button.Styles>
+<Style Selector="Button:pointerover /template/ ContentPresenter">
+<Setter Property="Background" Value="#2AFFFFFF"/>
+<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+</Style>
+</Button.Styles>
+</Button>
+</Grid>
                                                     </Border>
                                                 </Grid>
                                             </Grid>

@@ -29,6 +29,7 @@ namespace CrimsonX.Services
             var data = new
             {
                 EnableCustomConfigs = config.EnableCustomConfigs,
+                StartupTab = config.StartupTab,
                 CustomConfig1 = config.CustomConfig1,
                 CustomConfig2 = config.CustomConfig2,
                 AllowOneCustomConfig = config.AllowOneCustomConfig,

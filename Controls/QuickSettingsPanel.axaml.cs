@@ -76,7 +76,7 @@ namespace CrimsonX.Controls
             InitializeComponent();
         }
 
-    // ── Localized Setting Names ──
+        // ── Localized Setting Names ──
 
         private string GetLocalizedSettingName(string key)
         {
@@ -222,7 +222,7 @@ namespace CrimsonX.Controls
             };
         }
 
-    // ── Slot UI Build & Refresh ──
+        // ── Slot UI Build & Refresh ──
 
         private void PopulatePopupItems(StackPanel container, int slotNumber)
         {
@@ -395,7 +395,7 @@ namespace CrimsonX.Controls
             _btnSlot2.IsHitTestVisible = editMode;
         }
 
-    // ── Customize Actions (Save / Cancel) ──
+        // ── Customize Actions (Save / Cancel) ──
 
         private void btnCustomize_Click(object? sender, RoutedEventArgs e)
         {
@@ -425,7 +425,7 @@ namespace CrimsonX.Controls
             ClosePopups();
         }
 
-    // ── Slot Popups (Choose a Setting) ──
+        // ── Slot Popups (Choose a Setting) ──
 
         private async void btnSlot1_Click(object? sender, RoutedEventArgs e)
         {
@@ -490,7 +490,7 @@ namespace CrimsonX.Controls
             _ = ClosePopupAnimatedAsync();
         }
 
-    // ── Slot Toggle Bridge ──
+        // ── Slot Toggle Bridge ──
 
         private void TogSlot1_IsCheckedChanged(object? sender, RoutedEventArgs e)
         {

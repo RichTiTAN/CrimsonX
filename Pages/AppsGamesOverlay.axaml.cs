@@ -156,10 +156,16 @@ public partial class AppsGamesOverlay : UserControl
     private const string Tekken8DefaultId = "d1a5c0de-0000-0000-0000-000000000006";
     private const string RocketLeagueDefaultKey = "rocketleague";
     private const string RocketLeagueDefaultId = "d1a5c0de-0000-0000-0000-000000000007";
+    private const string Dota2DefaultKey = "dota2";
+    private const string Dota2DefaultId = "d1a5c0de-0000-0000-0000-000000000018";
     internal const string LeagueDefaultKey = "league";
     private const string LeagueDefaultId = "d1a5c0de-0000-0000-0000-000000000014";
     internal const string ValorantDefaultKey = "valorant";
     private const string ValorantDefaultId = "d1a5c0de-0000-0000-0000-000000000017";
+    private const string Bf6DefaultKey = "bf6";
+    private const string Bf6DefaultId = "d1a5c0de-0000-0000-0000-000000000019";
+    private const string Titanfall2DefaultKey = "titanfall2";
+    private const string Titanfall2DefaultId = "d1a5c0de-0000-0000-0000-000000000020";
     private const string EaAppDefaultKey = "eaapp";
     private const string EaAppDefaultId = "d1a5c0de-0000-0000-0000-000000000008";
     private const string UbisoftDefaultKey = "ubisoft";
@@ -317,10 +323,17 @@ public partial class AppsGamesOverlay : UserControl
             changed = true;
         }
 
-        if (!_rules.Any(r => r.DefaultKey == LeagueDefaultKey))
+        if (!_rules.Any(r => r.DefaultKey == Dota2DefaultKey))
         {
             int rlIndex = _rules.FindIndex(r => r.DefaultKey == RocketLeagueDefaultKey);
-            _rules.Insert(rlIndex >= 0 ? rlIndex + 1 : _rules.Count, CreateLeagueDefaultRule());
+            _rules.Insert(rlIndex >= 0 ? rlIndex + 1 : _rules.Count, CreateDota2DefaultRule());
+            changed = true;
+        }
+
+        if (!_rules.Any(r => r.DefaultKey == LeagueDefaultKey))
+        {
+            int dota2Index = _rules.FindIndex(r => r.DefaultKey == Dota2DefaultKey);
+            _rules.Insert(dota2Index >= 0 ? dota2Index + 1 : _rules.Count, CreateLeagueDefaultRule());
             changed = true;
         }
 
@@ -331,10 +344,24 @@ public partial class AppsGamesOverlay : UserControl
             changed = true;
         }
 
-        if (!_rules.Any(r => r.DefaultKey == EaAppDefaultKey))
+        if (!_rules.Any(r => r.DefaultKey == Bf6DefaultKey))
         {
             int valorantIndex = _rules.FindIndex(r => r.DefaultKey == ValorantDefaultKey);
-            _rules.Insert(valorantIndex >= 0 ? valorantIndex + 1 : _rules.Count, CreateEaAppDefaultRule());
+            _rules.Insert(valorantIndex >= 0 ? valorantIndex + 1 : _rules.Count, CreateBf6DefaultRule());
+            changed = true;
+        }
+
+        if (!_rules.Any(r => r.DefaultKey == Titanfall2DefaultKey))
+        {
+            int bf6Index = _rules.FindIndex(r => r.DefaultKey == Bf6DefaultKey);
+            _rules.Insert(bf6Index >= 0 ? bf6Index + 1 : _rules.Count, CreateTitanfall2DefaultRule());
+            changed = true;
+        }
+
+        if (!_rules.Any(r => r.DefaultKey == EaAppDefaultKey))
+        {
+            int titanfall2Index = _rules.FindIndex(r => r.DefaultKey == Titanfall2DefaultKey);
+            _rules.Insert(titanfall2Index >= 0 ? titanfall2Index + 1 : _rules.Count, CreateEaAppDefaultRule());
             changed = true;
         }
 
@@ -385,7 +412,7 @@ public partial class AppsGamesOverlay : UserControl
             changed = true;
         }
 
-        var regionOnlyKeys = new[] { Cs2DefaultKey, ApexDefaultKey, DeadlockDefaultKey, EfootballDefaultKey, RocketLeagueDefaultKey };
+        var regionOnlyKeys = new[] { Cs2DefaultKey, ApexDefaultKey, DeadlockDefaultKey, EfootballDefaultKey, RocketLeagueDefaultKey, Dota2DefaultKey, Bf6DefaultKey, Titanfall2DefaultKey };
         foreach (var r in _rules.Where(r => regionOnlyKeys.Contains(r.DefaultKey)))
         {
             if (r.Country != "" || r.TcpRouting != "Proxy" || r.UdpRouting != "Direct" || r.TcpAdapter != "Default")
@@ -416,6 +443,20 @@ public partial class AppsGamesOverlay : UserControl
             {
                 r.UdpAdapter = "Default";
                 changed = true;
+            }
+        }
+
+        var eaRule = _rules.FirstOrDefault(r => r.DefaultKey == EaAppDefaultKey);
+        if (eaRule != null)
+        {
+            if (eaRule.ProcessNames == null) eaRule.ProcessNames = new List<string>();
+            foreach (var exe in new[] { "EAAntiCheat.GameService.exe", "EABackgroundService.exe", "EAAntiCheat.GameServiceLauncher.exe" })
+            {
+                if (!eaRule.ProcessNames.Contains(exe, StringComparer.Ordinal))
+                {
+                    eaRule.ProcessNames.Add(exe);
+                    changed = true;
+                }
             }
         }
 
@@ -551,6 +592,9 @@ public partial class AppsGamesOverlay : UserControl
     private static AppGameRule CreateRocketLeagueDefaultRule() =>
         CreateRegionOnlyDefaultRule(RocketLeagueDefaultKey, RocketLeagueDefaultId, "Rocket League", "RocketLeague.exe", "rl.png");
 
+    private static AppGameRule CreateDota2DefaultRule() =>
+        CreateRegionOnlyDefaultRule(Dota2DefaultKey, Dota2DefaultId, "Dota 2", "dota2.exe", "dota2.png");
+
     private static AppGameRule CreateLeagueDefaultRule()
     {
         return new AppGameRule
@@ -591,6 +635,12 @@ public partial class AppsGamesOverlay : UserControl
         };
     }
 
+    private static AppGameRule CreateBf6DefaultRule() =>
+        CreateRegionOnlyDefaultRule(Bf6DefaultKey, Bf6DefaultId, "Battlefield 6", "bf6.exe", "bf6.png");
+
+    private static AppGameRule CreateTitanfall2DefaultRule() =>
+        CreateRegionOnlyDefaultRule(Titanfall2DefaultKey, Titanfall2DefaultId, "Titanfall 2", "Titanfall2.exe", "titanfall2.png");
+
     private static AppGameRule CreateEaAppDefaultRule()
     {
         return new AppGameRule
@@ -602,6 +652,7 @@ public partial class AppsGamesOverlay : UserControl
             ExeName = "EA App",
             ProcessNames = new List<string>
             {
+                "EAAntiCheat.GameService.exe", "EAAntiCheat.GameServiceLauncher.exe",
                 "EABackgroundService.exe", "EACefSubProcess.exe", "EAConnect_microsoft.exe",
                 "EACrashReporter.exe", "EADesktop.exe", "EAEgsProxy.exe", "EAGEP.exe",
                 "EALauncher.exe", "EALaunchHelper.exe", "EALocalHostSvc.exe",
@@ -812,8 +863,11 @@ public partial class AppsGamesOverlay : UserControl
         EfootballDefaultKey => "efootball.png",
         Tekken8DefaultKey => "tekken8.png",
         RocketLeagueDefaultKey => "rl.png",
+        Dota2DefaultKey => "dota2.png",
         LeagueDefaultKey => "lol.png",
         ValorantDefaultKey => "valorant.png",
+        Bf6DefaultKey => "bf6.png",
+        Titanfall2DefaultKey => "titanfall2.png",
         EaAppDefaultKey => "ea.png",
         UbisoftDefaultKey => "ubisoft.png",
         EpicDefaultKey => "epicgames.png",
@@ -985,7 +1039,7 @@ var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddTogg
         else
         {
             _defaultEditorParent?.Children.Add(panEditor);
-            if (panAddToggleWrapper != null) { SetTransitionSpeed(panAddToggleWrapper, 0); panAddToggleWrapper.MaxHeight = 0; panAddToggleWrapper.Opacity = 0; }
+            if (panAddToggleWrapper != null) { SetTransitionSpeed(panAddToggleWrapper, 0.3); panAddToggleWrapper.MaxHeight = 0; panAddToggleWrapper.Opacity = 0; }
         }
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -993,6 +1047,9 @@ var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddTogg
               panEditor.MaxHeight = 800;
               panEditor.Opacity = 1;
           });
+
+        if (ruleToEdit == null)
+            _ = RevealEditorAsync(panAddToggleWrapper, panEditor);
 
         if (ruleToEdit == null)
         {
@@ -1010,6 +1067,35 @@ var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddTogg
             if (lblHeader != null) lblHeader.Text = CrimsonX.Localization.AppStrings.EditProgram;
             PreFill(ruleToEdit);
         }
+    }
+
+    private async System.Threading.Tasks.Task RevealEditorAsync(Avalonia.Controls.Border addToggleWrapper, Avalonia.Controls.Control editor)
+    {
+        var scroller = this.FindControl<ScrollViewer>("Scroller");
+        if (scroller == null || scroller.Content is not Avalonia.Visual content || addToggleWrapper == null) return;
+
+        await System.Threading.Tasks.Task.Delay(16);
+        if (editor.Opacity <= 0) return;
+
+        var m = Avalonia.VisualExtensions.TransformToVisual(addToggleWrapper, content);
+        if (!m.HasValue) return;
+        double target = Math.Max(0, m.Value.Transform(new Avalonia.Point(0, 0)).Y);
+
+        double start = scroller.Offset.Y;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        timer.Tick += (_, _) =>
+        {
+            if (editor.Opacity <= 0) { timer.Stop(); return; }
+
+            double t = Math.Min(1.0, sw.Elapsed.TotalMilliseconds / 300.0);
+            double eased = 1.0 - Math.Pow(1.0 - t, 3.0);
+            double maxOffset = Math.Max(0, scroller.Extent.Height - scroller.Viewport.Height);
+            double y = start + (target - start) * eased;
+            scroller.Offset = new Avalonia.Vector(scroller.Offset.X, Math.Max(0, Math.Min(y, maxOffset)));
+            if (t >= 1.0) timer.Stop();
+        };
+        timer.Start();
     }
 
     private async void CloseEditor(bool instant = false)
@@ -1576,7 +1662,10 @@ _isClosing = false;
                 UpdateOverlaySplitUI();
                 MainWindow.Instance.RequestSave();
 
-                if (_state.IsEngineRunning)
+                _hasPendingRuleChanges = true;
+                UpdateOverlayConnectUI();
+
+                if (_state.IsEngineRunning && !string.Equals(_cfg.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase))
                 {
                     MainWindow.Instance.RestartXray();
                 }
@@ -1873,9 +1962,15 @@ _isClosing = false;
             // Top bar: search, filter, master rules, mode
             var txtSearch = this.FindControl<TextBox>("txtSearch");
             if (txtSearch != null) txtSearch.PlaceholderText = AS.SearchPlaceholder;
-            Apply(F("lblFilter"), AS.FilterLabel, forceLtr: true);
-            Apply(F("lblRules"), _cfg.EnableAppRules ? AS.MasterRulesEnabled : AS.MasterRulesDisabled, forceLtr: true);
-            Apply(F("lblMode"), AS.OverlayMode, forceLtr: true);
+            Apply(F("lblFilter"), AS.FilterLabel);
+            var btnScan = this.FindControl<global::Avalonia.Controls.Button>("btnScanAdapters");
+            if (btnScan != null) btnScan.Content = AS.OverlayScanAdapters;
+
+            var btnDefScan = this.FindControl<global::Avalonia.Controls.Button>("btnDefaultScanAdapters");
+            if (btnDefScan != null) btnDefScan.Content = AS.OverlayScanAdapters;
+
+            Apply(F("lblRules"), _cfg.EnableAppRules ? AS.MasterRulesEnabled : AS.MasterRulesDisabled);
+            Apply(F("lblMode"), AS.OverlayMode);
 
             // Overlay split-mode buttons
             Apply(F("lblOverlayRegular"), AS.OverlaySplitRegular);
@@ -1892,19 +1987,19 @@ _isClosing = false;
             SetComboItemText("cbiFilterOther", AS.FilterOther);
 
             // Add/Edit rule editor
-            Apply(F("lblAddToggle"), AS.AddToggle, forceLtr: true);
+            Apply(F("lblAddToggle"), AS.AddToggle);
             bool adding = string.IsNullOrEmpty(_editingRuleId);
-            Apply(F("lblEditorHeader"), adding ? AS.AddProgram : AS.EditProgram, forceLtr: true);
+            Apply(F("lblEditorHeader"), adding ? AS.AddProgram : AS.EditProgram);
             ApplyControl("btnSubmit", adding ? AS.Submit : AS.Update);
             ApplyControl("btnCancel", AS.Cancel);
             ApplyControl("btnBrowse", AS.Browse);
-            Apply(F("lblType"), AS.TypeLabel, forceLtr: true);
+            Apply(F("lblType"), AS.TypeLabel);
             ApplyControl("rbGame", AS.Game);
             ApplyControl("rbLaunch", AS.Launcher);
             ApplyControl("rbOther", AS.Other);
-            Apply(F("lblApp"), AS.AppLabel, forceLtr: true);
-            Apply(F("lblRouting"), AS.RoutingLabel, forceLtr: true);
-            Apply(F("lblAdapter"), AS.AdapterLabel, forceLtr: true);
+            Apply(F("lblApp"), AS.AppLabel);
+            Apply(F("lblRouting"), AS.RoutingLabel);
+            Apply(F("lblAdapter"), AS.AdapterLabel);
 
             // Routing combos (Proxy / Direct)
             var routingItems = new[] { AS.RoutingProxy, AS.RoutingDirect };
@@ -1913,7 +2008,7 @@ _isClosing = false;
 
             ApplyControl("btnDefaultSubmit", AS.Submit);
             ApplyControl("btnDefaultCancel", AS.Cancel);
-            Apply(F("lblConnectionRegion"), AS.ConnectionRegionLabel, forceLtr: true);
+            Apply(F("lblConnectionRegion"), AS.ConnectionRegionLabel);
             Apply(F("lblConnectionRegionWarning"), AS.ConnectionRegionWarning);
             Apply(F("txtApplyChanges"), AS.ApplyChanges);
             Apply(F("lblTcpAdapter"), AS.TcpAdapterLabel);
@@ -2018,5 +2113,34 @@ _isClosing = false;
 
 
 
+
+
+    private void BtnScanAdapters_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        string? tcpA = this.FindControl<global::Avalonia.Controls.ComboBox>("cbTcpAdapter")?.SelectedItem as string;
+        string? udpA = this.FindControl<global::Avalonia.Controls.ComboBox>("cbUdpAdapter")?.SelectedItem as string;
+        string? dTcpA = this.FindControl<global::Avalonia.Controls.ComboBox>("cbDefaultTcpAdapter")?.SelectedItem as string;
+        string? dUdpA = this.FindControl<global::Avalonia.Controls.ComboBox>("cbDefaultUdpAdapter")?.SelectedItem as string;
+
+        PopulateAdapters();
+
+        void RestoreCombo(string name, string? oldVal)
+        {
+            var cb = this.FindControl<global::Avalonia.Controls.ComboBox>(name);
+            if (cb != null)
+            {
+                var list = cb.ItemsSource as System.Collections.Generic.List<string>;
+                if (list != null && oldVal != null && list.Contains(oldVal))
+                    cb.SelectedItem = oldVal;
+                else
+                    cb.SelectedIndex = 0;
+            }
+        }
+
+        RestoreCombo("cbTcpAdapter", tcpA);
+        RestoreCombo("cbUdpAdapter", udpA);
+        RestoreCombo("cbDefaultTcpAdapter", dTcpA);
+        RestoreCombo("cbDefaultUdpAdapter", dUdpA);
+    }
 
 }

@@ -45,6 +45,10 @@ public partial class MainWindow : Window
 
     private AppConfig _cfg;
     private AppState _state;
+    private global::Avalonia.Threading.DispatcherTimer _glowAnimTimer;
+    private DateTime _lastGlowTick;
+    private double _currentGlowAngle;
+
     private int? _xrayDebugPid, _sbDebugPid;
     private int? _xrayPid, _sbPid;
 
@@ -137,7 +141,27 @@ public partial class MainWindow : Window
         CrimsonX.Services.SimpleLogger.EnableLogging = _cfg.DebugMode;
         CrimsonX.Services.SimpleLogger.Log($"[Startup] CrimsonX v{Services.UpdateService.AppVersion} — Mode={_cfg.LastXrayMode}");
 
+
         InitializeComponent();
+
+        if (_cfg.StartupTab == "AppsGames")
+        {
+            var navBar = this.FindControl<CrimsonX.Controls.NavigationBar>("navBar");
+            if (navBar != null)
+            {
+                navBar.SelectTab("AppsGames");
+            }
+        }
+
+
+        _glowAnimTimer = new global::Avalonia.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(33) 
+        };
+        _glowAnimTimer.Tick += GlowAnimTimer_Tick;
+        _glowAnimTimer.Start();
+        _lastGlowTick = DateTime.UtcNow;
+
         DataContext = this;
 
         this.Deactivated += (s, e) => { CloseAllOverlays(); CrimsonX.Controls.AnimatedBackground.Instance?.SetFocusState(false); };
@@ -1402,7 +1426,28 @@ if (viewName == "SplitTunneling")
     if (page != null) page.SyncUI();
 }
     }
+
+    private void GlowAnimTimer_Tick(object? sender, EventArgs e)
+    {
+        var now = DateTime.UtcNow;
+        var dt = (now - _lastGlowTick).TotalSeconds;
+        _lastGlowTick = now;
+
+        _currentGlowAngle = (_currentGlowAngle + 120 * dt) % 360;
+
+        if (!this.Classes.Contains("anim-glows")) return;
+
+        var connectGlowRect = this.FindControl<global::Avalonia.Controls.Shapes.Rectangle>("connectGlowRect");
+        if (connectGlowRect != null)
+        {
+            if (connectGlowRect.Classes.Contains("is-connected") || connectGlowRect.Classes.Contains("is-animating"))
+            {
+                if (connectGlowRect.RenderTransform is global::Avalonia.Media.RotateTransform rt)
+                {
+                    rt.Angle = _currentGlowAngle;
+                }
+            }
+        }
+    }
+
 }
-
-
-

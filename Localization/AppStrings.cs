@@ -348,6 +348,8 @@ namespace CrimsonX.Localization
 
         public static string AdapterBinding     => IsPersian ? "اتصال به آداپتور" : "BIND ADAPTER";
 
+        
+        public static string OverlayScanAdapters => IsPersian ? "اسکن آداپتورها" : "SCAN ADAPTERS";
         public static string ScanAdapters       => IsPersian ? "اسکن"            : "SCAN";
 
         public static string DnsSettings        => IsPersian ? "تنظیمات DNS"       : "DNS SETTINGS";
@@ -401,6 +403,9 @@ namespace CrimsonX.Localization
         public static string ClearWorkingCache  => IsPersian ? "پاکسازی دیتای تست شده" : "CLEAR WORKING CACHE";
 
         public static string ClearFetchedCache  => IsPersian ? "پاکسازی دیتای دریافتی" : "CLEAR FETCHED CACHE";
+
+        public static string TtClearWorkingCache => IsPersian ? "حافظه پنهان در حال کار (Working Cache) را پاک می‌کند." : "Clears the active working cache.";
+        public static string TtClearFetchedCache => IsPersian ? "حافظه پنهان کانفیگ‌های دریافت شده را پاک می‌کند." : "Clears the fetched configurations cache.";
 
         public static string ToastCacheCleared  => IsPersian ? "کش پاک شد." : "Cache cleared.";
 
@@ -467,6 +472,10 @@ namespace CrimsonX.Localization
         public static string DonationsTitle     => IsPersian ? "حمایت مالی"         : "DONATIONS";
 
         public static string DonationsDesc      => IsPersian ? "اگر می‌خواهید از من یا پروژه حمایت کنید، می‌توانید با ارسال مبلغ دلخواه به یکی از آدرس‌های کیف پول زیر این کار را انجام دهید،" : "if u want to support me or the project you can do so by sending your desired amount to one of these wallet addresses,";
+
+        public static string DonateCardTitle      => IsPersian ? "اهدا با کارت بانکی" : "DONATE WITH CREDIT CARD";
+
+        public static string WalletAddressesTitle => IsPersian ? "آدرس‌های کیف پول" : "WALLET ADDRESSES";
 
         public static string OtherApps          => IsPersian ? "سایر برنامه‌ها" : "OTHER APPS";
 
@@ -612,6 +621,11 @@ namespace CrimsonX.Localization
         
 
         public static string TtSplitDis     => IsPersian ? "اسپلیت تانل غیرفعال است." : "Split tunneling is disabled.";
+
+        public static string StartupTabLabel => IsPersian ? "تب شروع" : "START-UP TAB";
+        public static string TtStartupTab => IsPersian ? "انتخاب تبی که برنامه در هنگام شروع نمایش می‌دهد." : "Choose which tab the app opens on launch.";
+        public static string TabHome => IsPersian ? "خانه" : "HOME";
+        public static string TabAppsGames => IsPersian ? "برنامه‌ها و بازی‌ها" : "APPS & GAMES";
 
         public static string TtLaunchOnStartup => IsPersian ? "اجرای خودکار برنامه هنگام ورود به ویندوز." : "Automatically launch the application when Windows starts.";
 

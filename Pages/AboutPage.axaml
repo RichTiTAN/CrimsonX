@@ -80,26 +80,71 @@
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <PathIcon Data="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" Width="14" Height="14" Foreground="#8B949E"/>
                             <TextBlock x:Name="lblDonations" Text="DONATIONS" FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="lblDonationsDesc" Text="if u want to support me or the project you can do so by sending your desired amount to one of these wallet addresses," FontSize="9" FontWeight="Normal" Foreground="#A0AEC0" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="350" Margin="5,0,0,0"/>
+                            <TextBlock x:Name="lblDonationsDesc" Text="if u want to support me or the project you can do so by sending your desired amount to one of these wallet addresses," FontSize="9" FontWeight="SemiBold" Foreground="#A0AEC0" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="350" Margin="5,0,0,0"/>
                         </StackPanel>
                         
-                        <StackPanel Spacing="8">
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="USDT (BEP20)" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"/>
-                                <Button Click="BtnCopyAddress_Click" Content="0xFc1d71C22DC2604f6C13Ca540ed842535cbE6d75" FontSize="10" FontWeight="Normal" Foreground="#E2E8F0" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" HorizontalAlignment="Left"/>
-                            </StackPanel>
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="USDT (TRC20)" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"/>
-                                <Button Click="BtnCopyAddress_Click" Content="TNMaNGDMG7BzbjkXeiguFWzDHZ4hCUU9R8" FontSize="10" FontWeight="Normal" Foreground="#E2E8F0" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" HorizontalAlignment="Left"/>
-                            </StackPanel>
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="BITCOIN" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"/>
-                                <Button Click="BtnCopyAddress_Click" Content="bc1quzdzuhrfse520r0wkqgkvsl7nv354r8sj5u9f9" FontSize="10" FontWeight="Normal" Foreground="#E2E8F0" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" HorizontalAlignment="Left"/>
-                            </StackPanel>
-                            <StackPanel Spacing="2">
-                                <TextBlock Text="TON (GRAM)" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"/>
-                                <Button Click="BtnCopyAddress_Click" Content="UQCB3bvk4nXMiokNWprb7CwPjurU8WOUfVSgAVXMMke0CxdW" FontSize="10" FontWeight="Normal" Foreground="#E2E8F0" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" HorizontalAlignment="Left"/>
-                            </StackPanel>
+                        <Button Click="BtnDonateCard_Click" Classes="optBtn" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="15,9" HorizontalAlignment="Stretch" Cursor="Hand">
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                    <Setter Property="Background" Value="#1AFFFFFF"/>
+                                </Style>
+                            </Button.Styles>
+                            <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="24">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                    <PathIcon Data="M20,4H4C2.89,4 2,4.89 2,6V18C2,19.1 2.9,20 4,20H20C21.1,20 22,19.1 22,18V6C22,4.89 21.1,4 20,4M20,18H4V6H20V18Z" Width="15" Height="15" Foreground="#8B949E"/>
+                                    <TextBlock x:Name="lblDonateCard" Text="DONATE WITH CREDIT CARD" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <PathIcon Grid.Column="2" Data="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19C3,20.1 3.89,21 5,21H19C20.1,21 21,20.1 21,19V12H19V19Z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Button>
+
+                        <StackPanel Spacing="0" Margin="0,-7.5,0,0">
+                            <Border x:Name="panWalletToggle" Classes="hoverBox" Background="#0A0C0F" BorderThickness="1" CornerRadius="8" Padding="0">
+                                <Button x:Name="btnWalletToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="15,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="BtnWalletToggle_Click">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" MinHeight="24">
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                            <PathIcon Data="M21,18V19A2,2 0 0,1 19,21H5C3.89,21 3,20.1 3,19V5A2,2 0 0,1 5,3H19A2,2 0 0,1 21,5V6H12C10.89,6 10,6.9 10,8V16C10,17.1 10.89,18 12,18M12,16H22V8H12M16,13.5C15.17,13.5 14.5,12.83 14.5,12C14.5,11.17 15.17,10.5 16,10.5C16.83,10.5 17.5,11.17 17.5,12C17.5,12.83 16.83,13.5 16,13.5Z" Width="14" Height="14" Foreground="#8B949E"/>
+                                            <TextBlock x:Name="lblWalletAddresses" Text="WALLET ADDRESSES" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                        <PathIcon x:Name="icoWalletExpander" Grid.Column="2" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center">
+                                            <PathIcon.RenderTransform>
+                                                <RotateTransform Angle="0"/>
+                                            </PathIcon.RenderTransform>
+                                            <PathIcon.Transitions>
+                                                <Transitions>
+                                                    <DoubleTransition Property="RotateTransform.Angle" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                                </Transitions>
+                                            </PathIcon.Transitions>
+                                        </PathIcon>
+                                    </Grid>
+                                </Button>
+                            </Border>
+                            <Border x:Name="panWalletAddresses" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                                <Border.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                        <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                    </Transitions>
+                                </Border.Transitions>
+                                <StackPanel Margin="15,12,15,12" Spacing="9">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="USDT (BEP20)" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"/>
+                                        <Button Click="BtnCopyAddress_Click" Content="0xFc1d71C22DC2604f6C13Ca540ed842535cbE6d75" FontSize="10" FontWeight="Normal" Foreground="#E2E8F0" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="USDT (TRC20)" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"/>
+                                        <Button Click="BtnCopyAddress_Click" Content="TNMaNGDMG7BzbjkXeiguFWzDHZ4hCUU9R8" FontSize="10" FontWeight="Normal" Foreground="#E2E8F0" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="BITCOIN" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"/>
+                                        <Button Click="BtnCopyAddress_Click" Content="bc1quzdzuhrfse520r0wkqgkvsl7nv354r8sj5u9f9" FontSize="10" FontWeight="Normal" Foreground="#E2E8F0" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="TON (GRAM)" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"/>
+                                        <Button Click="BtnCopyAddress_Click" Content="UQCB3bvk4nXMiokNWprb7CwPjurU8WOUfVSgAVXMMke0CxdW" FontSize="10" FontWeight="Normal" Foreground="#E2E8F0" Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </StackPanel>
                 </Border>
