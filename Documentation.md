@@ -110,14 +110,37 @@ The heart of CrimsonX's customization, broken down into specific sections:
 
 ---
 
-## 5. Themes Tab
+
+---
+
+## 5. Apps & Games Tab
+The **Apps & Games** tab is a powerful hub that provides granular, per-app routing profiles for popular games and applications.
+
+### Granular App Routing
+Instead of relying on global proxy settings, you can configure precise rules for specific applications (like Discord, Telegram, or Steam) and competitive games (like CS2, League of Legends, Valorant).
+- **TCP Routing**: Choose whether the app's TCP traffic should be routed through the VPN (`PROXY`) or bypass it (`DIRECT`).
+- **UDP Routing**: Choose whether the app's UDP traffic (like voice chat or game data) should go through the VPN or your direct connection.
+
+### Network Adapter Binding
+For advanced setups, you can bind specific applications to specific network adapters. 
+- **TCP Adapter / UDP Adapter**: Select which physical or virtual network interface an application should exclusively use for its traffic.
+
+### Regional Matchmaking
+For supported games, you can force matchmaking to a specific region.
+- **Matchmaking Region**: Restricts the proxy's server selection to a specific geographic region (e.g., Europe, Asia) to ensure you always connect to game servers with the best latency.
+
+### Operating Modes
+- **REGULAR**: The rules defined in the Apps & Games tab apply on top of your current global operating mode.
+- **INCLUSIVE**: The VPN will *only* route the apps explicitly enabled and configured as `PROXY` in the Apps & Games tab. All other system traffic will bypass the VPN.
+
+## 6. Themes Tab
 Allows you to personalize the visual aesthetic of the application. 
 - Choose between dynamic gradient themes: Crimson, Blue, Purple, Green, Pink, and Yellow. 
 - The selected theme instantly updates the pulsing connect button, navigation borders, toggle switches, and background accents.
 
 ---
 
-## 6. About Tab
+## 7. About Tab
 - Displays the currently installed version of CrimsonX.
 - Automatically checks for updates and handles the OTA (Over-The-Air) download and extraction of new versions from GitHub.
 - Provides quick links to the project's GitHub repository and community Telegram channels.
