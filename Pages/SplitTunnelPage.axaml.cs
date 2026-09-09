@@ -49,6 +49,7 @@ namespace CrimsonX.Pages
     public partial class SplitTunnelPage : UserControl
     {
         public static SplitTunnelPage? Instance { get; private set; }
+        internal static void ClearInstance() => Instance = null;
 
         public ObservableCollection<AppItem> AppItems { get; } = new();
         public ObservableCollection<ContinentItem> Continents { get; } = new();
@@ -586,6 +587,8 @@ namespace CrimsonX.Pages
 
         private async void BrowseApp_Click(object? sender, RoutedEventArgs e)
         {
+            try
+            {
             var mainWindow = MainWindow.Instance;
             if (mainWindow == null) return;
             
@@ -646,6 +649,11 @@ namespace CrimsonX.Pages
                     UpdateSplitTunnelUI();
                 }
             }
+            }
+            catch (Exception ex)
+            {
+                CrimsonX.Services.SimpleLogger.Log(ex);
+            }
         }
 
     // ── Direct UDP (Adapter) ──
@@ -664,10 +672,6 @@ namespace CrimsonX.Pages
                         MainWindow.Instance.RestartXray();
                 }
             }
-        }
-
-        private void txtSplit_TextChanged(object? sender, TextChangedEventArgs e)
-        {
         }
 
         private bool _isDirectUdpExpanded = false;

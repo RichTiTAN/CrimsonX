@@ -31,19 +31,33 @@ namespace CrimsonX
 {
     public partial class MainWindow
     {
-        private CancellationTokenSource _pipelineCts;
+        private CancellationTokenSource? _pipelineCts;
+        private readonly object _pipelineCtsLock = new object();
         private ConcurrentQueue<string> _untestedConfigs = new ConcurrentQueue<string>();
         private List<string> _reservePool = new List<string>();
         private HashSet<string> _customOutboundJsons = new HashSet<string>();
         private static readonly HttpClient _workerClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 
+        private static readonly HashSet<string> BlockedCountries = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RU", "BY", "EE" };
+
+        private bool IsConfigAllowed(ConfigTestResult r)
+        {
+            if (BlockedCountries.Contains(r.CountryCode)) return false;
+
+            bool checkContinents = _cfg.EnableExcludedContinents && _cfg.ExcludedContinents != null && _cfg.ExcludedContinents.Count > 0;
+            return !(checkContinents && _cfg.ExcludedContinents!.Contains(r.Continent));
+        }
+
     // ── Dynamic Connect Pipeline ──
 
         private async Task RunDynamicPipelineAsyncCore()
         {
-            _pipelineCts?.Cancel();
-            _pipelineCts?.Dispose();
-            _pipelineCts = new CancellationTokenSource();
+            lock (_pipelineCtsLock)
+            {
+                _pipelineCts?.Cancel();
+                _pipelineCts?.Dispose();
+                _pipelineCts = new CancellationTokenSource();
+            }
             var ct = _pipelineCts.Token;
 
             _seenLogs.Clear();
@@ -184,7 +198,7 @@ namespace CrimsonX
                     }
                 }
                 
-                if (configs.Count == 0)
+                if (configs == null || configs.Count == 0)
                 {
                     sourceIndex++;
                     continue;
@@ -196,7 +210,6 @@ namespace CrimsonX
                 var seenSubnets = new HashSet<string>();
                 var duplicates = new List<ConfigTestResult>();
                 var testingTasks = new List<Task<ConfigTestResult>>();
-                bool checkContinents = _cfg.EnableExcludedContinents && _cfg.ExcludedContinents != null && _cfg.ExcludedContinents.Count > 0;
                 while (passedConfigs.Count < 8 && _untestedConfigs.TryDequeue(out string cfg))
                 {
                     ct.ThrowIfCancellationRequested();
@@ -211,14 +224,9 @@ namespace CrimsonX
                         {
                             if (r.Success)
                             {
-                                if (r.CountryCode == "RU" || r.CountryCode == "BY" || r.CountryCode == "EE")
+                                if (!IsConfigAllowed(r))
                                 {
                                     continue;
-                                }
-
-                                if (checkContinents && _cfg.ExcludedContinents!.Contains(r.Continent))
-                                {
-                                    continue; 
                                 }
 
                                 string addr = XrayLinkParser.ExtractServerAddress(r.OutboundJson);
@@ -245,15 +253,15 @@ namespace CrimsonX
                             SetConnectButtonProgress(prog);
                         });
 
-                        if (passedConfigs.Count >= 6) break;
+                        if (passedConfigs.Count >= 5) break;
                     }
                 }
 
-                if (passedConfigs.Count < 6)
+                if (passedConfigs.Count < 5)
                 {
                     foreach (var dup in duplicates)
                     {
-                        if (passedConfigs.Count >= 6) break;
+                        if (passedConfigs.Count >= 5) break;
                         passedConfigs.Add(dup);
                     }
                 }
@@ -285,7 +293,11 @@ namespace CrimsonX
             var workingJson = finalConfigs.Select(x => x.OutboundJson).ToList();
             var topConfigs = workingJson.Take(2).ToList();
             
-            _reservePool = workingJson.Skip(2).ToList();
+            lock (_reservePool)
+            {
+                _reservePool.Clear();
+                _reservePool.AddRange(workingJson.Skip(2));
+            }
 
             var cleanWorkingJson = workingJson.Where(c => !_customOutboundJsons.Contains(c)).ToList();
             CrimsonX.Services.ConfigCache.SaveCache(GetAppPath(@"Data\cache\cache.bin"), cleanWorkingJson);
@@ -349,7 +361,6 @@ namespace CrimsonX
 
                 var q = new System.Collections.Concurrent.ConcurrentQueue<string>(configs);
                 var tasks = new List<Task<CrimsonX.Services.ConfigTestResult>>();
-                bool checkContinents = _cfg.EnableExcludedContinents && _cfg.ExcludedContinents != null && _cfg.ExcludedContinents.Count > 0;
                 while (passedScraped.Count < 4 && q.TryDequeue(out string cfg))
                 {
                     tasks.Add(CrimsonX.Services.ConfigTester.TestConfigAsync(cfg, _cfg, ct, fetchGeo: true));
@@ -361,8 +372,7 @@ namespace CrimsonX
                         {
                             if (r.Success)
                             {
-                                if (r.CountryCode == "RU" || r.CountryCode == "BY" || r.CountryCode == "EE") continue;
-                                if (checkContinents && _cfg.ExcludedContinents!.Contains(r.Continent)) continue;
+                                if (!IsConfigAllowed(r)) continue;
 
                                 if (passedScraped.Count < 4) passedScraped.Add(r);
                             }
@@ -390,8 +400,9 @@ namespace CrimsonX
         private async Task<List<string>> FetchConfigsFromWorker(int index, CancellationToken ct)
         {
             string[] workers = CrimsonX.Services.AppSecrets.WorkerUrls;
-            foreach (var worker in workers)
+            for (int wi = 0; wi < workers.Length; wi++)
             {
+                string worker = workers[wi];
                 try
                 {
                     string apiUrl = $"{worker}/api/{index}";
@@ -408,12 +419,12 @@ namespace CrimsonX
                         }
                         else
                         {
-                            CrimsonX.Services.SimpleLogger.Log($"[Fetch] API {worker}/api/{index} returned {(int)apiResp.StatusCode}");
+                            CrimsonX.Services.SimpleLogger.Log($"[Fetch] API worker#{wi}/api/{index} returned {(int)apiResp.StatusCode}");
                         }
                     }
                     catch (Exception ex) 
                     {
-                        CrimsonX.Services.SimpleLogger.Log($"[Fetch] API {worker}/api/{index} error: {ex.Message}");
+                        CrimsonX.Services.SimpleLogger.Log($"[Fetch] API worker#{wi}/api/{index} error: {ex.Message}");
                     }
 
                     string shaPath = GetAppPath($@"Data\cache\worker_sha_{index}.bin");
@@ -421,13 +432,13 @@ namespace CrimsonX
 
                     if (!string.IsNullOrEmpty(newSha) && File.Exists(shaPath) && File.Exists(dataPath))
                     {
-                        string oldSha = CrimsonX.Services.ConfigCache.LoadString(shaPath);
+                        string? oldSha = CrimsonX.Services.ConfigCache.LoadString(shaPath);
                         if (oldSha == newSha)
                         {
-                            string cachedContent = CrimsonX.Services.ConfigCache.LoadString(dataPath);
+                            string? cachedContent = CrimsonX.Services.ConfigCache.LoadString(dataPath);
                             if (!string.IsNullOrEmpty(cachedContent))
                             {
-                                var cachedConfigs = XrayLinkParser.ExtractVlessConfigs(cachedContent);
+                                var cachedConfigs = XrayLinkParser.ExtractConfigs(cachedContent);
                                 if (cachedConfigs.Count > 0) return cachedConfigs;
                             }
                         }
@@ -446,17 +457,17 @@ namespace CrimsonX
                             CrimsonX.Services.ConfigCache.SaveString(shaPath, newSha);
                             CrimsonX.Services.ConfigCache.SaveString(dataPath, content);
                         }
-                        var configs = XrayLinkParser.ExtractVlessConfigs(content);
+                        var configs = XrayLinkParser.ExtractConfigs(content);
                         if (configs.Count > 0) return configs;
                     }
                     else
                     {
-                        CrimsonX.Services.SimpleLogger.Log($"[Fetch] Data {worker}/{index} returned {(int)resp.StatusCode}");
+                        CrimsonX.Services.SimpleLogger.Log($"[Fetch] Data worker#{wi}/{index} returned {(int)resp.StatusCode}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    CrimsonX.Services.SimpleLogger.Log($"[Fetch] Data {worker}/{index} error: {ex.Message}");
+                    CrimsonX.Services.SimpleLogger.Log($"[Fetch] Data worker#{wi}/{index} error: {ex.Message}");
                 }
             }
             return new List<string>();
@@ -497,11 +508,7 @@ namespace CrimsonX
                         var res = await ConfigTester.TestConfigAsync(cfg, _cfg, ct, fetchGeo: true);
                         if (res.Success)
                         {
-                            if (res.CountryCode == "RU" || res.CountryCode == "BY" || res.CountryCode == "EE")
-                                continue;
-
-                            bool checkContinents = _cfg.EnableExcludedContinents && _cfg.ExcludedContinents != null && _cfg.ExcludedContinents.Count > 0;
-                            if (checkContinents && _cfg.ExcludedContinents!.Contains(res.Continent))
+                            if (!IsConfigAllowed(res))
                                 continue;
 
                             lock (_reservePool)
@@ -549,8 +556,9 @@ namespace CrimsonX
                             ct.ThrowIfCancellationRequested();
                             string newSha = null;
                             
-                            foreach (var workerUrl in workers)
+                            for (int wi = 0; wi < workers.Length; wi++)
                             {
+                                string workerUrl = workers[wi];
                                 try
                                 {
                                     string url = $"{workerUrl}/api/{i}";
@@ -568,7 +576,7 @@ namespace CrimsonX
                                 }
                                 catch (Exception ex)
                                 {
-                                    CrimsonX.Services.SimpleLogger.Log($"[RefreshTimer] SHA check failed for {workerUrl}/api/{i}: {ex.Message}");
+                                    CrimsonX.Services.SimpleLogger.Log($"[RefreshTimer] SHA check failed for worker#{wi}/api/{i}: {ex.Message}");
                                 }
                             }
 
@@ -598,11 +606,9 @@ namespace CrimsonX
                         var activeTasks = activeConfigs.Select(async cfgStr =>
                         {
                             ct.ThrowIfCancellationRequested();
-                            var res = await ConfigTester.TestConfigAsync(cfgStr, _cfg, ct, isWatchdog: true, fetchGeo: true);
+                            var res = await ConfigTester.TestConfigAsync(cfgStr, _cfg, ct, isWatchdog: true, fetchGeo: true, isActiveWatchdog: true);
                             
-                            bool checkContinents = _cfg.EnableExcludedContinents && _cfg.ExcludedContinents != null && _cfg.ExcludedContinents.Count > 0;
-                            bool isBlocked = res.CountryCode == "RU" || res.CountryCode == "BY" || res.CountryCode == "EE" || 
-                                             (checkContinents && _cfg.ExcludedContinents!.Contains(res.Continent));
+                            bool isBlocked = !IsConfigAllowed(res);
 
                             if (!res.Success || isBlocked)
                             {
@@ -630,7 +636,7 @@ namespace CrimsonX
                         if (needed > 0)
                         {
                             CrimsonX.Services.SimpleLogger.Log($"[RefreshTimer] Initiating 5-by-5 batch test to find {needed} replacements...");
-                            int targetPassedCount = (needed == 1) ? 6 : 4;
+                            int targetPassedCount = (needed == 1) ? 5 : 4;
                             var configsToTest = new Queue<string>();
                             
                             lock (_reservePool)
@@ -646,7 +652,6 @@ namespace CrimsonX
 
                             var passedConfigs = new List<ConfigTestResult>();
                             var testingTasks = new List<Task<ConfigTestResult>>();
-                            bool checkContinents = _cfg.EnableExcludedContinents && _cfg.ExcludedContinents != null && _cfg.ExcludedContinents.Count > 0;
 
                             while (passedConfigs.Count < targetPassedCount && configsToTest.TryDequeue(out string cfg))
                             {
@@ -662,9 +667,7 @@ namespace CrimsonX
                                     {
                                         if (r.Success)
                                         {
-                                            if (r.CountryCode == "RU" || r.CountryCode == "BY" || r.CountryCode == "EE") continue;
-
-                                            if (checkContinents && _cfg.ExcludedContinents!.Contains(r.Continent)) continue;
+                                            if (!IsConfigAllowed(r)) continue;
                                             passedConfigs.Add(r);
                                         }
                                         else

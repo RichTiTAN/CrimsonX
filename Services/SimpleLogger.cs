@@ -18,6 +18,7 @@
 
 using System;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Channels;
 
@@ -29,39 +30,33 @@ namespace CrimsonX.Services
         private static bool _dirCreated = false;
         
         private static readonly Channel<string> _logChannel = Channel.CreateUnbounded<string>();
+        private static readonly Task _consumerTask;
 
         static SimpleLogger()
         {
-            Task.Run(async () =>
+            _consumerTask = Task.Run(async () =>
             {
                 try
                 {
                     var reader = _logChannel.Reader;
+                    var sb = new StringBuilder();
+                    int buffered = 0;
                     while (await reader.WaitToReadAsync())
                     {
                         while (reader.TryRead(out var msg))
                         {
-                            try
+                            sb.Append(msg);
+                            if (++buffered >= 32)
                             {
-                                if (!_dirCreated)
-                                {
-                                    var dir = Path.GetDirectoryName(LogFile);
-                                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                                    {
-                                        Directory.CreateDirectory(dir);
-                                    }
-                                    _dirCreated = true;
-                                    TrimLogFile();
-                                }
-                                File.AppendAllText(LogFile, msg);
-                                
-                                if (++_writeCount >= 50)
-                                {
-                                    _writeCount = 0;
-                                    TrimLogFile();
-                                }
+                                WriteBuffer(sb);
+                                buffered = 0;
                             }
-                            catch { }
+                        }
+
+                        if (buffered > 0)
+                        {
+                            WriteBuffer(sb);
+                            buffered = 0;
                         }
                     }
                 }
@@ -69,7 +64,44 @@ namespace CrimsonX.Services
             });
         }
 
+        public static void Shutdown()
+        {
+            try
+            {
+                _logChannel.Writer.TryComplete();
+                _consumerTask.Wait(TimeSpan.FromSeconds(2));
+            }
+            catch { }
+        }
+
         private static int _writeCount = 0;
+
+        private static void WriteBuffer(StringBuilder sb)
+        {
+            try
+            {
+                if (!_dirCreated)
+                {
+                    var dir = Path.GetDirectoryName(LogFile);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    {
+                        Directory.CreateDirectory(dir);
+                    }
+                    _dirCreated = true;
+                }
+
+                if (sb.Length == 0) return;
+                File.AppendAllText(LogFile, sb.ToString());
+                sb.Clear();
+
+                if (++_writeCount >= 50)
+                {
+                    _writeCount = 0;
+                    TrimLogFile();
+                }
+            }
+            catch { }
+        }
 
         private static void TrimLogFile()
         {

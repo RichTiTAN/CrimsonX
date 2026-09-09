@@ -159,11 +159,13 @@ namespace CrimsonX.Services
                     using var p = Process.Start(psi);
                     if (p != null)
                     {
-                    var stderrTask = p.StandardError.ReadToEndAsync();
-                    await p.WaitForExitAsync();
-                    string err = await stderrTask;
+                        var outTask = p.StandardOutput.ReadToEndAsync();
+                        var stderrTask = p.StandardError.ReadToEndAsync();
+                        await p.WaitForExitAsync();
+                        string outp = await outTask;
+                        string err = await stderrTask;
                         if (p.ExitCode != 0)
-                            throw new Exception("schtasks exit code " + p.ExitCode + " " + err);
+                            throw new Exception("schtasks exit code " + p.ExitCode + " " + err + " " + outp);
                     }
                 }
                 else
@@ -179,11 +181,13 @@ namespace CrimsonX.Services
                     using var p = Process.Start(psi);
                     if (p != null)
                     {
-                    var stderrTask = p.StandardError.ReadToEndAsync();
-                    await p.WaitForExitAsync();
-                    string err = await stderrTask;
+                        var outTask = p.StandardOutput.ReadToEndAsync();
+                        var stderrTask = p.StandardError.ReadToEndAsync();
+                        await p.WaitForExitAsync();
+                        string outp = await outTask;
+                        string err = await stderrTask;
                         if (p.ExitCode != 0)
-                            throw new Exception("schtasks exit code " + p.ExitCode + " " + err);
+                            throw new Exception("schtasks exit code " + p.ExitCode + " " + err + " " + outp);
                     }
                 }
 

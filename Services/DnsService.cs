@@ -93,10 +93,12 @@ namespace CrimsonX.Services
         {
             try
             {
-                RunNetsh($"interface ip set dns name=\"{adapterName}\" static {primary} primary");
+                if (!RunNetsh($"interface ip set dns name=\"{adapterName}\" static {primary} primary"))
+                    return false;
 
-                if (!string.IsNullOrWhiteSpace(secondary))
-                    RunNetsh($"interface ip add dns name=\"{adapterName}\" {secondary} index=2");
+                if (!string.IsNullOrWhiteSpace(secondary)
+                    && !RunNetsh($"interface ip add dns name=\"{adapterName}\" {secondary} index=2"))
+                    return false;
 
                 return true;
             }
@@ -113,13 +115,18 @@ namespace CrimsonX.Services
             {
                 if (previousServers == null || previousServers.Length == 0)
                 {
-                    RunNetsh($"interface ip set dns name=\"{adapterName}\" dhcp");
+                    return RunNetsh($"interface ip set dns name=\"{adapterName}\" dhcp");
                 }
                 else
                 {
-                    RunNetsh($"interface ip set dns name=\"{adapterName}\" static {previousServers[0]} primary");
+                    if (!RunNetsh($"interface ip set dns name=\"{adapterName}\" static {previousServers[0]} primary"))
+                        return false;
+
                     for (int i = 1; i < previousServers.Length; i++)
-                        RunNetsh($"interface ip add dns name=\"{adapterName}\" {previousServers[i]} index={i + 1}");
+                    {
+                        if (!RunNetsh($"interface ip add dns name=\"{adapterName}\" {previousServers[i]} index={i + 1}"))
+                            return false;
+                    }
                 }
                 return true;
             }
@@ -130,7 +137,7 @@ namespace CrimsonX.Services
             }
         }
 
-        private static void RunNetsh(string args)
+        private static bool RunNetsh(string args)
         {
             var psi = new ProcessStartInfo
             {
@@ -138,16 +145,31 @@ namespace CrimsonX.Services
                 Arguments = args,
                 UseShellExecute = false,
                 CreateNoWindow = true,
-                RedirectStandardOutput = false,
-                RedirectStandardError = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
             };
             using var proc = Process.Start(psi);
-            bool exited = proc?.WaitForExit(5000) ?? true;
-            if (!exited)
+            if (proc == null) return false;
+
+            var outTask = proc.StandardOutput.ReadToEndAsync();
+            var errTask = proc.StandardError.ReadToEndAsync();
+
+            if (!proc.WaitForExit(5000))
             {
-                try { proc?.Kill(); } catch { }
-                SimpleLogger.Log("netsh timed out");
+                try { proc.Kill(); } catch { }
+                proc.WaitForExit();
+                SimpleLogger.Log("netsh timed out: " + args);
+                return false;
             }
+            Task.WaitAll(outTask, errTask);
+
+            if (proc.ExitCode != 0)
+            {
+                string detail = string.IsNullOrWhiteSpace(errTask.Result) ? outTask.Result : errTask.Result;
+                SimpleLogger.Log($"netsh failed (exit {proc.ExitCode}): {detail.Trim()}");
+                return false;
+            }
+            return true;
         }
     }
 }

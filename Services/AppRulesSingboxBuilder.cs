@@ -182,25 +182,20 @@ namespace CrimsonX.Services
 
         private static List<string> BuildProcessNames(IEnumerable<string> processNames)
         {
-            var list = new List<string>();
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var raw in processNames)
             {
-                string exe = raw.Trim();
+                string exe = raw.Trim().ToLowerInvariant();
                 if (exe.Length == 0) continue;
 
-                if (!list.Contains(exe, StringComparer.OrdinalIgnoreCase)) list.Add(exe);
-                string exeLower = exe.ToLowerInvariant();
-                if (!list.Contains(exeLower, StringComparer.OrdinalIgnoreCase)) list.Add(exeLower);
+                set.Add(exe);
 
                 if (exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    string baseName = exe.Substring(0, exe.Length - 4);
-                    if (!list.Contains(baseName, StringComparer.OrdinalIgnoreCase)) list.Add(baseName);
-                    string baseLower = baseName.ToLowerInvariant();
-                    if (!list.Contains(baseLower, StringComparer.OrdinalIgnoreCase)) list.Add(baseLower);
+                    set.Add(exe.Substring(0, exe.Length - 4));
                 }
             }
-            return list;
+            return set.ToList();
         }
 
         private static string ResolveAdapterIp(string adapterName)

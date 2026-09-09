@@ -57,6 +57,13 @@ namespace CrimsonX.Helpers
             _itemsControl.AddHandler(InputElement.PointerMovedEvent, OnPointerMoved, Avalonia.Interactivity.RoutingStrategies.Tunnel);
             _itemsControl.AddHandler(InputElement.PointerReleasedEvent, OnPointerReleased, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         }
+
+        public void Detach()
+        {
+            _itemsControl.RemoveHandler(InputElement.PointerPressedEvent, OnPointerPressed);
+            _itemsControl.RemoveHandler(InputElement.PointerMovedEvent, OnPointerMoved);
+            _itemsControl.RemoveHandler(InputElement.PointerReleasedEvent, OnPointerReleased);
+        }
         
         private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
         {

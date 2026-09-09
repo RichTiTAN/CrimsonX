@@ -32,7 +32,6 @@ public partial class NavigationBar : UserControl
     public NavigationBar()
     {
         InitializeComponent();
-        this.LayoutUpdated += (s, e) => UpdateUnderline();
     }
 
     // ── Localization ──

@@ -50,7 +50,7 @@ namespace CrimsonX.Services
         private const int TimeoutMs = 3000;
         private const int SpeedTestDurationMs = 5000;
 
-        public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false)
+        public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false, bool isActiveWatchdog = false)
         {
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr = string.Empty;
@@ -141,7 +141,8 @@ namespace CrimsonX.Services
                 client.Timeout = TimeSpan.FromMilliseconds(TimeoutMs);
 
                 long totalPing = 0;
-                foreach (var target in TestTargets)
+                var targetsToTest = isActiveWatchdog ? new[] { "http://clients3.google.com/generate_204" } : TestTargets;
+                foreach (var target in targetsToTest)
                 {
                     ct.ThrowIfCancellationRequested();
                     var sw = Stopwatch.StartNew();
@@ -157,8 +158,8 @@ namespace CrimsonX.Services
                     totalPing += sw.ElapsedMilliseconds;
                 }
 
-                long avgPing = totalPing / TestTargets.Length;
-                if (!isWatchdog && avgPing > 1000)
+                long avgPing = totalPing / targetsToTest.Length;
+                if (!isWatchdog && avgPing > 1200)
                 {
                     res.Success = false;
                     res.Ping = avgPing;

@@ -43,8 +43,6 @@ public partial class MainWindow
 
     private System.Collections.Generic.List<int> _staggerQueue = new();
 
-    private System.Threading.CancellationTokenSource? _graphAnimCts;
-
     private readonly CrimsonX.Services.NetworkDiagnosticsService _netDiag =
         new CrimsonX.Services.NetworkDiagnosticsService();
 
@@ -353,7 +351,7 @@ public partial class MainWindow
 
     // ── Connect Progress & Engine Adjustment ──
 
-    internal async Task OnEngineCountChanged(int newCount)
+    internal void OnEngineCountChanged()
     {
         RequestConfigSave();
     }
@@ -479,7 +477,7 @@ public partial class MainWindow
 
     private void StopAllEngines(bool isClosing = false)
     {
-        try { _pipelineCts?.Cancel(); } catch { }
+        lock (_pipelineCtsLock) { try { _pipelineCts?.Cancel(); } catch { } }
         _ = Task.Run(() => CrimsonX.Services.XrayPipelineManager.StopXray());
 
         _state.AbortBoot       = true;
@@ -495,7 +493,6 @@ public partial class MainWindow
         _netDiag.StopStatsPolling();
         _netDiag.StopGeoTrace();
 
-        if (_graphAnimCts != null) { try { _graphAnimCts.Cancel(); _graphAnimCts.Dispose(); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); } _graphAnimCts = null; }
         _logTimer?.Stop();
         _logClearTimer?.Stop();
         ProxyService.SetSystemProxy(false);
@@ -639,6 +636,8 @@ public partial class MainWindow
 
     private async void btnConnect_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
+        try
+        {
         if (_state.IsConnected || _state.IsEngineRunning)
         {
             StopAllEngines();
@@ -710,6 +709,11 @@ public partial class MainWindow
         }
 
         StartEnginesAsync();
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
     }
 
     // ── VPN Adapter Check & Mode Hot-Swap ──
@@ -890,6 +894,8 @@ public partial class MainWindow
 
     private async void OnXrayRestartTick(object? sender, EventArgs e)
     {
+        try
+        {
         _xrayRestartTimer?.Stop();
         
         await CrimsonX.Services.XrayPipelineManager.SwapOutboundsAsync(
@@ -917,6 +923,11 @@ public partial class MainWindow
                 }
                 catch { }
             });
+        }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
         }
     }
 
@@ -1122,13 +1133,33 @@ public partial class MainWindow
                     if (File.Exists(xrayLogPath))
                     {
                         using var fs = new FileStream(xrayLogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                        using var sr = new StreamReader(fs);
-                        var fullText = sr.ReadToEnd();
-                        var lines = fullText.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                                            .Where(l => !l.Contains(":10999"))
-                                            .ToArray();
-                        var last15 = lines.Skip(Math.Max(0, lines.Length - 15)).ToArray();
-                        
+
+                        if (fs.Length < _lastXrayLogPos)
+                            _lastXrayLogPos = 0; 
+
+                        fs.Seek(_lastXrayLogPos, SeekOrigin.Begin);
+
+                        var newRawLines = new List<string>();
+                        using (var sr = new StreamReader(fs, System.Text.Encoding.UTF8, true, 1 << 16, leaveOpen: true))
+                        {
+                            string? line;
+                            while ((line = sr.ReadLine()) != null)
+                            {
+                                if (!line.Contains(":10999"))
+                                    newRawLines.Add(line);
+                            }
+                            _lastXrayLogPos = fs.Position;
+                        }
+
+                        if (newRawLines.Count > 0)
+                        {
+                            _xrayLogLines.AddRange(newRawLines);
+                            if (_xrayLogLines.Count > 300)
+                                _xrayLogLines.RemoveRange(0, _xrayLogLines.Count - 300);
+                        }
+
+                        var last15 = _xrayLogLines.Skip(Math.Max(0, _xrayLogLines.Count - 15)).ToArray();
+
                         var cleanLines = new List<string>();
                         foreach (var line in last15)
                         {
@@ -1144,7 +1175,7 @@ public partial class MainWindow
                             }
                             cleanLines.Add(line);
                         }
-                        
+
                         if (cleanLines.Count > 0)
                         {
                             txtXrayLogs.Text = string.Join("\n", cleanLines);
@@ -1419,34 +1450,6 @@ public partial class MainWindow
         }
         return geom;
     }
-
-
-    private static int ReadVarint(byte[] data, ref int p)
-    {
-        int result = 0, shift = 0;
-        while (p < data.Length)
-        {
-            byte b = data[p++];
-            if (shift < 32) result |= (b & 0x7F) << shift;
-            if ((b & 0x80) == 0) return result;
-            shift += 7;
-        }
-        return result;
-    }
-
-    private static long ReadVarint64(byte[] data, ref int p)
-    {
-        long result = 0; int shift = 0;
-        while (p < data.Length)
-        {
-            byte b = data[p++];
-            result |= (long)(b & 0x7F) << shift;
-            if ((b & 0x80) == 0) return result;
-            shift += 7;
-        }
-        return result;
-    }
-
 
     private CrimsonX.Dialogs.TrayWidget? _trayWidget;
 
@@ -1766,6 +1769,8 @@ public partial class MainWindow
 
     internal async void SettingTog_CheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
+        try
+        {
         if (_isInitializingSettings) return;
 
         var tog = sender as global::Avalonia.Controls.ToggleSwitch;
@@ -1811,6 +1816,11 @@ public partial class MainWindow
         }
 
         RequestConfigSave();
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
     }
 
     // ── Desktop / Start-Menu Shortcuts ──

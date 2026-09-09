@@ -37,7 +37,8 @@ namespace CrimsonX.Pages
     public partial class SettingsPage : UserControl
     {
         private bool _isInitializingSettings = true;
-        public static SettingsPage Instance { get; private set; }
+        public static SettingsPage? Instance { get; private set; }
+        internal static void ClearInstance() => Instance = null;
         
 
         public SettingsPage()
@@ -438,60 +439,80 @@ namespace CrimsonX.Pages
 
     private async void btnCustomConfigsPing1_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (_isPinging1) return;
-        _isPinging1 = true;
-        
-        var btn = sender as global::Avalonia.Controls.Button;
-        if (btn != null) btn.IsEnabled = false;
-
-        var txt1 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig1");
-        if (txt1 != null) MainWindow.Instance.Config.CustomConfig1 = txt1.Text ?? "";
-        MainWindow.Instance.RequestConfigSave();
-
-        long ping1 = -1;
-        var ct = new System.Threading.CancellationTokenSource(15000).Token;
-
-        if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1))
+        try
         {
-            var r1 = await CrimsonX.Services.ConfigTester.TestConfigAsync(MainWindow.Instance.Config.CustomConfig1, MainWindow.Instance.Config, ct, false);
-            if (r1 != null && r1.Success) ping1 = r1.Ping;
+            if (_isPinging1) return;
+            _isPinging1 = true;
+            
+            var btn = sender as global::Avalonia.Controls.Button;
+            if (btn != null) btn.IsEnabled = false;
+
+            var txt1 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig1");
+            if (txt1 != null) MainWindow.Instance.Config.CustomConfig1 = txt1.Text ?? "";
+            MainWindow.Instance.RequestConfigSave();
+
+            long ping1 = -1;
+            using var cts1 = new System.Threading.CancellationTokenSource(15000);
+            var ct = cts1.Token;
+
+            if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1))
+            {
+                var r1 = await CrimsonX.Services.ConfigTester.TestConfigAsync(MainWindow.Instance.Config.CustomConfig1, MainWindow.Instance.Config, ct, false);
+                if (r1 != null && r1.Success) ping1 = r1.Ping;
+            }
+
+            if (btn != null) btn.IsEnabled = true;
+
+            string msg = ping1 != -1 ? $"Config 1: {ping1}ms" : CrimsonX.Localization.AppStrings.InvalidConfig;
+            MainWindow.Instance.ShowToast(msg, ping1 != -1);
+            
+            _isPinging1 = false;
         }
-
-        if (btn != null) btn.IsEnabled = true;
-
-        string msg = ping1 != -1 ? $"Config 1: {ping1}ms" : CrimsonX.Localization.AppStrings.InvalidConfig;
-        MainWindow.Instance.ShowToast(msg, ping1 == -1);
-        
-        _isPinging1 = false;
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+            _isPinging1 = false;
+            if (sender is global::Avalonia.Controls.Button b) b.IsEnabled = true;
+        }
     }
 
     private async void btnCustomConfigsPing2_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (_isPinging2) return;
-        _isPinging2 = true;
-        
-        var btn = sender as global::Avalonia.Controls.Button;
-        if (btn != null) btn.IsEnabled = false;
-
-        var txt2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
-        if (txt2 != null) MainWindow.Instance.Config.CustomConfig2 = txt2.Text ?? "";
-        MainWindow.Instance.RequestConfigSave();
-
-        long ping2 = -1;
-        var ct = new System.Threading.CancellationTokenSource(15000).Token;
-
-        if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2))
+        try
         {
-            var r2 = await CrimsonX.Services.ConfigTester.TestConfigAsync(MainWindow.Instance.Config.CustomConfig2, MainWindow.Instance.Config, ct, false);
-            if (r2 != null && r2.Success) ping2 = r2.Ping;
+            if (_isPinging2) return;
+            _isPinging2 = true;
+            
+            var btn = sender as global::Avalonia.Controls.Button;
+            if (btn != null) btn.IsEnabled = false;
+
+            var txt2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
+            if (txt2 != null) MainWindow.Instance.Config.CustomConfig2 = txt2.Text ?? "";
+            MainWindow.Instance.RequestConfigSave();
+
+            long ping2 = -1;
+            using var cts2 = new System.Threading.CancellationTokenSource(15000);
+            var ct = cts2.Token;
+
+            if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2))
+            {
+                var r2 = await CrimsonX.Services.ConfigTester.TestConfigAsync(MainWindow.Instance.Config.CustomConfig2, MainWindow.Instance.Config, ct, false);
+                if (r2 != null && r2.Success) ping2 = r2.Ping;
+            }
+
+            if (btn != null) btn.IsEnabled = true;
+
+            string msg = ping2 != -1 ? $"Config 2: {ping2}ms" : CrimsonX.Localization.AppStrings.InvalidConfig;
+            MainWindow.Instance.ShowToast(msg, ping2 != -1);
+            
+            _isPinging2 = false;
         }
-
-        if (btn != null) btn.IsEnabled = true;
-
-        string msg = ping2 != -1 ? $"Config 2: {ping2}ms" : CrimsonX.Localization.AppStrings.InvalidConfig;
-        MainWindow.Instance.ShowToast(msg, ping2 == -1);
-        
-        _isPinging2 = false;
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+            _isPinging2 = false;
+            if (sender is global::Avalonia.Controls.Button b) b.IsEnabled = true;
+        }
     }
 
         // ── Adapter Binding Panel ──
@@ -619,9 +640,7 @@ namespace CrimsonX.Pages
 
         if (string.IsNullOrWhiteSpace(user))
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? "\u0644\u0637\u0641\u0627\u064b \u0646\u0627\u0645 \u06a9\u0627\u0631\u0628\u0631\u06cc \u0631\u0627 \u0648\u0627\u0631\u062f \u06a9\u0646\u06cc\u062f."
-                : "Please enter a username.");
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastUsernameEmpty);
             return;
         }
 
@@ -638,17 +657,13 @@ namespace CrimsonX.Pages
         if (MainWindow.Instance.State.IsEngineRunning)
         {
             if (MainWindow.Instance._pollMode == "VPN Mode")
-                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                    ? "\u0628\u0631\u0627\u06cc \u0627\u0639\u0645\u0627\u0644 \u062a\u063a\u06cc\u06cc\u0631\u0627\u062a \u062f\u0648\u0628\u0627\u0631\u0647 \u0645\u062a\u0635\u0644 \u0634\u0648\u06cc\u062f."
-                    : "Reconnect to apply the changes.");
+                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
             else
                 MainWindow.Instance.SmartRestartXray();
         }
         else
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                ? "\u0627\u0637\u0644\u0627\u0639\u0627\u062a \u0648\u0631\u0648\u062f \u0630\u062e\u06cc\u0631\u0647 \u0634\u062f."
-                : "Credentials saved.", success: true);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastLanAuthSaved, success: true);
         }
     }
 
@@ -916,12 +931,6 @@ namespace CrimsonX.Pages
                 if (testNode?["protocol"] == null)
                     throw new Exception("Missing 'protocol' field.");
                 
-                var streamSettings = testNode["streamSettings"];
-                if (streamSettings != null)
-                {
-
-                }
-                
                 var settings = testNode["settings"];
                 if (settings != null)
                 {
@@ -1018,6 +1027,8 @@ namespace CrimsonX.Pages
 
     private async void SettingTog_CheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
+        try
+        {
         if (_isInitializingSettings) return;
 
 
@@ -1070,6 +1081,11 @@ namespace CrimsonX.Pages
         }
 
         MainWindow.Instance.RequestConfigSave();
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
     }
 
         // ── Desktop / Start-Menu Shortcuts ──
@@ -1266,9 +1282,7 @@ namespace CrimsonX.Pages
             if (MainWindow.Instance.State.IsEngineRunning)
             {
                 if (MainWindow.Instance._pollMode == "VPN Mode")
-                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                        ? "\u0628\u0631\u0627\u06cc \u0627\u0639\u0645\u0627\u0644 \u062a\u063a\u06cc\u06cc\u0631\u0627\u062a \u062f\u0648\u0628\u0627\u0631\u0647 \u0645\u062a\u0635\u0644 \u0634\u0648\u06cc\u062f."
-                        : "Reconnect to apply the changes.");
+                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
                 else
                     MainWindow.Instance.SmartRestartXray();
             }
@@ -1283,9 +1297,7 @@ namespace CrimsonX.Pages
                 if (MainWindow.Instance.State.IsEngineRunning)
                 {
                     if (MainWindow.Instance._pollMode == "VPN Mode")
-                        MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.IsPersian
-                            ? "\u0628\u0631\u0627\u06cc \u0627\u0639\u0645\u0627\u0644 \u062a\u063a\u06cc\u06cc\u0631\u0627\u062a \u062f\u0648\u0628\u0627\u0631\u0647 \u0645\u062a\u0635\u0644 \u0634\u0648\u06cc\u062f."
-                        : "Reconnect to apply the changes.");
+                        MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
                     else
                         MainWindow.Instance.SmartRestartXray();
                 }
@@ -1442,6 +1454,8 @@ namespace CrimsonX.Pages
 
         private async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
     {
+        try
+        {
         bool isSelf = LanguagePopup != null && LanguagePopup.IsOpen && LanguagePopup.PlacementTarget?.Name == "btnLanguage";
         if (isSelf)
         {
@@ -1471,12 +1485,19 @@ namespace CrimsonX.Pages
             await Task.Delay(10);
             if (LanguagePopup.Child is Border border) border.Classes.Add("popupOpen");
         }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
     }
 
     
 
     private async void BtnLbPolicy_Click(object? sender, RoutedEventArgs e)
     {
+        try
+        {
         bool isSelf = LbPolicyPopup != null && LbPolicyPopup.IsOpen && LbPolicyPopup.PlacementTarget?.Name == "btnLbPolicy";
         if (isSelf)
         {
@@ -1505,6 +1526,11 @@ namespace CrimsonX.Pages
 
             await Task.Delay(10);
             if (LbPolicyPopup.Child is Border border) border.Classes.Add("popupOpen");
+        }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
         }
     }
 
@@ -1552,21 +1578,6 @@ namespace CrimsonX.Pages
 
 
         // ── Xray JSON Validation & Popup Dismissal ──
-
-        private static bool CheckBrackets(string json)
-        {
-            int openBraces = 0, closeBraces = 0;
-            int openBrackets = 0, closeBrackets = 0;
-            foreach (char c in json)
-            {
-                if (c == '{') openBraces++;
-                if (c == '}') closeBraces++;
-                if (c == '[') openBrackets++;
-                if (c == ']') closeBrackets++;
-            }
-            return openBraces == closeBraces && openBrackets == closeBrackets;
-        }
-
 
         private async Task ClosePopupAnimatedAsync()
         {

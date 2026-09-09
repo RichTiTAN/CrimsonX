@@ -222,8 +222,6 @@ namespace CrimsonX.Localization
 
         public static string AppsGamesDisconnectAndContinue => IsPersian ? "قطع اتصال و ادامه" : "DISCONNECT AND CONTINUE";
 
-        public static string OverlayMode => IsPersian ? "حالت:" : "MODE:";
-
         public static string MasterRulesEnabled => IsPersian ? "فعال" : "ENABLED";
 
         public static string MasterRulesDisabled => IsPersian ? "غیرفعال" : "DISABLED";
@@ -232,13 +230,13 @@ namespace CrimsonX.Localization
 
         public static string AdvancedRulesVpnOnlyMsg => IsPersian ? "قوانین پیشرفته فقط در حالت VPN قابل فعال‌سازی هستند. آیا مایل به تغییر به حالت VPN و ادامه هستید؟" : "ADVANCED RULES CAN ONLY BE ENABLED IN VPN MODE, DO YOU WISH TO SWITCH TO VPN MODE AND CONTINUE?";
 
-        public static string FilterAll => IsPersian ? "همه" : "ALL";
+        public static string FilterAll => IsPersian ? "همه" : "All";
 
-        public static string FilterGames => IsPersian ? "بازی‌ها" : "GAMES";
+        public static string FilterGames => IsPersian ? "بازی‌ها" : "Games";
 
-        public static string FilterLaunchers => IsPersian ? "لانچرها" : "LAUNCHERS";
+        public static string FilterLaunchers => IsPersian ? "لانچرها" : "Launchers";
 
-        public static string FilterOther => IsPersian ? "سایر" : "OTHER";
+        public static string FilterOther => IsPersian ? "سایر" : "Other";
 
         public static string SearchPlaceholder => IsPersian ? "جستجو..." : "Search...";
 
@@ -557,6 +555,10 @@ namespace CrimsonX.Localization
         public static string ToastInvalidDnsSecondary => IsPersian ? "لطفاً یک آدرس IPv4 معتبر برای DNS دوم وارد کنید." : "Please enter a valid IPv4 address for the secondary DNS.";
 
         public static string ToastUsernameEmpty => IsPersian ? "لطفاً نام کاربری را وارد کنید." : "Please enter a username.";
+
+        public static string ToastLanAuthSaved => IsPersian ? "اطلاعات ورود ذخیره شد." : "Credentials saved.";
+
+        public static string ToastVpnAdapterInUse => IsPersian ? "آداپتور VPN از قبل توسط برنامه دیگری در حال استفاده است!" : "VPN adapter is already in use by another app!";
 
         public static string ToastCredentialsSaved => IsPersian ? "اطلاعات ورود ذخیره شد." : "Credentials saved.";
 

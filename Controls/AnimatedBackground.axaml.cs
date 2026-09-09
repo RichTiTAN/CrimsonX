@@ -29,6 +29,11 @@ namespace CrimsonX.Controls
     public partial class AnimatedBackground : UserControl
     {
         public static AnimatedBackground? Instance { get; private set; }
+        internal static void ClearInstance() => Instance = null;
+
+        private int _dotPixelWidth = 2560;
+        private int _dotPixelHeight = 1440;
+        private DispatcherTimer? _dotResizeTimer;
 
                         private DispatcherTimer? _bgTimer;
         private bool _isPaused = false;
@@ -99,7 +104,8 @@ namespace CrimsonX.Controls
         {
             Instance = this;
             InitializeComponent();
-            GenerateDotMatrixOverlay();
+            GenerateDotMatrixOverlay(2560, 1440);
+            this.SizeChanged += DotOverlay_SizeChanged;
 
             _e1 = this.FindControl<Ellipse>("e1");
             _e2 = this.FindControl<Ellipse>("e2");
@@ -137,6 +143,7 @@ namespace CrimsonX.Controls
             base.OnDetachedFromVisualTree(e);
             _bgTimer?.Stop();
             _bgTimer = null;
+            _dotResizeTimer?.Stop();
         }
 
         private static void ResolveGradientStops(Ellipse? ellipse, out GradientStop? center, out GradientStop? edge)
@@ -217,11 +224,36 @@ namespace CrimsonX.Controls
 
     // ── Dot-Matrix Background Overlay ──
 
-        private void GenerateDotMatrixOverlay()
+        private void DotOverlay_SizeChanged(object? sender, SizeChangedEventArgs e)
         {
-            int width  = 2560;
-            int height = 1440;
+            var size = Bounds.Size;
+            if (size.Width <= 0 || size.Height <= 0) return;
 
+            int width  = Math.Clamp((int)Math.Ceiling(size.Width), 320, 2560);
+            int height = Math.Clamp((int)Math.Ceiling(size.Height), 240, 1440);
+
+            bool significantlyDifferent = Math.Abs(width - _dotPixelWidth) > _dotPixelWidth * 0.08
+                                       || Math.Abs(height - _dotPixelHeight) > _dotPixelHeight * 0.08;
+            if (!significantlyDifferent) return;
+
+            _dotPixelWidth  = width;
+            _dotPixelHeight = height;
+
+            if (_dotResizeTimer == null)
+            {
+                _dotResizeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+                _dotResizeTimer.Tick += (s2, e2) =>
+                {
+                    _dotResizeTimer?.Stop();
+                    GenerateDotMatrixOverlay(_dotPixelWidth, _dotPixelHeight);
+                };
+            }
+            _dotResizeTimer.Stop();
+            _dotResizeTimer.Start();
+        }
+
+        private void GenerateDotMatrixOverlay(int width, int height)
+        {
             var bitmap = new WriteableBitmap(
                 new Avalonia.PixelSize(width, height),
                 new Avalonia.Vector(96, 96),

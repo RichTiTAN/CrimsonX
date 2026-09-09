@@ -93,6 +93,7 @@ namespace CrimsonX.Services
                         .GetStringAsync("https://get.geojs.io/v1/ip/geo.json", token)
                         .ConfigureAwait(false);
                     sw.Stop();
+                    if (token != _geoCts?.Token) return; 
 
                     var data          = JObject.Parse(json);
                     var continentCode = data["continent_code"]?.ToString() ?? "";
@@ -164,14 +165,14 @@ namespace CrimsonX.Services
             _lastPollTime = DateTime.MinValue;
         }
 
-        // ─── Private polling implementation 
+        // Private polling implementation 
 
         private async Task PollStatsTick(CancellationToken token)
         {
             if (Interlocked.CompareExchange(ref _isFetching, 1, 0) != 0) return;
             try
             {
-                var request = new HttpRequestMessage(
+                using var request = new HttpRequestMessage(
                     HttpMethod.Post,
                     "http://127.0.0.1:10999/xray.app.stats.command.StatsService/QueryStats")
                 {
@@ -236,7 +237,7 @@ namespace CrimsonX.Services
             finally { Interlocked.Exchange(ref _isFetching, 0); }
         }
 
-        // ─── Protobuf varint decoder
+        // Protobuf varint decoder
 
         private static void ParseGrpcStatsBytes(byte[] bytes, ref long upVal, ref long dnVal)
         {
@@ -311,14 +312,14 @@ namespace CrimsonX.Services
             return result;
         }
 
-        // ─── Speed formatting ─────────────────────────────────────────────
+        // Speed formatting 
 
         private static string FormatSpeed(double bytesPerSec) =>
             bytesPerSec >= 1_048_576 ? $"{Math.Round(bytesPerSec / 1_048_576.0, 2)} MB/s" :
             bytesPerSec >= 1_024     ? $"{Math.Round(bytesPerSec / 1_024.0,     1)} KB/s" :
                                        $"{(int)bytesPerSec} B/s";
 
-        // ─── IDisposable ──────────────────────────────────────────────────
+        // IDisposable 
 
         public void Dispose()
         {

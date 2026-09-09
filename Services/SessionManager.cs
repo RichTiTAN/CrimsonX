@@ -26,6 +26,7 @@ namespace CrimsonX.Services
     {
         // ── State 
         private DateTime?                _startTime;
+        private readonly object         _startLock = new object();
         private CancellationTokenSource? _cts;
         private bool                     _disposed;
 
@@ -37,7 +38,7 @@ namespace CrimsonX.Services
         public void Start()
         {
             Stop(); // 
-            _startTime = DateTime.Now;
+            lock (_startLock) { _startTime = DateTime.Now; }
             _cts       = new CancellationTokenSource();
             var token  = _cts.Token;
 
@@ -48,9 +49,13 @@ namespace CrimsonX.Services
                     try { await Task.Delay(1000, token).ConfigureAwait(false); }
                     catch { break; }
 
-                    if (token.IsCancellationRequested || _startTime == null) break;
+                    if (token.IsCancellationRequested) break;
 
-                    var elapsed = DateTime.Now - _startTime.Value;
+                    DateTime? start;
+                    lock (_startLock) { start = _startTime; }
+                    if (start == null) break;
+
+                    var elapsed = DateTime.Now - start.Value;
                     ElapsedTimeUpdated?.Invoke(elapsed.ToString(@"hh\:mm\:ss"));
                 }
             }, token);
@@ -61,11 +66,16 @@ namespace CrimsonX.Services
             if (_cts == null) return;
             try { _cts.Cancel(); _cts.Dispose(); } catch { }
             _cts = null;
-            _startTime = null;
+            lock (_startLock) { _startTime = null; }
         }
 
-        public TimeSpan? GetElapsed() =>
-            _startTime.HasValue ? (DateTime.Now - _startTime.Value) : null;
+        public TimeSpan? GetElapsed()
+        {
+            lock (_startLock)
+            {
+                return _startTime.HasValue ? (DateTime.Now - _startTime.Value) : null;
+            }
+        }
 
         // ── IDisposable 
         public void Dispose()

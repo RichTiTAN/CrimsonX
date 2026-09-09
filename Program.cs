@@ -36,6 +36,11 @@ class Program
             return;
         }
 
+        AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+            CrimsonX.Services.SimpleLogger.Log(e.ExceptionObject?.ToString() ?? "Unknown");
+        TaskScheduler.UnobservedTaskException += (s, e) =>
+            { CrimsonX.Services.SimpleLogger.Log(e.Exception); e.SetObserved(); };
+
         try
         {
             BuildAvaloniaApp()
@@ -43,6 +48,7 @@ class Program
         }
         finally
         {
+            CrimsonX.Services.SimpleLogger.Shutdown();
             _mutex.ReleaseMutex();
             _mutex.Dispose();
         }

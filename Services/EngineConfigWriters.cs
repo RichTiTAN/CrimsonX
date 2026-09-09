@@ -30,10 +30,6 @@ namespace CrimsonX.Services
         {
             int nodeCount = 1;
             if (activeOutbounds != null && activeOutbounds.Count > 0) nodeCount = activeOutbounds.Count;
-            else {
-                nodeCount = 1;
-                if (nodeCount > 8) nodeCount = 8;
-            }
 
             bool useCustomChain = config.EnableV2rayChain && !string.IsNullOrWhiteSpace(config.V2rayChainJson);
             bool preferDirectDefault = config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE" && config.LastXrayMode != "VPN Mode";
@@ -94,7 +90,7 @@ namespace CrimsonX.Services
             }
 
             rules.Insert(0, new { type = "field", inboundTag = new[] { "api" }, outboundTag = "api" });
-            rules.Insert(1, new { type = "field", domain = AppSecrets.WorkerDomains.Select(d => $"domain:{d}").ToArray(), outboundTag = "direct" });
+            rules.Insert(1, new { type = "field", domain = new[] { $"keyword:{AppSecrets.WorkerDomainKeyword}" }, outboundTag = "direct" });
             
             if (preferDirectDefault)
             {
@@ -309,7 +305,15 @@ namespace CrimsonX.Services
         {
             try
             {
-                string cacheKey = $"{xrayDir}|{strategyType}";
+                string xrayExeStamp = "";
+                try
+                {
+                    var xrayExePath = Path.Combine(xrayDir, "xray.exe");
+                    if (File.Exists(xrayExePath))
+                        xrayExeStamp = File.GetLastWriteTimeUtc(xrayExePath).Ticks.ToString("X");
+                }
+                catch { }
+                string cacheKey = $"{xrayDir}|{xrayExeStamp}|{strategyType}";
                 if (XrayBalancerSupportCache.TryGetValue(cacheKey, out bool supported))
                 {
                     return supported;
@@ -370,9 +374,14 @@ namespace CrimsonX.Services
                     return false;
                 }
 
-                process.WaitForExit(5000);
-                process.StandardOutput.ReadToEnd();
-                process.StandardError.ReadToEnd();
+                var outTask = process.StandardOutput.ReadToEndAsync();
+                var errTask = process.StandardError.ReadToEndAsync();
+                if (!process.WaitForExit(5000))
+                {
+                    try { process.Kill(); } catch { }
+                    process.WaitForExit();
+                }
+                Task.WaitAll(outTask, errTask);
                 bool result = process.ExitCode == 0;
                 File.Delete(tempConfig);
                 XrayBalancerSupportCache[cacheKey] = result;
@@ -427,7 +436,7 @@ namespace CrimsonX.Services
                 new { protocol = "dns", action = "hijack-dns" },
                 new { port = new[] { 53 }, network = "udp", action = "hijack-dns" },
                 new { port = new[] { 53 }, network = "tcp", action = "hijack-dns" },
-                new { domain = AppSecrets.WorkerDomains, action = "route", outbound = "direct" },
+                new { domain_keyword = new[] { AppSecrets.WorkerDomainKeyword }, action = "route", outbound = "direct" },
                 new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" }
             };
 

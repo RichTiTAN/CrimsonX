@@ -297,6 +297,8 @@ public partial class MainWindow : Window
 
     private async void BtnCopyAddress_Click(object? sender, RoutedEventArgs e)
     {
+        try
+        {
         if (sender is Button btn && btn.Content is string address)
         {
             var clipboard = global::Avalonia.Controls.TopLevel.GetTopLevel(this)?.Clipboard;
@@ -305,6 +307,11 @@ public partial class MainWindow : Window
                 await clipboard.SetTextAsync(address);
                 ShowToast(CrimsonX.Localization.AppStrings.ToastAddressCopied, success: true);
             }
+        }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
         }
     }
 
@@ -398,6 +405,8 @@ public partial class MainWindow : Window
 
     private async void BtnTitleUpdate_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
+        try
+        {
         if (_updateCts != null)
         {
             _updateCts.Cancel();
@@ -421,10 +430,17 @@ public partial class MainWindow : Window
         {
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/RichTiTAN/CrimsonX/releases") { UseShellExecute = true })?.Dispose();
         }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
     }
 
     internal async void BtnCheckUpdate_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
+        try
+        {
 
         if (_updateCts != null)
         {
@@ -542,12 +558,19 @@ public partial class MainWindow : Window
                 _updateCts = null;
             }
         }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
     }
 
     // ── Language Selector Popup ──
 
 internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
     {
+        try
+        {
         var target = sender as Control;
         bool isSelf = LanguagePopup != null && LanguagePopup.IsOpen && LanguagePopup.PlacementTarget == target;
         if (isSelf)
@@ -578,6 +601,11 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
             await Task.Delay(10);
             if (LanguagePopup.Child is Border border) border.Classes.Add("popupOpen");
         }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
     }
 
     internal void LanguageOption_Click(object? sender, RoutedEventArgs e)
@@ -599,6 +627,8 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
 
     internal async void BtnLbPolicy_Click(object? sender, RoutedEventArgs e)
     {
+        try
+        {
         bool isSelf = LbPolicyPopup != null && LbPolicyPopup.IsOpen && LbPolicyPopup.PlacementTarget?.Name == "btnLbPolicy";
         if (isSelf)
         {
@@ -627,6 +657,11 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
 
             await Task.Delay(10);
             if (LbPolicyPopup.Child is Border border) border.Classes.Add("popupOpen");
+        }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
         }
     }
 
@@ -935,6 +970,8 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
 
     private async void Mode_Click(object? sender, RoutedEventArgs e)
     {
+        try
+        {
         if (sender is not Button clickedBtn) return;
         if (clickedBtn.Name == "btnVpnMode" && _activeBridge == "snowflake" && !_cfg.EnableDirectUDP) return;
         if (_isModeHotSwapping) return;
@@ -951,10 +988,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         bool live = _state.IsEngineRunning || _state.IsConnected;
         if (live && newMode == "VPN Mode" && IsVpnAdapterInUse())
         {
-            bool isFa = AppStrings.IsPersian;
-            ShowToast(isFa
-                ? "آداپتور VPN از قبل توسط برنامه دیگری در حال استفاده است!"
-                : "VPN adapter is already in use by another app!");
+            ShowToast(CrimsonX.Localization.AppStrings.ToastVpnAdapterInUse);
             return;
         }
 
@@ -981,6 +1015,11 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
         {
             _isModeHotSwapping = false;
         }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
     }
 
     
@@ -989,7 +1028,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
 
     
 
-    private async void Engines_ValueChanged(object? sender, global::Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+    private void Engines_ValueChanged(object? sender, global::Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
     {
         if (sender is global::Avalonia.Controls.Slider slider)
         {
@@ -1002,7 +1041,7 @@ internal async void BtnLanguage_Click(object? sender, RoutedEventArgs e)
             _activeEngines = engines;
 
             if (_state.IsEngineRunning)
-                await OnEngineCountChanged(engines);
+                OnEngineCountChanged();
             else
             {
                 RequestConfigSave();

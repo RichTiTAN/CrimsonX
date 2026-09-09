@@ -24,6 +24,7 @@ namespace CrimsonX.Pages;
 public partial class ThemesPage : UserControl
 {
     public static ThemesPage? Instance { get; private set; }
+    internal static void ClearInstance() => Instance = null;
 
     public ThemesPage()
     {
@@ -112,6 +113,7 @@ public partial class ThemesPage : UserControl
 
     internal void UpdateLocalization()
     {
+        ApplyLanguage();
     }
 
     public void ApplyLanguage()

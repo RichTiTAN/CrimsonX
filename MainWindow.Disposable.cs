@@ -44,9 +44,9 @@ public partial class MainWindow : IDisposable
         StopTimer(ref _fillAnimTimer);
         StopTimer(ref _colorTimer);
  
-        CancelAndDispose(ref _graphAnimCts);
-
         CancelAndDispose(ref _updateCts);
+
+        CancelAndDispose(ref _pipelineCts);
 
         // ── Services 
         _session.Dispose();
@@ -54,6 +54,14 @@ public partial class MainWindow : IDisposable
         _netDiag.Dispose();
 
         DisposeTrayIcon();
+
+        // ── Release page/control singletons 
+        Pages.SettingsPage.ClearInstance();
+        Pages.SplitTunnelPage.ClearInstance();
+        Pages.ThemesPage.ClearInstance();
+        Pages.AboutPage.ClearInstance();
+        Controls.AnimatedBackground.ClearInstance();
+        Controls.QuickSettingsPanel.ClearInstance();
     }
 
     /// <inheritdoc />

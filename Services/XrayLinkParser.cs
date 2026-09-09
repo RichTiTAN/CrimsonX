@@ -129,8 +129,9 @@ namespace CrimsonX.Services
             return Encoding.UTF8.GetString(Convert.FromBase64String(b64));
         }
 
+        private static readonly string[] SupportedSchemes = { "vless://", "trojan://" };
 
-        public static List<string> ExtractVlessConfigs(string content)
+        public static List<string> ExtractConfigs(string content)
         {
             var links = new List<string>();
             if (string.IsNullOrWhiteSpace(content)) return links;
@@ -149,9 +150,13 @@ namespace CrimsonX.Services
             foreach (var line in lines)
             {
                 var l = line.Trim();
-                if (l.StartsWith("vless://", StringComparison.OrdinalIgnoreCase))
+                foreach (var scheme in SupportedSchemes)
                 {
-                    links.Add(l);
+                    if (l.StartsWith(scheme, StringComparison.OrdinalIgnoreCase))
+                    {
+                        links.Add(l);
+                        break;
+                    }
                 }
             }
             return links;

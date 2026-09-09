@@ -28,8 +28,8 @@ namespace CrimsonX.Dialogs
 {
     public partial class TrayWidget : Window
     {
-        private MainWindow _main = null!;
-        private DispatcherTimer _timer = null!;
+        private MainWindow? _main;
+        private DispatcherTimer? _timer;
         private bool _isClosing = false;
 
         public TrayWidget()
@@ -51,6 +51,7 @@ namespace CrimsonX.Dialogs
 
         private void UpdateUI()
         {
+            if (_main == null) return;
             bool fa = AppStrings.IsPersian;
             if (_main.GetState().IsConnected)
             {
@@ -88,6 +89,7 @@ namespace CrimsonX.Dialogs
 
         private void BtnToggle_Click(object sender, RoutedEventArgs e)
         {
+            if (_main == null) return;
             _main.ConnectDisconnect();
             UpdateUI();
             ApplyLanguage(AppStrings.IsPersian);
@@ -95,6 +97,7 @@ namespace CrimsonX.Dialogs
 
         private void BtnShowWindow_Click(object sender, RoutedEventArgs e)
         {
+            if (_main == null) return;
             _main.Show();
             _main.WindowState = WindowState.Normal;
             _main.Activate();
@@ -104,7 +107,7 @@ namespace CrimsonX.Dialogs
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
             SafeClose();
-            _main.Close();
+            _main?.Close();
         }
 
         private void Window_Deactivated(object sender, EventArgs e)
@@ -116,7 +119,7 @@ namespace CrimsonX.Dialogs
         {
             if (_isClosing) return;
             _isClosing = true;
-            _timer.Stop();
+            _timer?.Stop();
             Close();
         }
 

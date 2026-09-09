@@ -30,6 +30,9 @@ namespace CrimsonX.Services
             {
                 EnableCustomConfigs = config.EnableCustomConfigs,
                 StartupTab = config.StartupTab,
+                EnableAppRules = config.EnableAppRules,
+                PauseGlows = config.PauseGlows,
+                DisableGlows = config.DisableGlows,
                 CustomConfig1 = config.CustomConfig1,
                 CustomConfig2 = config.CustomConfig2,
                 AllowOneCustomConfig = config.AllowOneCustomConfig,
@@ -131,7 +134,7 @@ namespace CrimsonX.Services
                 }
             }
 
-            string oldJsonPath = cfgFile.Replace(".bin", ".json");
+            string oldJsonPath = Path.ChangeExtension(cfgFile, ".json");
             if (json == null && File.Exists(oldJsonPath))
             {
                 state.IsFirstLaunch = false;

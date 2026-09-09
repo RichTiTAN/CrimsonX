@@ -84,23 +84,31 @@
     
         <Grid RowDefinitions="Auto, *" Margin="0,50,20,20" HorizontalAlignment="Center" MaxWidth="580" Width="580">
                 <!-- New Static Box -->
-                <Border Grid.Row="0" Classes="hoverBox" Background="#99141414" BorderThickness="1" CornerRadius="12" Padding="12,8" Margin="0,0,0,12" Height="45">
-                    <Grid ColumnDefinitions="Auto, *, Auto">
-        <TextBox x:Name="txtSearch" Grid.Column="0" Width="115" Height="24" MinHeight="24" VerticalAlignment="Center" PlaceholderText="Search..." FontSize="10" Padding="8,0" VerticalContentAlignment="Center" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Foreground="#A0AEC0" TextChanged="Search_TextChanged"/>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock x:Name="lblRules" Text="ENABLED" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
-            <Viewbox Stretch="Uniform" Height="22" VerticalAlignment="Center">
-                <ToggleSwitch x:Name="togMasterRules" OnContent="{x:Null}" OffContent="{x:Null}" IsCheckedChanged="MasterRules_Changed"/>
-            </Viewbox>
-        </StackPanel>
+                <Border Grid.Row="0" Classes="hoverBox" Background="#99141414" BorderThickness="1" CornerRadius="8" Padding="6,8" Margin="0,0,0,12" Height="40">
+                    <Grid>
+        <TextBox x:Name="txtSearch" HorizontalAlignment="Left" Width="115" Height="24" MinHeight="24" VerticalAlignment="Center" PlaceholderText="Search..." FontSize="10" Padding="8,0" VerticalContentAlignment="Center" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Foreground="#A0AEC0" TextChanged="Search_TextChanged"/>
+        <Button x:Name="btnMasterRules" Click="MasterRules_Click"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Height="24" MinWidth="96" Padding="0" Cursor="Hand" CornerRadius="4"
+                Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+            <Button.Styles>
+                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                </Style>
+            </Button.Styles>
+            <TextBlock x:Name="lblRules" Text="ENABLED" FontSize="9" FontWeight="Bold"
+                       LetterSpacing="1" Foreground="#E2E8F0"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Button>
 
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
+        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
             <TextBlock x:Name="lblFilter" Text="FILTER:" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center" Margin="0,0,4,0"/>
-            <ComboBox x:Name="cbFilter" SelectedIndex="0" Width="110" Height="24" MinHeight="24" FontSize="10" Padding="8,0" VerticalContentAlignment="Center" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" SelectionChanged="Filter_SelectionChanged">
-                <ComboBoxItem x:Name="cbiFilterAll" Content="ALL" FontSize="10"/>
-                <ComboBoxItem x:Name="cbiFilterGames" Content="GAMES" FontSize="10"/>
-                <ComboBoxItem x:Name="cbiFilterLaunchers" Content="LAUNCHERS" FontSize="10"/>
-                <ComboBoxItem x:Name="cbiFilterOther" Content="OTHER" FontSize="10"/>
+            <ComboBox x:Name="cbFilter" SelectedIndex="0" Width="110" Height="24" MinHeight="24" FontSize="10" FontWeight="SemiBold" Padding="8,0" VerticalContentAlignment="Center" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" SelectionChanged="Filter_SelectionChanged">
+                <ComboBoxItem x:Name="cbiFilterAll" Content="All" FontSize="10" FontWeight="SemiBold"/>
+                <ComboBoxItem x:Name="cbiFilterGames" Content="Games" FontSize="10" FontWeight="SemiBold"/>
+                <ComboBoxItem x:Name="cbiFilterLaunchers" Content="Launchers" FontSize="10" FontWeight="SemiBold"/>
+                <ComboBoxItem x:Name="cbiFilterOther" Content="Other" FontSize="10" FontWeight="SemiBold"/>
             </ComboBox>
         </StackPanel>
     </Grid>
@@ -108,7 +116,7 @@
 
                 <!-- Rules Box -->
                 <Panel Grid.Row="1">
-                <Border x:Name="panRulesBox" Background="#99141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="12" Padding="6,6,2,6">
+                <Border x:Name="panRulesBox" Background="#99141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="6,6,2,6">
                     <ScrollViewer x:Name="Scroller" BringIntoViewOnFocusChange="False">
                         <StackPanel Spacing="4" Margin="0,0,4,0">
 
@@ -130,7 +138,7 @@
 </Transitions>
 </Border.Transitions>
 <Border Classes="hoverBox" Background="Transparent"
-BorderThickness="1" CornerRadius="8" Padding="15,9.5" Height="45" Margin="0,0,0,0" IsVisible="{Binding !IsDefault}">
+BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,0" IsVisible="{Binding !IsDefault}">
                                             <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto, Auto">
                                                 <Panel x:Name="DragHandle" Grid.Column="0" Tag="{Binding RuleId}" Width="16" Height="24" Margin="0,0,8,0" VerticalAlignment="Center" Background="Transparent" Cursor="SizeAll">
                                                     <PathIcon Data="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z" Width="14" Height="14" Foreground="#4A5568" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -188,7 +196,7 @@ BorderThickness="1" CornerRadius="8" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                     </Transitions>
                                                 </Border.Transitions>
                                                 <Border Classes="hoverBox" Background="Transparent"
-                                                        BorderThickness="1" CornerRadius="8" Padding="15,9.5" Height="45" Margin="0,0,0,0"
+                                                        BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,0"
                                                         IsVisible="{Binding IsDefault}">
                                                     <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto, Auto, Auto, Auto, Auto">
                                                         <Panel x:Name="DragHandleDefault" Grid.Column="0" Tag="{Binding RuleId}" Width="16" Height="24" Margin="0,0,8,0" VerticalAlignment="Center" Background="Transparent" Cursor="SizeAll">
@@ -271,7 +279,7 @@ BorderThickness="1" CornerRadius="8" Padding="15,9.5" Height="45" Margin="0,0,0,
 <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
 </Transitions>
 </Border.Transitions>
-<Border x:Name="panAddToggle" Classes="hoverBox" Background="Transparent"  BorderThickness="1" CornerRadius="8" Padding="15,10" Height="45" Cursor="Hand" PointerPressed="AddToggle_Click">
+<Border x:Name="panAddToggle" Classes="hoverBox" Background="Transparent"  BorderThickness="1" CornerRadius="6" Padding="15,10" Height="45" Cursor="Hand" PointerPressed="AddToggle_Click">
                                     <TextBlock x:Name="lblAddToggle" Text="ADD +" FontSize="11" FontWeight="Bold" Foreground="#8B949E" HorizontalAlignment="Center" VerticalAlignment="Center" LetterSpacing="1"/>
                                 </Border>
                                 </Border>
@@ -595,13 +603,25 @@ Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
                     </ScrollViewer>
                 </Border>
 
-                <!-- Floating Bottom Bar: MODE (REGULAR/INCLUSIVE) + CONNECT -->
-                <Border x:Name="panFloatingBar" VerticalAlignment="Bottom" HorizontalAlignment="Center" Classes="hoverBox"
-                        Width="470" Height="45" Margin="0,0,0,8" CornerRadius="10"
-                        Background="#FF000000" BorderThickness="1">
+                <!-- Floating Bottom Bar: split-mode (REGULAR/INCLUSIVE) + CONNECT -->
+                <Border x:Name="panFloatingBar" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                        Width="470" Height="45" Margin="0,0,0,13" CornerRadius="8" BoxShadow="0 0 26 6 #E6000000"
+                        Background="#FF000000" BorderThickness="2">
+                    <Border.Styles>
+                        <Style Selector="Border">
+                            <Setter Property="BorderBrush" Value="#2D3748"/>
+                            <Setter Property="Transitions">
+                                <Transitions>
+                                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                                </Transitions>
+                            </Setter>
+                        </Style>
+                        <Style Selector="Border:pointerover">
+                            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+                        </Style>
+                    </Border.Styles>
                     <Grid ColumnDefinitions="Auto, *, Auto" Margin="10,0,8,0">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
-                            <TextBlock x:Name="lblMode" Text="MODE:" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <Button x:Name="btnOverlaySplitRegular" Classes="optBtn" Click="OverlaySplitTunnel_Click">
                                 <TextBlock x:Name="lblOverlayRegular" Text="REGULAR" FontSize="10" FontWeight="SemiBold"/>
                             </Button>

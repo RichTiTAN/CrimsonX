@@ -29,7 +29,62 @@ namespace CrimsonX.Services
     public static class ConfigCache
     {
         private static readonly byte[] Key = Encoding.UTF8.GetBytes(AppSecrets.CacheKey); // 32 bytes
-        private static readonly byte[] Iv = Encoding.UTF8.GetBytes(AppSecrets.CacheIv); // 16 bytes
+        private static readonly byte[] Iv = Encoding.UTF8.GetBytes(AppSecrets.CacheIv); // legacy fixed IV (decrypting older cache files)
+
+        private static byte[] Encrypt(byte[] plainBytes)
+        {
+            using var aes = Aes.Create();
+            aes.Key = Key;
+            aes.GenerateIV();
+
+            using var ms = new MemoryStream();
+            ms.Write(aes.IV, 0, aes.IV.Length); 
+
+            using (var encryptor = aes.CreateEncryptor(aes.Key, aes.IV))
+            using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+            {
+                cs.Write(plainBytes, 0, plainBytes.Length);
+                cs.FlushFinalBlock();
+            }
+            return ms.ToArray();
+        }
+
+        private static string? DecryptToString(byte[] data)
+        {
+            if (data.Length > 16)
+            {
+                try
+                {
+                    var iv = new byte[16];
+                    Array.Copy(data, 0, iv, 0, iv.Length);
+                    using var aes = Aes.Create();
+                    aes.Key = Key;
+                    aes.IV = iv;
+                    using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+                    using var ms = new MemoryStream(data, 16, data.Length - 16, false);
+                    using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+                    using var sr = new StreamReader(cs);
+                    string json = sr.ReadToEnd();
+                    if (!string.IsNullOrEmpty(json)) return json;
+                }
+                catch
+                {
+                }
+            }
+
+            try
+            {
+                using var aes = Aes.Create();
+                aes.Key = Key;
+                aes.IV = Iv;
+                using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+                using var ms = new MemoryStream(data);
+                using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+                using var sr = new StreamReader(cs);
+                return sr.ReadToEnd();
+            }
+            catch { return null; }
+        }
 
         public static List<string> LoadCache(string path)
         {
@@ -38,15 +93,9 @@ namespace CrimsonX.Services
             try
             {
                 byte[] encrypted = File.ReadAllBytes(path);
-                using Aes aes = Aes.Create();
-                aes.Key = Key;
-                aes.IV = Iv;
-                using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-                using var ms = new MemoryStream(encrypted);
-                using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
-                using var sr = new StreamReader(cs);
-                string json = sr.ReadToEnd();
-                
+                string? json = DecryptToString(encrypted);
+                if (string.IsNullOrEmpty(json)) return new List<string>();
+
                 var list = JsonConvert.DeserializeObject<List<string>>(json);
                 return list ?? new List<string>();
             }
@@ -82,16 +131,7 @@ namespace CrimsonX.Services
                 string json = JsonConvert.SerializeObject(finalConfigs);
                 byte[] plainBytes = Encoding.UTF8.GetBytes(json);
 
-                using Aes aes = Aes.Create();
-                aes.Key = Key;
-                aes.IV = Iv;
-                using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-                using var ms = new MemoryStream();
-                using var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write);
-                cs.Write(plainBytes, 0, plainBytes.Length);
-                cs.FlushFinalBlock();
-
-                File.WriteAllBytes(path, ms.ToArray());
+                File.WriteAllBytes(path, Encrypt(plainBytes));
             }
             catch (Exception ex)
             {
@@ -115,20 +155,12 @@ namespace CrimsonX.Services
             }
         }
 
-        public static string LoadString(string path)
+        public static string? LoadString(string path)
         {
             if (!File.Exists(path)) return null;
             try
             {
-                byte[] encrypted = File.ReadAllBytes(path);
-                using Aes aes = Aes.Create();
-                aes.Key = Key;
-                aes.IV = Iv;
-                using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-                using var ms = new MemoryStream(encrypted);
-                using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
-                using var sr = new StreamReader(cs);
-                return sr.ReadToEnd();
+                return DecryptToString(File.ReadAllBytes(path));
             }
             catch { return null; }
         }
@@ -138,26 +170,18 @@ namespace CrimsonX.Services
             try
             {
                 byte[] plainBytes = Encoding.UTF8.GetBytes(content ?? "");
-                using Aes aes = Aes.Create();
-                aes.Key = Key;
-                aes.IV = Iv;
-                using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-                using var ms = new MemoryStream();
-                using var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write);
-                cs.Write(plainBytes, 0, plainBytes.Length);
-                cs.FlushFinalBlock();
-                
+
                 string dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
-                File.WriteAllBytes(path, ms.ToArray());
+                File.WriteAllBytes(path, Encrypt(plainBytes));
             }
             catch { }
         }
         
         public static Dictionary<string, string> LoadIconCache(string path)
         {
-            string json = LoadString(path);
+            string? json = LoadString(path);
             if (string.IsNullOrEmpty(json)) return new Dictionary<string, string>();
             return JsonConvert.DeserializeObject<Dictionary<string, string>>(json) ?? new Dictionary<string, string>();
         }

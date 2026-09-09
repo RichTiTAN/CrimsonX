@@ -16,6 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+using Avalonia.Threading;
+
 namespace CrimsonX.Services
 {
     public sealed class ToastEvent
@@ -34,14 +36,14 @@ namespace CrimsonX.Services
 
         public void PublishToast(string message, bool success = false)
         {
-            ToastRequested?.Invoke(new ToastEvent { Message = message, Success = success });
+            Dispatcher.UIThread.Post(() => ToastRequested?.Invoke(new ToastEvent { Message = message, Success = success }));
         }
 
         public event System.Action<int>? ConnectionProgress;
 
         public void PublishConnectionProgress(int percent)
         {
-            ConnectionProgress?.Invoke(percent);
+            Dispatcher.UIThread.Post(() => ConnectionProgress?.Invoke(percent));
         }
     }
 }

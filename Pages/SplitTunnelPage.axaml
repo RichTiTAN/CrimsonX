@@ -101,7 +101,7 @@
                                             </Transitions>
                                         </Border.Transitions>
                                         <Grid ColumnDefinitions="*, Auto">
-                                            <TextBox Grid.Column="0" x:Name="txtSplitDomains" Height="17" LineHeight="17" Background="Transparent" BorderThickness="0" PlaceholderText="example.com, 1.2.3.4, 443" FontSize="11"  AcceptsReturn="True" TextWrapping="Wrap" TextChanged="txtSplit_TextChanged" VerticalAlignment="Stretch" Margin="15,8,10,9">
+                                            <TextBox Grid.Column="0" x:Name="txtSplitDomains" Height="17" LineHeight="17" Background="Transparent" BorderThickness="0" PlaceholderText="example.com, 1.2.3.4, 443" FontSize="11"  AcceptsReturn="True" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="15,8,10,9">
                                                 <TextBox.Styles>
                                                     <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
                                                         <Setter Property="BorderThickness" Value="0"/>
@@ -194,7 +194,7 @@
                                         </Transitions>
                                     </Border.Transitions>
                                     <Grid ColumnDefinitions="*, Auto">
-                                        <TextBox Grid.Column="0" x:Name="txtSplitBlock" Height="17" LineHeight="17" Background="Transparent" BorderThickness="0" PlaceholderText="malicious.com, 5.6.7.8, 443" FontSize="11"  AcceptsReturn="True" TextWrapping="Wrap" TextChanged="txtSplit_TextChanged" VerticalAlignment="Stretch" Margin="15,8,10,9">
+                                        <TextBox Grid.Column="0" x:Name="txtSplitBlock" Height="17" LineHeight="17" Background="Transparent" BorderThickness="0" PlaceholderText="malicious.com, 5.6.7.8, 443" FontSize="11"  AcceptsReturn="True" TextWrapping="Wrap" VerticalAlignment="Stretch" Margin="15,8,10,9">
                                             <TextBox.Styles>
                                                 <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
                                                     <Setter Property="BorderThickness" Value="0"/>

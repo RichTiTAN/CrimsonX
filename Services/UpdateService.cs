@@ -30,7 +30,7 @@ namespace CrimsonX.Services
 {
     public static class UpdateService
     {
-        public const string AppVersion = "2.0.1";
+        public const string AppVersion = "2.1.0";
         
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         private static readonly HttpClient _dlClient = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
@@ -147,7 +147,18 @@ namespace CrimsonX.Services
 
                 var sourceDir = Path.GetDirectoryName(exeFile)!;
                 var currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? "";
-                
+
+                static void ValidateBatPath(string path, string label)
+                {
+                    if (path.IndexOfAny(new[] { '%', '&', '|', '<', '>', '(', ')', '^', '!' }) >= 0)
+                        throw new Exception($"{label} contains characters not supported by the update script: {path}");
+                }
+                ValidateBatPath(sourceDir, "Update source directory");
+                ValidateBatPath(baseDir, "Application directory");
+                ValidateBatPath(extPath, "Update extraction directory");
+                ValidateBatPath(zipPath, "Update archive path");
+                ValidateBatPath(currentExe, "Application executable");
+
                 var batContent = "@echo off\n" +
 ":waitloop\n" +
 "tasklist | find /i \"CrimsonX.exe\" > nul\n" +

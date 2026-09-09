@@ -28,7 +28,7 @@ namespace CrimsonX.Services
 {
     public static class XrayPipelineManager
     {
-        private static Process _xrayProcess;
+        private static Process? _xrayProcess;
         private static readonly object _lock = new object();
         public static List<string> ActiveOutbounds { get; private set; } = new List<string>();
 
@@ -190,43 +190,12 @@ namespace CrimsonX.Services
                             wrapper["outbounds"] = new JArray(ob);
                             File.WriteAllText(tempObPath, wrapper.ToString());
 
-                            var adoProc = new Process();
-                            adoProc.StartInfo.FileName = Path.Combine(xrayDir, "xray.exe");
-                            adoProc.StartInfo.Arguments = $"api ado --server=127.0.0.1:10999 \"{tempObPath}\"";
-                            adoProc.StartInfo.UseShellExecute = false;
-                            adoProc.StartInfo.CreateNoWindow = true;
-                            adoProc.StartInfo.RedirectStandardError = true;
-                            adoProc.StartInfo.RedirectStandardOutput = true;
-                            adoProc.Start();
-                            
-                            string errOut = adoProc.StandardError.ReadToEnd() + " " + adoProc.StandardOutput.ReadToEnd();
-                            adoProc.WaitForExit(1500);
-                            
-                            if (adoProc.ExitCode != 0)
-                            {
-                                throw new Exception($"xray api ado failed with exit code {adoProc.ExitCode}: {errOut.Trim()}");
-                            }
+                            RunXrayApiCli(xrayDir, "ado", $"api ado --server=127.0.0.1:10999 \"{tempObPath}\"", 1500);
                         }
-                        try { if (File.Exists(tempObPath)) File.Delete(tempObPath); } catch { }
 
                         foreach (string tag in tagsToRemove)
                         {
-                            var rmoProc = new Process();
-                            rmoProc.StartInfo.FileName = Path.Combine(xrayDir, "xray.exe");
-                            rmoProc.StartInfo.Arguments = $"api rmo --server=127.0.0.1:10999 \"{tag}\"";
-                            rmoProc.StartInfo.UseShellExecute = false;
-                            rmoProc.StartInfo.CreateNoWindow = true;
-                            rmoProc.StartInfo.RedirectStandardError = true;
-                            rmoProc.StartInfo.RedirectStandardOutput = true;
-                            rmoProc.Start();
-                            
-                            string errOut = rmoProc.StandardError.ReadToEnd() + " " + rmoProc.StandardOutput.ReadToEnd();
-                            rmoProc.WaitForExit(1500);
-                            
-                            if (rmoProc.ExitCode != 0)
-                            {
-                                throw new Exception($"xray api rmo failed with exit code {rmoProc.ExitCode}: {errOut.Trim()}");
-                            }
+                            RunXrayApiCli(xrayDir, "rmo", $"api rmo --server=127.0.0.1:10999 \"{tag}\"", 1500);
                         }
 
                         CrimsonX.Services.SimpleLogger.Log("[XrayPipelineManager] Seamless hot-swap executed successfully via CLI API.");
@@ -244,6 +213,33 @@ namespace CrimsonX.Services
                     }
                 }
             });
+        }
+
+        private static void RunXrayApiCli(string xrayDir, string operation, string arguments, int timeoutMs)
+        {
+            using var proc = new Process();
+            proc.StartInfo.FileName = Path.Combine(xrayDir, "xray.exe");
+            proc.StartInfo.Arguments = arguments;
+            proc.StartInfo.UseShellExecute = false;
+            proc.StartInfo.CreateNoWindow = true;
+            proc.StartInfo.RedirectStandardError = true;
+            proc.StartInfo.RedirectStandardOutput = true;
+            proc.Start();
+
+            var outTask = Task.Run(() => proc.StandardOutput.ReadToEnd());
+            var errTask = Task.Run(() => proc.StandardError.ReadToEnd());
+
+            if (!proc.WaitForExit(timeoutMs))
+            {
+                try { proc.Kill(); } catch { }
+                proc.WaitForExit();
+            }
+
+            string output = errTask.GetAwaiter().GetResult() + " " + outTask.GetAwaiter().GetResult();
+            if (proc.ExitCode != 0)
+            {
+                throw new Exception($"xray api {operation} failed with exit code {proc.ExitCode}: {output.Trim()}");
+            }
         }
 
         public static void StopXray()

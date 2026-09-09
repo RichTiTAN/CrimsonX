@@ -28,6 +28,7 @@ namespace CrimsonX.Pages;
 public partial class AboutPage : UserControl
 {
     internal static AboutPage? Instance { get; private set; }
+    internal static void ClearInstance() => Instance = null;
 
     public AboutPage()
     {
@@ -88,6 +89,8 @@ public partial class AboutPage : UserControl
 
     private async void BtnCopyAddress_Click(object? sender, RoutedEventArgs e)
     {
+        try
+        {
         if (sender is Button btn && btn.Content is string address)
         {
             var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
@@ -96,6 +99,11 @@ public partial class AboutPage : UserControl
                 await clipboard.SetTextAsync(address);
                 MainWindow.Instance.ShowToast(Localization.AppStrings.ToastAddressCopied, success: true);
             }
+        }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
         }
     }
 

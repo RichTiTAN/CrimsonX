@@ -35,6 +35,7 @@ namespace CrimsonX.Pages;
 public class AppRuleViewModel
 {
     private static readonly Dictionary<string, Bitmap?> DefaultIconCache = new();
+    private const int DefaultIconCacheLimit = 256;
 
     public string  RuleId     { get; }
     public bool    IsEnabled  { get; set; }
@@ -95,6 +96,8 @@ public class AppRuleViewModel
         {
             if (!DefaultIconCache.TryGetValue(rule.IconAsset, out var bmp))
             {
+                if (DefaultIconCache.Count >= DefaultIconCacheLimit)
+                    DefaultIconCache.Clear();
                 bmp = LoadIconBitmap(rule.IconAsset);
                 DefaultIconCache[rule.IconAsset] = bmp;
             }
@@ -106,7 +109,8 @@ public class AppRuleViewModel
             try
             {
                 var bytes = Convert.FromBase64String(rule.IconBase64);
-                IconBitmap = new Bitmap(new MemoryStream(bytes));
+                using var ms = new MemoryStream(bytes);
+                IconBitmap = new Bitmap(ms);
                 HasIcon = true;
             }
             catch { HasIcon = false; }
@@ -182,12 +186,17 @@ public partial class AppsGamesOverlay : UserControl
     private const string TelegramDefaultId = "d1a5c0de-0000-0000-0000-000000000015";
     private const string WhatsAppDefaultKey = "whatsapp";
     private const string WhatsAppDefaultId = "d1a5c0de-0000-0000-0000-000000000016";
+    private const string MarvelRivalsDefaultKey = "marvelrivals";
+    private const string MarvelRivalsDefaultId = "d1a5c0de-0000-0000-0000-000000000021";
+    private const string IRacingDefaultKey = "iracing";
+    private const string IRacingDefaultId = "d1a5c0de-0000-0000-0000-000000000022";
+    private const string BattleNetDefaultKey = "battlenet";
+    private const string BattleNetDefaultId = "d1a5c0de-0000-0000-0000-000000000023";
     private string _editingDefaultRuleId = "";
     private Avalonia.Controls.Panel? _defaultRuleEditorParent = null;
     private Avalonia.Controls.Border? _hiddenDefaultRuleView = null;
     private bool _isClosingDefaultEditor = false;
     private global::Avalonia.Threading.DispatcherTimer? _connectUiTimer;
-    private bool _syncingMasterRules = false;
     private bool _hasPendingRuleChanges = false;
     private global::Avalonia.Threading.DispatcherTimer? _overlayFillTimer;
     private double _overlayFillCurrent = 0;
@@ -246,7 +255,8 @@ public partial class AppsGamesOverlay : UserControl
         _connectUiTimer.Tick += (s, e) => { if (IsVisible) UpdateOverlayConnectUI(); };
         _connectUiTimer.Start();
 
-        CrimsonX.Services.UiEventBus.Instance.ConnectionProgress += OnConnectionProgress;
+        this.AttachedToVisualTree += (s, e) => CrimsonX.Services.UiEventBus.Instance.ConnectionProgress += OnConnectionProgress;
+        this.DetachedFromVisualTree += (s, e) => CrimsonX.Services.UiEventBus.Instance.ConnectionProgress -= OnConnectionProgress;
     }
 
     // ── Rules Load & Defaults Migration ──
@@ -358,10 +368,24 @@ public partial class AppsGamesOverlay : UserControl
             changed = true;
         }
 
-        if (!_rules.Any(r => r.DefaultKey == EaAppDefaultKey))
+        if (!_rules.Any(r => r.DefaultKey == MarvelRivalsDefaultKey))
         {
             int titanfall2Index = _rules.FindIndex(r => r.DefaultKey == Titanfall2DefaultKey);
-            _rules.Insert(titanfall2Index >= 0 ? titanfall2Index + 1 : _rules.Count, CreateEaAppDefaultRule());
+            _rules.Insert(titanfall2Index >= 0 ? titanfall2Index + 1 : _rules.Count, CreateMarvelRivalsDefaultRule());
+            changed = true;
+        }
+
+        if (!_rules.Any(r => r.DefaultKey == IRacingDefaultKey))
+        {
+            int marvelRivalsIndex = _rules.FindIndex(r => r.DefaultKey == MarvelRivalsDefaultKey);
+            _rules.Insert(marvelRivalsIndex >= 0 ? marvelRivalsIndex + 1 : _rules.Count, CreateIRacingDefaultRule());
+            changed = true;
+        }
+
+        if (!_rules.Any(r => r.DefaultKey == EaAppDefaultKey))
+        {
+            int iRacingIndex = _rules.FindIndex(r => r.DefaultKey == IRacingDefaultKey);
+            _rules.Insert(iRacingIndex >= 0 ? iRacingIndex + 1 : _rules.Count, CreateEaAppDefaultRule());
             changed = true;
         }
 
@@ -400,6 +424,13 @@ public partial class AppsGamesOverlay : UserControl
             changed = true;
         }
 
+        if (!_rules.Any(r => r.DefaultKey == BattleNetDefaultKey))
+        {
+            int riotIndex = _rules.FindIndex(r => r.DefaultKey == RiotDefaultKey);
+            _rules.Insert(riotIndex >= 0 ? riotIndex + 1 : _rules.Count, CreateBattleNetDefaultRule());
+            changed = true;
+        }
+
         if (!_rules.Any(r => r.DefaultKey == TelegramDefaultKey))
         {
             _rules.Add(CreateTelegramDefaultRule());
@@ -412,7 +443,7 @@ public partial class AppsGamesOverlay : UserControl
             changed = true;
         }
 
-        var regionOnlyKeys = new[] { Cs2DefaultKey, ApexDefaultKey, DeadlockDefaultKey, EfootballDefaultKey, RocketLeagueDefaultKey, Dota2DefaultKey, Bf6DefaultKey, Titanfall2DefaultKey };
+        var regionOnlyKeys = new[] { Cs2DefaultKey, ApexDefaultKey, DeadlockDefaultKey, EfootballDefaultKey, RocketLeagueDefaultKey, Dota2DefaultKey, Bf6DefaultKey, Titanfall2DefaultKey, MarvelRivalsDefaultKey, IRacingDefaultKey };
         foreach (var r in _rules.Where(r => regionOnlyKeys.Contains(r.DefaultKey)))
         {
             if (r.Country != "" || r.TcpRouting != "Proxy" || r.UdpRouting != "Direct" || r.TcpAdapter != "Default")
@@ -425,7 +456,7 @@ public partial class AppsGamesOverlay : UserControl
             }
         }
 
-        var launcherKeys = new[] { EaAppDefaultKey, UbisoftDefaultKey, EpicDefaultKey, SteamDefaultKey, XboxDefaultKey, RiotDefaultKey };
+        var launcherKeys = new[] { EaAppDefaultKey, UbisoftDefaultKey, EpicDefaultKey, SteamDefaultKey, XboxDefaultKey, RiotDefaultKey, BattleNetDefaultKey };
         foreach (var r in _rules.Where(r => launcherKeys.Contains(r.DefaultKey)))
         {
             if (r.Country != "" || r.Region != "")
@@ -641,6 +672,14 @@ public partial class AppsGamesOverlay : UserControl
     private static AppGameRule CreateTitanfall2DefaultRule() =>
         CreateRegionOnlyDefaultRule(Titanfall2DefaultKey, Titanfall2DefaultId, "Titanfall 2", "Titanfall2.exe", "titanfall2.png");
 
+    private static AppGameRule CreateMarvelRivalsDefaultRule() =>
+        CreateRegionOnlyDefaultRule(MarvelRivalsDefaultKey, MarvelRivalsDefaultId, "Marvel Rivals",
+            new[] { "MarvelRivals_Launcher.exe", "Marvel-Win64-Shipping.exe" }, "marvel.png");
+
+    private static AppGameRule CreateIRacingDefaultRule() =>
+        CreateRegionOnlyDefaultRule(IRacingDefaultKey, IRacingDefaultId, "iRacing",
+            new[] { "iRacingSim64DX11.exe", "iRacingLauncher64.exe" }, "iracing.png");
+
     private static AppGameRule CreateEaAppDefaultRule()
     {
         return new AppGameRule
@@ -793,6 +832,26 @@ public partial class AppsGamesOverlay : UserControl
         };
     }
 
+    private static AppGameRule CreateBattleNetDefaultRule()
+    {
+        return new AppGameRule
+        {
+            Id = BattleNetDefaultId,
+            DefaultKey = BattleNetDefaultKey,
+            IsEnabled = false,
+            AppType = "Launcher",
+            ExeName = "Battle.net",
+            ProcessNames = new List<string> { "Battle.net.exe", "Battle.net Launcher.exe", "Agent.exe" },
+            Country = "",
+            Region = "",
+            TcpRouting = "Proxy",
+            UdpRouting = "Proxy",
+            TcpAdapter = "Default",
+            UdpAdapter = "Default",
+            IconAsset = "battle.net.png"
+        };
+    }
+
     private static AppGameRule CreateTelegramDefaultRule()
     {
         return new AppGameRule
@@ -854,6 +913,26 @@ public partial class AppsGamesOverlay : UserControl
         };
     }
 
+    private static AppGameRule CreateRegionOnlyDefaultRule(string key, string id, string exeName, string[] processNames, string iconAsset)
+    {
+        return new AppGameRule
+        {
+            Id = id,
+            DefaultKey = key,
+            IsEnabled = false,
+            AppType = "Game",
+            ExeName = exeName,
+            ProcessNames = new List<string>(processNames),
+            Country = "",
+            Region = "ALL",
+            TcpRouting = "Proxy",
+            UdpRouting = "Direct",
+            TcpAdapter = "Default",
+            UdpAdapter = "Default",
+            IconAsset = iconAsset
+        };
+    }
+
     private static string? DefaultIconAssetName(string defaultKey) => defaultKey switch
     {
         DiscordDefaultKey => "discord.png",
@@ -876,6 +955,9 @@ public partial class AppsGamesOverlay : UserControl
         RiotDefaultKey => "riot.png",
         TelegramDefaultKey => "telegram.png",
         WhatsAppDefaultKey => "whatsapp.png",
+        MarvelRivalsDefaultKey => "marvel.png",
+        IRacingDefaultKey => "iracing.png",
+        BattleNetDefaultKey => "battle.net.png",
         _ => null
     };
 
@@ -1002,6 +1084,7 @@ public partial class AppsGamesOverlay : UserControl
     }
 
     private bool _isClosing = false;
+    private int _editorVersion = 0;
     private void OpenEditor(AppGameRule? ruleToEdit = null, Avalonia.Controls.ContentControl? targetContainer = null)
     {
         var panAddToggle = this.FindControl<Avalonia.Controls.Border>("panAddToggle");
@@ -1018,6 +1101,7 @@ var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddTogg
         {
             CloseEditor(true);
         }
+        _editorVersion++;
         _isClosing = false;
 
         if (_defaultEditorParent == null)
@@ -1100,6 +1184,8 @@ var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddTogg
 
     private async void CloseEditor(bool instant = false)
 {
+try
+{
 var panAddToggle = this.FindControl<Avalonia.Controls.Border>("panAddToggle");
 var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddToggleWrapper");
 var panEditor    = this.FindControl<Avalonia.Controls.Border>("panEditor");
@@ -1107,6 +1193,7 @@ var panEditor    = this.FindControl<Avalonia.Controls.Border>("panEditor");
 if (panEditor == null) return;
 
 _isClosing = true;
+int editorVersion = ++_editorVersion;
 
 if (panAddToggleWrapper != null) { 
     SetTransitionSpeed(panAddToggleWrapper, 0.3);
@@ -1128,7 +1215,7 @@ panEditor.Opacity = 0;
 await System.Threading.Tasks.Task.Delay(300);
 }
 
-if (!_isClosing) return; 
+if (editorVersion != _editorVersion || !_isClosing) return; 
 
 if (_defaultEditorParent != null)
 {
@@ -1148,6 +1235,11 @@ _editingRuleId = null;
 
 if (_hiddenRuleView != null) { _hiddenRuleView = null; }
 _isClosing = false;
+}
+catch (Exception ex)
+{
+    CrimsonX.Services.SimpleLogger.Log(ex);
+}
 }
     
     private void CloseEditor() => CloseEditor(false);
@@ -1273,6 +1365,8 @@ _isClosing = false;
 
     private async void BtnBrowse_Click(object? sender, RoutedEventArgs e)
     {
+        try
+        {
         var mainWindow = MainWindow.Instance;
         if (mainWindow == null) return;
 
@@ -1312,6 +1406,11 @@ _isClosing = false;
         }
 
         UpdateIconDisplay();
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
     }
 
     private void BtnSubmit_Click(object? sender, RoutedEventArgs e)
@@ -1533,6 +1632,8 @@ _isClosing = false;
 
     private async void CloseDefaultEditor(bool instant = false)
     {
+        try
+        {
         var panDefaultEditor = this.FindControl<Avalonia.Controls.Border>("panDefaultEditor");
         if (panDefaultEditor == null) return;
 
@@ -1572,6 +1673,11 @@ _isClosing = false;
         _editingDefaultRuleId = "";
         _hiddenDefaultRuleView = null;
         _isClosingDefaultEditor = false;
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
     }
 
     private void DefaultRouting_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -1672,33 +1778,19 @@ _isClosing = false;
             }
         }
 
-        // MASTER RULES SWITCH + OVERLAY CONNECT BUTTON
+        // MASTER RULES BUTTON + OVERLAY CONNECT BUTTON
 
-        private void MasterRules_Changed(object? sender, RoutedEventArgs e)
+        private void MasterRules_Click(object? sender, RoutedEventArgs e)
         {
             if (!_isReady) return;
-            if (_syncingMasterRules) return;
 
-            bool on = (sender as ToggleSwitch)?.IsChecked == true;
-            if (_cfg.EnableAppRules == on) return;
-
-            _cfg.EnableAppRules = on;
+            _cfg.EnableAppRules = !_cfg.EnableAppRules;
             MainWindow.Instance.RequestSave();
             UpdateMasterRulesVisual();
         }
 
         private void ApplyMasterRulesVisual()
         {
-            bool on = _cfg.EnableAppRules;
-
-            var tgl = this.FindControl<ToggleSwitch>("togMasterRules");
-            if (tgl != null && tgl.IsChecked != on)
-            {
-                _syncingMasterRules = true;
-                tgl.IsChecked = on;
-                _syncingMasterRules = false;
-            }
-
             UpdateMasterRulesVisual();
         }
 
@@ -1712,6 +1804,13 @@ _isClosing = false;
                    : CrimsonX.Localization.AppStrings.MasterRulesDisabled,
                 forceLtr: true);
 
+            var onBrush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#E2E8F0"));
+            var offTextBrush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#8B949E"));
+
+            var lbl = this.FindControl<TextBlock>("lblRules");
+            if (lbl != null)
+                lbl.Foreground = on ? onBrush : offTextBrush;
+
             var box = this.FindControl<Border>("panRulesBox");
             if (box == null) return;
             box.Opacity = on ? 1.0 : 0.45;
@@ -1722,6 +1821,8 @@ _isClosing = false;
 
         private async void OverlayConnect_Click(object? sender, RoutedEventArgs e)
         {
+            try
+            {
             if (!_state.IsEngineRunning && !_state.IsConnected)
             {
                 string mode = _cfg.LastXrayMode ?? "Proxy Mode";
@@ -1755,6 +1856,11 @@ _isClosing = false;
             MainWindow.Instance.ConnectDisconnect();
             _hasPendingRuleChanges = false;
             UpdateOverlayConnectUI();
+            }
+            catch (Exception ex)
+            {
+                CrimsonX.Services.SimpleLogger.Log(ex);
+            }
         }
 
         private void ApplyChanges_Click(object? sender, RoutedEventArgs e)
@@ -1970,7 +2076,6 @@ _isClosing = false;
             if (btnDefScan != null) btnDefScan.Content = AS.OverlayScanAdapters;
 
             Apply(F("lblRules"), _cfg.EnableAppRules ? AS.MasterRulesEnabled : AS.MasterRulesDisabled);
-            Apply(F("lblMode"), AS.OverlayMode);
 
             // Overlay split-mode buttons
             Apply(F("lblOverlayRegular"), AS.OverlaySplitRegular);
@@ -1978,7 +2083,7 @@ _isClosing = false;
 
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnOverlaySplitRegular"), AS.OverlaySplitRegularTooltip);
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnOverlaySplitInclusive"), AS.OverlaySplitInclusiveTooltip);
-            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togMasterRules"), AS.MasterRulesTooltip);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.Button>("btnMasterRules"), AS.MasterRulesTooltip);
 
             // Filter dropdown items
             SetComboItemText("cbiFilterAll", AS.FilterAll);
@@ -2106,14 +2211,9 @@ _isClosing = false;
             }
         }
 
-
         
 
         
-
-
-
-
 
     private void BtnScanAdapters_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {

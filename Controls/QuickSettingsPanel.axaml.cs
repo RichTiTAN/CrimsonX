@@ -30,6 +30,9 @@ namespace CrimsonX.Controls
     public partial class QuickSettingsPanel : UserControl
     {
         public static QuickSettingsPanel? Instance { get; private set; }
+        internal static void ClearInstance() => Instance = null;
+
+        private global::Avalonia.Threading.DispatcherTimer? _toggleRefreshTimer;
 
         private Button _btnCustomize = null!;
         private StackPanel _panEditButtons = null!;
@@ -212,14 +215,18 @@ namespace CrimsonX.Controls
             PopulatePopupItems(_panPopupSlot1Items, 1);
             PopulatePopupItems(_panPopupSlot2Items, 2);
 
-            this.AttachedToVisualTree += (s, e) => 
+            this.AttachedToVisualTree += (s, e) =>
             {
                 RefreshUI();
-                var timer = new global::Avalonia.Threading.DispatcherTimer();
-                timer.Interval = System.TimeSpan.FromSeconds(1);
-                timer.Tick += (ts, te) => RefreshTogglesState();
-                timer.Start();
+                if (_toggleRefreshTimer == null)
+                {
+                    _toggleRefreshTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                    _toggleRefreshTimer.Tick += (ts, te) => RefreshTogglesState();
+                }
+                if (!_toggleRefreshTimer.IsEnabled)
+                    _toggleRefreshTimer.Start();
             };
+            this.DetachedFromVisualTree += (s, e) => _toggleRefreshTimer?.Stop();
         }
 
         // ── Slot UI Build & Refresh ──
@@ -399,8 +406,9 @@ namespace CrimsonX.Controls
 
         private void btnCustomize_Click(object? sender, RoutedEventArgs e)
         {
-            _pendingSlot1 = _lblSlot1.Text ?? "DIRECT UDP";
-            _pendingSlot2 = _lblSlot2.Text ?? "AUTO-CONNECT";
+            var cfg = MainWindow.Instance?.Config;
+            _pendingSlot1 = !string.IsNullOrWhiteSpace(cfg?.QuickSetting1) ? cfg.QuickSetting1 : "DIRECT UDP";
+            _pendingSlot2 = !string.IsNullOrWhiteSpace(cfg?.QuickSetting2) ? cfg.QuickSetting2 : "AUTO-CONNECT";
             SetEditMode(true);
         }
 
@@ -429,6 +437,8 @@ namespace CrimsonX.Controls
 
         private async void btnSlot1_Click(object? sender, RoutedEventArgs e)
         {
+            try
+            {
             ClosePopups();
             _popupSlot1.PlacementTarget = _iconArrow1;
             _popupSlot1.Placement = PlacementMode.Center;
@@ -441,10 +451,17 @@ namespace CrimsonX.Controls
 
             await System.Threading.Tasks.Task.Delay(10);
             if (_popupSlot1.Child is Border popBorder) popBorder.Classes.Add("popupOpen");
+            }
+            catch (Exception ex)
+            {
+                CrimsonX.Services.SimpleLogger.Log(ex);
+            }
         }
 
         private async void btnSlot2_Click(object? sender, RoutedEventArgs e)
         {
+            try
+            {
             ClosePopups();
             _popupSlot2.PlacementTarget = _iconArrow2;
             _popupSlot2.Placement = PlacementMode.Center;
@@ -457,6 +474,11 @@ namespace CrimsonX.Controls
 
             await System.Threading.Tasks.Task.Delay(10);
             if (_popupSlot2.Child is Border popBorder) popBorder.Classes.Add("popupOpen");
+            }
+            catch (Exception ex)
+            {
+                CrimsonX.Services.SimpleLogger.Log(ex);
+            }
         }
 
         private async System.Threading.Tasks.Task ClosePopupAnimatedAsync()

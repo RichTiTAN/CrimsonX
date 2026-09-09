@@ -85,7 +85,7 @@ namespace CrimsonX.Services
         }
 
         private static IntPtr _jobHandle;
-        private static bool _initialized;
+        private static volatile bool _initialized;
         private static readonly object _lock = new object();
 
         private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;

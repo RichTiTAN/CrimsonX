@@ -33,10 +33,15 @@ namespace CrimsonX.Behaviors
         public static bool GetIsEnabled(AvaloniaObject element) => element.GetValue(IsEnabledProperty);
         public static void SetIsEnabled(AvaloniaObject element, bool value) => element.SetValue(IsEnabledProperty, value);
 
+        private sealed class ScrollState
+        {
+            public ScrollViewer Scroller = null!;
+            public double TargetOffset;
+            public double Velocity;
+        }
+
+        private static readonly List<ScrollState> _activeStates = new();
         private static DispatcherTimer? _animTimer;
-        private static double _targetOffset = 0;
-        private static ScrollViewer? _currentScroller;
-        private static double _scrollVelocity = 0;
 
         static SmoothScrollBehavior()
         {
@@ -52,6 +57,8 @@ namespace CrimsonX.Behaviors
             else
             {
                 scroller.RemoveHandler(InputElement.PointerWheelChangedEvent, OnPointerWheelChanged);
+                _activeStates.RemoveAll(s => s.Scroller == scroller);
+                if (_activeStates.Count == 0) _animTimer?.Stop();
             }
         }
 
@@ -86,26 +93,26 @@ namespace CrimsonX.Behaviors
                 if (targetScroller != scroller)
                     return;
 
-                if (_currentScroller != scroller || (_animTimer != null && !_animTimer.IsEnabled))
+                var state = _activeStates.FirstOrDefault(s => s.Scroller == scroller);
+                if (state == null)
                 {
-                    _currentScroller = scroller;
-                    _targetOffset = scroller.Offset.Y;
-                    _scrollVelocity = 0;
+                    state = new ScrollState { Scroller = scroller, TargetOffset = scroller.Offset.Y };
+                    _activeStates.Add(state);
                 }
 
-                if (Math.Sign(e.Delta.Y) != Math.Sign(_scrollVelocity))
+                if (Math.Sign(e.Delta.Y) != Math.Sign(state.Velocity))
                 {
-                    _scrollVelocity = 0;
+                    state.Velocity = 0;
                 }
 
                 double scrollAmount = 180; 
-                _scrollVelocity += e.Delta.Y * scrollAmount;
+                state.Velocity += e.Delta.Y * scrollAmount;
                 
 
-                _targetOffset = _currentScroller.Offset.Y - _scrollVelocity;
+                state.TargetOffset = scroller.Offset.Y - state.Velocity;
                 
                 double maxOffset = scroller.Extent.Height - scroller.Viewport.Height;
-                _targetOffset = Math.Max(0, Math.Min(_targetOffset, maxOffset));
+                state.TargetOffset = Math.Max(0, Math.Min(state.TargetOffset, maxOffset));
 
                 e.Handled = true;
 
@@ -122,27 +129,32 @@ namespace CrimsonX.Behaviors
 
         private static void AnimTimer_Tick(object? sender, EventArgs e)
         {
-            if (_currentScroller == null)
+            bool anyActive = false;
+            for (int i = _activeStates.Count - 1; i >= 0; i--)
             {
+                var state = _activeStates[i];
+                var scroller = state.Scroller;
+
+                double currentOffset = scroller.Offset.Y;
+                double diff = state.TargetOffset - currentOffset;
+
+                state.Velocity *= 0.82; 
+
+                if (Math.Abs(diff) < 1.0 && Math.Abs(state.Velocity) < 1.0)
+                {
+                    scroller.Offset = new Vector(scroller.Offset.X, state.TargetOffset);
+                    _activeStates.RemoveAt(i);
+                }
+                else
+                {
+                    double easeAmount = diff * 0.28; 
+                    scroller.Offset = new Vector(scroller.Offset.X, currentOffset + easeAmount);
+                    anyActive = true;
+                }
+            }
+
+            if (!anyActive)
                 _animTimer?.Stop();
-                return;
-            }
-
-            double currentOffset = _currentScroller.Offset.Y;
-            double diff = _targetOffset - currentOffset;
-
-            _scrollVelocity *= 0.82; 
-
-            if (Math.Abs(diff) < 1.0 && Math.Abs(_scrollVelocity) < 1.0)
-            {
-                _currentScroller.Offset = new Vector(_currentScroller.Offset.X, _targetOffset);
-                _animTimer?.Stop();
-            }
-            else
-            {
-                double easeAmount = diff * 0.28; 
-                _currentScroller.Offset = new Vector(_currentScroller.Offset.X, currentOffset + easeAmount);
-            }
         }
     }
 }
