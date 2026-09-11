@@ -71,21 +71,23 @@ Split Tunneling gives you granular control over what traffic is routed through t
 - **DIRECT UDP Toggle**: Forces all UDP traffic (like Discord voice or competitive games) to bypass the proxy and use your direct internet connection, ensuring minimal latency while keeping TCP traffic proxied.
 - You can also choose which adapter should handle your Direct UDP traffic.
 
+### Exclude Locations
+- **EXCLUDE LOCATIONS**: Select specific continents (e.g., Asia, Europe). Configs located in these continents will be completely excluded from speed testing and connections.
 ---
 
 ## 4. Settings Tab
 The heart of CrimsonX's customization, broken down into specific sections:
 
-### START-UP
+### START-UP  
+- **START-UP TAB**: Choose whether you want the app to launch on the "HOME" or "Apps & Games" tab.
 - **LAUNCH ON START-UP**: Launches CrimsonX automatically when you log into Windows.
 - **AUTO-CONNECT**: Automatically initiates the connection sequence as soon as the app starts.
 - **START MINIMIZED**: Opens the app silently in the background rather than popping up the main window.
 - **MINIMIZE TO TRAY**: When clicking the close `X` button or minimizing the app, it will hide in the system tray (near the clock) rather than closing completely.
 
 ### CONNECTION
-- **EXCLUDE LOCATIONS**: Select specific continents (e.g., Asia, Europe). Configs located in these continents will be completely excluded from speed testing and connections.
-- **CUSTOM CONFIGS**: Enter up to two of your own private VLESS/VMESS/Shadowsocks strings. 
-  - **ALLOW CONNECTING WITH ONE CONFIG**: If checked, the app will successfully connect even if only one of your two custom configs is working.
+- **CUSTOM CONFIGS**: Enter up to two of your own private VLESS/VMESS/Shadowsocks/etc... strings. 
+  - **ALLOW CONNECTING WITH ONE CONFIG**: If checked, the app will successfully connect even if only one config is provided and no extra config will be fetched.
 - **CUSTOM XRAY EXIT-NODE**: Import a `.json` file or paste a share link (e.g., `vless://`, `vmess://`) containing a custom Xray configuration to act as an exit node.
 - **BIND ADAPTER**: Forces all proxy traffic to exclusively exit through the specific network adapter you select from the dropdown.
 - **DNS SETTINGS**: 
@@ -107,6 +109,8 @@ The heart of CrimsonX's customization, broken down into specific sections:
 - **DEBUG MODE**: Enables detailed error logging. Useful for reading logs in `error.log` when something fails to connect.
 - **DESKTOP SHORTCUT**: One-click button to create a CrimsonX shortcut on your desktop.
 - **START MENU SHORTCUT**: One-click button to create a CrimsonX shortcut in your Start menu.
+- **CLEAR WORKING CACHE**: Clears the already tested and cached configs.
+- **CLEAR FETCHED CACHE**: Clears the fetched configs. The app will fetch again on re-connect.
 
 ---
 
@@ -127,16 +131,17 @@ For advanced setups, you can bind specific applications to specific network adap
 
 ### Regional Matchmaking
 For supported games, you can force matchmaking to a specific region.
-- **Matchmaking Region**: Restricts the proxy's server selection to a specific geographic region (e.g., Europe, Asia) to ensure you always connect to game servers with the best latency.
+- **Matchmaking Region**: Restricts the game connection to a specific geographic region (e.g., Europe, Asia). Not guaranteed to work with all apps and games.
 
 ### Operating Modes
-- **REGULAR**: The rules defined in the Apps & Games tab apply on top of your current global operating mode.
+- **REGULAR**: The rules defined in the Apps & Games tab apply on top of your current global operating mode (Disabled or Exclusive in Split Tunneling).
 - **INCLUSIVE**: The VPN will *only* route the apps explicitly enabled and configured as `PROXY` in the Apps & Games tab. All other system traffic will bypass the VPN.
 
 ## 6. Themes Tab
 Allows you to personalize the visual aesthetic of the application. 
 - Choose between dynamic gradient themes: Crimson, Blue, Purple, Green, Pink, and Yellow. 
 - The selected theme instantly updates the pulsing connect button, navigation borders, toggle switches, and background accents.
+- You can pause or disable the background colors as well.
 
 ---
 
