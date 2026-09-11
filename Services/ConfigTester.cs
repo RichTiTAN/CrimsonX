@@ -79,7 +79,7 @@ namespace CrimsonX.Services
                 {
                     var outb = (JObject)arr[0];
                     outb["tag"] = "proxy";
-                    if (cfg.EnableAdapterBinding && !string.IsNullOrWhiteSpace(cfg.SelectedAdapterIp))
+                    if (cfg.EnableAdapterBinding && !string.IsNullOrWhiteSpace(cfg.SelectedAdapterIp) && !XrayLinkParser.IsLocalOutbound(outb))
                     {
                         outb["sendThrough"] = cfg.SelectedAdapterIp;
                     }
@@ -230,7 +230,7 @@ namespace CrimsonX.Services
                 {
                     var outb = (JObject)arr[0];
                     outb["tag"] = "proxy";
-                    if (cfg.EnableAdapterBinding && !string.IsNullOrWhiteSpace(cfg.SelectedAdapterIp))
+                    if (cfg.EnableAdapterBinding && !string.IsNullOrWhiteSpace(cfg.SelectedAdapterIp) && !XrayLinkParser.IsLocalOutbound(outb))
                     {
                         outb["sendThrough"] = cfg.SelectedAdapterIp;
                     }

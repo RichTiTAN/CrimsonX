@@ -87,7 +87,7 @@ namespace CrimsonX.Models
         public string LanAuthPassword   { get; set; } = "";
         public string Language { get; set; } = "ENGLISH";
         public string ThemeColor { get; set; } = "Crimson";
-        [JsonProperty("HaProxyBalancePolicy")]
+        [JsonProperty("XrayBalancePolicy")]
         public string XrayBalancePolicy { get; set; } = "leastping";
     }
 

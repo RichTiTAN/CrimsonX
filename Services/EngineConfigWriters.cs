@@ -177,7 +177,10 @@ namespace CrimsonX.Services
                     
                     if (config.EnableAdapterBinding && !string.IsNullOrWhiteSpace(config.SelectedAdapterIp))
                     {
-                        ob["sendThrough"] = config.SelectedAdapterIp;
+                        if (!XrayLinkParser.IsLocalOutbound(ob))
+                        {
+                            ob["sendThrough"] = config.SelectedAdapterIp;
+                        }
                     }
                     
                     outbounds.Add(ob);

@@ -1566,9 +1566,7 @@ catch (Exception ex)
     }
 
     private static bool SupportsRoutingEditor(AppGameRule rule) =>
-        string.Equals(rule.DefaultKey, LeagueDefaultKey, StringComparison.Ordinal)
-        || string.Equals(rule.DefaultKey, Tekken8DefaultKey, StringComparison.Ordinal)
-        || string.Equals(rule.DefaultKey, ValorantDefaultKey, StringComparison.Ordinal);
+        !string.IsNullOrEmpty(rule.DefaultKey);
 
     private void OpenDefaultEditor(AppGameRule rule, Avalonia.Controls.ContentControl? targetContainer)
     {

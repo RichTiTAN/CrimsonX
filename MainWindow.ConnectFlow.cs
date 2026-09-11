@@ -36,6 +36,8 @@ namespace CrimsonX
         private ConcurrentQueue<string> _untestedConfigs = new ConcurrentQueue<string>();
         private List<string> _reservePool = new List<string>();
         private HashSet<string> _customOutboundJsons = new HashSet<string>();
+        private const int WorkerSourceCount = 5; 
+        private int _backgroundSeedSourceIndex = 0;
         private static readonly HttpClient _workerClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 
         private static readonly HashSet<string> BlockedCountries = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RU", "BY", "EE" };
@@ -64,6 +66,7 @@ namespace CrimsonX
             _state.IsEngineRunning = true;
             _state.AbortBoot = false;
             _state.IsConnected = false;
+            _backgroundSeedSourceIndex = 0;
 
             CrimsonX.Services.SimpleLogger.Log($"[Connect] Starting connection sequence in {_cfg.LastXrayMode}...");
 
@@ -169,9 +172,10 @@ namespace CrimsonX
             }
 
             int sourceIndex = -1;
+            int connectSourceIndex = -1;
             List<ConfigTestResult> passedConfigs = new List<ConfigTestResult>();
 
-            while (sourceIndex < 4 && passedConfigs.Count < 4)
+            while (sourceIndex < WorkerSourceCount)
             {
                 ct.ThrowIfCancellationRequested();
                 Dispatcher.UIThread.Post(() => SetConnectButtonProgress(10 + (Math.Max(0, sourceIndex) * 5)));
@@ -180,6 +184,7 @@ namespace CrimsonX
                 if (sourceIndex == -1)
                 {
                     configs = CrimsonX.Services.ConfigCache.LoadCache(GetAppPath(@"Data\cache\cache.bin"));
+                    configs = configs.Where(c => !CrimsonX.Services.XrayLinkParser.IsGrpcOutbound(c)).ToList();
                 }
                 else
                 {
@@ -266,16 +271,20 @@ namespace CrimsonX
                     }
                 }
 
-                if (passedConfigs.Count < 2)
+                if (passedConfigs.Count >= 2)
                 {
-                    sourceIndex++;
+                    connectSourceIndex = sourceIndex;
+                    break;
                 }
+                sourceIndex++;
             }
 
             if (passedConfigs.Count < 2)
             {
                 throw new Exception("Failed to find enough working configs across all sources.");
             }
+
+            _backgroundSeedSourceIndex = connectSourceIndex + 1;
 
             Dispatcher.UIThread.Post(() => SetConnectButtonProgress(90));
 
@@ -343,10 +352,14 @@ namespace CrimsonX
         {
             List<CrimsonX.Services.ConfigTestResult> passedScraped = new List<CrimsonX.Services.ConfigTestResult>();
             int si = -1;
-            while (si < 4 && passedScraped.Count < 4)
+            while (si < WorkerSourceCount && passedScraped.Count < 4)
             {
                 ct.ThrowIfCancellationRequested();
                 var configs = si == -1 ? CrimsonX.Services.ConfigCache.LoadCache(GetAppPath(@"Data\cache\cache.bin")) : await FetchConfigsFromWorker(si, ct);
+                if (si == -1 && configs != null)
+                {
+                    configs = configs.Where(c => !CrimsonX.Services.XrayLinkParser.IsGrpcOutbound(c)).ToList();
+                }
                 if (configs == null || configs.Count == 0) { si++; continue; }
 
                 if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseLink(_cfg.CustomConfig1, out string c1Json))
@@ -479,21 +492,7 @@ namespace CrimsonX
         {
             try
             {
-                if (!_cfg.DisableBackgroundChecks)
-                {
-                    try
-                    {
-                        var newConfigs = await FetchConfigsFromWorker(0, ct);
-                        if (newConfigs.Count > 0)
-                        {
-                            foreach (var c in newConfigs)
-                            {
-                                _untestedConfigs.Enqueue(c);
-                            }
-                        }
-                    }
-                    catch { }
-                }
+                int sourceIndex = _backgroundSeedSourceIndex;
 
                 while (!ct.IsCancellationRequested && _state.IsConnected)
                 {
@@ -503,20 +502,31 @@ namespace CrimsonX
                         continue;
                     }
 
+                    if (_untestedConfigs.IsEmpty && sourceIndex < WorkerSourceCount)
+                    {
+                        try
+                        {
+                            var newConfigs = await FetchConfigsFromWorker(sourceIndex, ct);
+                            foreach (var c in newConfigs)
+                            {
+                                _untestedConfigs.Enqueue(c);
+                            }
+                        }
+                        catch { }
+                        sourceIndex++;
+                    }
+
                     if (_untestedConfigs.TryDequeue(out string cfg))
                     {
                         var res = await ConfigTester.TestConfigAsync(cfg, _cfg, ct, fetchGeo: true);
-                        if (res.Success)
+                        if (res.Success && IsConfigAllowed(res))
                         {
-                            if (!IsConfigAllowed(res))
-                                continue;
-
                             lock (_reservePool)
                             {
                                 if (!_reservePool.Contains(res.OutboundJson))
                                 {
                                     _reservePool.Add(res.OutboundJson);
-                                    
+
                                     var allWorking = new List<string>(XrayPipelineManager.ActiveOutbounds);
                                     allWorking.AddRange(_reservePool);
                                     var cleanWorking = allWorking.Where(c => !_customOutboundJsons.Contains(c)).ToList();
@@ -524,8 +534,12 @@ namespace CrimsonX
                                 }
                             }
                         }
+                        await Task.Delay(5000, ct);
                     }
-                    await Task.Delay(5000, ct);
+                    else
+                    {
+                        await Task.Delay(5000, ct);
+                    }
                 }
             }
             catch { }
@@ -538,7 +552,7 @@ namespace CrimsonX
         {
             try
             {
-                string[] lastShas = new string[5];
+                string[] lastShas = new string[WorkerSourceCount];
                 string[] workers = CrimsonX.Services.AppSecrets.WorkerUrls;
 
                 while (!ct.IsCancellationRequested && _state.IsConnected)
@@ -551,7 +565,7 @@ namespace CrimsonX
 
                     try
                     {
-                        for (int i = 0; i <= 4; i++)
+                        for (int i = 0; i < WorkerSourceCount; i++)
                         {
                             ct.ThrowIfCancellationRequested();
                             string newSha = null;
@@ -636,7 +650,7 @@ namespace CrimsonX
                         if (needed > 0)
                         {
                             CrimsonX.Services.SimpleLogger.Log($"[RefreshTimer] Initiating 5-by-5 batch test to find {needed} replacements...");
-                            int targetPassedCount = (needed == 1) ? 5 : 4;
+                            int targetPassedCount = (needed == 1) ? 4 : 5;
                             var configsToTest = new Queue<string>();
                             
                             lock (_reservePool)

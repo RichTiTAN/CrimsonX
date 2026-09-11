@@ -121,6 +121,75 @@ namespace CrimsonX.Services
             return address.ToLowerInvariant();
         }
 
+        public static bool IsLocalAddress(string address)
+        {
+            if (string.IsNullOrWhiteSpace(address)) return false;
+            address = address.Trim();
+
+            // Strip brackets from IPv6 literals such as [::1] or [fe80::1]
+            if (address.StartsWith("[", StringComparison.Ordinal))
+            {
+                int close = address.IndexOf(']');
+                address = close > 0 ? address.Substring(1, close - 1) : address.TrimStart('[');
+            }
+
+            if (string.Equals(address, "localhost", StringComparison.OrdinalIgnoreCase)) return true;
+
+            if (!System.Net.IPAddress.TryParse(address, out var ip)) return false;
+            if (System.Net.IPAddress.IsLoopback(ip)) return true;
+
+            if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            {
+                var b = ip.GetAddressBytes();
+                if (b[0] == 10) return true;                               // 10.0.0.0/8
+                if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;  // 172.16.0.0/12
+                if (b[0] == 192 && b[1] == 168) return true;               // 192.168.0.0/16
+                if (b[0] == 169 && b[1] == 254) return true;               // 169.254.0.0/16
+                return false;
+            }
+
+            if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+            {
+                return ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal;           // fe80::/10, fec0::/10
+            }
+
+            return false;
+        }
+
+        public static bool IsLocalOutbound(JObject outbound)
+        {
+            if (outbound == null) return false;
+
+            var settings = outbound["settings"] as JObject;
+            if (settings == null) return false;
+
+            // VMess / VLESS / Trojan
+            if (settings["vnext"] is JArray vnext && vnext.Count > 0)
+                return IsLocalAddress(vnext[0]?["address"]?.ToString());
+
+            // Shadowsocks / Socks
+            if (settings["servers"] is JArray servers && servers.Count > 0)
+                return IsLocalAddress(servers[0]?["address"]?.ToString());
+
+            // WireGuard
+            if (settings["peers"] is JArray peers && peers.Count > 0)
+            {
+                string endpoint = peers[0]?["endpoint"]?.ToString();
+                if (!string.IsNullOrWhiteSpace(endpoint))
+                {
+                    if (endpoint.StartsWith("[", StringComparison.Ordinal))
+                    {
+                        int close = endpoint.IndexOf(']');
+                        if (close > 0) return IsLocalAddress(endpoint.Substring(1, close - 1));
+                    }
+                    int colonIdx = endpoint.LastIndexOf(':');
+                    return IsLocalAddress(colonIdx > 0 ? endpoint.Substring(0, colonIdx) : endpoint);
+                }
+            }
+
+            return false;
+        }
+
         private static string DecodeBase64(string b64)
         {
             b64 = b64.Trim().Replace("-", "+").Replace("_", "/");
@@ -154,12 +223,51 @@ namespace CrimsonX.Services
                 {
                     if (l.StartsWith(scheme, StringComparison.OrdinalIgnoreCase))
                     {
-                        links.Add(l);
+                        if (!IsGrpcLink(l))
+                            links.Add(l);
                         break;
                     }
                 }
             }
             return links;
+        }
+
+        public static bool IsGrpcLink(string link)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(link)) return false;
+
+                int q = link.IndexOf('?');
+                if (q < 0) return false;
+
+                var query = HttpUtility.ParseQueryString(link.Substring(q + 1));
+                string net = query["type"] ?? query["net"];
+                return string.Equals(net, "grpc", StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
+        }
+
+        public static bool IsGrpcOutbound(string outboundJson)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(outboundJson)) return false;
+
+                var root = JObject.Parse(outboundJson);
+                if (root["outbounds"] is JArray arr && arr.Count > 0 && arr[0] is JObject outb)
+                {
+                    if (outb["streamSettings"] is JObject stream)
+                    {
+                        if (string.Equals(stream["network"]?.ToString(), "grpc", StringComparison.OrdinalIgnoreCase))
+                            return true;
+                        if (stream["grpcSettings"] != null)
+                            return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
         }
 
         private static JObject ParseWireguard(string link)
