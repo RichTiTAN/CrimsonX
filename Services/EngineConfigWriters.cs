@@ -534,6 +534,9 @@ namespace CrimsonX.Services
                 dnsRules.Add(new { action = "route", server = "dns_proxy" });
             }
 
+            string clashController = SingboxClashApi.EnsureController();
+            string clashSecret     = SingboxClashApi.EnsureSecret();
+
             var sbConfig = new
             {
                 log = new { level = "fatal" },
@@ -570,6 +573,14 @@ namespace CrimsonX.Services
                     default_domain_resolver = new { server = "dns_direct" },
                     auto_detect_interface = true,
                     find_process = true
+                },
+                experimental = new
+                {
+                    clash_api = new
+                    {
+                        external_controller = clashController,
+                        secret              = clashSecret
+                    }
                 }
             };
 

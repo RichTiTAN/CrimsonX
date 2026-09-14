@@ -94,6 +94,8 @@ namespace CrimsonX
             Interlocked.Exchange(ref _lastXrayLogPos, 0);
             _xrayLogLines.Clear();
 
+            if (_state.IsLogsOpen) StartLogsTimers();
+
             bool customConfigApplied = false;
             List<string> customTopConfigs = new List<string>();
             _customOutboundJsons.Clear();
@@ -227,7 +229,7 @@ namespace CrimsonX
 
                         foreach (var r in results)
                         {
-                            if (r.Success)
+                            if (r.Success && r.UdpOk)
                             {
                                 if (!IsConfigAllowed(r))
                                 {
@@ -383,7 +385,7 @@ namespace CrimsonX
                         tasks.Clear();
                         foreach (var r in results)
                         {
-                            if (r.Success)
+                            if (r.Success && r.UdpOk)
                             {
                                 if (!IsConfigAllowed(r)) continue;
 
@@ -519,7 +521,7 @@ namespace CrimsonX
                     if (_untestedConfigs.TryDequeue(out string cfg))
                     {
                         var res = await ConfigTester.TestConfigAsync(cfg, _cfg, ct, fetchGeo: true);
-                        if (res.Success && IsConfigAllowed(res))
+                        if (res.Success && res.UdpOk && IsConfigAllowed(res))
                         {
                             lock (_reservePool)
                             {
@@ -624,7 +626,7 @@ namespace CrimsonX
                             
                             bool isBlocked = !IsConfigAllowed(res);
 
-                            if (!res.Success || isBlocked)
+                            if (!res.Success || !res.UdpOk || isBlocked)
                             {
                                 if (_customOutboundJsons.Contains(cfgStr))
                                 {
@@ -679,7 +681,7 @@ namespace CrimsonX
                                     
                                     foreach (var r in results)
                                     {
-                                        if (r.Success)
+                                        if (r.Success && r.UdpOk)
                                         {
                                             if (!IsConfigAllowed(r)) continue;
                                             passedConfigs.Add(r);

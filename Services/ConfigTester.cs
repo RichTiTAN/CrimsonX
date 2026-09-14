@@ -32,6 +32,7 @@ namespace CrimsonX.Services
     public class ConfigTestResult
     {
         public bool Success { get; set; }
+        public bool UdpOk { get; set; }
         public long Ping { get; set; }
         public double Speed { get; set; }
         public string Link { get; set; } = "";
@@ -49,6 +50,17 @@ namespace CrimsonX.Services
         };
         private const int TimeoutMs = 3000;
         private const int SpeedTestDurationMs = 5000;
+        private const int NtpPort = 123;
+        private static readonly Lazy<string> NtpServerIp = new Lazy<string>(() =>
+        {
+            try
+            {
+                foreach (var addr in Dns.GetHostAddresses("pool.ntp.org"))
+                    if (addr.AddressFamily == AddressFamily.InterNetwork) return addr.ToString();
+            }
+            catch { }
+            return "162.159.200.123";
+        });
 
         public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false, bool isActiveWatchdog = false)
         {
@@ -68,6 +80,7 @@ namespace CrimsonX.Services
             }
 
             int port = GetFreePort();
+            int udpPort = GetFreeUdpPort();
             string tempId = Guid.NewGuid().ToString("N");
             string cfgPath = Path.Combine(cfg.XrayDir, $"test_{tempId}.json");
 
@@ -96,6 +109,19 @@ namespace CrimsonX.Services
                             ["listen"] = "127.0.0.1",
                             ["protocol"] = "http",
                             ["tag"] = "in"
+                        },
+                        new JObject
+                        {
+                            ["port"] = udpPort,
+                            ["listen"] = "127.0.0.1",
+                            ["protocol"] = "dokodemo-door",
+                            ["tag"] = "udp-in",
+                            ["settings"] = new JObject
+                            {
+                                ["address"] = NtpServerIp.Value,
+                                ["port"] = NtpPort,
+                                ["network"] = "udp"
+                            }
                         }
                     },
                     ["outbounds"] = new JArray
@@ -106,7 +132,8 @@ namespace CrimsonX.Services
                     {
                         ["rules"] = new JArray
                         {
-                            new JObject { ["type"] = "field", ["inboundTag"] = new JArray("in"), ["outboundTag"] = "proxy" }
+                            new JObject { ["type"] = "field", ["inboundTag"] = new JArray("in"), ["outboundTag"] = "proxy" },
+                            new JObject { ["type"] = "field", ["inboundTag"] = new JArray("udp-in"), ["outboundTag"] = "proxy" }
                         }
                     }
                 };
@@ -155,19 +182,21 @@ namespace CrimsonX.Services
                         throw new Exception("Bad status");
                     }
                     sw.Stop();
-                    totalPing += sw.ElapsedMilliseconds;
-                }
+                    long ping = sw.ElapsedMilliseconds;
+                    totalPing += ping;
 
-                long avgPing = totalPing / targetsToTest.Length;
-                if (!isWatchdog && avgPing > 1200)
-                {
-                    res.Success = false;
-                    res.Ping = avgPing;
-                    return res;
+                    if (!isWatchdog && ping > 1200)
+                    {
+                        res.Success = false;
+                        res.Ping = ping;
+                        return res;
+                    }
                 }
 
                 res.Success = true;
-                res.Ping = avgPing;
+                res.Ping = totalPing / targetsToTest.Length;
+
+                res.UdpOk = await TestUdpAsync(udpPort, ct);
 
                 if (fetchGeo)
                 {
@@ -351,6 +380,36 @@ namespace CrimsonX.Services
             int port = ((IPEndPoint)l.LocalEndpoint).Port;
             l.Stop();
             return port;
+        }
+
+        private static int GetFreeUdpPort()
+        {
+            var l = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            int port = ((IPEndPoint)l.Client.LocalEndPoint).Port;
+            l.Close();
+            return port;
+        }
+
+        private static async Task<bool> TestUdpAsync(int udpPort, CancellationToken ct)
+        {
+            try
+            {
+                using var udp = new UdpClient();
+                udp.Connect(IPAddress.Loopback, udpPort);
+
+                var ntpRequest = new byte[48];
+                ntpRequest[0] = 0x23; // LI=0, VN=4, Mode=3 (client)
+                await udp.SendAsync(ntpRequest.AsMemory(), ct);
+
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeoutCts.CancelAfter(TimeoutMs);
+                var resp = await udp.ReceiveAsync(timeoutCts.Token);
+                return resp.Buffer != null && resp.Buffer.Length > 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

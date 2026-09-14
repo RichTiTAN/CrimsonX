@@ -22,6 +22,7 @@ using System.IO;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -35,7 +36,12 @@ namespace CrimsonX.Pages;
 public class AppRuleViewModel
 {
     private static readonly Dictionary<string, Bitmap?> DefaultIconCache = new();
+    private static readonly Queue<string> DefaultIconOrder = new();
     private const int DefaultIconCacheLimit = 256;
+
+    private static readonly Dictionary<string, Bitmap?> CustomIconCache = new(StringComparer.Ordinal);
+    private static readonly Queue<string> CustomIconOrder = new();
+    private const int CustomIconCacheLimit = 64;
 
     public string  RuleId     { get; }
     public bool    IsEnabled  { get; set; }
@@ -56,16 +62,17 @@ public class AppRuleViewModel
     public string PinTooltip => CrimsonX.Localization.AppStrings.PinUnpin;
     public string EditAdaptersTooltip => CrimsonX.Localization.AppStrings.EditAdapters;
     public bool    IsLauncher { get; }
+    public bool    IsBrowser  { get; }
     public bool    IsLeague   { get; }
     public bool    IsTekken   { get; }
     public bool    IsValorant { get; }
-    public bool    ShowsRoutingPill => IsLauncher;
+    public bool    ShowsRoutingPill => IsLauncher || IsBrowser;
     public bool    ShowsRoutingEditor => IsLeague || IsTekken || IsValorant;
     public bool    IsDirect   { get; }
     public bool    HasDirectRouting { get; }
     public string  DirectLabel => CrimsonX.Localization.AppStrings.RoutingDirect.ToUpperInvariant();
     public string  ProxyLabel  => CrimsonX.Localization.AppStrings.RoutingProxy.ToUpperInvariant();
-    public bool    ShowAdapterEditor => HasCountry || HasRegion || IsLauncher || ShowsRoutingEditor || HasDirectRouting;
+    public bool    ShowAdapterEditor => HasCountry || HasRegion || IsLauncher || IsBrowser || ShowsRoutingEditor || HasDirectRouting;
     public int     CountryIndex { get; }
     public int     RegionIndex  { get; }
 
@@ -79,6 +86,7 @@ public class AppRuleViewModel
         HasCountry = !string.IsNullOrEmpty(rule.Country);
         HasRegion  = !string.IsNullOrEmpty(rule.Region);
         IsLauncher = string.Equals(rule.AppType, "Launcher", StringComparison.OrdinalIgnoreCase);
+        IsBrowser  = AppsGamesOverlay.BrowserDefaultKeys.Contains(rule.DefaultKey ?? "", StringComparer.OrdinalIgnoreCase);
         IsLeague   = string.Equals(rule.DefaultKey, AppsGamesOverlay.LeagueDefaultKey, StringComparison.Ordinal);
         IsTekken   = string.Equals(rule.DefaultKey, AppsGamesOverlay.Tekken8DefaultKey, StringComparison.Ordinal);
         IsValorant = string.Equals(rule.DefaultKey, AppsGamesOverlay.ValorantDefaultKey, StringComparison.Ordinal);
@@ -96,25 +104,45 @@ public class AppRuleViewModel
         {
             if (!DefaultIconCache.TryGetValue(rule.IconAsset, out var bmp))
             {
-                if (DefaultIconCache.Count >= DefaultIconCacheLimit)
-                    DefaultIconCache.Clear();
                 bmp = LoadIconBitmap(rule.IconAsset);
                 DefaultIconCache[rule.IconAsset] = bmp;
+                DefaultIconOrder.Enqueue(rule.IconAsset);
+                TrimIconCache(DefaultIconCache, DefaultIconOrder, DefaultIconCacheLimit);
             }
             IconBitmap = bmp;
             HasIcon = bmp != null;
         }
         else if (!string.IsNullOrEmpty(rule.IconBase64))
         {
-            try
-            {
-                var bytes = Convert.FromBase64String(rule.IconBase64);
-                using var ms = new MemoryStream(bytes);
-                IconBitmap = new Bitmap(ms);
-                HasIcon = true;
-            }
-            catch { HasIcon = false; }
+            IconBitmap = CustomIcon(rule.IconBase64);
+            HasIcon = IconBitmap != null;
         }
+    }
+
+    private static Bitmap? CustomIcon(string base64)
+    {
+        if (string.IsNullOrEmpty(base64)) return null;
+        if (CustomIconCache.TryGetValue(base64, out var cached)) return cached;
+
+        Bitmap? bmp;
+        try
+        {
+            var bytes = Convert.FromBase64String(base64);
+            using var ms = new MemoryStream(bytes);
+            bmp = new Bitmap(ms);
+        }
+        catch { bmp = null; }
+
+        CustomIconCache[base64] = bmp;
+        CustomIconOrder.Enqueue(base64);
+        TrimIconCache(CustomIconCache, CustomIconOrder, CustomIconCacheLimit);
+        return bmp;
+    }
+
+    private static void TrimIconCache(Dictionary<string, Bitmap?> cache, Queue<string> order, int limit)
+    {
+        while (cache.Count > limit && order.Count > 0)
+            cache.Remove(order.Dequeue());
     }
 
     private static Bitmap? LoadIconBitmap(string assetName)
@@ -140,6 +168,7 @@ public partial class AppsGamesOverlay : UserControl
     private List<AppGameRule> _rules = new();
     private string _currentFilter = "ALL";
     private string _searchText = "";
+    private global::Avalonia.Threading.DispatcherTimer? _searchDebounceTimer;
     private CrimsonX.Helpers.DragReorderHelper? _dragHelper;
 
     private string _editingRuleId = "";
@@ -182,6 +211,12 @@ public partial class AppsGamesOverlay : UserControl
     private const string XboxDefaultId = "d1a5c0de-0000-0000-0000-000000000012";
     private const string RiotDefaultKey = "riot";
     private const string RiotDefaultId = "d1a5c0de-0000-0000-0000-000000000013";
+    private static readonly string[] RiotDomains = new[]
+    {
+        "riotgames.com", "pvp.net", "leagueoflegends.com", "lol.riotgames.com",
+        "lol.pvp.net", "wr.pvp.net", "riotcdn.net", "riotcdn.com", "lolstatic.com",
+        "rgpub.io", "riotdns.com", "dradis-prod.rdatasrv.net"
+    };
     private const string TelegramDefaultKey = "telegram";
     private const string TelegramDefaultId = "d1a5c0de-0000-0000-0000-000000000015";
     private const string WhatsAppDefaultKey = "whatsapp";
@@ -192,6 +227,15 @@ public partial class AppsGamesOverlay : UserControl
     private const string IRacingDefaultId = "d1a5c0de-0000-0000-0000-000000000022";
     private const string BattleNetDefaultKey = "battlenet";
     private const string BattleNetDefaultId = "d1a5c0de-0000-0000-0000-000000000023";
+    private const string BraveDefaultKey = "brave";
+    private const string BraveDefaultId = "d1a5c0de-0000-0000-0000-000000000024";
+    private const string ChromeDefaultKey = "chrome";
+    private const string ChromeDefaultId = "d1a5c0de-0000-0000-0000-000000000025";
+    private const string EdgeDefaultKey = "msedge";
+    private const string EdgeDefaultId = "d1a5c0de-0000-0000-0000-000000000026";
+    private const string FirefoxDefaultKey = "firefox";
+    private const string FirefoxDefaultId = "d1a5c0de-0000-0000-0000-000000000027";
+    internal static readonly string[] BrowserDefaultKeys = { BraveDefaultKey, ChromeDefaultKey, EdgeDefaultKey, FirefoxDefaultKey };
     private string _editingDefaultRuleId = "";
     private Avalonia.Controls.Panel? _defaultRuleEditorParent = null;
     private Avalonia.Controls.Border? _hiddenDefaultRuleView = null;
@@ -207,23 +251,46 @@ public partial class AppsGamesOverlay : UserControl
 
     internal static readonly string[] RegionOptions = { "ALL", "North America", "South America", "Europe", "Asia", "Africa", "Oceania" };
 
-    internal static string[] CountryDisplayOptions() => new[]
+    internal static string[] CountryDisplayOptions()
     {
-        CrimsonX.Localization.AppStrings.CountryEverywhere,
-        CrimsonX.Localization.AppStrings.CountryIran,
-        CrimsonX.Localization.AppStrings.CountryUae
-    };
+        EnsureDisplayOptions();
+        return _countryDisplayOptions!;
+    }
 
-    internal static string[] RegionDisplayOptions() => new[]
+    internal static string[] RegionDisplayOptions()
     {
-        CrimsonX.Localization.AppStrings.RegionAll,
-        CrimsonX.Localization.AppStrings.RegionNorthAmerica,
-        CrimsonX.Localization.AppStrings.RegionSouthAmerica,
-        CrimsonX.Localization.AppStrings.RegionEurope,
-        CrimsonX.Localization.AppStrings.RegionAsia,
-        CrimsonX.Localization.AppStrings.RegionAfrica,
-        CrimsonX.Localization.AppStrings.RegionOceania
-    };
+        EnsureDisplayOptions();
+        return _regionDisplayOptions!;
+    }
+
+    private static bool _displayOptionsPersian;
+    private static string[]? _countryDisplayOptions;
+    private static string[]? _regionDisplayOptions;
+
+    private static void EnsureDisplayOptions()
+    {
+        bool persian = AS.IsPersian;
+        if (_countryDisplayOptions != null && _regionDisplayOptions != null && _displayOptionsPersian == persian)
+            return;
+
+        _displayOptionsPersian = persian;
+        _countryDisplayOptions = new[]
+        {
+            AS.CountryEverywhere,
+            AS.CountryIran,
+            AS.CountryUae
+        };
+        _regionDisplayOptions = new[]
+        {
+            AS.RegionAll,
+            AS.RegionNorthAmerica,
+            AS.RegionSouthAmerica,
+            AS.RegionEurope,
+            AS.RegionAsia,
+            AS.RegionAfrica,
+            AS.RegionOceania
+        };
+    }
 
     internal static int RegionIndexFor(string region)
     {
@@ -244,7 +311,6 @@ public partial class AppsGamesOverlay : UserControl
     public AppsGamesOverlay()
     {
         InitializeComponent();
-        PopulateAdapters();
         ApplyLanguage();
         _isReady = true;
 
@@ -255,8 +321,46 @@ public partial class AppsGamesOverlay : UserControl
         _connectUiTimer.Tick += (s, e) => { if (IsVisible) UpdateOverlayConnectUI(); };
         _connectUiTimer.Start();
 
-        this.AttachedToVisualTree += (s, e) => CrimsonX.Services.UiEventBus.Instance.ConnectionProgress += OnConnectionProgress;
-        this.DetachedFromVisualTree += (s, e) => CrimsonX.Services.UiEventBus.Instance.ConnectionProgress -= OnConnectionProgress;
+        this.AttachedToVisualTree += (s, e) =>
+        {
+            CrimsonX.Services.UiEventBus.Instance.ConnectionProgress += OnConnectionProgress;
+
+            UpdateOverlayConnectUI();
+            _connectUiTimer?.Start();
+        };
+        this.DetachedFromVisualTree += (s, e) =>
+        {
+            CrimsonX.Services.UiEventBus.Instance.ConnectionProgress -= OnConnectionProgress;
+            StopOverlayActivity();
+        };
+
+        if (this.FindControl<ScrollViewer>("Scroller") is { } scroller)
+            scroller.ScrollChanged += OnScrollerScrollChanged;
+    }
+
+    private void StopOverlayActivity()
+    {
+        _connectUiTimer?.Stop();
+
+        _overlayFillTimer?.Stop();
+        _overlayFillTimer = null;
+        _overlayFillTarget = -1;
+        _overlayFillCurrent = 0;
+        _overlayFillBorder = null;
+        _overlayFillScale = null;
+
+        _dragHelper?.Detach();
+        _dragHelper = null;
+
+        _searchDebounceTimer?.Stop();
+    }
+
+    private void OnScrollerScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        var shadow = this.FindControl<Border>("panSearchBarShadow");
+        if (shadow == null) return;
+        var scroller = this.FindControl<ScrollViewer>("Scroller");
+        shadow.Opacity = scroller != null && scroller.Offset.Y > 0.5 ? 1.0 : 0.0;
     }
 
     // ── Rules Load & Defaults Migration ──
@@ -443,15 +547,36 @@ public partial class AppsGamesOverlay : UserControl
             changed = true;
         }
 
+        if (!_rules.Any(r => r.DefaultKey == BraveDefaultKey))
+        {
+            _rules.Add(CreateBraveDefaultRule());
+            changed = true;
+        }
+
+        if (!_rules.Any(r => r.DefaultKey == ChromeDefaultKey))
+        {
+            _rules.Add(CreateChromeDefaultRule());
+            changed = true;
+        }
+
+        if (!_rules.Any(r => r.DefaultKey == EdgeDefaultKey))
+        {
+            _rules.Add(CreateEdgeDefaultRule());
+            changed = true;
+        }
+
+        if (!_rules.Any(r => r.DefaultKey == FirefoxDefaultKey))
+        {
+            _rules.Add(CreateFirefoxDefaultRule());
+            changed = true;
+        }
+
         var regionOnlyKeys = new[] { Cs2DefaultKey, ApexDefaultKey, DeadlockDefaultKey, EfootballDefaultKey, RocketLeagueDefaultKey, Dota2DefaultKey, Bf6DefaultKey, Titanfall2DefaultKey, MarvelRivalsDefaultKey, IRacingDefaultKey };
         foreach (var r in _rules.Where(r => regionOnlyKeys.Contains(r.DefaultKey)))
         {
-            if (r.Country != "" || r.TcpRouting != "Proxy" || r.UdpRouting != "Direct" || r.TcpAdapter != "Default")
+            if (r.Country != "")
             {
                 r.Country = "";
-                r.TcpRouting = "Proxy";
-                r.UdpRouting = "Direct";
-                r.TcpAdapter = "Default";
                 changed = true;
             }
         }
@@ -491,17 +616,13 @@ public partial class AppsGamesOverlay : UserControl
             }
         }
 
-        var messagingKeys = new[] { TelegramDefaultKey, WhatsAppDefaultKey };
-        foreach (var r in _rules.Where(r => messagingKeys.Contains(r.DefaultKey)))
+        var noRegionKeys = new[] { TelegramDefaultKey, WhatsAppDefaultKey, BraveDefaultKey, ChromeDefaultKey, EdgeDefaultKey, FirefoxDefaultKey };
+        foreach (var r in _rules.Where(r => noRegionKeys.Contains(r.DefaultKey)))
         {
-            if (r.Country != "" || r.Region != "" || r.TcpRouting != "Proxy" || r.UdpRouting != "Proxy" || r.TcpAdapter != "Default" || r.UdpAdapter != "Default")
+            if (r.Country != "" || r.Region != "")
             {
                 r.Country = "";
                 r.Region = "";
-                r.TcpRouting = "Proxy";
-                r.UdpRouting = "Proxy";
-                r.TcpAdapter = "Default";
-                r.UdpAdapter = "Default";
                 changed = true;
             }
         }
@@ -523,6 +644,13 @@ public partial class AppsGamesOverlay : UserControl
             || !whatsappRule.Domains.Contains("whatsapp.net", StringComparer.Ordinal)))
         {
             whatsappRule.Domains = new List<string> { "whatsapp.com", "whatsapp.net" };
+            changed = true;
+        }
+        var riotRule = _rules.FirstOrDefault(r => r.DefaultKey == RiotDefaultKey);
+        if (riotRule != null && (riotRule.Domains == null || riotRule.Domains.Count != RiotDomains.Length
+            || !RiotDomains.All(d => riotRule.Domains.Contains(d, StringComparer.OrdinalIgnoreCase))))
+        {
+            riotRule.Domains = new List<string>(RiotDomains);
             changed = true;
         }
         var leagueRule = _rules.FirstOrDefault(r => r.DefaultKey == LeagueDefaultKey);
@@ -678,7 +806,7 @@ public partial class AppsGamesOverlay : UserControl
 
     private static AppGameRule CreateIRacingDefaultRule() =>
         CreateRegionOnlyDefaultRule(IRacingDefaultKey, IRacingDefaultId, "iRacing",
-            new[] { "iRacingSim64DX11.exe", "iRacingLauncher64.exe" }, "iracing.png");
+            new[] { "iRacingSim64DX11.exe" }, "iracing.png");
 
     private static AppGameRule CreateEaAppDefaultRule()
     {
@@ -822,6 +950,7 @@ public partial class AppsGamesOverlay : UserControl
             {
                 "RiotClientServices.exe", "Riot Client.exe"
             },
+            Domains = new List<string>(RiotDomains),
             Country = "",
             Region = "",
             TcpRouting = "Proxy",
@@ -933,6 +1062,38 @@ public partial class AppsGamesOverlay : UserControl
         };
     }
 
+    private static AppGameRule CreateBrowserDefaultRule(string key, string id, string exeName, string processName, string iconAsset)
+    {
+        return new AppGameRule
+        {
+            Id = id,
+            DefaultKey = key,
+            IsEnabled = false,
+            AppType = "Other",
+            ExeName = exeName,
+            ProcessNames = new List<string> { processName },
+            Country = "",
+            Region = "",
+            TcpRouting = "Proxy",
+            UdpRouting = "Proxy",
+            TcpAdapter = "Default",
+            UdpAdapter = "Default",
+            IconAsset = iconAsset
+        };
+    }
+
+    private static AppGameRule CreateBraveDefaultRule() =>
+        CreateBrowserDefaultRule(BraveDefaultKey, BraveDefaultId, "Brave", "brave.exe", "brave.png");
+
+    private static AppGameRule CreateChromeDefaultRule() =>
+        CreateBrowserDefaultRule(ChromeDefaultKey, ChromeDefaultId, "Chrome", "chrome.exe", "chrome.png");
+
+    private static AppGameRule CreateEdgeDefaultRule() =>
+        CreateBrowserDefaultRule(EdgeDefaultKey, EdgeDefaultId, "Edge", "msedge.exe", "msedge.png");
+
+    private static AppGameRule CreateFirefoxDefaultRule() =>
+        CreateBrowserDefaultRule(FirefoxDefaultKey, FirefoxDefaultId, "Firefox", "firefox.exe", "firefox.png");
+
     private static string? DefaultIconAssetName(string defaultKey) => defaultKey switch
     {
         DiscordDefaultKey => "discord.png",
@@ -958,6 +1119,10 @@ public partial class AppsGamesOverlay : UserControl
         MarvelRivalsDefaultKey => "marvel.png",
         IRacingDefaultKey => "iracing.png",
         BattleNetDefaultKey => "battle.net.png",
+        BraveDefaultKey => "brave.png",
+        ChromeDefaultKey => "chrome.png",
+        EdgeDefaultKey => "msedge.png",
+        FirefoxDefaultKey => "firefox.png",
         _ => null
     };
 
@@ -982,6 +1147,53 @@ public partial class AppsGamesOverlay : UserControl
         lst.ItemsSource = filtered
             .Select(r => new AppRuleViewModel(r))
             .ToList();
+
+        if (!string.IsNullOrEmpty(_editingRuleId) && !_isClosing)
+            Avalonia.Threading.Dispatcher.UIThread.Post(RehostRuleEditor, Avalonia.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void RehostRuleEditor()
+    {
+        if (string.IsNullOrEmpty(_editingRuleId) || _isClosing) return;
+
+        var panEditor = this.FindControl<Border>("panEditor");
+        var lst       = this.FindControl<ItemsControl>("lstRules");
+        if (panEditor == null || lst == null) return;
+
+        if (panEditor.Opacity <= 0) return;
+
+        if (panEditor.Parent is Visual currentHost
+            && Avalonia.VisualTree.VisualExtensions.GetVisualAncestors(currentHost).Contains(lst)) return;
+
+        var viewModels = (lst.ItemsSource as IEnumerable<AppRuleViewModel>)?.ToList();
+        if (viewModels == null) return;
+
+        int index = viewModels.FindIndex(v => v.RuleId == _editingRuleId);
+        if (index < 0) return;   
+
+        var row = lst.ContainerFromIndex(index);
+        if (row == null) return;
+
+        var targetHost = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(row)
+            .OfType<ContentControl>().FirstOrDefault(c => c.Name == "EditContainer");
+        if (targetHost == null) return;
+
+        if (panEditor.Parent is Panel oldPanel) oldPanel.Children.Remove(panEditor);
+        else if (panEditor.Parent is ContentControl oldHost) { oldHost.Content = null; oldHost.IsVisible = false; }
+
+        targetHost.IsVisible = true;
+        targetHost.Content = panEditor;
+        panEditor.MaxHeight = 800;
+        panEditor.Opacity = 1;
+
+        var parentStack = targetHost.Parent as StackPanel;
+        _hiddenRuleView = parentStack?.Children.OfType<Border>().FirstOrDefault(b => b.Name == "panRuleWrapper");
+        if (_hiddenRuleView != null)
+        {
+            SetTransitionSpeed(_hiddenRuleView, 0);
+            _hiddenRuleView.MaxHeight = 0;
+            _hiddenRuleView.Opacity = 0;
+        }
     }
 
     private void SaveRules(bool markDirty = true)
@@ -994,13 +1206,33 @@ public partial class AppsGamesOverlay : UserControl
         }
     }
 
+    private const int SearchDebounceMs = 200;
+
     private void Search_TextChanged(object? sender, TextChangedEventArgs e)
     {
         var tb = sender as TextBox;
         string text = tb?.Text ?? "";
         if (text == _searchText) return;
         _searchText = text;
-        RefreshList();
+
+        if (text.Length == 0)
+        {
+            _searchDebounceTimer?.Stop();
+            RefreshList();
+            return;
+        }
+
+        if (_searchDebounceTimer == null)
+        {
+            _searchDebounceTimer = new global::Avalonia.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(SearchDebounceMs)
+            };
+            _searchDebounceTimer.Tick += (s, e) => { _searchDebounceTimer?.Stop(); RefreshList(); };
+        }
+
+        _searchDebounceTimer.Stop();
+        _searchDebounceTimer.Start();
     }
 
     private void RuleEnabled_Changed(object? sender, RoutedEventArgs e)
@@ -1449,7 +1681,11 @@ catch (Exception ex)
         rule.AppType    = appType;
         rule.ExeName    = _exeName;
 
-        if (rule.ProcessNames == null || rule.ProcessNames.Count == 0)
+        if (string.IsNullOrEmpty(rule.DefaultKey))
+        {
+            rule.ProcessNames = new List<string> { _exeName };
+        }
+        else if (rule.ProcessNames == null || rule.ProcessNames.Count == 0)
         {
             rule.ProcessNames = new List<string> { _exeName };
         }
@@ -1568,6 +1804,81 @@ catch (Exception ex)
     private static bool SupportsRoutingEditor(AppGameRule rule) =>
         !string.IsNullOrEmpty(rule.DefaultKey);
 
+    private static AppGameRule? CreateDefaultPreset(string key) => key switch
+    {
+        DiscordDefaultKey => CreateDiscordDefaultRule(),
+        Cs2DefaultKey => CreateCs2DefaultRule(),
+        ApexDefaultKey => CreateApexDefaultRule(),
+        DeadlockDefaultKey => CreateDeadlockDefaultRule(),
+        EfootballDefaultKey => CreateEfootballDefaultRule(),
+        Tekken8DefaultKey => CreateTekken8DefaultRule(),
+        RocketLeagueDefaultKey => CreateRocketLeagueDefaultRule(),
+        Dota2DefaultKey => CreateDota2DefaultRule(),
+        LeagueDefaultKey => CreateLeagueDefaultRule(),
+        ValorantDefaultKey => CreateValorantDefaultRule(),
+        Bf6DefaultKey => CreateBf6DefaultRule(),
+        Titanfall2DefaultKey => CreateTitanfall2DefaultRule(),
+        MarvelRivalsDefaultKey => CreateMarvelRivalsDefaultRule(),
+        IRacingDefaultKey => CreateIRacingDefaultRule(),
+        EaAppDefaultKey => CreateEaAppDefaultRule(),
+        UbisoftDefaultKey => CreateUbisoftDefaultRule(),
+        EpicDefaultKey => CreateEpicDefaultRule(),
+        SteamDefaultKey => CreateSteamDefaultRule(),
+        XboxDefaultKey => CreateXboxDefaultRule(),
+        RiotDefaultKey => CreateRiotDefaultRule(),
+        BattleNetDefaultKey => CreateBattleNetDefaultRule(),
+        TelegramDefaultKey => CreateTelegramDefaultRule(),
+        WhatsAppDefaultKey => CreateWhatsAppDefaultRule(),
+        BraveDefaultKey => CreateBraveDefaultRule(),
+        ChromeDefaultKey => CreateChromeDefaultRule(),
+        EdgeDefaultKey => CreateEdgeDefaultRule(),
+        FirefoxDefaultKey => CreateFirefoxDefaultRule(),
+        _ => null
+    };
+
+    private void ApplyDefaultEditorValues(AppGameRule rule)
+    {
+        bool tcpDirect = string.Equals(rule.TcpRouting, "Direct", StringComparison.OrdinalIgnoreCase);
+        bool udpDirect = string.Equals(rule.UdpRouting, "Direct", StringComparison.OrdinalIgnoreCase);
+
+        SetAdapterByName("cbDefaultTcpAdapter", tcpDirect ? rule.TcpAdapter : "Default");
+        var cbTcpA = this.FindControl<ComboBox>("cbDefaultTcpAdapter");
+        if (cbTcpA != null) cbTcpA.IsEnabled = tcpDirect;
+
+        SetAdapterByName("cbDefaultUdpAdapter", udpDirect ? rule.UdpAdapter : "Default");
+        var cbUdpA = this.FindControl<ComboBox>("cbDefaultUdpAdapter");
+        if (cbUdpA != null) cbUdpA.IsEnabled = udpDirect;
+
+        var cbTcpR = this.FindControl<ComboBox>("cbDefaultTcpRouting");
+        var cbUdpR = this.FindControl<ComboBox>("cbDefaultUdpRouting");
+        if (cbTcpR != null && cbTcpR.ItemCount > 0)
+            cbTcpR.SelectedIndex = tcpDirect ? 1 : 0;
+        if (cbUdpR != null && cbUdpR.ItemCount > 0)
+            cbUdpR.SelectedIndex = udpDirect ? 1 : 0;
+    }
+
+    private void DefaultRestore_Click(object? sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_editingDefaultRuleId)) return;
+
+        var rule = _rules.FirstOrDefault(r => r.Id == _editingDefaultRuleId);
+        if (rule == null || string.IsNullOrEmpty(rule.DefaultKey)) return;
+
+        var preset = CreateDefaultPreset(rule.DefaultKey);
+        if (preset == null) return;
+
+        rule.Country = preset.Country;
+        rule.Region = preset.Region;
+        rule.TcpRouting = preset.TcpRouting;
+        rule.UdpRouting = preset.UdpRouting;
+        rule.TcpAdapter = preset.TcpAdapter;
+        rule.UdpAdapter = preset.UdpAdapter;
+
+        SaveRules();
+        RefreshList();
+        ApplyDefaultEditorValues(rule);
+    }
+
     private void OpenDefaultEditor(AppGameRule rule, Avalonia.Controls.ContentControl? targetContainer)
     {
         CloseEditor(true);
@@ -1605,27 +1916,10 @@ catch (Exception ex)
         var hdr = this.FindControl<Avalonia.Controls.TextBlock>("lblDefaultEditorHeader");
         if (hdr != null) hdr.Text = string.IsNullOrEmpty(rule.ExeName) ? "APP" : rule.ExeName.ToUpperInvariant();
 
-        bool tcpDirect = rule.TcpRouting == "Direct";
-        bool udpDirect = rule.UdpRouting == "Direct";
-
-        SetAdapterByName("cbDefaultTcpAdapter", tcpDirect ? rule.TcpAdapter : "Default");
-        var cbTcpA = this.FindControl<Avalonia.Controls.ComboBox>("cbDefaultTcpAdapter");
-        if (cbTcpA != null) cbTcpA.IsEnabled = tcpDirect;
-
-        SetAdapterByName("cbDefaultUdpAdapter", udpDirect ? rule.UdpAdapter : "Default");
-        var cbUdpA = this.FindControl<Avalonia.Controls.ComboBox>("cbDefaultUdpAdapter");
-        if (cbUdpA != null) cbUdpA.IsEnabled = udpDirect;
-
-        bool showRouting = SupportsRoutingEditor(rule);
         var panDefaultRouting = this.FindControl<Avalonia.Controls.StackPanel>("panDefaultRouting");
-        if (panDefaultRouting != null) panDefaultRouting.IsVisible = showRouting;
+        if (panDefaultRouting != null) panDefaultRouting.IsVisible = SupportsRoutingEditor(rule);
 
-        var cbTcpR = this.FindControl<Avalonia.Controls.ComboBox>("cbDefaultTcpRouting");
-        var cbUdpR = this.FindControl<Avalonia.Controls.ComboBox>("cbDefaultUdpRouting");
-        if (cbTcpR != null && cbTcpR.ItemCount > 0)
-            cbTcpR.SelectedIndex = string.Equals(rule.TcpRouting, "Direct", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-        if (cbUdpR != null && cbUdpR.ItemCount > 0)
-            cbUdpR.SelectedIndex = string.Equals(rule.UdpRouting, "Direct", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        ApplyDefaultEditorValues(rule);
     }
 
     private async void CloseDefaultEditor(bool instant = false)
@@ -1778,13 +2072,19 @@ catch (Exception ex)
 
         // MASTER RULES BUTTON + OVERLAY CONNECT BUTTON
 
-        private void MasterRules_Click(object? sender, RoutedEventArgs e)
+        private void MasterPill_Click(object? sender, RoutedEventArgs e)
         {
             if (!_isReady) return;
 
-            _cfg.EnableAppRules = !_cfg.EnableAppRules;
+            bool on = sender is Avalonia.Controls.Button b && b.Name == "btnMasterOn";
+            if (_cfg.EnableAppRules == on) return;
+
+            _cfg.EnableAppRules = on;
             MainWindow.Instance.RequestSave();
             UpdateMasterRulesVisual();
+
+            _hasPendingRuleChanges = true;
+            UpdateOverlayConnectUI();
         }
 
         private void ApplyMasterRulesVisual()
@@ -1796,18 +2096,9 @@ catch (Exception ex)
         {
             bool on = _cfg.EnableAppRules;
 
-            CrimsonX.Localization.AppStrings.Apply(
-                this.FindControl<TextBlock>("lblRules"),
-                on ? CrimsonX.Localization.AppStrings.MasterRulesEnabled
-                   : CrimsonX.Localization.AppStrings.MasterRulesDisabled,
-                forceLtr: true);
-
-            var onBrush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#E2E8F0"));
-            var offTextBrush = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#8B949E"));
-
-            var lbl = this.FindControl<TextBlock>("lblRules");
-            if (lbl != null)
-                lbl.Foreground = on ? onBrush : offTextBrush;
+            this.FindControl<Avalonia.Controls.Button>("btnMasterOn")?.Classes.Remove("activeOpt");
+            this.FindControl<Avalonia.Controls.Button>("btnMasterOff")?.Classes.Remove("activeOpt");
+            this.FindControl<Avalonia.Controls.Button>(on ? "btnMasterOn" : "btnMasterOff")?.Classes.Add("activeOpt");
 
             var box = this.FindControl<Border>("panRulesBox");
             if (box == null) return;
@@ -1816,6 +2107,52 @@ catch (Exception ex)
         }
 
     // ── Overlay Connect & Progress Fill ──
+
+
+        private bool _connectBoxPressed;
+
+        private void ConnectBoxPress(object? sender, PointerPressedEventArgs e)
+        {
+            if (sender is Control control) e.Pointer.Capture(control);
+            _connectBoxPressed = true;
+            SetConnectBoxPressed(true);
+        }
+
+        private void ConnectBoxRelease(object? sender, PointerReleasedEventArgs e)
+        {
+            bool wasPressed = _connectBoxPressed;
+            _connectBoxPressed = false;
+            e.Pointer.Capture(null);
+            SetConnectBoxPressed(false);
+
+            if (!wasPressed || sender is not Control control) return;
+
+            var pos = e.GetPosition(control);
+            bool stillOverBox = pos.X >= 0 && pos.Y >= 0
+                                && pos.X <= control.Bounds.Width && pos.Y <= control.Bounds.Height;
+            if (!stillOverBox) return;
+
+            OverlayConnect_Click(sender, e);
+        }
+
+        private void ConnectBoxCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+        {
+            _connectBoxPressed = false;
+            SetConnectBoxPressed(false);
+        }
+
+        private void SetConnectBoxPressed(bool pressed)
+        {
+            var inner = this.FindControl<Panel>("panConnectBoxInner");
+            if (inner != null)
+            {
+                double s = pressed ? 0.97 : 1.0;
+                inner.RenderTransform = new Avalonia.Media.ScaleTransform(s, s);
+            }
+
+            var flash = this.FindControl<Border>("panConnectBoxPress");
+            if (flash != null) flash.Opacity = pressed ? 1.0 : 0.0;
+        }
 
         private async void OverlayConnect_Click(object? sender, RoutedEventArgs e)
         {
@@ -1981,13 +2318,59 @@ catch (Exception ex)
                     ApplyOverlayFill(0, false);
                 }
             }
-            var btnApply = this.FindControl<Avalonia.Controls.Button>("btnApplyChanges");
-            if (btnApply != null)
+            bool showApply = _state.IsConnected && _hasPendingRuleChanges
+                && string.Equals(_cfg.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase);
+
+            var connectBox = this.FindControl<Border>("panConnectBox");
+            if (connectBox != null)
             {
-                bool show = _state.IsConnected && _hasPendingRuleChanges
-                    && string.Equals(_cfg.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase);
-                btnApply.IsVisible = show;
+                if (_state.IsConnected)
+                {
+                    if (!connectBox.Classes.Contains("connected")) connectBox.Classes.Add("connected");
+                }
+                else
+                {
+                    connectBox.Classes.Remove("connected");
+                }
             }
+
+            SetApplyChangesBoxVisible(showApply);
+        }
+
+        private bool _applyChangesBoxVisible;
+        private bool _bottomBarHooked;
+
+        private void SetApplyChangesBoxVisible(bool show)
+        {
+            var box = this.FindControl<Border>("panApplyChangesBox");
+            if (box == null) return;
+
+            _applyChangesBoxVisible = show;
+
+            if (!_bottomBarHooked)
+            {
+                _bottomBarHooked = true;
+                box.SizeChanged += (_, _) => ApplyBottomBarLayout();
+            }
+
+            ApplyBottomBarLayout();
+        }
+
+        private void ApplyBottomBarLayout()
+        {
+            var bar = this.FindControl<StackPanel>("panOverlayBottomBar");
+            var box = this.FindControl<Border>("panApplyChangesBox");
+            if (bar == null || box == null) return;
+
+            const double bottomMargin = 13;
+            double nudge = box.Bounds.Width > 0 ? box.Bounds.Width + bar.Spacing : 0;
+
+            bar.Margin = _applyChangesBoxVisible
+                ? new Thickness(0, 0, 0, bottomMargin)
+                : new Thickness(nudge, 0, 0, bottomMargin);
+
+            box.Opacity = _applyChangesBoxVisible ? 1 : 0;
+            box.IsHitTestVisible = _applyChangesBoxVisible;
         }
 
     // ── List Filter & Localization ──
@@ -2003,6 +2386,8 @@ catch (Exception ex)
     }
         protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
         {
+            base.OnAttachedToVisualTree(e);
+
             if (_dragHelper == null)
             {
                 var lst = this.FindControl<global::Avalonia.Controls.ItemsControl>("lstRules");
@@ -2064,16 +2449,14 @@ catch (Exception ex)
             }
 
             // Top bar: search, filter, master rules, mode
-            var txtSearch = this.FindControl<TextBox>("txtSearch");
-            if (txtSearch != null) txtSearch.PlaceholderText = AS.SearchPlaceholder;
-            Apply(F("lblFilter"), AS.FilterLabel);
             var btnScan = this.FindControl<global::Avalonia.Controls.Button>("btnScanAdapters");
             if (btnScan != null) btnScan.Content = AS.OverlayScanAdapters;
 
             var btnDefScan = this.FindControl<global::Avalonia.Controls.Button>("btnDefaultScanAdapters");
             if (btnDefScan != null) btnDefScan.Content = AS.OverlayScanAdapters;
 
-            Apply(F("lblRules"), _cfg.EnableAppRules ? AS.MasterRulesEnabled : AS.MasterRulesDisabled);
+            Apply(F("lblMasterOn"), AS.MasterRulesEnabled);
+            Apply(F("lblMasterOff"), AS.MasterRulesDisabled);
 
             // Overlay split-mode buttons
             Apply(F("lblOverlayRegular"), AS.OverlaySplitRegular);
@@ -2081,7 +2464,8 @@ catch (Exception ex)
 
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnOverlaySplitRegular"), AS.OverlaySplitRegularTooltip);
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnOverlaySplitInclusive"), AS.OverlaySplitInclusiveTooltip);
-            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.Button>("btnMasterRules"), AS.MasterRulesTooltip);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.Button>("btnMasterOn"), AS.MasterRulesTooltip);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.Button>("btnMasterOff"), AS.MasterRulesTooltip);
 
             // Filter dropdown items
             SetComboItemText("cbiFilterAll", AS.FilterAll);
@@ -2114,10 +2498,8 @@ catch (Exception ex)
             Apply(F("lblConnectionRegion"), AS.ConnectionRegionLabel);
             Apply(F("lblConnectionRegionWarning"), AS.ConnectionRegionWarning);
             Apply(F("txtApplyChanges"), AS.ApplyChanges);
-            Apply(F("lblTcpAdapter"), AS.TcpAdapterLabel);
-            Apply(F("lblUdpAdapter"), AS.UdpAdapterLabel);
-            Apply(F("lblTcpRouting"), AS.TcpRoutingLabel);
-            Apply(F("lblUdpRouting"), AS.UdpRoutingLabel);
+            Apply(F("lblDefaultRoutingHeader"), AS.RoutingLabel);
+            Apply(F("lblDefaultAdapterHeader"), AS.AdapterLabel);
             FillCombo("cbDefaultTcpRouting", routingItems, 0, this.FindControl<ComboBox>("cbDefaultTcpRouting")?.SelectedIndex);
             FillCombo("cbDefaultUdpRouting", routingItems, 1, this.FindControl<ComboBox>("cbDefaultUdpRouting")?.SelectedIndex);
             FillCombo("cbRegion", RegionDisplayOptions(), 0, this.FindControl<ComboBox>("cbRegion")?.SelectedIndex);

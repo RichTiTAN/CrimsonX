@@ -31,6 +31,11 @@
         <SolidColorBrush x:Key="ThemeAccentPressed" Color="#932535"/>
         <Color x:Key="ThemeGlow">#FFE64A62</Color>
 
+        <!-- Success (connected) -->
+        <SolidColorBrush x:Key="ThemeSuccessBrush" Color="#38A169"/>
+        <SolidColorBrush x:Key="ThemeSuccessPointerOverBrush" Color="#48BB78"/>
+        <SolidColorBrush x:Key="ThemeSuccessGlowBrush" Color="#68D391"/>
+
         <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#B82E42"/>
         <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#D13A51"/>
         <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#932535"/>
@@ -75,6 +80,19 @@
         </Style>
         <Style Selector="ComboBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource ThemeMutedBrush}" />
+        </Style>
+
+        <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+            <Setter Property="Background" Value="{DynamicResource ThemeAccent}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccent}" />
+        </Style>
+        <Style Selector="CheckBox:checked:pointerover /template/ Border#NormalRectangle">
+            <Setter Property="Background" Value="{DynamicResource ThemeAccentPointerOver}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccentPointerOver}" />
+        </Style>
+        <Style Selector="CheckBox:checked:pressed /template/ Border#NormalRectangle">
+            <Setter Property="Background" Value="{DynamicResource ThemeAccentPressed}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccentPressed}" />
         </Style>
 
         <Style Selector="Control">

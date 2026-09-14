@@ -19,6 +19,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:CrimsonX.Pages"
+             xmlns:controls="clr-namespace:CrimsonX.Controls"
              x:Class="CrimsonX.Pages.AppsGamesOverlay">
 
     <UserControl.Styles>
@@ -73,6 +74,68 @@
             <Setter Property="Background" Value="#2D3748"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
+
+        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar">
+            <Setter Property="Width" Value="6"/>
+            <Setter Property="MinWidth" Value="6"/>
+            <Setter Property="Margin" Value="0,45,0,0"/>
+        </Style>
+        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar /template/ Thumb">
+            <Setter Property="MinWidth" Value="3"/>
+            <Setter Property="Background" Value="#66A0AEC0"/>
+        </Style>
+        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar /template/ Rectangle#TrackRect">
+            <Setter Property="Opacity" Value="0"/>
+        </Style>
+        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar /template/ Grid#Root">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <Style Selector="Border.floatBox">
+            <Setter Property="Background" Value="#FF000000"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="BoxShadow" Value="0 0 26 6 #E6000000"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.floatBox:pointerover">
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+        </Style>
+
+        <Style Selector="Border.connectBox">
+            <Setter Property="Background" Value="#FF000000"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BoxShadow" Value="0 0 26 6 #E6000000"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.connectBox:pointerover">
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+        </Style>
+        <Style Selector="Border.connectBox.connected">
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSuccessBrush}"/>
+        </Style>
+        <Style Selector="Border.connectBox.connected:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSuccessPointerOverBrush}"/>
+        </Style>
+
+        <Style Selector="Border.shadowCarrier">
+            <Setter Property="Background" Value="#FF000000"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BoxShadow" Value="0 0 26 6 #E6000000"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
     </UserControl.Styles>
 
     <UserControl.Transitions>
@@ -82,43 +145,14 @@
     </UserControl.Transitions>
 
     
-        <Grid RowDefinitions="Auto, *" Margin="0,50,20,20" HorizontalAlignment="Center" MaxWidth="580" Width="580">
-                <!-- New Static Box -->
-                <Border Grid.Row="0" Classes="hoverBox" Background="#99141414" BorderThickness="1" CornerRadius="8" Padding="6,8" Margin="0,0,0,12" Height="40">
-                    <Grid>
-        <TextBox x:Name="txtSearch" HorizontalAlignment="Left" Width="115" Height="24" MinHeight="24" VerticalAlignment="Center" PlaceholderText="Search..." FontSize="10" Padding="8,0" VerticalContentAlignment="Center" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Foreground="#A0AEC0" TextChanged="Search_TextChanged"/>
-        <Button x:Name="btnMasterRules" Click="MasterRules_Click"
-                HorizontalAlignment="Center" VerticalAlignment="Center"
-                Height="24" MinWidth="96" Padding="0" Cursor="Hand" CornerRadius="4"
-                Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
-            <Button.Styles>
-                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                    <Setter Property="Background" Value="#2AFFFFFF"/>
-                </Style>
-            </Button.Styles>
-            <TextBlock x:Name="lblRules" Text="ENABLED" FontSize="9" FontWeight="Bold"
-                       LetterSpacing="1" Foreground="#E2E8F0"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Button>
-
-        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
-            <TextBlock x:Name="lblFilter" Text="FILTER:" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center" Margin="0,0,4,0"/>
-            <ComboBox x:Name="cbFilter" SelectedIndex="0" Width="110" Height="24" MinHeight="24" FontSize="10" FontWeight="SemiBold" Padding="8,0" VerticalContentAlignment="Center" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" SelectionChanged="Filter_SelectionChanged">
-                <ComboBoxItem x:Name="cbiFilterAll" Content="All" FontSize="10" FontWeight="SemiBold"/>
-                <ComboBoxItem x:Name="cbiFilterGames" Content="Games" FontSize="10" FontWeight="SemiBold"/>
-                <ComboBoxItem x:Name="cbiFilterLaunchers" Content="Launchers" FontSize="10" FontWeight="SemiBold"/>
-                <ComboBoxItem x:Name="cbiFilterOther" Content="Other" FontSize="10" FontWeight="SemiBold"/>
-            </ComboBox>
-        </StackPanel>
-    </Grid>
-                </Border>
-
+        <Grid RowDefinitions="*" Margin="0,50,20,20" HorizontalAlignment="Center" MaxWidth="580" Width="580">
                 <!-- Rules Box -->
-                <Panel Grid.Row="1">
+                <Panel>
                 <Border x:Name="panRulesBox" Background="#99141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="6,6,2,6">
                     <ScrollViewer x:Name="Scroller" BringIntoViewOnFocusChange="False">
                         <StackPanel Spacing="4" Margin="0,0,4,0">
+
+                            <Border Height="45"/>
 
                             <!-- Rule List -->
                             <ItemsControl x:Name="lstRules">
@@ -187,7 +221,6 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                             </Grid>
                                         </Border>
                                         </Border>
-                                            <!-- Curated default rule row -->
                                             <Border x:Name="panDefaultRuleWrapper" MaxHeight="800" Opacity="1" ClipToBounds="True">
                                                 <Border.Transitions>
                                                     <Transitions>
@@ -501,95 +534,130 @@ Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
                                         </Transitions>
                                     </Border.Transitions>
                                     <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8">
-                                        <Grid RowDefinitions="Auto, Auto, Auto, Auto" Margin="0,8,0,0">
-                                            <!-- Header -->
-                                            <Grid Grid.Row="0" Margin="12,0,12,10" ColumnDefinitions="*, Auto">
-                                                <TextBlock x:Name="lblDefaultEditorHeader" Grid.Column="0" Text="DISCORD" FontSize="11" FontWeight="Bold" Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                                <Grid Grid.Column="1">
-                                                    <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                            CornerRadius="4" Height="26">
-                                                        <Grid ColumnDefinitions="Auto, 1, *, 1, 80">
-<Button x:Name="btnDefaultScanAdapters" Grid.Column="0"
-Content="SCAN ADAPTERS" Click="BtnScanAdapters_Click"
-FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"
-Background="Transparent" HorizontalAlignment="Stretch"
-HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
-VerticalContentAlignment="Center" Padding="15,0"
-Cursor="Hand" BorderThickness="0" CornerRadius="4,0,0,4">
-<Button.Styles>
-<Style Selector="Button:pointerover /template/ ContentPresenter">
-<Setter Property="Background" Value="#2AFFFFFF"/>
-<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-</Style>
-</Button.Styles>
-</Button>
-<Border Grid.Column="1" Background="#2D3748"/>
-<Button x:Name="btnDefaultSubmit" Grid.Column="2"
-Content="SUBMIT" Click="DefaultSubmit_Click"
-FontSize="10" FontWeight="Bold" Foreground="#E2E8F0"
-Background="Transparent" HorizontalAlignment="Stretch"
-HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
-VerticalContentAlignment="Center" Padding="20,0"
-Cursor="Hand" BorderThickness="0" CornerRadius="0">
-<Button.Styles>
-<Style Selector="Button:pointerover /template/ ContentPresenter">
-<Setter Property="Background" Value="#2AFFFFFF"/>
-<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-</Style>
-</Button.Styles>
-</Button>
-<Border Grid.Column="3" Background="#2D3748"/>
-<Button x:Name="btnDefaultCancel" Grid.Column="4"
-Content="CANCEL" Click="DefaultCancel_Click"
-FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"
-Background="Transparent" HorizontalAlignment="Stretch"
-HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
-VerticalContentAlignment="Center"
-Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
-<Button.Styles>
-<Style Selector="Button:pointerover /template/ ContentPresenter">
-<Setter Property="Background" Value="#2AFFFFFF"/>
-<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-</Style>
-</Button.Styles>
-</Button>
-</Grid>
-                                                    </Border>
-                                                </Grid>
+                                        <Grid RowDefinitions="Auto, Auto, Auto">
+                                            <Grid Grid.Row="0" ColumnDefinitions="16, Auto, Auto, Auto, 16, Auto, Auto, Auto, *" Margin="6,0,6,0" MinHeight="120">
+                                                <LayoutTransformControl Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                        UseRenderTransform="False">
+                                                    <LayoutTransformControl.LayoutTransform>
+                                                        <RotateTransform Angle="-90"/>
+                                                    </LayoutTransformControl.LayoutTransform>
+                                                    <TextBlock x:Name="lblDefaultRoutingHeader" Text="ROUTING" FontSize="10" FontWeight="Bold"
+                                                               Foreground="#8B949E" LetterSpacing="1"/>
+                                                </LayoutTransformControl>
+                                                <Border Grid.Column="1" Width="1" Background="#2D3748" Margin="6,0,6,0"/>
+                                                <!-- Routing combos -->
+                                                <StackPanel x:Name="panDefaultRouting" Grid.Column="2" Spacing="8" Margin="5,0,5,0" VerticalAlignment="Center">
+                                                        <StackPanel Spacing="4">
+                                                            <TextBlock Text="TCP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
+                                                            <ComboBox x:Name="cbDefaultTcpRouting" Width="150" MinHeight="26" Height="26"
+                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
+                                                                      FontSize="10" Padding="8,0" VerticalContentAlignment="Center"
+                                                                      HorizontalAlignment="Left" CornerRadius="4"
+                                                                      SelectionChanged="DefaultRouting_SelectionChanged"/>
+                                                        </StackPanel>
+                                                        <StackPanel Spacing="4">
+                                                            <TextBlock Text="UDP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
+                                                            <ComboBox x:Name="cbDefaultUdpRouting" Width="150" MinHeight="26" Height="26"
+                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
+                                                                      FontSize="10" Padding="8,0" VerticalContentAlignment="Center"
+                                                                      HorizontalAlignment="Left" CornerRadius="4"
+                                                                      SelectionChanged="DefaultRouting_SelectionChanged"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                <Border Grid.Column="3" Width="1" Background="#2D3748" Margin="6,0,6,0"/>
+                                                <LayoutTransformControl Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                        UseRenderTransform="False">
+                                                    <LayoutTransformControl.LayoutTransform>
+                                                        <RotateTransform Angle="-90"/>
+                                                    </LayoutTransformControl.LayoutTransform>
+                                                    <TextBlock x:Name="lblDefaultAdapterHeader" Text="ADAPTER" FontSize="10" FontWeight="Bold"
+                                                               Foreground="#8B949E" LetterSpacing="1"/>
+                                                </LayoutTransformControl>
+                                                <Border Grid.Column="5" Width="1" Background="#2D3748" Margin="6,0,6,0"/>
+                                                <!-- Adapter combos -->
+                                                <StackPanel Grid.Column="6" Spacing="8" Margin="5,0,5,0" VerticalAlignment="Center">
+                                                        <StackPanel Spacing="4">
+                                                            <TextBlock Text="TCP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
+                                                            <ComboBox x:Name="cbDefaultTcpAdapter" Width="150" MinHeight="26" Height="26"
+                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
+                                                                      FontSize="10" Padding="8,0" VerticalContentAlignment="Center"
+                                                                      HorizontalAlignment="Left" CornerRadius="4"/>
+                                                        </StackPanel>
+                                                        <StackPanel Spacing="4">
+                                                            <TextBlock Text="UDP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
+                                                            <ComboBox x:Name="cbDefaultUdpAdapter" Width="150" MinHeight="26" Height="26"
+                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
+                                                                      FontSize="10" Padding="8,0" VerticalContentAlignment="Center"
+                                                                      HorizontalAlignment="Left" CornerRadius="4"/>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                <Border Grid.Column="7" Width="1" Background="#2D3748" Margin="6,0,6,0"/>
+                                                <Border Grid.Column="8" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
+                                                        CornerRadius="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Vertical">
+                                                        <Button x:Name="btnDefaultRestore" Content="RESTORE DEFAULTS" Click="DefaultRestore_Click"
+                                                                FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent"
+                                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                                VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+                                                                Padding="15,0" Height="26" Cursor="Hand" BorderThickness="0" CornerRadius="4,4,0,0">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                        <Border Height="1" Background="#2D3748"/>
+                                                        <Button x:Name="btnDefaultScanAdapters" Content="SCAN ADAPTERS" Click="BtnScanAdapters_Click"
+                                                                FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent"
+                                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                                VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+                                                                Padding="15,0" Height="26" Cursor="Hand" BorderThickness="0" CornerRadius="0,0,4,4">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Border>
                                             </Grid>
                                             <!-- Horizontal Separator -->
                                             <Border Grid.Row="1" Height="1" Background="#2D3748" HorizontalAlignment="Stretch"/>
-                                            <StackPanel x:Name="panDefaultRouting" Grid.Row="2" Orientation="Horizontal" Spacing="16" Margin="12,10,12,0" IsVisible="False">
-                                                <StackPanel Spacing="4">
-                                                    <TextBlock x:Name="lblTcpRouting" Text="TCP ROUTING" FontSize="9" FontWeight="SemiBold" Foreground="#606870"/>
-                                                    <ComboBox x:Name="cbDefaultTcpRouting" Width="220" MinHeight="26" Height="26"
-                                                              Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                              FontSize="10" Padding="8,0" VerticalContentAlignment="Center" CornerRadius="4"
-                                                              SelectionChanged="DefaultRouting_SelectionChanged"/>
-                                                </StackPanel>
-                                                <StackPanel Spacing="4">
-                                                    <TextBlock x:Name="lblUdpRouting" Text="UDP ROUTING" FontSize="9" FontWeight="SemiBold" Foreground="#606870"/>
-                                                    <ComboBox x:Name="cbDefaultUdpRouting" Width="220" MinHeight="26" Height="26"
-                                                              Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                              FontSize="10" Padding="8,0" VerticalContentAlignment="Center" CornerRadius="4"
-                                                              SelectionChanged="DefaultRouting_SelectionChanged"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                            <!-- Adapters -->
-                                            <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="16" Margin="12,10,12,12">
-                                                <StackPanel Spacing="4">
-                                                    <TextBlock x:Name="lblTcpAdapter" Text="TCP ADAPTER" FontSize="9" FontWeight="SemiBold" Foreground="#606870"/>
-                                                    <ComboBox x:Name="cbDefaultTcpAdapter" Width="220" MinHeight="26" Height="26"
-                                                              Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                              FontSize="10" Padding="8,0" VerticalContentAlignment="Center" CornerRadius="4"/>
-                                                </StackPanel>
-                                                <StackPanel Spacing="4">
-                                                    <TextBlock x:Name="lblUdpAdapter" Text="UDP ADAPTER" FontSize="9" FontWeight="SemiBold" Foreground="#606870"/>
-                                                    <ComboBox x:Name="cbDefaultUdpAdapter" Width="220" MinHeight="26" Height="26"
-                                                              Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                              FontSize="10" Padding="8,0" VerticalContentAlignment="Center" CornerRadius="4"/>
-                                                </StackPanel>
-                                            </StackPanel>
+                                            <!-- Bottom bar: title + submit/cancel -->
+                                            <Grid Grid.Row="2" Margin="12,10,12,10" ColumnDefinitions="*, Auto">
+                                                <TextBlock x:Name="lblDefaultEditorHeader" Grid.Column="0" Text="DISCORD" FontSize="11" FontWeight="Bold" Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                                <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
+                                                    <Grid ColumnDefinitions="Auto, 1, Auto">
+                                                        <Button x:Name="btnDefaultSubmit" Grid.Column="0" Content="SUBMIT" Click="DefaultSubmit_Click"
+                                                                FontSize="10" FontWeight="Bold" Foreground="#E2E8F0" Background="Transparent"
+                                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                                VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+                                                                Padding="24,0" Height="26" Cursor="Hand" BorderThickness="0" CornerRadius="4,0,0,4">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                        <Border Grid.Column="1" Background="#2D3748"/>
+                                                        <Button x:Name="btnDefaultCancel" Grid.Column="2" Content="CANCEL" Click="DefaultCancel_Click"
+                                                                FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent"
+                                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                                VerticalAlignment="Stretch" VerticalContentAlignment="Center"
+                                                                Padding="24,0" Height="26" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
                                         </Grid>
                                     </Border>
                                 </Border>
@@ -598,71 +666,130 @@ Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
 
                             </Border>
 
-                            <Border Height="58"/>
+                            <Border Height="43"/>
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
 
-                <!-- Floating Bottom Bar: split-mode (REGULAR/INCLUSIVE) + CONNECT -->
-                <Border x:Name="panFloatingBar" VerticalAlignment="Bottom" HorizontalAlignment="Center"
-                        Width="470" Height="45" Margin="0,0,0,13" CornerRadius="8" BoxShadow="0 0 26 6 #E6000000"
-                        Background="#FF000000" BorderThickness="2">
-                    <Border.Styles>
-                        <Style Selector="Border">
-                            <Setter Property="BorderBrush" Value="#2D3748"/>
-                            <Setter Property="Transitions">
-                                <Transitions>
-                                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
-                                </Transitions>
-                            </Setter>
-                        </Style>
-                        <Style Selector="Border:pointerover">
-                            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
-                        </Style>
-                    </Border.Styles>
-                    <Grid ColumnDefinitions="Auto, *, Auto" Margin="10,0,8,0">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
-                            <Button x:Name="btnOverlaySplitRegular" Classes="optBtn" Click="OverlaySplitTunnel_Click">
-                                <TextBlock x:Name="lblOverlayRegular" Text="REGULAR" FontSize="10" FontWeight="SemiBold"/>
-                            </Button>
-                            <Button x:Name="btnOverlaySplitInclusive" Classes="optBtn" Click="OverlaySplitTunnel_Click">
-                                <TextBlock x:Name="lblOverlayInclusive" Text="INCLUSIVE" FontSize="10" FontWeight="SemiBold"/>
-                            </Button>
+                <Panel Margin="1" ClipToBounds="True">
+                    <Border x:Name="panSearchBarShadow" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                            Margin="6,6,6,0" Height="45" CornerRadius="6" IsHitTestVisible="False" Opacity="0"
+                            Background="#FF000000" BoxShadow="0 6 18 0 #E6000000">
+                        <Border.Transitions>
+                            <Transitions>
+                                <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                            </Transitions>
+                        </Border.Transitions>
+                    </Border>
+                    <Border x:Name="panSearchBar" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                            Margin="6,6,6,0" Height="45" Classes="hoverBox" Background="#FF000000"
+                            BorderThickness="1" CornerRadius="6" ClipToBounds="True">
+                    <Grid ColumnDefinitions="Auto, *, Auto" Margin="10,8">
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Left" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBox x:Name="txtSearch" Width="100" Height="24" MinHeight="24" VerticalAlignment="Center" FontSize="10" Padding="8,0" VerticalContentAlignment="Center" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Foreground="#A0AEC0" TextChanged="Search_TextChanged"/>
+                            <PathIcon Data="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <Button Grid.Column="1" x:Name="btnApplyChanges" Click="ApplyChanges_Click" IsVisible="False"
-                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0"
-                                Height="28" MinWidth="86" Padding="10,0" Cursor="Hand" CornerRadius="6"
-                                Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
-                            <TextBlock x:Name="txtApplyChanges" Text="APPLY CHANGES" FontSize="10" FontWeight="Bold" Foreground="#E2E8F0"/>
-                        </Button>
-                        <Button Grid.Column="2" x:Name="btnOverlayConnect" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                Height="28" MinWidth="96" Padding="0" Cursor="Hand" CornerRadius="6"
-                                Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" Click="OverlayConnect_Click"
-                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
-                            <Button.Styles>
-                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                    <Setter Property="Background" Value="#2AFFFFFF"/>
-                                </Style>
-                            </Button.Styles>
-                            <Panel ClipToBounds="True">
-                                <!-- Progress fill shown behind the label while connecting -->
-                                <Border x:Name="panOverlayConnectFill" Background="{DynamicResource ThemeGlowBrush}" Opacity="0"
-                                        CornerRadius="5" IsHitTestVisible="False"
-                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                                        RenderTransformOrigin="0%,50%">
-                                    <Border.RenderTransform>
-                                        <ScaleTransform ScaleX="0" ScaleY="1"/>
-                                    </Border.RenderTransform>
-                                </Border>
-                                <Grid>
-                                    <TextBlock x:Name="txtOverlayConnect" Text="CONNECT" FontSize="10" FontWeight="Bold" LetterSpacing="1" Foreground="#E2E8F0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    <TextBlock x:Name="txtOverlayConnectConnected" Text="CONNECTED" FontSize="10" FontWeight="Bold" LetterSpacing="1" Foreground="{DynamicResource ThemeGlowBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0" IsHitTestVisible="False"/>
-                                </Grid>
-                            </Panel>
-                        </Button>
+                        <!-- Live rule telemetry -->
+                        <controls:OverlayStatsCluster x:Name="overlayStatsCluster" Grid.Column="1" VerticalAlignment="Center"/>
+
+                        <!-- Right: filter -->
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
+                            <PathIcon Data="M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12H9.97L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3V3H19V3C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14.03,12H14Z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <ComboBox x:Name="cbFilter" Classes="filterCombo" SelectedIndex="0" Width="100" Height="24" MinHeight="24" FontSize="10" FontWeight="SemiBold" Padding="8,0" VerticalContentAlignment="Center" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" SelectionChanged="Filter_SelectionChanged">
+                                <ComboBoxItem x:Name="cbiFilterAll" Content="All" FontSize="10" FontWeight="SemiBold"/>
+                                <ComboBoxItem x:Name="cbiFilterGames" Content="Games" FontSize="10" FontWeight="SemiBold"/>
+                                <ComboBoxItem x:Name="cbiFilterLaunchers" Content="Launchers" FontSize="10" FontWeight="SemiBold"/>
+                                <ComboBoxItem x:Name="cbiFilterOther" Content="Other" FontSize="10" FontWeight="SemiBold"/>
+                            </ComboBox>
+                        </StackPanel>
                     </Grid>
                 </Border>
+                </Panel>
+
+                <StackPanel x:Name="panOverlayBottomBar" Orientation="Horizontal" Spacing="6"
+                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,13">
+                    <StackPanel.Transitions>
+                        <Transitions>
+                            <ThicknessTransition Property="Margin" Duration="0:0:0.28" Easing="CubicEaseOut"/>
+                        </Transitions>
+                    </StackPanel.Transitions>
+
+                    <Panel>
+                        <Border x:Name="panConnectShadow" Classes="shadowCarrier"/>
+
+                        <Border x:Name="panConnectBox" Classes="floatBox connectBox" Padding="0"
+                                ClipToBounds="True" Cursor="Hand"
+                                PointerPressed="ConnectBoxPress" PointerReleased="ConnectBoxRelease"
+                                PointerCaptureLost="ConnectBoxCaptureLost">
+                            <Panel x:Name="panConnectBoxInner" MinHeight="17" MinWidth="104" RenderTransformOrigin="50%,50%">
+                                <Panel.RenderTransform>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                </Panel.RenderTransform>
+                                <Panel.Transitions>
+                                    <Transitions>
+                                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075"/>
+                                    </Transitions>
+                                </Panel.Transitions>
+                                <Border CornerRadius="6,0,0,6" ClipToBounds="True" IsHitTestVisible="False"
+                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <Border x:Name="panOverlayConnectFill" Background="{DynamicResource ThemeGlowBrush}" Opacity="0"
+                                            IsHitTestVisible="False"
+                                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                            RenderTransformOrigin="0%,50%">
+                                        <Border.RenderTransform>
+                                            <ScaleTransform ScaleX="0" ScaleY="1"/>
+                                        </Border.RenderTransform>
+                                    </Border>
+                                </Border>
+                                <Border x:Name="panConnectBoxPress" Background="{DynamicResource ButtonBackgroundPressed}" Opacity="0"
+                                        CornerRadius="5" IsHitTestVisible="False"
+                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                                <TextBlock x:Name="txtOverlayConnect" Text="CONNECT" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                                           Foreground="#E2E8F0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtOverlayConnectConnected" Text="CONNECTED" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                                           Foreground="{DynamicResource ThemeSuccessGlowBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Opacity="0" IsHitTestVisible="False"/>
+                            </Panel>
+                        </Border>
+                    </Panel>
+
+                    <Border Classes="floatBox">
+                        <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+                            <Button x:Name="btnOverlaySplitRegular" Classes="optBtn" Click="OverlaySplitTunnel_Click" Padding="9,3" CornerRadius="4,0,0,4">
+                                <TextBlock x:Name="lblOverlayRegular" Text="REGULAR" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"/>
+                            </Button>
+                            <Button x:Name="btnOverlaySplitInclusive" Classes="optBtn" Click="OverlaySplitTunnel_Click" Padding="9,3" CornerRadius="0,4,4,0">
+                                <TextBlock x:Name="lblOverlayInclusive" Text="INCLUSIVE" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <Border Classes="floatBox">
+                        <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+                            <Button x:Name="btnMasterOn" Classes="optBtn" Click="MasterPill_Click" Padding="9,3" CornerRadius="4,0,0,4">
+                                <TextBlock x:Name="lblMasterOn" Text="ON" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"/>
+                            </Button>
+                            <Button x:Name="btnMasterOff" Classes="optBtn" Click="MasterPill_Click" Padding="9,3" CornerRadius="0,4,4,0">
+                                <TextBlock x:Name="lblMasterOff" Text="OFF" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="panApplyChangesBox" Classes="floatBox"
+                            Opacity="0" IsHitTestVisible="False">
+                        <Border.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                                <DoubleTransition Property="Opacity" Duration="0:0:0.28" Easing="CubicEaseOut"/>
+                            </Transitions>
+                        </Border.Transitions>
+                        <Button x:Name="btnApplyChanges" Click="ApplyChanges_Click"
+                                Background="Transparent" BorderThickness="0" Cursor="Hand" CornerRadius="4" Padding="9,3"
+                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                            <TextBlock x:Name="txtApplyChanges" Text="APPLY CHANGES" FontSize="9" FontWeight="Bold" LetterSpacing="0.5" Foreground="#E2E8F0"/>
+                        </Button>
+                    </Border>
+                </StackPanel>
+
+
                 </Panel>
             </Grid>
 </UserControl>

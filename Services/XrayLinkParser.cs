@@ -126,7 +126,6 @@ namespace CrimsonX.Services
             if (string.IsNullOrWhiteSpace(address)) return false;
             address = address.Trim();
 
-            // Strip brackets from IPv6 literals such as [::1] or [fe80::1]
             if (address.StartsWith("[", StringComparison.Ordinal))
             {
                 int close = address.IndexOf(']');

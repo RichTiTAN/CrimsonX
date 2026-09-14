@@ -1,0 +1,116 @@
+﻿<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="CrimsonX.Controls.OverlayStatsCluster"
+             VerticalAlignment="Center" HorizontalAlignment="Stretch" Height="24">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.clusterLabel">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#718096"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.clusterValue">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.chip">
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4,0"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Border.statHot">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.statHot:pointerover">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="Border.statHot:pointerover TextBlock.clusterLabel">
+            <Setter Property="Foreground" Value="#A0AEC0"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="*,Auto,*" VerticalAlignment="Center">
+
+        <Border x:Name="hotCount" Grid.Column="0" Classes="statHot"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel x:Name="panLeft" Orientation="Horizontal" Spacing="5"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                <Ellipse x:Name="dotState" Width="7" Height="7" Fill="#4A5568" VerticalAlignment="Center"/>
+
+                <TextBlock x:Name="txtState" Classes="clusterLabel" Text=""/>
+
+                <TextBlock x:Name="txtSep1" Classes="clusterLabel" Text="·" Opacity="0.5"/>
+
+                <TextBlock x:Name="txtActive" Classes="clusterValue" Text="—"/>
+                <TextBlock x:Name="txtActiveWord" Classes="clusterLabel" Text="ACTIVE" Margin="3,0,0,0"/>
+
+            </StackPanel>
+        </Border>
+
+        <Panel Grid.Column="1" VerticalAlignment="Center">
+
+            <TextBlock x:Name="txtTimer" Classes="clusterValue" FontSize="11" Text="—"/>
+
+            <StackPanel x:Name="panIdle" Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                <Ellipse x:Name="dotIdle" Width="7" Height="7" Fill="#4A5568" VerticalAlignment="Center"/>
+                <TextBlock x:Name="txtIdle" Classes="clusterLabel" Text=""/>
+            </StackPanel>
+
+        </Panel>
+
+        <Border x:Name="hotSpeed" Grid.Column="2" Classes="statHot"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel x:Name="panRight" Orientation="Horizontal" Spacing="5"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                <StackPanel x:Name="panDown" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <TextBlock x:Name="txtDownArrow" Classes="clusterLabel" Text="↓" FontSize="11"/>
+                    <TextBlock x:Name="txtDown" Classes="clusterValue" Text="—"/>
+                </StackPanel>
+
+                <StackPanel x:Name="panUp" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <TextBlock x:Name="txtUpArrow" Classes="clusterLabel" Text="↑" FontSize="11"/>
+                    <TextBlock x:Name="txtUp" Classes="clusterValue" Text="—"/>
+                </StackPanel>
+
+                <Border x:Name="chipMode" Classes="chip" Background="#1FFFFFFF" BorderBrush="#2D3748" IsVisible="False">
+                    <TextBlock x:Name="txtMode" FontSize="8" FontWeight="Bold" Foreground="#A0AEC0" Text="PROXY"/>
+                </Border>
+
+            </StackPanel>
+        </Border>
+
+    </Grid>
+</UserControl>

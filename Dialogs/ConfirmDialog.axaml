@@ -23,7 +23,7 @@
         x:DataType="dialogs:ConfirmDialog"
         Title="{Binding DialogTitle}"
         Width="440" SizeToContent="Height"
-        CanResize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        CanResize="False" CanMinimize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
         Background="#1E1E1E" Foreground="White"
         FontFamily="Segoe UI, Tahoma, sans-serif">
 

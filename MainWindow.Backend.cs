@@ -305,6 +305,11 @@ public partial class MainWindow
             var toastText = this.FindControl<TextBlock>("ToastText");
             if (toast == null || toastText == null) return;
 
+            var carousel = this.FindControl<global::Avalonia.Controls.Carousel>("MainCarousel");
+            bool onAppsGames = carousel != null && carousel.SelectedIndex == 5;
+            const double toastBottom = 25, appsGamesLift = 45;
+            toast.Margin = new global::Avalonia.Thickness(0, 0, 0, onAppsGames ? toastBottom + appsGamesLift : toastBottom);
+
             _toastTimer?.Stop();
 
             bool isFa = CrimsonX.Localization.AppStrings.IsPersian;

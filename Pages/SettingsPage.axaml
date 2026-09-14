@@ -217,7 +217,6 @@
                                                                     <Setter Property="Foreground" Value="#E2E8F0"/>
                                                                 </Style>
                                                                 
-                                                                <!-- Smooth hover for the CheckBox glyph and border itself -->
                                                                 <Style Selector="CheckBox /template/ Border#NormalRectangle">
                                                                     <Setter Property="Transitions">
                                                                         <Transitions>

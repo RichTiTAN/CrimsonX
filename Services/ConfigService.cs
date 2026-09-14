@@ -150,7 +150,6 @@ namespace CrimsonX.Services
                 using var jReader = jobj.CreateReader();
                 Newtonsoft.Json.JsonSerializer.CreateDefault().Populate(jReader, config);
 
-                // Legacy configs stored the balance policy under the old key name; keep reading it for backward compatibility.
                 if (jobj["XrayBalancePolicy"] == null && jobj["HaProxyBalancePolicy"] != null)
                     config.XrayBalancePolicy = jobj.Value<string>("HaProxyBalancePolicy") ?? config.XrayBalancePolicy;
 

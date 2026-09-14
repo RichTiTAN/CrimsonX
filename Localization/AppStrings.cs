@@ -153,6 +153,24 @@ namespace CrimsonX.Localization
 
         public static string StatusDisconnected => IsPersian ? "منتظر اتصال" : "Disconnected";
 
+        // ── Overlay live status cluster ──
+
+        public static string OverlayStatsActive       => IsPersian ? "فعال" : "ACTIVE";
+
+        public static string OverlayStatsProxyMode    => IsPersian ? "حالت پروکسی" : "PROXY MODE";
+
+        public static string OverlayStatsConnection   => IsPersian ? "اتصال" : "Connection";
+
+        public static string OverlayStatsConnections  => IsPersian ? "اتصالات" : "Connections";
+
+        // ── Overlay hover boxes 
+
+        public static string OverlayStatsNoConnections => IsPersian ? "بدون اتصال فعال" : "No active connections";
+
+        public static string OverlayStatsNoTraffic     => IsPersian ? "بدون ترافیک" : "No traffic";
+
+        public static string OverlayStatsMoreApps      => IsPersian ? "… و {0} برنامه دیگر" : "…and {0} more";
+
         // ── Stats & Logs ──
 
         public static string LogsStatus         => IsPersian ? "لاگ‌ها و وضعیت"   : "LOGS & STATUS";
@@ -222,9 +240,9 @@ namespace CrimsonX.Localization
 
         public static string AppsGamesDisconnectAndContinue => IsPersian ? "قطع اتصال و ادامه" : "DISCONNECT AND CONTINUE";
 
-        public static string MasterRulesEnabled => IsPersian ? "فعال" : "ENABLED";
+        public static string MasterRulesEnabled => IsPersian ? "روشن" : "ON";
 
-        public static string MasterRulesDisabled => IsPersian ? "غیرفعال" : "DISABLED";
+        public static string MasterRulesDisabled => IsPersian ? "خاموش" : "OFF";
 
         public static string AdvancedRulesVpnOnlyTitle => IsPersian ? "نیاز به حالت VPN" : "VPN MODE REQUIRED";
 
@@ -661,6 +679,16 @@ namespace CrimsonX.Localization
         public static string OverlaySplitInclusiveTooltip => IsPersian ? "تنها برنامه‌های لیست شده در پایین از طریق پروکسی عبور داده می‌شوند." : "Only route the apps listed below through the proxy.";
 
         public static string MasterRulesTooltip => IsPersian ? "فعال یا غیرفعال کردن همه قوانین مسیریابی این تب." : "Enable or disable all the routing rules in this tab.";
+
+        public static string TtOverlayStatsTitle   => IsPersian ? "ترافیک قوانین برنامه‌ها" : "APP RULE TRAFFIC";
+
+        public static string TtOverlayStatsSession => IsPersian ? "نشست:" : "SESSION";
+
+        public static string TtOverlayStatsHint    => IsPersian ? "فقط ترافیک برنامه‌هایی که قانون فعال دارند محاسبه می‌شود." : "Only traffic of apps that have an enabled rule is counted.";
+
+        public static string TtOverlayStatsProxy   => IsPersian ? "آمار زنده قوانین فقط در حالت VPN در دسترس است." : "Live rule stats are only available in VPN Mode.";
+
+        public static string TtOverlayStatsNoRules => IsPersian ? "در حال حاضر هیچ قانون فعالی برای اندازه‌گیری وجود ندارد." : "There is no enabled rule to measure right now.";
 
 }
 }

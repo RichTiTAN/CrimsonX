@@ -45,6 +45,10 @@ namespace CrimsonX.Services
             ["Oceania"]       = "oceania",
         };
 
+        private const string DiscordDefaultKey = "discord";
+        private const int DiscordVoicePortStart = 19294;
+        private const int DiscordVoicePortEnd = 19344;
+
         public static AppRulesSingboxResult Build(AppConfig config)
         {
             var result = new AppRulesSingboxResult();
@@ -74,6 +78,8 @@ namespace CrimsonX.Services
                 var names = BuildProcessNames(nameSource);
                 if (names.Count == 0) continue;
 
+                var namesArray = names.ToArray();
+
                 if (!string.IsNullOrWhiteSpace(rule.Region)
                     && rule.Region != "ALL"
                     && RegionToRuleSet.TryGetValue(rule.Region.Trim(), out var ruleSetFile))
@@ -87,7 +93,7 @@ namespace CrimsonX.Services
                         mode = "and",
                         rules = new object[]
                         {
-                            new { process_name = names.ToArray() },
+                            new { process_name = namesArray },
                             new { network = "udp" },
                             new { port = new[] { 3478, 5349 }, invert = true },
                             new { ip_is_private = true, invert = true },
@@ -99,23 +105,36 @@ namespace CrimsonX.Services
 
                 result.RouteRules.Add(new
                 {
-                    process_name = names.ToArray(),
+                    process_name = namesArray,
                     network = "tcp",
                     action = "route",
                     outbound = ResolveOutbound(rule.TcpRouting, rule.TcpAdapter, adapterTags, ref adapterIndex, result)
                 });
-                result.RouteRules.Add(new
+                if (string.Equals(rule.DefaultKey, DiscordDefaultKey, StringComparison.Ordinal))
                 {
-                    process_name = names.ToArray(),
-                    network = "udp",
-                    action = "route",
-                    outbound = ResolveOutbound(rule.UdpRouting, rule.UdpAdapter, adapterTags, ref adapterIndex, result)
-                });
+                    result.RouteRules.Add(new
+                    {
+                        port_range = $"{DiscordVoicePortStart}:{DiscordVoicePortEnd}",
+                        network = "udp",
+                        action = "route",
+                        outbound = ResolveOutbound(rule.UdpRouting, rule.UdpAdapter, adapterTags, ref adapterIndex, result)
+                    });
+                }
+                else
+                {
+                    result.RouteRules.Add(new
+                    {
+                        process_name = namesArray,
+                        network = "udp",
+                        action = "route",
+                        outbound = ResolveOutbound(rule.UdpRouting, rule.UdpAdapter, adapterTags, ref adapterIndex, result)
+                    });
+                }
 
                 bool fullyProxied = rule.TcpRouting == "Proxy" && rule.UdpRouting == "Proxy";
                 result.DnsRules.Add(new
                 {
-                    process_name = names.ToArray(),
+                    process_name = namesArray,
                     action = "route",
                     server = fullyProxied ? "dns_proxy" : "dns_direct"
                 });
@@ -129,7 +148,14 @@ namespace CrimsonX.Services
                     {
                         domain_suffix = domains,
                         action = "route",
-                        outbound = "proxy"
+                        outbound = ResolveOutbound(rule.TcpRouting, rule.TcpAdapter, adapterTags, ref adapterIndex, result)
+                    });
+
+                    result.DnsRules.Add(new
+                    {
+                        domain_suffix = domains,
+                        action = "route",
+                        server = fullyProxied ? "dns_proxy" : "dns_direct"
                     });
                 }
             }
@@ -180,7 +206,7 @@ namespace CrimsonX.Services
             return "direct";
         }
 
-        private static List<string> BuildProcessNames(IEnumerable<string> processNames)
+        internal static List<string> BuildProcessNames(IEnumerable<string> processNames)
         {
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var raw in processNames)

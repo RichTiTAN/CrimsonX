@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
   Copyright (C) 2026 RichTiTAN
 
@@ -23,7 +23,7 @@
         x:DataType="dialogs:UpdateDialog"
         Title="{Binding DialogTitle}"
         Width="450" SizeToContent="Height"
-        CanResize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        CanResize="False" CanMinimize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
         Background="#1E1E1E" Foreground="White"
         FontFamily="Segoe UI, Tahoma, sans-serif">
     
