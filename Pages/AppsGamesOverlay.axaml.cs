@@ -22,6 +22,7 @@ using System.IO;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -70,8 +71,16 @@ public class AppRuleViewModel
     public bool    ShowsRoutingEditor => IsLeague || IsTekken || IsValorant;
     public bool    IsDirect   { get; }
     public bool    HasDirectRouting { get; }
+    public bool    IsCustomRouting { get; }
+    public string  CustomProxyLabel { get; }
+    public string  CustomLabel => CrimsonX.Localization.AppStrings.RoutingCustomShort;
     public string  DirectLabel => CrimsonX.Localization.AppStrings.RoutingDirect.ToUpperInvariant();
     public string  ProxyLabel  => CrimsonX.Localization.AppStrings.RoutingProxy.ToUpperInvariant();
+
+    public string  EditorTooltip => IsCustomRouting && !string.IsNullOrWhiteSpace(CustomProxyLabel)
+        ? CustomProxyLabel
+        : EditAdaptersTooltip;
+
     public bool    ShowAdapterEditor => HasCountry || HasRegion || IsLauncher || IsBrowser || ShowsRoutingEditor || HasDirectRouting;
     public int     CountryIndex { get; }
     public int     RegionIndex  { get; }
@@ -91,8 +100,11 @@ public class AppRuleViewModel
         IsTekken   = string.Equals(rule.DefaultKey, AppsGamesOverlay.Tekken8DefaultKey, StringComparison.Ordinal);
         IsValorant = string.Equals(rule.DefaultKey, AppsGamesOverlay.ValorantDefaultKey, StringComparison.Ordinal);
         IsDirect   = string.Equals(rule.TcpRouting, "Direct", StringComparison.OrdinalIgnoreCase);
-        HasDirectRouting = string.Equals(rule.TcpRouting, "Direct", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(rule.UdpRouting, "Direct", StringComparison.OrdinalIgnoreCase);
+        IsCustomRouting = AppsGamesOverlay.IsCustomRouting(rule.TcpRouting)
+                       || AppsGamesOverlay.IsCustomRouting(rule.UdpRouting);
+        CustomProxyLabel = rule.CustomProxyLabel ?? "";
+        HasDirectRouting = !AppsGamesOverlay.IsProxyRouting(rule.TcpRouting)
+                        || !AppsGamesOverlay.IsProxyRouting(rule.UdpRouting);
         RegionLabel = HasCountry ? CrimsonX.Localization.AppStrings.ConnRegionShort : CrimsonX.Localization.AppStrings.MatchMakingRegion;
         RegionTooltip = HasCountry ? CrimsonX.Localization.AppStrings.ConnectionRegionLabel : CrimsonX.Localization.AppStrings.MatchMakingRegion;
         CountryIndex = rule.Country switch { "IRAN" => 1, "UAE" => 2, _ => 0 };
@@ -217,6 +229,11 @@ public partial class AppsGamesOverlay : UserControl
         "lol.pvp.net", "wr.pvp.net", "riotcdn.net", "riotcdn.com", "lolstatic.com",
         "rgpub.io", "riotdns.com", "dradis-prod.rdatasrv.net"
     };
+    internal static readonly string[] LeagueProcessNames = new[]
+    {
+        "League of Legends.exe", "LeagueClient.exe",
+        "LeagueClientUx.exe", "LeagueClientUxRender.exe"
+    };
     private const string TelegramDefaultKey = "telegram";
     private const string TelegramDefaultId = "d1a5c0de-0000-0000-0000-000000000015";
     private const string WhatsAppDefaultKey = "whatsapp";
@@ -302,6 +319,28 @@ public partial class AppsGamesOverlay : UserControl
     {
         return idx >= 0 && idx < RegionOptions.Length ? RegionOptions[idx] : "ALL";
     }
+
+    // ── Routing values: combo order is Proxy (0) / Custom (1) / Direct (2) ──
+
+    internal static string RoutingName(int index) => index switch
+    {
+        1 => "Custom",
+        2 => "Direct",
+        _ => "Proxy"
+    };
+
+    internal static int RoutingIndex(string routing) => routing?.Trim().ToLowerInvariant() switch
+    {
+        "custom" => 1,
+        "direct" => 2,
+        _ => 0
+    };
+
+    internal static bool IsCustomRouting(string routing)
+        => string.Equals(routing, "Custom", StringComparison.OrdinalIgnoreCase);
+
+    internal static bool IsProxyRouting(string routing)
+        => string.IsNullOrEmpty(routing) || string.Equals(routing, "Proxy", StringComparison.OrdinalIgnoreCase);
 
     private AppConfig _cfg => MainWindow.Instance.Config;
     private AppState _state => MainWindow.Instance.State;
@@ -656,12 +695,14 @@ public partial class AppsGamesOverlay : UserControl
         var leagueRule = _rules.FirstOrDefault(r => r.DefaultKey == LeagueDefaultKey);
         if (leagueRule != null)
         {
-            if (leagueRule.ProcessNames == null
-                || !leagueRule.ProcessNames.Contains("League of Legends.exe", StringComparer.Ordinal)
-                || !leagueRule.ProcessNames.Contains("LeagueClient.exe", StringComparer.Ordinal))
+            if (leagueRule.ProcessNames == null) leagueRule.ProcessNames = new List<string>();
+            foreach (var exe in LeagueProcessNames)
             {
-                leagueRule.ProcessNames = new List<string> { "League of Legends.exe", "LeagueClient.exe" };
-                changed = true;
+                if (!leagueRule.ProcessNames.Any(n => string.Equals(n, exe, StringComparison.OrdinalIgnoreCase)))
+                {
+                    leagueRule.ProcessNames.Add(exe);
+                    changed = true;
+                }
             }
             if (leagueRule.Region != "")
             {
@@ -763,7 +804,7 @@ public partial class AppsGamesOverlay : UserControl
             IsEnabled = false,
             AppType = "Game",
             ExeName = "League of Legends",
-            ProcessNames = new List<string> { "League of Legends.exe", "LeagueClient.exe" },
+            ProcessNames = new List<string>(LeagueProcessNames),
             Country = "",
             Region = "",
             TcpRouting = "Direct",
@@ -1495,10 +1536,13 @@ catch (Exception ex)
         if (rbGame != null) rbGame.IsChecked = true;
         
         SetComboIndex("cbTcpRouting", 0);
-        SetComboIndex("cbUdpRouting", 1);
+        SetComboIndex("cbUdpRouting", 2);
         SetComboIndex("cbTcpAdapter", 0);
         SetComboIndex("cbUdpAdapter", 0);
         SetComboIndex("cbRegion", 0);
+        RefreshCustomProxyPool("cbCustomProxy");
+        var cbCustom = this.FindControl<ComboBox>("cbCustomProxy");
+        if (cbCustom != null) cbCustom.Text = "";
         UpdateCustomAdapterAvailability();
         UpdateIconDisplay();
     }
@@ -1516,13 +1560,17 @@ catch (Exception ex)
         _iconBase64 = rule.IconBase64;
         UpdateIconDisplay();
 
-        SetComboIndex("cbTcpRouting", string.Equals(rule.TcpRouting, "Direct", StringComparison.OrdinalIgnoreCase) ? 1 : 0);
-        SetComboIndex("cbUdpRouting", string.Equals(rule.UdpRouting, "Direct", StringComparison.OrdinalIgnoreCase) ? 1 : 0);
+        SetComboIndex("cbTcpRouting", RoutingIndex(rule.TcpRouting));
+        SetComboIndex("cbUdpRouting", RoutingIndex(rule.UdpRouting));
 
         SetComboIndex("cbRegion", AppsGamesOverlay.RegionIndexFor(rule.Region));
 
         SetAdapterByName("cbTcpAdapter", rule.TcpAdapter);
         SetAdapterByName("cbUdpAdapter", rule.UdpAdapter);
+
+        RefreshCustomProxyPool("cbCustomProxy");
+        var cbCustom = this.FindControl<ComboBox>("cbCustomProxy");
+        if (cbCustom != null) cbCustom.Text = rule.CustomProxyRaw ?? "";
 
         UpdateCustomAdapterAvailability();
     }
@@ -1550,8 +1598,8 @@ catch (Exception ex)
         var cbTcpA = this.FindControl<ComboBox>("cbTcpAdapter");
         var cbUdpA = this.FindControl<ComboBox>("cbUdpAdapter");
 
-        bool tcpProxy = cbTcpR == null || cbTcpR.SelectedIndex == 0;
-        bool udpProxy = cbUdpR == null || cbUdpR.SelectedIndex == 0;
+        bool tcpProxy = cbTcpR == null || AppsGamesOverlay.IsProxyRouting(AppsGamesOverlay.RoutingName(cbTcpR.SelectedIndex));
+        bool udpProxy = cbUdpR == null || AppsGamesOverlay.IsProxyRouting(AppsGamesOverlay.RoutingName(cbUdpR.SelectedIndex));
 
         if (cbTcpA != null)
         {
@@ -1569,6 +1617,286 @@ catch (Exception ex)
     private void Routing_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         UpdateCustomAdapterAvailability();
+    }
+
+    // ── Per-app CUSTOM PROXY (config + ping + save + saved pool) ──
+
+    private bool _isCustomPinging;
+
+    private bool _isValidatingCustomProxy;
+
+    private (string Combo, string PingButton, string TcpAdapter, string UdpAdapter) CustomProxyControls()
+        => string.IsNullOrEmpty(_editingDefaultRuleId)
+            ? ("cbCustomProxy", "btnCustomProxyPing", "cbTcpAdapter", "cbUdpAdapter")
+            : ("cbDefaultCustomProxy", "btnDefaultCustomProxyPing", "cbDefaultTcpAdapter", "cbDefaultUdpAdapter");
+
+    private string ActiveCustomProxyText()
+    {
+        var boxes = CustomProxyControls();
+        return this.FindControl<ComboBox>(boxes.Combo)?.Text?.Trim() ?? "";
+    }
+
+    private (string Name, string Ip) ActiveCustomProxyAdapter()
+    {
+        var boxes = CustomProxyControls();
+        string tcp = AdapterNameFromCombo(boxes.TcpAdapter);
+        string udp = AdapterNameFromCombo(boxes.UdpAdapter);
+
+        string name = !string.Equals(tcp, "Default", StringComparison.OrdinalIgnoreCase) ? tcp
+                    : !string.Equals(udp, "Default", StringComparison.OrdinalIgnoreCase) ? udp
+                    : "Default";
+
+        return (name, AdapterIpFor(name));
+    }
+
+    private string AdapterNameFromCombo(string comboName)
+    {
+        int i = this.FindControl<ComboBox>(comboName)?.SelectedIndex ?? 0;
+        return i >= 0 && i < _adapterNames.Count ? _adapterNames[i] : "Default";
+    }
+
+    private static string AdapterIpFor(string adapterName)
+    {
+        if (string.IsNullOrWhiteSpace(adapterName) || string.Equals(adapterName, "Default", StringComparison.OrdinalIgnoreCase))
+            return "";
+
+        try
+        {
+            var nic = NetworkInterface.GetAllNetworkInterfaces()
+                .FirstOrDefault(n => n.Name == adapterName);
+            var ipv4 = nic?.GetIPProperties().UnicastAddresses
+                .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork);
+            return ipv4?.Address?.ToString() ?? "";
+        }
+        catch { return ""; }
+    }
+
+    private bool _suppressCustomPoolSync;
+
+    private readonly Dictionary<string, List<AppCustomConfigEntry>> _customProxyEntries = new(StringComparer.Ordinal);
+
+    private void RefreshCustomProxyPool(string comboName)
+    {
+        var cb = this.FindControl<ComboBox>(comboName);
+        if (cb == null) return;
+
+        string text = cb.Text ?? "";
+
+        var entries = AppCustomConfigStore.Load(_cfg);
+
+        bool wasSuppressed = _suppressCustomPoolSync;
+        _suppressCustomPoolSync = true;
+        try
+        {
+            _customProxyEntries[comboName] = entries;
+            cb.ItemsSource = AppCustomConfigStore.DisplayOptions(entries);
+            cb.SelectedIndex = -1;   // nothing picked: the box keeps showing its config
+            cb.Text = text;
+        }
+        finally
+        {
+            _suppressCustomPoolSync = wasSuppressed;
+        }
+    }
+
+    private async void CustomProxyPing_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_isCustomPinging) return;
+
+        var btn = sender as Button;
+        try
+        {
+            string raw = ActiveCustomProxyText();
+            if (raw.Length == 0)
+            {
+                MainWindow.Instance?.ShowToast(AS.CustomProxyEmpty);
+                return;
+            }
+
+            _isCustomPinging = true;
+            string original = btn?.Content?.ToString() ?? AS.PingBtn;
+            if (btn != null) { btn.Content = AS.ValidatingConfig; btn.IsEnabled = false; }
+
+            var (adapter, adapterIp) = ActiveCustomProxyAdapter();
+
+            long ping = -1;
+            bool timedOut = false;
+            using var cts = new System.Threading.CancellationTokenSource(15000);
+            var res = await SingboxConfigTester.TestAsync(raw, _cfg, adapter, adapterIp, cts.Token);
+            if (res != null && res.Success) ping = res.Ping;
+            if (res != null && !res.Success) timedOut = res.TimedOut;
+
+            if (btn != null) { btn.Content = original; btn.IsEnabled = true; }
+
+            string label = SingboxLinkParser.LabelOf(raw);
+            string msg = ping != -1 ? $"{label}: {ping}ms"
+                       : timedOut ? AS.CustomProxyNoResponse
+                       : AS.InvalidConfig;
+            MainWindow.Instance?.ShowToast(msg, ping != -1);
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+            MainWindow.Instance?.ShowToast(AS.InvalidConfig);
+        }
+        finally
+        {
+            _isCustomPinging = false;
+            if (btn != null && !btn.IsEnabled) { btn.Content = AS.PingBtn; btn.IsEnabled = true; }
+        }
+    }
+
+    private void CustomProxySave_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            string raw = ActiveCustomProxyText();
+            if (raw.Length == 0)
+            {
+                MainWindow.Instance?.ShowToast(AS.CustomProxyEmpty);
+                return;
+            }
+
+            var result = AppCustomConfigStore.Store(_cfg, raw, out var label);
+            switch (result)
+            {
+                case CustomConfigSaveResult.Saved:
+                case CustomConfigSaveResult.Updated:
+                    MainWindow.Instance?.ShowToast($"{AS.ToastCustomProxySaved}: {label}", true);
+                    RefreshCustomProxyPool(CustomProxyControls().Combo);
+                    break;
+
+                case CustomConfigSaveResult.PoolFull:
+                    MainWindow.Instance?.ShowToast(AS.ToastCustomProxyPoolFull);
+                    break;
+
+                default:
+                    MainWindow.Instance?.ShowToast(AS.ToastCustomProxyInvalid);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
+    }
+    private void CustomProxyDelete_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var boxes = CustomProxyControls();
+            string raw = ActiveCustomProxyText();
+            if (raw.Length == 0)
+            {
+                MainWindow.Instance?.ShowToast(AS.CustomProxyEmpty);
+                return;
+            }
+
+            if (AppCustomConfigStore.Delete(_cfg, raw) > 0)
+            {
+                MainWindow.Instance?.ShowToast(AS.ToastCustomProxyDeleted, true);
+                RefreshCustomProxyPool(boxes.Combo);
+            }
+            else
+            {
+                MainWindow.Instance?.ShowToast(AS.ToastCustomProxyNotSaved);
+            }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
+    }
+    private void ApplyCustomProxyToRule(AppGameRule rule, string comboName)
+    {
+        var cb = this.FindControl<ComboBox>(comboName);
+        rule.CustomProxyRaw = cb?.Text?.Trim() ?? "";
+        rule.CustomProxyLabel = rule.CustomProxyRaw.Length > 0
+            ? SingboxLinkParser.LabelOf(rule.CustomProxyRaw)
+            : "";
+    }
+    private async Task<bool> ValidateCustomProxyBeforeSubmitAsync(string comboName, ComboBox? tcpRouting, ComboBox? udpRouting)
+    {
+        bool tcpCustom = AppsGamesOverlay.IsCustomRouting(AppsGamesOverlay.RoutingName(tcpRouting?.SelectedIndex ?? 0));
+        bool udpCustom = AppsGamesOverlay.IsCustomRouting(AppsGamesOverlay.RoutingName(udpRouting?.SelectedIndex ?? 0));
+        if (!tcpCustom && !udpCustom) return true;
+
+        if (_isValidatingCustomProxy) return false;
+        _isValidatingCustomProxy = true;
+
+        try
+        {
+            var cb = this.FindControl<ComboBox>(comboName);
+
+            var (adapter, adapterIp) = ActiveCustomProxyAdapter();
+            string sbDir = _cfg?.SbDir ?? "";
+            string raw = cb?.Text ?? "";
+
+            var result = await Task.Run(() => SingboxConfigValidator.ValidateEditorConfig(sbDir, raw, adapter, adapterIp));
+
+            switch (result)
+            {
+                case CustomProxyCheckResult.Ok:
+                    return true;
+
+                case CustomProxyCheckResult.Missing:
+                    MainWindow.Instance?.ShowToast(AS.CustomProxyRequired);
+                    break;
+
+                case CustomProxyCheckResult.Unparsable:
+                    MainWindow.Instance?.ShowToast(AS.ToastCustomProxyInvalid);
+                    break;
+
+                default:
+                    MainWindow.Instance?.ShowToast(AS.ToastCustomProxyRejected);
+                    break;
+            }
+
+            FocusConfigBox(cb);
+            return false;
+        }
+        finally
+        {
+            _isValidatingCustomProxy = false;
+        }
+    }
+    private static void FocusConfigBox(ComboBox? cb)
+    {
+        if (cb == null) return;
+
+        var inner = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(cb)
+            .OfType<TextBox>()
+            .FirstOrDefault();
+
+        if (inner != null)
+        {
+            inner.Focus();
+            inner.SelectAll();
+        }
+        else
+        {
+            cb.Focus();
+        }
+    }
+    private void CustomProxySaved_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (!_isReady || _suppressCustomPoolSync) return;
+        if (sender is not ComboBox cb) return;
+        if (cb.SelectedIndex < 0) return;
+
+        string boxName = ReferenceEquals(cb, this.FindControl<ComboBox>("cbCustomProxy"))
+            ? "cbCustomProxy"
+            : "cbDefaultCustomProxy";
+
+        string raw = "";
+        if (cb.SelectedIndex > 0)
+        {
+            int index = cb.SelectedIndex - 1;
+            if (!_customProxyEntries.TryGetValue(boxName, out var listed) || index >= listed.Count) return;
+            raw = listed[index].Raw;
+        }
+
+        cb.Text = raw;
     }
 
     private void UpdateIconDisplay()
@@ -1645,7 +1973,7 @@ catch (Exception ex)
         }
     }
 
-    private void BtnSubmit_Click(object? sender, RoutedEventArgs e)
+    private async void BtnSubmit_Click(object? sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_exeName)) return;
 
@@ -1660,12 +1988,14 @@ catch (Exception ex)
                        : rbLaunch?.IsChecked == true ? "Launcher"
                        : "Other";
 
-        string GetRouting(ComboBox? cb) => (cb?.SelectedIndex ?? 0) == 1 ? "Direct" : "Proxy";
+        string GetRouting(ComboBox? cb) => AppsGamesOverlay.RoutingName(cb?.SelectedIndex ?? 0);
         string GetAdapter(ComboBox? cb)
         {
             int i = cb?.SelectedIndex ?? 0;
             return i < _adapterNames.Count ? _adapterNames[i] : "Default";
         }
+
+        if (!await ValidateCustomProxyBeforeSubmitAsync("cbCustomProxy", cbTcpR, cbUdpR)) return;
 
         AppGameRule rule;
         if (!string.IsNullOrEmpty(_editingRuleId))
@@ -1701,6 +2031,10 @@ catch (Exception ex)
         rule.UdpRouting = GetRouting(cbUdpR);
         rule.TcpAdapter = GetAdapter(cbTcpA);
         rule.UdpAdapter = GetAdapter(cbUdpA);
+
+        var cbCustomProxy = this.FindControl<ComboBox>("cbCustomProxy");
+        if (cbCustomProxy != null) cbCustomProxy.Text = cbCustomProxy.Text?.Trim() ?? "";
+        ApplyCustomProxyToRule(rule, "cbCustomProxy");
 
         SaveRules(rule.IsEnabled);
         RefreshList();
@@ -1838,23 +2172,27 @@ catch (Exception ex)
 
     private void ApplyDefaultEditorValues(AppGameRule rule)
     {
-        bool tcpDirect = string.Equals(rule.TcpRouting, "Direct", StringComparison.OrdinalIgnoreCase);
-        bool udpDirect = string.Equals(rule.UdpRouting, "Direct", StringComparison.OrdinalIgnoreCase);
+        bool tcpProxy = AppsGamesOverlay.IsProxyRouting(rule.TcpRouting);
+        bool udpProxy = AppsGamesOverlay.IsProxyRouting(rule.UdpRouting);
 
-        SetAdapterByName("cbDefaultTcpAdapter", tcpDirect ? rule.TcpAdapter : "Default");
+        SetAdapterByName("cbDefaultTcpAdapter", tcpProxy ? "Default" : rule.TcpAdapter);
         var cbTcpA = this.FindControl<ComboBox>("cbDefaultTcpAdapter");
-        if (cbTcpA != null) cbTcpA.IsEnabled = tcpDirect;
+        if (cbTcpA != null) cbTcpA.IsEnabled = !tcpProxy;
 
-        SetAdapterByName("cbDefaultUdpAdapter", udpDirect ? rule.UdpAdapter : "Default");
+        SetAdapterByName("cbDefaultUdpAdapter", udpProxy ? "Default" : rule.UdpAdapter);
         var cbUdpA = this.FindControl<ComboBox>("cbDefaultUdpAdapter");
-        if (cbUdpA != null) cbUdpA.IsEnabled = udpDirect;
+        if (cbUdpA != null) cbUdpA.IsEnabled = !udpProxy;
 
         var cbTcpR = this.FindControl<ComboBox>("cbDefaultTcpRouting");
         var cbUdpR = this.FindControl<ComboBox>("cbDefaultUdpRouting");
         if (cbTcpR != null && cbTcpR.ItemCount > 0)
-            cbTcpR.SelectedIndex = tcpDirect ? 1 : 0;
+            cbTcpR.SelectedIndex = RoutingIndex(rule.TcpRouting);
         if (cbUdpR != null && cbUdpR.ItemCount > 0)
-            cbUdpR.SelectedIndex = udpDirect ? 1 : 0;
+            cbUdpR.SelectedIndex = RoutingIndex(rule.UdpRouting);
+
+        RefreshCustomProxyPool("cbDefaultCustomProxy");
+        var cbCustom = this.FindControl<ComboBox>("cbDefaultCustomProxy");
+        if (cbCustom != null) cbCustom.Text = rule.CustomProxyRaw ?? "";
     }
 
     private void DefaultRestore_Click(object? sender, RoutedEventArgs e)
@@ -1978,11 +2316,11 @@ catch (Exception ex)
         var cbUdpR = this.FindControl<ComboBox>("cbDefaultUdpRouting");
         var cbTcpA = this.FindControl<ComboBox>("cbDefaultTcpAdapter");
         var cbUdpA = this.FindControl<ComboBox>("cbDefaultUdpAdapter");
-        if (cbTcpA != null && cbTcpR != null) cbTcpA.IsEnabled = cbTcpR.SelectedIndex == 1;
-        if (cbUdpA != null && cbUdpR != null) cbUdpA.IsEnabled = cbUdpR.SelectedIndex == 1;
+        if (cbTcpA != null && cbTcpR != null) cbTcpA.IsEnabled = !AppsGamesOverlay.IsProxyRouting(AppsGamesOverlay.RoutingName(cbTcpR.SelectedIndex));
+        if (cbUdpA != null && cbUdpR != null) cbUdpA.IsEnabled = !AppsGamesOverlay.IsProxyRouting(AppsGamesOverlay.RoutingName(cbUdpR.SelectedIndex));
     }
 
-    private void DefaultSubmit_Click(object? sender, RoutedEventArgs e)
+    private async void DefaultSubmit_Click(object? sender, RoutedEventArgs e)
     {
         if (string.IsNullOrEmpty(_editingDefaultRuleId)) { CloseDefaultEditor(); return; }
 
@@ -1993,8 +2331,11 @@ catch (Exception ex)
             {
                 var cbTcpR = this.FindControl<ComboBox>("cbDefaultTcpRouting");
                 var cbUdpR = this.FindControl<ComboBox>("cbDefaultUdpRouting");
-                rule.TcpRouting = (cbTcpR?.SelectedIndex ?? 0) == 1 ? "Direct" : "Proxy";
-                rule.UdpRouting = (cbUdpR?.SelectedIndex ?? 0) == 1 ? "Direct" : "Proxy";
+
+                if (!await ValidateCustomProxyBeforeSubmitAsync("cbDefaultCustomProxy", cbTcpR, cbUdpR)) return;
+
+                rule.TcpRouting = AppsGamesOverlay.RoutingName(cbTcpR?.SelectedIndex ?? 0);
+                rule.UdpRouting = AppsGamesOverlay.RoutingName(cbUdpR?.SelectedIndex ?? 0);
             }
 
             var cbTcpA = this.FindControl<ComboBox>("cbDefaultTcpAdapter");
@@ -2006,8 +2347,13 @@ catch (Exception ex)
             }
             rule.TcpAdapter = GetAdapter(cbTcpA);
             rule.UdpAdapter = GetAdapter(cbUdpA);
-            if (string.Equals(rule.TcpRouting, "Proxy", StringComparison.OrdinalIgnoreCase)) rule.TcpAdapter = "Default";
-            if (string.Equals(rule.UdpRouting, "Proxy", StringComparison.OrdinalIgnoreCase)) rule.UdpAdapter = "Default";
+            if (AppsGamesOverlay.IsProxyRouting(rule.TcpRouting)) rule.TcpAdapter = "Default";
+            if (AppsGamesOverlay.IsProxyRouting(rule.UdpRouting)) rule.UdpAdapter = "Default";
+
+            var cbCustomProxy = this.FindControl<ComboBox>("cbDefaultCustomProxy");
+            if (cbCustomProxy != null) cbCustomProxy.Text = cbCustomProxy.Text?.Trim() ?? "";
+            ApplyCustomProxyToRule(rule, "cbDefaultCustomProxy");
+
             SaveRules();
             RefreshList();
         }
@@ -2198,19 +2544,35 @@ catch (Exception ex)
             }
         }
 
-        private void ApplyChanges_Click(object? sender, RoutedEventArgs e)
+        private bool _isApplyingRules;
+
+        private async void ApplyChanges_Click(object? sender, RoutedEventArgs e)
         {
-            bool ok = MainWindow.Instance.RestartSingBoxOnly();
-            if (ok)
+            if (_isApplyingRules) return;
+
+            var main = MainWindow.Instance;
+            if (main == null) return;
+
+            _isApplyingRules = true;
+            try
             {
-                _hasPendingRuleChanges = false;
-                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastRulesApplied, success: true);
+                bool ok = await Task.Run(() => main.RestartSingBoxOnly());
+
+                if (ok)
+                {
+                    _hasPendingRuleChanges = false;
+                    main.ShowToast(CrimsonX.Localization.AppStrings.ToastRulesApplied, success: true);
+                }
+                else
+                {
+                    main.ShowToast(CrimsonX.Localization.AppStrings.ToastRulesApplyFailed);
+                }
+                UpdateOverlayConnectUI();
             }
-            else
+            finally
             {
-                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastRulesApplyFailed);
+                _isApplyingRules = false;
             }
-            UpdateOverlayConnectUI();
         }
 
         private void OnConnectionProgress(int percent)
@@ -2488,10 +2850,33 @@ catch (Exception ex)
             Apply(F("lblRouting"), AS.RoutingLabel);
             Apply(F("lblAdapter"), AS.AdapterLabel);
 
-            // Routing combos (Proxy / Direct)
-            var routingItems = new[] { AS.RoutingProxy, AS.RoutingDirect };
+            // Routing combos (Proxy / Custom / Direct)
+            var routingItems = new[] { AS.RoutingProxy, AS.RoutingCustom, AS.RoutingDirect };
             FillCombo("cbTcpRouting", routingItems, 0, this.FindControl<ComboBox>("cbTcpRouting")?.SelectedIndex);
-            FillCombo("cbUdpRouting", routingItems, 1, this.FindControl<ComboBox>("cbUdpRouting")?.SelectedIndex);
+            FillCombo("cbUdpRouting", routingItems, 2, this.FindControl<ComboBox>("cbUdpRouting")?.SelectedIndex);
+
+            // Per-app custom proxy
+            Apply(F("lblCustomProxy"), AS.CustomProxyLabel);
+            ApplyControl("btnCustomProxyPing", AS.PingBtn);
+            ApplyControl("btnCustomProxySave", AS.Save);
+            ApplyControl("btnDefaultCustomProxyPing", AS.PingBtn);
+            ApplyControl("btnDefaultCustomProxySave", AS.Save);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnCustomProxyDelete"), AS.DeleteSavedConfigTooltip);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnDefaultCustomProxyDelete"), AS.DeleteSavedConfigTooltip);
+            Apply(F("lblDefaultCustomProxy"), AS.CustomProxyLabel);
+
+            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblCustomProxy"), AS.CustomProxyHint);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblDefaultCustomProxy"), AS.CustomProxyHint);
+            foreach (var boxName in new[] { "cbCustomProxy", "cbDefaultCustomProxy" })
+            {
+                var box = this.FindControl<ComboBox>(boxName);
+                if (box == null) continue;
+                box.PlaceholderText = AS.CustomProxyPlaceholder;
+                CrimsonX.Localization.AppStrings.ApplyToolTip(box, AS.CustomProxyTooltip);
+            }
+
+            RefreshCustomProxyPool("cbCustomProxy");
+            RefreshCustomProxyPool("cbDefaultCustomProxy");
 
             ApplyControl("btnDefaultSubmit", AS.Submit);
             ApplyControl("btnDefaultCancel", AS.Cancel);

@@ -89,6 +89,13 @@ namespace CrimsonX.Models
         public string ThemeColor { get; set; } = "Crimson";
         [JsonProperty("XrayBalancePolicy")]
         public string XrayBalancePolicy { get; set; } = "leastping";
+
+        // UDP Scanner page options
+        public int UdpScanAmount { get; set; } = 10;
+        public int UdpScanConcurrency { get; set; } = 5;
+        public int UdpScanDiscardMs { get; set; } = 500;
+        public string UdpScanAdapterName { get; set; } = "";
+        public string UdpScanAdapterIp { get; set; } = "";
     }
 
     public class AppState

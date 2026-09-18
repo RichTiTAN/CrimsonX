@@ -105,7 +105,7 @@ namespace CrimsonX.Behaviors
                     state.Velocity = 0;
                 }
 
-                double scrollAmount = 180; 
+                double scrollAmount = 170; 
                 state.Velocity += e.Delta.Y * scrollAmount;
                 
 
@@ -147,7 +147,7 @@ namespace CrimsonX.Behaviors
                 }
                 else
                 {
-                    double easeAmount = diff * 0.28; 
+                    double easeAmount = diff * 0.252; 
                     scroller.Offset = new Vector(scroller.Offset.X, currentOffset + easeAmount);
                     anyActive = true;
                 }

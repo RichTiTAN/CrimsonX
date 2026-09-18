@@ -64,7 +64,6 @@ public partial class MainWindow : IDisposable
         Controls.QuickSettingsPanel.ClearInstance();
     }
 
-    /// <inheritdoc />
     public void Dispose()
     {
         Dispose(true);

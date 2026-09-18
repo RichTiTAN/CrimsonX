@@ -22,6 +22,8 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using CrimsonX.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace CrimsonX.Services
 {
@@ -31,6 +33,14 @@ namespace CrimsonX.Services
         public List<object> Outbounds  { get; } = new List<object>();
         public List<object> DnsRules   { get; } = new List<object>();
         public List<object> RuleSets   { get; } = new List<object>();
+
+        public List<object> DnsServers { get; } = new List<object>();
+
+        public List<CustomOutboundProbe> CustomProxies { get; } = new List<CustomOutboundProbe>();
+
+        internal Dictionary<string, string> CustomTags { get; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        public Dictionary<string, string> CustomLabels { get; } = new Dictionary<string, string>(StringComparer.Ordinal);
     }
 
     public static class AppRulesSingboxBuilder
@@ -45,11 +55,7 @@ namespace CrimsonX.Services
             ["Oceania"]       = "oceania",
         };
 
-        private const string DiscordDefaultKey = "discord";
-        private const int DiscordVoicePortStart = 19294;
-        private const int DiscordVoicePortEnd = 19344;
-
-        public static AppRulesSingboxResult Build(AppConfig config)
+        public static AppRulesSingboxResult Build(AppConfig config, ISet<string> skipCustomKeys = null)
         {
             var result = new AppRulesSingboxResult();
 
@@ -67,6 +73,7 @@ namespace CrimsonX.Services
             if (enabled.Count == 0) return result;
 
             var adapterTags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var adapterIps  = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             int adapterIndex = 1;
             var usedRuleSets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -103,40 +110,42 @@ namespace CrimsonX.Services
                     });
                 }
 
+                string tcpOutbound = ResolveOutbound(rule, rule.TcpRouting, rule.TcpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys);
+                string udpOutbound = ResolveOutbound(rule, rule.UdpRouting, rule.UdpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys);
+
                 result.RouteRules.Add(new
                 {
                     process_name = namesArray,
                     network = "tcp",
                     action = "route",
-                    outbound = ResolveOutbound(rule.TcpRouting, rule.TcpAdapter, adapterTags, ref adapterIndex, result)
+                    outbound = tcpOutbound
                 });
-                if (string.Equals(rule.DefaultKey, DiscordDefaultKey, StringComparison.Ordinal))
+                result.RouteRules.Add(new
                 {
-                    result.RouteRules.Add(new
-                    {
-                        port_range = $"{DiscordVoicePortStart}:{DiscordVoicePortEnd}",
-                        network = "udp",
-                        action = "route",
-                        outbound = ResolveOutbound(rule.UdpRouting, rule.UdpAdapter, adapterTags, ref adapterIndex, result)
-                    });
-                }
-                else
-                {
-                    result.RouteRules.Add(new
-                    {
-                        process_name = namesArray,
-                        network = "udp",
-                        action = "route",
-                        outbound = ResolveOutbound(rule.UdpRouting, rule.UdpAdapter, adapterTags, ref adapterIndex, result)
-                    });
-                }
+                    process_name = namesArray,
+                    network = "udp",
+                    action = "route",
+                    outbound = udpOutbound
+                });
 
-                bool fullyProxied = rule.TcpRouting == "Proxy" && rule.UdpRouting == "Proxy";
+                bool tcpCustom = IsCustomRouting(rule.TcpRouting);
+                bool udpCustom = IsCustomRouting(rule.UdpRouting);
+                bool tcpCustomTag = tcpCustom && tcpOutbound.StartsWith("custom-", StringComparison.Ordinal);
+                bool udpCustomTag = udpCustom && udpOutbound.StartsWith("custom-", StringComparison.Ordinal);
+                bool fullyCustom = tcpCustomTag && udpCustomTag && tcpOutbound == udpOutbound;
+                bool fullyProxied = IsProxyRouting(rule.TcpRouting) && IsProxyRouting(rule.UdpRouting);
+
+                string dnsServer = fullyCustom ? "dns-" + tcpOutbound
+                                 : tcpCustomTag ? "dns-" + tcpOutbound
+                                 : udpCustomTag ? "dns-" + udpOutbound
+                                 : fullyProxied ? "dns_proxy"
+                                 : "dns_direct";
+
                 result.DnsRules.Add(new
                 {
                     process_name = namesArray,
                     action = "route",
-                    server = fullyProxied ? "dns_proxy" : "dns_direct"
+                    server = dnsServer
                 });
 
                 var domains = rule.Domains != null
@@ -148,14 +157,14 @@ namespace CrimsonX.Services
                     {
                         domain_suffix = domains,
                         action = "route",
-                        outbound = ResolveOutbound(rule.TcpRouting, rule.TcpAdapter, adapterTags, ref adapterIndex, result)
+                        outbound = tcpOutbound
                     });
 
                     result.DnsRules.Add(new
                     {
                         domain_suffix = domains,
                         action = "route",
-                        server = fullyProxied ? "dns_proxy" : "dns_direct"
+                        server = dnsServer
                     });
                 }
             }
@@ -174,9 +183,16 @@ namespace CrimsonX.Services
             return result;
         }
 
-        private static string ResolveOutbound(string routing, string adapter,
-            Dictionary<string, string> adapterTags, ref int adapterIndex, AppRulesSingboxResult result)
+        private static string ResolveOutbound(AppGameRule rule, string routing, string adapter,
+            Dictionary<string, string> adapterTags, Dictionary<string, string> adapterIps, ref int adapterIndex,
+            AppRulesSingboxResult result, ISet<string> skipCustomKeys)
         {
+            if (IsCustomRouting(routing))
+            {
+                string customTag = ResolveCustomOutbound(rule, adapter, adapterIps, result, skipCustomKeys);
+                return customTag.Length > 0 ? customTag : "proxy";
+            }
+
             bool direct = string.Equals(routing, "Direct", StringComparison.OrdinalIgnoreCase);
             bool customAdapter = !string.IsNullOrWhiteSpace(adapter)
                 && !string.Equals(adapter, "Default", StringComparison.OrdinalIgnoreCase);
@@ -196,7 +212,7 @@ namespace CrimsonX.Services
                     ["tag"] = tag,
                     ["bind_interface"] = adapter
                 };
-                string ip = ResolveAdapterIp(adapter);
+                string ip = CachedAdapterIp(adapterIps, adapter);
                 if (!string.IsNullOrWhiteSpace(ip)) ob["inet4_bind_address"] = ip;
 
                 result.Outbounds.Add(ob);
@@ -206,22 +222,89 @@ namespace CrimsonX.Services
             return "direct";
         }
 
+        private static bool IsCustomRouting(string routing)
+            => string.Equals(routing, "Custom", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsProxyRouting(string routing)
+            => string.IsNullOrEmpty(routing)
+            || string.Equals(routing, "Proxy", StringComparison.OrdinalIgnoreCase)
+            || IsCustomRouting(routing);
+
+        private static string ResolveCustomOutbound(AppGameRule rule, string adapter,
+            Dictionary<string, string> adapterIps, AppRulesSingboxResult result, ISet<string> skipCustomKeys)
+        {
+            string raw = rule?.CustomProxyRaw ?? "";
+            if (string.IsNullOrWhiteSpace(raw)) return "";
+
+            string key = SingboxLinkParser.KeyOf(raw, adapter);
+            if (skipCustomKeys != null && skipCustomKeys.Contains(key)) return "";
+            if (result.CustomTags.TryGetValue(key, out var existing)) return existing;
+
+            if (!SingboxLinkParser.TryParseLink(raw, out var outboundJson, out var label)) return "";
+
+            JObject outbound;
+            try { outbound = JObject.Parse(outboundJson); }
+            catch { return ""; }
+
+            string tag = "custom-" + result.CustomProxies.Count;
+            SingboxLinkParser.WithTagAndDial(outbound, tag, adapter, CachedAdapterIp(adapterIps, adapter));
+
+            string normalized = outbound.ToString(Formatting.None);
+
+            result.Outbounds.Add(outbound);
+            result.CustomProxies.Add(new CustomOutboundProbe { Key = key, OutboundJson = normalized });
+            result.CustomTags[key] = tag;
+            result.CustomLabels[tag] = label;
+
+            result.DnsServers.Add(new
+            {
+                tag     = "dns-" + tag,
+                type    = "https",
+                server  = "dns.google",
+                path    = "/dns-query",
+                detour  = tag
+            });
+
+            return tag;
+        }
+
         internal static List<string> BuildProcessNames(IEnumerable<string> processNames)
         {
-            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var result = new List<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+
+            void AddUnique(string value)
+            {
+                if (value.Length > 0 && seen.Add(value)) result.Add(value);
+            }
+
             foreach (var raw in processNames)
             {
-                string exe = raw.Trim().ToLowerInvariant();
+                if (raw == null) continue;
+
+                string exe = raw.Trim();
                 if (exe.Length == 0) continue;
 
-                set.Add(exe);
+                AddUnique(exe);
+                AddUnique(exe.ToLowerInvariant());
 
                 if (exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    set.Add(exe.Substring(0, exe.Length - 4));
+                    string baseName = exe.Substring(0, exe.Length - 4);
+                    AddUnique(baseName);
+                    AddUnique(baseName.ToLowerInvariant());
                 }
             }
-            return set.ToList();
+
+            return result;
+        }
+        private static string CachedAdapterIp(Dictionary<string, string> cache, string adapterName)
+        {
+            if (cache.TryGetValue(adapterName, out var cached)) return cached;
+
+            string ip = ResolveAdapterIp(adapterName);
+            cache[adapterName] = ip;
+            return ip;
         }
 
         private static string ResolveAdapterIp(string adapterName)

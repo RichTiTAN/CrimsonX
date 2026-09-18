@@ -45,6 +45,12 @@
                 </Transitions>
             </Setter>
         </Style>
+        <!-- Editable custom-config combos (Classes="customProxy"): the ComboBox template pins its inner
+             TextBox to VerticalContentAlignment=Stretch, which parks the text at the top of the 24px box.
+             Centre it inside that TextBox so it lines up with the read-only combos. -->
+        <Style Selector="ComboBox.customProxy /template/ TextBox">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
             <Style Selector="RadioButton.pill">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#8B949E"/>
@@ -277,7 +283,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                                 Click="EditDefaultRule_Click"
                                                                 Background="Transparent" BorderThickness="0"
                                                                 Margin="10,0,0,0"
-                                                                Padding="6,4" Cursor="Hand" ToolTip.Tip="{Binding EditAdaptersTooltip}">
+                                                                Padding="6,4" Cursor="Hand" ToolTip.Tip="{Binding EditorTooltip}">
                                                             <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
                                                                       Width="12" Height="12" Foreground="#606060"/>
                                                         </Button>
@@ -327,7 +333,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                     </Border.Transitions>
 
                                     <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8">
-                                      <Grid RowDefinitions="Auto, Auto, Auto, Auto, *" Margin="0,8,0,0">
+                                      <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, *" Margin="0,8,0,0">
                                         <!-- Header -->
                                         <Grid Grid.Row="0" Margin="12,0,12,10" ColumnDefinitions="*, Auto">
                                             <TextBlock x:Name="lblEditorHeader" Grid.Column="0" Text="ADD PROGRAM" FontSize="11" FontWeight="Bold" Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center" Margin="6,0,0,0"/>
@@ -510,8 +516,59 @@ Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
                                         <!-- Horizontal Separator 2 -->
                                         <Border Grid.Row="3" Height="1" Background="#2D3748" HorizontalAlignment="Stretch" Margin="0,0,0,0"/>
 
+                                        <!-- CUSTOM PROXY (config box doubles as the saved-configs dropdown, + ping + save) -->
+                                        <Grid Grid.Row="4" Margin="12,8,12,7" ColumnDefinitions="Auto, *">
+                                            <TextBlock x:Name="lblCustomProxy" Grid.Column="0" Text="CUSTOM PROXY" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                            <!-- Config box = editable combo: type/paste a new config, or click the arrow for saved ones -->
+                                            <Grid Grid.Column="1" Height="29" ColumnDefinitions="*,Auto">
+                                                <ComboBox x:Name="cbCustomProxy" Grid.Column="0" Classes="customProxy" IsEditable="True"
+                                                          SelectedIndex="-1" MinHeight="24" Height="24" Margin="0"
+                                                          FontFamily="Consolas" FontSize="10" Padding="8,5,28,3"
+                                                          Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4"
+                                                          VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                                                          PlaceholderText="vless:// / vmess:// / sing-box JSON"
+                                                          ToolTip.Tip="Type or paste a config, or pick a previously saved one from the arrow. Set a protocol's routing to CUSTOM PROXY to use it."
+                                                          SelectionChanged="CustomProxySaved_SelectionChanged"/>
+                                                    <Grid Grid.Column="1" Height="24" VerticalAlignment="Center" ColumnDefinitions="55,55,28">
+                                                    <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0" MinHeight="24">
+                                                        <Button x:Name="btnCustomProxyPing" Content="PING" Click="CustomProxyPing_Click" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                    </Border>
+                                                    <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0" MinHeight="24">
+                                                        <Button x:Name="btnCustomProxySave" Content="SAVE" Click="CustomProxySave_Click" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                    </Border>
+                                                    <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0" MinHeight="24">
+                                                        <Button x:Name="btnCustomProxyDelete" Click="CustomProxyDelete_Click" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0" ToolTip.Tip="Remove the config in the box from the saved list">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                            <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Width="12" Height="12" Foreground="#E53E3E"/>
+                                                        </Button>
+                                                    </Border>
+                                                    </Grid>
+                                            </Grid>
+                                        </Grid>
+
+                                        <!-- Horizontal Separator 3 -->
+                                        <Border Grid.Row="5" Height="1" Background="#2D3748" HorizontalAlignment="Stretch"/>
+
                                         <!-- CONNECTION REGION -->
-                                        <Grid Grid.Row="4" Margin="12,10,12,10" ColumnDefinitions="Auto, *">
+                                        <Grid Grid.Row="6" Margin="12,10,12,10" ColumnDefinitions="Auto, *">
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,12,0">
                                                 <TextBlock x:Name="lblConnectionRegion" Text="CONNECTION REGION" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
                                                 <TextBlock x:Name="lblConnectionRegionWarning" Text="Choosing a region might not work on all programs." FontSize="8" Foreground="#8B949E" Opacity="0.7" VerticalAlignment="Center"/>
@@ -534,7 +591,7 @@ Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
                                         </Transitions>
                                     </Border.Transitions>
                                     <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8">
-                                        <Grid RowDefinitions="Auto, Auto, Auto">
+                                        <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto">
                                             <Grid Grid.Row="0" ColumnDefinitions="16, Auto, Auto, Auto, 16, Auto, Auto, Auto, *" Margin="6,0,6,0" MinHeight="120">
                                                 <LayoutTransformControl Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                         UseRenderTransform="False">
@@ -625,8 +682,57 @@ Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
                                             </Grid>
                                             <!-- Horizontal Separator -->
                                             <Border Grid.Row="1" Height="1" Background="#2D3748" HorizontalAlignment="Stretch"/>
+                                            <Grid Grid.Row="2" Margin="12,8,12,7" ColumnDefinitions="Auto, *">
+                                                <TextBlock x:Name="lblDefaultCustomProxy" Grid.Column="0" Text="CUSTOM PROXY" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                <!-- Config box = editable combo: type/paste a new config, or click the arrow for saved ones -->
+                                                <Grid Grid.Column="1" Height="29" ColumnDefinitions="*,Auto">
+                                                    <ComboBox x:Name="cbDefaultCustomProxy" Grid.Column="0" Classes="customProxy" IsEditable="True"
+                                                              SelectedIndex="-1" MinHeight="24" Height="24" Margin="0"
+                                                              FontFamily="Consolas" FontSize="10" Padding="8,5,28,3"
+                                                              Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4"
+                                                              VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Stretch"
+                                                              PlaceholderText="vless:// / vmess:// / sing-box JSON"
+                                                              ToolTip.Tip="Type or paste a config, or pick a previously saved one from the arrow. Set a protocol's routing to CUSTOM PROXY to use it."
+                                                              SelectionChanged="CustomProxySaved_SelectionChanged"/>
+                                                        <Grid Grid.Column="1" Height="24" VerticalAlignment="Center" ColumnDefinitions="55,55,28">
+                                                            <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0" MinHeight="24">
+                                                                <Button x:Name="btnDefaultCustomProxyPing" Content="PING" Click="CustomProxyPing_Click" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                </Button>
+                                                            </Border>
+                                                            <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0" MinHeight="24">
+                                                                <Button x:Name="btnDefaultCustomProxySave" Content="SAVE" Click="CustomProxySave_Click" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                </Button>
+                                                            </Border>
+                                                            <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0" MinHeight="24">
+                                                                <Button x:Name="btnDefaultCustomProxyDelete" Click="CustomProxyDelete_Click" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0" ToolTip.Tip="Remove the config in the box from the saved list">
+                                                                    <Button.Styles>
+                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                        </Style>
+                                                                    </Button.Styles>
+                                                                    <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Width="12" Height="12" Foreground="#E53E3E"/>
+                                                                </Button>
+                                                            </Border>
+                                                        </Grid>
+                                                </Grid>
+                                            </Grid>
+
+                                            <!-- Horizontal Separator -->
+                                            <Border Grid.Row="3" Height="1" Background="#2D3748" HorizontalAlignment="Stretch"/>
                                             <!-- Bottom bar: title + submit/cancel -->
-                                            <Grid Grid.Row="2" Margin="12,10,12,10" ColumnDefinitions="*, Auto">
+                                            <Grid Grid.Row="4" Margin="12,10,12,10" ColumnDefinitions="*, Auto">
                                                 <TextBlock x:Name="lblDefaultEditorHeader" Grid.Column="0" Text="DISCORD" FontSize="11" FontWeight="Bold" Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center" Margin="6,0,0,0"/>
                                                 <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
                                                     <Grid ColumnDefinitions="Auto, 1, Auto">

@@ -793,5 +793,187 @@ namespace CrimsonX.Services
                 outbound["streamSettings"] = stream;
             }
         }
+        public static bool TryBuildShareLink(string outboundJson, out string link, string displayName = null)
+        {
+            link = string.Empty;
+            if (string.IsNullOrWhiteSpace(outboundJson)) return false;
+
+            try
+            {
+                string trimmed = outboundJson.Trim();
+                if (!trimmed.StartsWith("{"))
+                {
+                    if (string.IsNullOrWhiteSpace(displayName))
+                    {
+                        link = trimmed;
+                        return true;
+                    }
+
+                    int hash = trimmed.IndexOf('#');
+                    string basePart = hash >= 0 ? trimmed.Substring(0, hash) : trimmed;
+                    link = basePart + "#" + Uri.EscapeDataString(displayName);
+                    return true;
+                }
+
+                JObject root = JObject.Parse(trimmed);
+                if (root["outbounds"] is JArray arr && arr.Count > 0)
+                    root = (JObject)arr[0];
+
+                string protocol = root["protocol"]?.ToString()?.ToLowerInvariant() ?? "";
+                var settings = root["settings"] as JObject;
+                var stream = root["streamSettings"] as JObject;
+
+                string address = "", password = "", method = "", id = "", flow = "", alterId = "0", vmessSecurity = "auto";
+                int port = 0;
+
+                if (settings?["vnext"] is JArray vnext && vnext.Count > 0)
+                {
+                    var node = (JObject)vnext[0];
+                    address = node["address"]?.ToString() ?? "";
+                    port = node["port"]?.Value<int>() ?? 0;
+                    if (node["users"] is JArray users && users.Count > 0)
+                    {
+                        var user = (JObject)users[0];
+                        id = user["id"]?.ToString() ?? "";
+                        flow = user["flow"]?.ToString() ?? "";
+                        alterId = user["alterId"]?.ToString() ?? "0";
+                        vmessSecurity = user["security"]?.ToString() ?? "auto";
+                    }
+                }
+                else if (settings?["servers"] is JArray servers && servers.Count > 0)
+                {
+                    var node = (JObject)servers[0];
+                    address = node["address"]?.ToString() ?? "";
+                    port = node["port"]?.Value<int>() ?? 0;
+                    password = node["password"]?.ToString() ?? "";
+                    method = node["method"]?.ToString() ?? "";
+                }
+
+                if (string.IsNullOrWhiteSpace(address) || port <= 0) return false;
+
+                string network = stream?["network"]?.ToString() ?? "tcp";
+                string security = stream?["security"]?.ToString() ?? "none";
+                var tls = stream?[security + "Settings"] as JObject;
+
+                string sni = tls?["serverName"]?.ToString() ?? "";
+                string fp = tls?["fingerprint"]?.ToString() ?? "";
+                string alpn = tls?["alpn"] is JArray alpnArr && alpnArr.Count > 0
+                    ? string.Join(",", alpnArr.Select(a => a.ToString()))
+                    : "";
+                bool insecure = tls?["allowInsecure"]?.Value<bool>() == true;
+                string pbk = tls?["publicKey"]?.ToString() ?? "";
+                string sid = tls?["shortId"]?.ToString() ?? "";
+                string spx = tls?["spiderX"]?.ToString() ?? "";
+
+                string path = "", host = "", serviceName = "", headerType = "";
+                switch (network)
+                {
+                    case "ws":
+                        path = stream?["wsSettings"]?["path"]?.ToString() ?? "";
+                        host = stream?["wsSettings"]?["headers"]?["Host"]?.ToString() ?? "";
+                        break;
+                    case "grpc":
+                        serviceName = stream?["grpcSettings"]?["serviceName"]?.ToString() ?? "";
+                        break;
+                    case "tcp":
+                        headerType = stream?["tcpSettings"]?["header"]?["type"]?.ToString() ?? "";
+                        if (headerType == "http")
+                        {
+                            path = (stream?["tcpSettings"]?["header"]?["request"]?["path"] as JArray)?.FirstOrDefault()?.ToString() ?? "";
+                            host = (stream?["tcpSettings"]?["header"]?["request"]?["headers"]?["Host"] as JArray)?.FirstOrDefault()?.ToString() ?? "";
+                        }
+                        break;
+                    case "httpupgrade":
+                        path = stream?["httpupgradeSettings"]?["path"]?.ToString() ?? "";
+                        host = stream?["httpupgradeSettings"]?["host"]?.ToString() ?? "";
+                        break;
+                    case "xhttp":
+                        path = stream?["xhttpSettings"]?["path"]?.ToString() ?? "";
+                        host = stream?["xhttpSettings"]?["host"]?.ToString() ?? "";
+                        break;
+                }
+
+                string fragment = string.IsNullOrWhiteSpace(displayName) ? "" : "#" + Uri.EscapeDataString(displayName);
+
+                if (protocol == "shadowsocks")
+                {
+                    link = $"ss://{Convert.ToBase64String(Encoding.UTF8.GetBytes($"{method}:{password}"))}@{address}:{port}{fragment}";
+                    return true;
+                }
+
+                var query = new List<string> { "type=" + network };
+                if (security != "none") query.Add("security=" + security);
+                if (!string.IsNullOrEmpty(sni)) query.Add("sni=" + Uri.EscapeDataString(sni));
+                if (!string.IsNullOrEmpty(fp)) query.Add("fp=" + fp);
+                if (!string.IsNullOrEmpty(alpn)) query.Add("alpn=" + Uri.EscapeDataString(alpn));
+                if (insecure) query.Add("allowInsecure=1");
+                if (!string.IsNullOrEmpty(flow)) query.Add("flow=" + flow);
+                if (!string.IsNullOrEmpty(pbk)) query.Add("pbk=" + Uri.EscapeDataString(pbk));
+                if (!string.IsNullOrEmpty(sid)) query.Add("sid=" + Uri.EscapeDataString(sid));
+                if (!string.IsNullOrEmpty(spx)) query.Add("spx=" + Uri.EscapeDataString(spx));
+
+                if (network == "ws" || network == "httpupgrade" || network == "xhttp")
+                {
+                    if (!string.IsNullOrEmpty(path)) query.Add("path=" + Uri.EscapeDataString(path));
+                    if (!string.IsNullOrEmpty(host)) query.Add("host=" + Uri.EscapeDataString(host));
+                }
+                else if (network == "grpc")
+                {
+                    if (!string.IsNullOrEmpty(serviceName)) query.Add("serviceName=" + Uri.EscapeDataString(serviceName));
+                }
+                else if (network == "tcp" && headerType == "http")
+                {
+                    query.Add("headerType=http");
+                    if (!string.IsNullOrEmpty(path)) query.Add("path=" + Uri.EscapeDataString(path));
+                    if (!string.IsNullOrEmpty(host)) query.Add("host=" + Uri.EscapeDataString(host));
+                }
+
+                string queryString = "?" + string.Join("&", query);
+
+                switch (protocol)
+                {
+                    case "vless":
+                        link = $"vless://{id}@{address}:{port}{queryString}{fragment}";
+                        return true;
+
+                    case "trojan":
+                        link = $"trojan://{Uri.EscapeDataString(password)}@{address}:{port}{queryString}{fragment}";
+                        return true;
+
+                    case "vmess":
+                    {
+                        var vmess = new JObject
+                        {
+                            ["v"] = "2",
+                            ["ps"] = displayName ?? "",
+                            ["add"] = address,
+                            ["port"] = port.ToString(),
+                            ["id"] = id,
+                            ["aid"] = alterId,
+                            ["scy"] = vmessSecurity,
+                            ["net"] = network,
+                            ["type"] = string.IsNullOrEmpty(headerType) ? "none" : headerType,
+                            ["host"] = host,
+                            ["path"] = path,
+                            ["tls"] = security == "none" ? "" : security,
+                            ["sni"] = sni,
+                            ["alpn"] = alpn,
+                            ["fp"] = fp
+                        };
+
+                        link = "vmess://" + Convert.ToBase64String(Encoding.UTF8.GetBytes(vmess.ToString(Newtonsoft.Json.Formatting.None)));
+                        return true;
+                    }
+
+                    default:
+                        return false;
+                }
+            }
+            catch
+            {
+                link = string.Empty;
+                return false;
+            }
+        }
     }
 }

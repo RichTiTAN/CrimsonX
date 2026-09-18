@@ -79,6 +79,12 @@ namespace CrimsonX.Services
                 XrayBalancePolicy = config.XrayBalancePolicy,
                 EnableExcludedContinents = config.EnableExcludedContinents,
                 ExcludedContinents = config.ExcludedContinents,
+
+                UdpScanAmount = config.UdpScanAmount,
+                UdpScanConcurrency = config.UdpScanConcurrency,
+                UdpScanDiscardMs = config.UdpScanDiscardMs,
+                UdpScanAdapterName = config.UdpScanAdapterName,
+                UdpScanAdapterIp = config.UdpScanAdapterIp,
             };
 
             try

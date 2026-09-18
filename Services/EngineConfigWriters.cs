@@ -1,4 +1,4 @@
-﻿/*
+/*
  * CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
  * Copyright (C) 2026 RichTiTAN
  *
@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using Newtonsoft.Json;
@@ -401,7 +402,7 @@ namespace CrimsonX.Services
     {
         public static bool Write(AppConfig config, string sbDir)
         {
-            var currentExe = Path.GetFileName(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "").ToLower();
+            var currentExe = Path.GetFileName(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "");
 
             var systemBypassApps = new List<string>
             {
@@ -410,6 +411,9 @@ namespace CrimsonX.Services
                 "sing-box.exe", "sing-box", "cmd.exe", "conhost.exe",
                 "powershell.exe", "pwsh.exe"
             };
+
+            if (currentExe.Length > 0 && !systemBypassApps.Contains(currentExe.ToLowerInvariant()))
+                systemBypassApps.Add(currentExe.ToLowerInvariant());
 
             var userApps = new List<string>();
 
@@ -431,163 +435,209 @@ namespace CrimsonX.Services
             }
 
             var appRules = AppRulesSingboxBuilder.Build(config);
+            string configPath = Path.Combine(sbDir, "config.json");
 
-            var sbRules = new List<object>
+            object BuildSbConfig(AppRulesSingboxResult rules)
             {
-                new { action = "sniff" },
-                new { protocol = "quic", action = "reject", method = "default" },
-                new { protocol = "dns", action = "hijack-dns" },
-                new { port = new[] { 53 }, network = "udp", action = "hijack-dns" },
-                new { port = new[] { 53 }, network = "tcp", action = "hijack-dns" },
-                new { domain_keyword = new[] { AppSecrets.WorkerDomainKeyword }, action = "route", outbound = "direct" },
-                new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" }
-            };
-
-            if (appRules.RouteRules.Count > 0)
-                sbRules.AddRange(appRules.RouteRules);
-
-            if (config.EnableDirectUDP)
-            {
-                sbRules.Add(new { network = "udp", action = "route", outbound = !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp) ? "direct-udp" : "direct" });
-            }
-
-            if (userApps.Count > 0)
-            {
-                string targetOutbound = config.SplitTunnelMode == "INCLUSIVE" ? "proxy" : "direct";
-                sbRules.Add(new { process_name = userApps.ToArray(), action = "route", outbound = targetOutbound });
-            }
-
-            sbRules.Add(new { network = "udp", port = new[] { 3478, 5349 }, action = "route", outbound = "direct" });
-            sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
-
-            var dnsServers = new List<object>
-            {
-                new { tag = "dns_direct", type = "udp", server = "8.8.8.8" }
-            };
-
-            if (config.EnableUpstreamDoh && !string.IsNullOrWhiteSpace(config.UpstreamDohUrl))
-            {
-                if (config.UpstreamDohUrl.StartsWith("https://"))
+                var sbRules = new List<object>
                 {
-                    try
+                    new { action = "sniff" },
+                    new { protocol = "dns", action = "hijack-dns" },
+                    new { port = new[] { 53 }, network = "udp", action = "hijack-dns" },
+                    new { port = new[] { 53 }, network = "tcp", action = "hijack-dns" }
+                };
+
+                if (rules.RouteRules.Count > 0)
+                    sbRules.AddRange(rules.RouteRules);
+
+                sbRules.Add(new { protocol = "quic", action = "reject", method = "default" });
+                sbRules.Add(new { domain_keyword = new[] { AppSecrets.WorkerDomainKeyword }, action = "route", outbound = "direct" });
+                sbRules.Add(new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" });
+
+                if (userApps.Count > 0)
+                {
+                    string targetOutbound = config.SplitTunnelMode == "INCLUSIVE" ? "proxy" : "direct";
+                    sbRules.Add(new { process_name = userApps.ToArray(), action = "route", outbound = targetOutbound });
+                }
+
+                if (config.EnableDirectUDP)
+                {
+                    sbRules.Add(new { network = "udp", action = "route", outbound = !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp) ? "direct-udp" : "direct" });
+                }
+
+                sbRules.Add(new { network = "udp", port = new[] { 3478, 5349 }, action = "route", outbound = "direct" });
+                sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
+
+                // ── Upstream resolvers ───────────────────────────────────────────────────────────────
+                var dnsServers = new List<object>
+                {
+                    new { tag = "dns_direct", type = "udp", server = "8.8.8.8" }
+                };
+
+                if (rules.DnsServers.Count > 0)
+                    dnsServers.AddRange(rules.DnsServers);
+
+                if (config.EnableUpstreamDoh && !string.IsNullOrWhiteSpace(config.UpstreamDohUrl))
+                {
+                    if (config.UpstreamDohUrl.StartsWith("https://"))
                     {
-                        var u = new Uri(config.UpstreamDohUrl);
-                        var dPath = u.AbsolutePath == "/" ? "/dns-query" : u.PathAndQuery;
-                        dnsServers.Add(new { tag = "dns_proxy", type = "https", server = u.Host, path = dPath, detour = "proxy" });
+                        try
+                        {
+                            var u = new Uri(config.UpstreamDohUrl);
+                            var dPath = u.AbsolutePath == "/" ? "/dns-query" : u.PathAndQuery;
+                            dnsServers.Add(new { tag = "dns_proxy", type = "https", server = u.Host, path = dPath, detour = "proxy" });
+                        }
+                        catch
+                        {
+                            dnsServers.Add(new { tag = "dns_proxy", type = "tcp", server = "1.1.1.1", detour = "proxy" });
+                        }
                     }
-                    catch
+                    else
                     {
-                        dnsServers.Add(new { tag = "dns_proxy", type = "tcp", server = "1.1.1.1", detour = "proxy" });
+                        if (config.UpstreamDohUrl == "8.8.8.8" || config.UpstreamDohUrl == "8.8.4.4") 
+                        {
+                            dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "dns.google", path = "/dns-query", detour = "proxy" });
+                        }
+                        else if (config.UpstreamDohUrl == "1.1.1.1" || config.UpstreamDohUrl == "1.0.0.1") 
+                        {
+                            dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "cloudflare-dns.com", path = "/dns-query", detour = "proxy" });
+                        }
+                        else if (config.UpstreamDohUrl == "9.9.9.9")
+                        {
+                            dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "dns.quad9.net", path = "/dns-query", detour = "proxy" });
+                        }
+                        else 
+                        {
+                            dnsServers.Add(new { tag = "dns_proxy", type = "tcp", server = config.UpstreamDohUrl, detour = "proxy" });
+                        }
                     }
                 }
                 else
                 {
-                    if (config.UpstreamDohUrl == "8.8.8.8" || config.UpstreamDohUrl == "8.8.4.4") 
-                    {
-                        dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "dns.google", path = "/dns-query", detour = "proxy" });
-                    }
-                    else if (config.UpstreamDohUrl == "1.1.1.1" || config.UpstreamDohUrl == "1.0.0.1") 
-                    {
-                        dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "cloudflare-dns.com", path = "/dns-query", detour = "proxy" });
-                    }
-                    else if (config.UpstreamDohUrl == "9.9.9.9")
-                    {
-                        dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "dns.quad9.net", path = "/dns-query", detour = "proxy" });
-                    }
-                    else 
-                    {
-                        dnsServers.Add(new { tag = "dns_proxy", type = "tcp", server = config.UpstreamDohUrl, detour = "proxy" });
-                    }
+                    dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "dns.google", path = "/dns-query", detour = "proxy" });
                 }
-            }
-            else
-            {
-                dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "dns.google", path = "/dns-query", detour = "proxy" });
-            }
 
-            var dnsRules = new List<object>
-            {
-                new { domain_keyword = new[] { "stun", "cdn77", "datapacket" }, action = "route", server = "dns_direct" }
-            };
-
-            if (appRules.DnsRules.Count > 0)
-                dnsRules.AddRange(appRules.DnsRules);
-
-            if (config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE")
-            {
-                if (userApps.Count > 0)
+                var dnsRules = new List<object>
                 {
-                    dnsRules.Add(new { process_name = userApps.ToArray(), action = "route", server = "dns_proxy" });
-                }
-                dnsRules.Add(new { action = "route", server = "dns_proxy" }); 
-            }
-            else if (config.EnableDirect && config.SplitTunnelMode == "EXCLUSIVE")
-            {
-                if (userApps.Count > 0)
-                {
-                    dnsRules.Add(new { process_name = userApps.ToArray(), action = "route", server = "dns_direct" });
-                }
-                dnsRules.Add(new { action = "route", server = "dns_proxy" });
-            }
-            else
-            {
-                dnsRules.Add(new { action = "route", server = "dns_proxy" });
-            }
+                    new { domain_keyword = new[] { "stun", "cdn77", "datapacket" }, action = "route", server = "dns_direct" }
+                };
 
-            string clashController = SingboxClashApi.EnsureController();
-            string clashSecret     = SingboxClashApi.EnsureSecret();
+                if (rules.DnsRules.Count > 0)
+                    dnsRules.AddRange(rules.DnsRules);
 
-            var sbConfig = new
-            {
-                log = new { level = "fatal" },
-                dns = new
+                // ── Catch-all: DNS dependency follows traffic dependency ─────────────────────────────
+                if (config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE")
                 {
-                    servers = dnsServers.ToArray(),
-                    rules = dnsRules.ToArray(),
-                    strategy = "ipv4_only"
-                },
-                inbounds = new object[]
-                {
-                    new
+                    if (userApps.Count > 0)
                     {
-                        type = "tun", tag = "tun-in",
-                        interface_name = "singbox_tun",
-                        address = new[] { "172.18.0.1/30" },
-                        mtu = 9000, auto_route = true, strict_route = true,
-                        stack = "mixed", endpoint_independent_nat = true
+                        dnsRules.Add(new { process_name = userApps.ToArray(), action = "route", server = "dns_proxy" });
                     }
-                },
-                outbounds = new System.Collections.Generic.List<object> {
-                    new { type = "socks", tag = "proxy", server = "127.0.0.1", server_port = 10919 },
-                    new { type = "direct", tag = "direct" }
-                }.Concat(
-                    (config.EnableDirectUDP && !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp))
-                        ? new object[] { new { type = "direct", tag = "direct-udp", bind_interface = config.DirectUdpAdapterName, inet4_bind_address = config.DirectUdpAdapterIp } }
-                        : new object[0]
-                ).Concat(appRules.Outbounds).ToArray(),
-                route = new
-                {
-                    rules = sbRules.ToArray(),
-                    rule_set = appRules.RuleSets.ToArray(),
-                    final = config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE" ? "direct" : "proxy",
-                    default_domain_resolver = new { server = "dns_direct" },
-                    auto_detect_interface = true,
-                    find_process = true
-                },
-                experimental = new
-                {
-                    clash_api = new
-                    {
-                        external_controller = clashController,
-                        secret              = clashSecret
-                    }
+                    dnsRules.Add(new { action = "route", server = "dns_direct" });
                 }
-            };
+                else if (config.EnableDirect && config.SplitTunnelMode == "EXCLUSIVE")
+                {
+                    if (userApps.Count > 0)
+                    {
+                        dnsRules.Add(new { process_name = userApps.ToArray(), action = "route", server = "dns_direct" });
+                    }
+                    dnsRules.Add(new { action = "route", server = "dns_proxy" });
+                }
+                else
+                {
+                    dnsRules.Add(new { action = "route", server = "dns_proxy" });
+                }
+
+                string clashController = SingboxClashApi.EnsureController();
+                string clashSecret     = SingboxClashApi.EnsureSecret();
+
+                var sbConfig = new
+                {
+                    log = new { level = "fatal" },
+                    dns = new
+                    {
+                        servers = dnsServers.ToArray(),
+                        rules = dnsRules.ToArray(),
+                        strategy = "ipv4_only"
+                    },
+                    inbounds = new object[]
+                    {
+                        new
+                        {
+                            type = "tun", tag = "tun-in",
+                            interface_name = "singbox_tun",
+                            address = new[] { "172.18.0.1/30" },
+                            mtu = 9000, auto_route = true, strict_route = true,
+                            stack = "mixed", endpoint_independent_nat = true
+                        }
+                    },
+                    outbounds = new System.Collections.Generic.List<object> {
+                        new { type = "socks", tag = "proxy", server = "127.0.0.1", server_port = 10919 },
+                        new { type = "direct", tag = "direct" }
+                    }.Concat(
+                        (config.EnableDirectUDP && !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp))
+                            ? new object[] { new { type = "direct", tag = "direct-udp", bind_interface = config.DirectUdpAdapterName, inet4_bind_address = config.DirectUdpAdapterIp } }
+                            : new object[0]
+                    ).Concat(rules.Outbounds).ToArray(),
+                    route = new
+                    {
+                        rules = sbRules.ToArray(),
+                        rule_set = rules.RuleSets.ToArray(),
+                        final = config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE" ? "direct" : "proxy",
+                        default_domain_resolver = new { server = "dns_direct" },
+                        auto_detect_interface = true,
+                        find_process = true
+                    },
+                    experimental = new
+                    {
+                        clash_api = new
+                        {
+                            external_controller = clashController,
+                            secret              = clashSecret
+                        }
+                    }
+                };
+
+                return sbConfig;
+            }
 
             try
             {
-                var json = JsonConvert.SerializeObject(sbConfig, Formatting.Indented);
-                File.WriteAllText(Path.Combine(sbDir, "config.json"), json);
+                var json = JsonConvert.SerializeObject(BuildSbConfig(appRules), Formatting.Indented);
+                File.WriteAllText(configPath, json);
+
+                if (appRules.CustomProxies.Count > 0 && !SingboxConfigValidator.Check(sbDir, configPath))
+                {
+                    var invalidKeys = SingboxConfigValidator.FindInvalidOutbounds(sbDir, appRules.CustomProxies);
+                    if (invalidKeys.Count > 0)
+                    {
+                        var safeRules = AppRulesSingboxBuilder.Build(config, invalidKeys);
+                        var safeJson = JsonConvert.SerializeObject(BuildSbConfig(safeRules), Formatting.Indented);
+                        File.WriteAllText(configPath, safeJson);
+
+                        CrimsonX.Services.SimpleLogger.Log(
+                            $"[SingBox] Dropped {invalidKeys.Count} invalid custom proxy outbound(s).");
+                        MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastCustomProxyDropped);
+
+                        if (safeRules.CustomProxies.Count > 0 && !SingboxConfigValidator.Check(sbDir, configPath))
+                        {
+                            var allKeys = new HashSet<string>(StringComparer.Ordinal);
+                            foreach (var probe in appRules.CustomProxies) allKeys.Add(probe.Key);
+
+                            var bareRules = AppRulesSingboxBuilder.Build(config, allKeys);
+                            File.WriteAllText(configPath,
+                                JsonConvert.SerializeObject(BuildSbConfig(bareRules), Formatting.Indented));
+
+                            CrimsonX.Services.SimpleLogger.Log(
+                                $"[SingBox] Config was still rejected; dropped all {allKeys.Count} custom proxy outbound(s).");
+                        }
+                    }
+                    else
+                    {
+                        CrimsonX.Services.SimpleLogger.Log(
+                            "[SingBox] Config rejected but no single custom proxy outbound is at fault; keeping it.");
+                    }
+                }
+
                 return true;
             }
             catch (Exception ex)

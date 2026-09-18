@@ -286,6 +286,44 @@ namespace CrimsonX.Localization
 
         public static string RoutingDirect => IsPersian ? "مستقیم" : "Direct";
 
+        public static string RoutingCustom => IsPersian ? "کانفیگ دلخواه" : "Custom Config";
+
+        public static string RoutingCustomShort => IsPersian ? "کانفیگ دلخواه" : "CUSTOM";
+
+        public static string CustomProxyLabel => IsPersian ? "پروکسی دلخواه" : "CUSTOM PROXY";
+
+        public static string CustomProxyPlaceholder => IsPersian ? "vless:// یا vmess:// یا JSON سینگ‌باکس" : "vless:// / vmess:// / sing-box JSON";
+
+        public static string CustomProxyHint => IsPersian ? "فقط برای این برنامه استفاده می‌شود" : "Used only by this program";
+
+        public static string CustomProxyTooltip => IsPersian
+            ? "یک کانفیگ را وارد یا پیست کنید، یا از فلش یکی از کانفیگ‌های ذخیره‌شده را انتخاب کنید. برای استفاده، مسیریابی یکی از پروتکل‌ها را روی کانفیگ دلخواه بگذارید."
+            : "Type or paste a config, or pick a previously saved one from the arrow. Set a protocol's routing to CUSTOM PROXY to use it.";
+
+        public static string CustomProxyNoResponse => IsPersian ? "کانفیگ دلخواه پاسخی نداد!" : "CUSTOM CONFIG DID NOT RESPOND!";
+
+        public static string CustomProxyNone => IsPersian ? "بدون کانفیگ" : "NONE";
+
+        public static string CustomProxyEmpty => IsPersian ? "کانفیگ دلخواه خالی است!" : "CUSTOM CONFIG IS EMPTY!";
+
+        public static string CustomProxyRequired => IsPersian ? "برای حالت کانفیگ دلخواه باید کانفیگ وارد شود!" : "CUSTOM ROUTING NEEDS A CONFIG!";
+
+        public static string ToastCustomProxySaved => IsPersian ? "کانفیگ دلخواه ذخیره شد" : "CUSTOM CONFIG SAVED";
+
+        public static string ToastCustomProxyInvalid => IsPersian ? "کانفیگ دلخواه نامعتبر است!" : "INVALID CUSTOM CONFIG!";
+
+        public static string ToastCustomProxyRejected => IsPersian ? "کانفیگ دلخواه توسط سینگ‌باکس رد شد!" : "CUSTOM CONFIG REJECTED BY SING-BOX!";
+
+        public static string ToastCustomProxyDropped => IsPersian ? "کانفیگ دلخواه نامعتبر نادیده گرفته شد" : "INVALID CUSTOM CONFIG IGNORED";
+
+        public static string ToastCustomProxyPoolFull => IsPersian ? "لیست کانفیگ‌های ذخیره‌شده پر است" : "SAVED CONFIGS LIST IS FULL";
+
+        public static string DeleteSavedConfigTooltip => IsPersian ? "حذف این کانفیگ از لیست ذخیره‌شده‌ها" : "Remove the config in the box from the saved list";
+
+        public static string ToastCustomProxyDeleted => IsPersian ? "کانفیگ ذخیره‌شده حذف شد" : "SAVED CONFIG DELETED";
+
+        public static string ToastCustomProxyNotSaved => IsPersian ? "این کانفیگ در لیست ذخیره‌شده‌ها نیست" : "THIS CONFIG IS NOT IN THE SAVED LIST";
+
         public static string AdapterLabel => IsPersian ? "آداپتور" : "ADAPTER";
 
         public static string AdapterDefault => IsPersian ? "پیش‌فرض" : "Default";
@@ -397,6 +435,82 @@ namespace CrimsonX.Localization
         public static string WarningCaseSensitive => IsPersian ? "هشدار: به حروف بزرگ و کوچک حساس است" : "Warning: Case sensitive";
 
         public static string XtlsVisionNotSupported => IsPersian ? "کانفیگ های XTLS Vision به عنوان نود خروجی پشتیبانی نمی‌شوند." : "XTLS Vision configs cannot be used as a Custom Exit Node.";
+
+        // ── Settings - Connection - UDP Scanner ──
+
+        public static string UdpScannerTitle => IsPersian ? "اسکنر UDP" : "UDP SCANNER";
+
+        public static string UdpScannerBack => IsPersian ? "بازگشت" : "BACK";
+
+        public static string TtUdpScanner => IsPersian ? "کانفیگ‌ها را فقط با تست UDP بررسی می‌کند تا بهترین نودها برای بازی و تماس صوتی پیدا شوند." : "Tests configs with the UDP probe only, to find the best nodes for gaming and voice traffic.";
+
+        public static string UdpScannerAmount => IsPersian ? "تعداد کانفیگ‌ها" : "AMOUNT OF CONFIGS";
+
+        public static string TtUdpScannerAmount => IsPersian ? "چند کانفیگ سالم باید جمع‌آوری شود." : "How many working configs the scan should collect.";
+
+        public static string UdpScannerConcurrency => IsPersian ? "تست همزمان" : "CONCURRENT TESTING";
+
+        public static string TtUdpScannerConcurrency => IsPersian ? "تعداد کانفیگ‌هایی که همزمان تست می‌شوند." : "How many configs are tested at the same time.";
+
+        public static string UdpScannerDiscard => IsPersian ? "حذف بالاتر از" : "DISCARD HIGHER THAN";
+
+        public static string TtUdpScannerDiscard => IsPersian ? "کانفیگ‌هایی که پینگ واقعی‌شان از این مقدار بیشتر باشد تا وقتی کانفیگ سریع‌تر پیدا شود نادیده گرفته می‌شوند و فقط در پایان برای پر کردن تعداد اضافه می‌شوند." : "Configs slower than this are held back while faster ones are found, and only added at the end to fill the amount.";
+
+        public static string UdpScannerNoLimit => IsPersian ? "بدون محدودیت" : "No limit";
+
+        public static string UdpScannerAdapter => IsPersian ? "آداپتور تست" : "TEST ADAPTER";
+
+        public static string TtUdpScannerAdapter => IsPersian ? "تست‌ها از طریق این آداپتور شبکه انجام می‌شوند." : "Which network adapter the tests should go out through.";
+
+        public static string UdpScannerAdapterDefault => IsPersian ? "پیش‌فرض" : "Default";
+
+        public static string UdpScannerStart => IsPersian ? "شروع تست" : "START TESTING";
+
+        public static string UdpScannerStop => IsPersian ? "توقف" : "STOP";
+
+        public static string UdpScannerStability => IsPersian ? "پایداری" : "STABILITY";
+
+        public static string TtUdpScannerStability => IsPersian ? "یک تست پایداری ۱۰ ثانیه‌ای روی این کانفیگ اجرا می‌کند (هر ۵۰۰ میلی‌ثانیه یک تست)." : "Runs a 10 second UDP stability test on this config (one probe every 500ms).";
+
+        public static string TtUdpScannerCopy => IsPersian ? "کپی لینک اشتراک" : "Copy share link";
+
+        public static string UdpScannerEmpty => IsPersian ? "هنوز کانفیگی تست نشده است" : "NO CONFIGS TESTED YET";
+
+        public static string UdpScannerIdle => IsPersian ? "آماده" : "READY";
+
+        public static string UdpScannerScanning => IsPersian ? "اسکن {0}/{1} • {2}" : "SCAN {0}/{1} • {2}";
+
+        public static string UdpScannerFound => IsPersian ? "تمام شد • {0} کانفیگ" : "DONE • {0} CONFIGS";
+
+        public static string UdpScannerGoalNotReached => IsPersian ? "همه تست شد • {0}/{1}" : "ALL TESTED • {0}/{1}";
+
+        public static string UdpScannerFoundPadded => IsPersian ? "تمام شد • {0} ({1} سریع)" : "DONE • {0} ({1} FAST)";
+
+        public static string UdpScannerOverLimit => IsPersian ? "بالاتر از محدودیت پینگ" : "ABOVE THE DISCARD LIMIT";
+
+        public static string UdpScannerDetailRealPing => IsPersian ? "پینگ واقعی {0} میلی‌ثانیه" : "REAL PING {0} ms";
+
+        public static string UdpScannerDetailUdpPing => IsPersian ? "UDP {0} میلی‌ثانیه" : "UDP {0} ms";
+
+        public static string UdpScannerNone => IsPersian ? "چیزی پیدا نشد" : "NOTHING FOUND";
+
+        public static string UdpScannerStopped => IsPersian ? "اسکن متوقف شد" : "SCAN STOPPED";
+
+        public static string UdpScannerStabilityRunning => IsPersian ? "تست پایداری {0}..." : "STABILITY TEST {0}...";
+
+        public static string UdpScannerStabilityTesting => IsPersian ? "تست پایداری" : "STABILITY TEST";
+
+        public static string UdpScannerStabilityResult => IsPersian ? "پایداری {0}٪ • میانگین {1} میلی‌ثانیه" : "STABILITY {0}% • {1} MS AVG";
+
+        public static string UdpScannerStabilityDetail => IsPersian ? "UDP {0}٪ سالم • {1}/{2} • میانگین {3} • کمینه {4} • بیشینه {5} میلی‌ثانیه" : "UDP {0}% OK • {1}/{2} • AVG {3} ms • MIN {4} ms • MAX {5} ms";
+
+        public static string UdpScannerStabilityFailed => IsPersian ? "تست پایداری ناموفق بود" : "STABILITY TEST FAILED";
+
+        public static string UdpScannerGraphTitle => IsPersian ? "پایداری" : "STABILITY";
+
+        public static string UdpScannerGraphIdle => IsPersian ? "یک تست پایداری اجرا کنید" : "RUN A STABILITY TEST";
+
+        public static string UdpScannerGraphLive => IsPersian ? "تست {0} • ناموفق {1} • آخرین {2} میلی‌ثانیه" : "PROBES {0} • LOSS {1} • LAST {2} MS";
 
         // ── Settings - System ──
 

@@ -37,6 +37,7 @@ namespace CrimsonX.Pages
     public partial class SettingsPage : UserControl
     {
         private bool _isInitializingSettings = true;
+        private UdpScannerPage? _udpScannerPage;
         public static SettingsPage? Instance { get; private set; }
         internal static void ClearInstance() => Instance = null;
         
@@ -45,6 +46,30 @@ namespace CrimsonX.Pages
         {
             InitializeComponent();
             Instance = this;
+
+            _udpScannerPage = this.FindControl<UdpScannerPage>("pageUdpScanner");
+            if (_udpScannerPage != null)
+                _udpScannerPage.BackRequested += (s, e) => ShowSettingsPage();
+        }
+
+        // ── UDP Scanner page ──
+        internal void ShowUdpScannerPage()
+        {
+            var languagePopup = this.FindControl<Popup>("LanguagePopup");
+            if (languagePopup != null) languagePopup.IsOpen = false;
+
+            var lbPopup = this.FindControl<Popup>("LbPolicyPopup");
+            if (lbPopup != null) lbPopup.IsOpen = false;
+
+            _udpScannerPage?.OnEnter();
+
+            var carousel = this.FindControl<Carousel>("settingsCarousel");
+            if (carousel != null) carousel.SelectedIndex = 1;
+        }
+        internal void ShowSettingsPage()
+        {
+            var carousel = this.FindControl<Carousel>("settingsCarousel");
+            if (carousel != null) carousel.SelectedIndex = 0;
         }
 
         // ── Page Sync & Localization ──
@@ -142,9 +167,6 @@ namespace CrimsonX.Pages
             var togXrayExitNode = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
             if (togXrayExitNode != null) togXrayExitNode.IsChecked = _cfg.EnableV2rayChain;
 
-            var togDirectUDP = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togDirectUDP");
-            if (togDirectUDP != null) togDirectUDP.IsChecked = _cfg.EnableDirectUDP;
-
             var togAdapterBinding = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togAdapterBinding");
             if (togAdapterBinding != null) togAdapterBinding.IsChecked = _cfg.EnableAdapterBinding;
         }
@@ -189,6 +211,10 @@ namespace CrimsonX.Pages
             if (btn1 != null) btn1.Content = CrimsonX.Localization.AppStrings.PingBtn;
             var btn2 = B("btnCustomConfigsPing2");
             if (btn2 != null) btn2.Content = CrimsonX.Localization.AppStrings.PingBtn;
+
+            CrimsonX.Localization.AppStrings.Apply(F("lblUdpScanner"), CrimsonX.Localization.AppStrings.UdpScannerTitle);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Border>("panUdpScannerLabel"), CrimsonX.Localization.AppStrings.TtUdpScanner);
+            _udpScannerPage?.ApplyLanguage();
             var chkAllow = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
             if (chkAllow != null)
             {
@@ -515,6 +541,13 @@ namespace CrimsonX.Pages
         }
     }
 
+        // ── UDP Scanner ──
+
+        private void btnUdpScannerOpen_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ShowUdpScannerPage();
+    }
+
         // ── Adapter Binding Panel ──
 
         private void btnAdapterBindingToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -667,17 +700,19 @@ namespace CrimsonX.Pages
         }
     }
 
+    private bool _lanPassVisible = false;
+
     private void btnLanPassEye_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var txtPass = this.FindControl<global::Avalonia.Controls.TextBox>("txtLanPass");
         var ico     = this.FindControl<global::Avalonia.Controls.PathIcon>("icoLanPassEye");
         if (txtPass == null) return;
 
-        MainWindow.Instance._lanPassVisible = !MainWindow.Instance._lanPassVisible;
-        txtPass.PasswordChar = MainWindow.Instance._lanPassVisible ? '\0' : '\u2022';
+        _lanPassVisible = !_lanPassVisible;
+        txtPass.PasswordChar = _lanPassVisible ? '\0' : '\u2022';
 
         if (ico != null)
-            ico.Data = MainWindow.Instance._lanPassVisible
+            ico.Data = _lanPassVisible
                 ? global::Avalonia.Media.Geometry.Parse("M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z")
                 : global::Avalonia.Media.Geometry.Parse("M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z");
     }
@@ -770,6 +805,9 @@ namespace CrimsonX.Pages
             cmb.SelectedIndex = 0;
         }
     }
+
+
+    internal void ScanAdapters() => btnScanAdapters_Click(null, null);
 
         // ── System DNS Save ──
 

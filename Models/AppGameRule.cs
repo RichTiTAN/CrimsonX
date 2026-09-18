@@ -51,5 +51,9 @@ namespace CrimsonX.Models
         public string TcpAdapter { get; set; } = "Default";
 
         public string UdpAdapter { get; set; } = "Default";
+
+        public string CustomProxyRaw { get; set; } = "";
+
+        public string CustomProxyLabel { get; set; } = "";
     }
 }

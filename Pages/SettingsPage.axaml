@@ -57,6 +57,11 @@
         </Style>
     </UserControl.Styles>
     <Grid>
+                            <Carousel x:Name="settingsCarousel" SelectedIndex="0">
+                                <Carousel.PageTransition>
+                                    <PageSlide Duration="0:0:0.3" Orientation="Horizontal"/>
+                                </Carousel.PageTransition>
+
                             <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Margin="0,0,0,0" BringIntoViewOnFocusChange="False">
         <ScrollViewer.OpacityMask>
             <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,18%">
@@ -122,6 +127,23 @@
                                     
                                     <TextBlock x:Name="lblSectionConnection" Text="CONNECTION" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Center" Margin="0,12,0,0"/>
                                     <StackPanel Spacing="8">
+                                        
+                                        <!-- UDP SCANNER (slides the scanner page in) -->
+                                        <Border x:Name="panUdpScanner" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0" Margin="0">
+                                            <Button x:Name="btnUdpScannerOpen" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnUdpScannerOpen_Click">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                        <PathIcon Data="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                        <Border x:Name="panUdpScannerLabel" Background="Transparent" Padding="0">
+                                                            <TextBlock x:Name="lblUdpScanner" Classes="settingTitle" Text="UDP SCANNER" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </StackPanel>
+                                                    <PathIcon Grid.Column="2" Data="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"
+                                                              Width="14" Height="14" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Button>
+                                        </Border>
+
                                         
 
 
@@ -639,6 +661,9 @@
                                     </Border>
                                 </Panel>
                             </ScrollViewer>
+
+                                <pages:UdpScannerPage x:Name="pageUdpScanner"/>
+                            </Carousel>
 
                     <Popup x:Name="LanguagePopup" IsLightDismissEnabled="False">
                         <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="90" Padding="2">

@@ -115,7 +115,9 @@ namespace CrimsonX.Services
             TcpRouting   = rule.TcpRouting,
             UdpRouting   = rule.UdpRouting,
             TcpAdapter   = rule.TcpAdapter,
-            UdpAdapter   = rule.UdpAdapter
+            UdpAdapter   = rule.UdpAdapter,
+            CustomProxyRaw   = rule.CustomProxyRaw,
+            CustomProxyLabel = rule.CustomProxyLabel
         };
     }
 }

@@ -1,0 +1,281 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:pages="clr-namespace:CrimsonX.Pages"
+             xmlns:cx="clr-namespace:CrimsonX.Controls"
+             x:Class="CrimsonX.Pages.UdpScannerPage"
+             x:DataType="pages:UdpScannerPage">
+
+    <UserControl.Styles>
+        <!-- Graph highlight: only while hovered, like the app's graphHover rows -->
+        <Style Selector="Border.graphBox">
+            <Setter Property="Background" Value="#00FFFFFF"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.graphBox:pointerover">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+
+        <Style Selector="Button.backArrow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.backArrow:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+
+        <!-- Cards: the same border highlight on hover the boxes elsewhere in the app use -->
+        <Style Selector="Border.scanCard">
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.scanCard:pointerover">
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+        </Style>
+
+        <!-- Result rows: same border highlight on hover; the whole row is clickable and copies the config -->
+        <Style Selector="Border.scanRow">
+            <Setter Property="Background" Value="#CC0F1114"/>
+            <Setter Property="BorderBrush" Value="#242E38"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.scanRow:pointerover">
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+        </Style>
+        <!-- A Border has no :pressed pseudo class, so the click flash is the same class the settings use -->
+        <Style Selector="Border.scanRow.pressed">
+            <Setter Property="Background" Value="#33FFFFFF"/>
+        </Style>
+
+        <!-- While the row is held down its contents shrink, then grow back on release (like the settings buttons) -->
+        <Style Selector="Border.scanRow > Grid">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
+            <Setter Property="RenderTransform" Value="scale(1)"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.scanRow.pressed > Grid">
+            <Setter Property="RenderTransform" Value="scale(0.94)"/>
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.Resources>
+        <!-- One qualified config: location, real ping, stability result, STABILITY + copy -->
+        <DataTemplate x:Key="ScanItemTemplate" x:DataType="pages:UdpScanItem">
+            <Border Height="30" Margin="3,2" Classes="scanRow" BorderThickness="1" CornerRadius="5" Padding="7,0"
+                    Cursor="Hand" ToolTip.Tip="{Binding Detail}" PointerPressed="ScanRow_PointerPressed"
+                    PointerReleased="ScanRow_PointerReleased" PointerCaptureLost="ScanRow_PointerCaptureLost">
+                <Grid ColumnDefinitions="*, Auto, Auto, Auto">
+                    <Grid Grid.Column="0" ColumnDefinitions="*, Auto" VerticalAlignment="Center" Margin="0,0,6,0">
+                        <TextBlock Text="{Binding Location}" FontSize="10" FontWeight="SemiBold" Foreground="#E2E8F0"
+                                   TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding PingText}" FontSize="10"
+                                   Foreground="{Binding PingBrush}" Margin="5,0,0,0" FlowDirection="LeftToRight" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <TextBlock Grid.Column="1" Text="{Binding StabilityText}" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{Binding StabilityBrush}" VerticalAlignment="Center" Margin="0,0,5,0"
+                               FlowDirection="LeftToRight" IsVisible="{Binding HasStability}"/>
+
+                    <Button Grid.Column="2" Classes="optBtn" Content="{Binding StabilityLabel}" FontSize="9" FontWeight="Bold"
+                            Height="20" MinHeight="0" Padding="7,0" VerticalAlignment="Center" VerticalContentAlignment="Center"
+                            HorizontalContentAlignment="Center" ToolTip.Tip="{Binding StabilityTip}" Click="Stability_Click"/>
+
+                    <Button Grid.Column="3" Classes="optBtn" Width="20" Height="20" MinWidth="0" MinHeight="0" Padding="0" Margin="4,0,0,0"
+                            VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            ToolTip.Tip="{Binding CopyTip}" Click="Copy_Click">
+                        <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
+                                  Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#8B949E"/>
+                    </Button>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Border Background="Transparent" BorderThickness="0" Padding="6,8,6,7" Margin="0,50,20,20" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+        <Grid RowDefinitions="Auto, Auto, Auto">
+
+            <!-- ── Header ── -->
+            <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,8">
+                <Button Name="btnBackTop" Grid.Column="0" Classes="backArrow" Click="Back_Click" VerticalAlignment="Center">
+                    <PathIcon Data="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" Width="16" Height="16" Foreground="#E2E8F0"/>
+                </Button>
+                <TextBlock Name="lblTitle" Grid.Column="1" Text="UDP SCANNER" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"
+                           LetterSpacing="1" VerticalAlignment="Center" Margin="6,0,0,0"/>
+            </Grid>
+
+            <!-- ── Qualified configs (two columns, 5 rows visible each) ── -->
+            <Border Grid.Row="1" Classes="scanCard" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="7" Height="184" VerticalAlignment="Top">
+                <Grid>
+                    <TextBlock Name="lblEmpty" Text="NO CONFIGS TESTED YET" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
+                               LetterSpacing="1" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <Grid ColumnDefinitions="*, *">
+                            <ItemsControl Name="lstResultsLeft" Grid.Column="0" ItemTemplate="{StaticResource ScanItemTemplate}"/>
+                            <ItemsControl Name="lstResultsRight" Grid.Column="1" Margin="6,0,0,0" ItemTemplate="{StaticResource ScanItemTemplate}"/>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- ── Settings (left half) + graph, status and actions (right half) ── -->
+            <Border Grid.Row="2" Classes="scanCard" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,10,0,0">
+                <Grid ColumnDefinitions="*, *">
+
+                    <!-- Left half: settings, all dropdowns aligned on the same x -->
+                    <Grid Grid.Column="0" ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto, Auto, Auto" VerticalAlignment="Top">
+
+                        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center" Margin="0,0,0,7">
+                            <PathIcon Data="M7,13V11H21V13H7M7,19V17H21V19H7M7,7V5H21V7H7M3,8V5H2V4H4V8H3M2,17V16H5V20H2V19H4V18.5H3V17.5H4V17H2M4.25,10A0.75,0.75 0 0,1 5,10.75C5,10.95 4.92,11.14 4.79,11.27L3.12,13H5V14H2V13.08L4,11H2V10H4.25Z"
+                                      Width="13" Height="13" Foreground="#8B949E"/>
+                            <TextBlock Name="lblAmount" Classes="settingTitle" Text="AMOUNT OF CONFIGS" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ComboBox Name="cmbAmount" Grid.Row="0" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
+                                  CornerRadius="4" MinHeight="24" Height="24" Padding="8,0" Width="85" FontSize="10" FontWeight="SemiBold"
+                                  VerticalContentAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" Cursor="Hand" Margin="30,0,0,7"
+                                  SelectionChanged="ScannerOption_Changed">
+                            <ComboBoxItem Content="5" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="10" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="15" FontSize="10" FontWeight="SemiBold"/>
+                        </ComboBox>
+
+                        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center" Margin="0,0,0,7">
+                            <PathIcon Data="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" Width="13" Height="13" Foreground="#8B949E"/>
+                            <TextBlock Name="lblConcurrency" Classes="settingTitle" Text="CONCURRENT TESTING" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ComboBox Name="cmbConcurrency" Grid.Row="1" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
+                                  CornerRadius="4" MinHeight="24" Height="24" Padding="8,0" Width="85" FontSize="10" FontWeight="SemiBold"
+                                  VerticalContentAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" Cursor="Hand" Margin="30,0,0,7"
+                                  SelectionChanged="ScannerOption_Changed">
+                            <ComboBoxItem Content="5" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="10" FontSize="10" FontWeight="SemiBold"/>
+                        </ComboBox>
+
+                        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center" Margin="0,0,0,7">
+                            <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"
+                                      Width="13" Height="13" Foreground="#8B949E"/>
+                            <TextBlock Name="lblDiscard" Classes="settingTitle" Text="DISCARD HIGHER THAN" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ComboBox Name="cmbDiscard" Grid.Row="2" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
+                                  CornerRadius="4" MinHeight="24" Height="24" Padding="8,0" Width="85" FontSize="10" FontWeight="SemiBold"
+                                  VerticalContentAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" Cursor="Hand" Margin="30,0,0,7"
+                                  SelectionChanged="ScannerOption_Changed">
+                            <ComboBoxItem Name="cbiDiscardNone" Content="No limit" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="100 ms" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="200 ms" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="300 ms" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="400 ms" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="500 ms" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="600 ms" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="700 ms" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="800 ms" FontSize="10" FontWeight="SemiBold"/>
+                            <ComboBoxItem Content="900 ms" FontSize="10" FontWeight="SemiBold"/>
+                        </ComboBox>
+
+                        <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                            <PathIcon Data="M21 3H3C1.89 3 1 3.89 1 5v14c0 1.11.89 2 2 2h18c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm-1 14H4V7h16v10z"
+                                      Width="13" Height="13" Foreground="#8B949E"/>
+                            <TextBlock Name="lblAdapter" Classes="settingTitle" Text="TEST ADAPTER" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ComboBox Name="cmbAdapter" Grid.Row="3" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
+                                  CornerRadius="4" MinHeight="24" Height="24" Padding="8,0" Width="85" FontSize="10" FontWeight="SemiBold"
+                                  VerticalContentAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" Cursor="Hand" Margin="30,0,0,0"
+                                  SelectionChanged="ScannerOption_Changed">
+                            <ComboBoxItem Name="cbiAdapterDefault" Content="Default" FontSize="10" FontWeight="SemiBold"/>
+                        </ComboBox>
+
+                    </Grid>
+
+                    <!-- Right half: graph, actions -->
+                    <Grid Grid.Column="1" RowDefinitions="Auto, *, Auto">
+
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="5,0,0,3">
+                            <TextBlock Name="lblGraphTitle" Text="STABILITY" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                            <TextBlock Name="lblGraphInfo" Grid.Column="2" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#5A6270" FlowDirection="LeftToRight"
+                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </Grid>
+
+                        <Border Grid.Row="1" Classes="graphBox" CornerRadius="4" Padding="6,4" MinHeight="48"
+                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="5,0,0,0">
+                            <cx:StabilityGraph Name="graphStability" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                        </Border>
+
+                        <Grid Grid.Row="2" ColumnDefinitions="*, Auto" Margin="5,8,0,0">
+                            <TextBlock Grid.Column="0" Name="lblScanStatus" Text="READY" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"
+                                       TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                            <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="3" BorderBrush="#2D3748" BorderThickness="1"
+                                    HorizontalAlignment="Right" VerticalAlignment="Center" Height="24">
+                                <Grid ColumnDefinitions="*, 1, *">
+                                    <Button Name="btnStart" Grid.Column="0" Content="START TESTING" Click="Start_Click"
+                                            FontSize="10" FontWeight="Bold" Foreground="#E2E8F0" Background="Transparent"
+                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                            VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand"
+                                            BorderThickness="0" CornerRadius="3,0,0,3" Padding="12,0" MinWidth="92" MinHeight="0">
+                                        <Button.Styles>
+                                            <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                <Setter Property="Background" Value="#2AFFFFFF"/>
+                                            </Style>
+                                        </Button.Styles>
+                                    </Button>
+                                    <Border Grid.Column="1" Background="#2D3748"/>
+                                    <Button Name="btnBack" Grid.Column="2" Content="BACK" Click="Back_Click"
+                                            FontSize="10" FontWeight="Bold" Foreground="#E2E8F0" Background="Transparent"
+                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                            VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand"
+                                            BorderThickness="0" CornerRadius="0,3,3,0" Padding="12,0" MinWidth="70" MinHeight="0">
+                                        <Button.Styles>
+                                            <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                <Setter Property="Background" Value="#2AFFFFFF"/>
+                                            </Style>
+                                        </Button.Styles>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                    </Grid>
+
+                </Grid>
+            </Border>
+
+        </Grid>
+    </Border>
+</UserControl>

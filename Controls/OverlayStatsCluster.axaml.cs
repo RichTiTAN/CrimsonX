@@ -187,7 +187,7 @@ namespace CrimsonX.Controls
             }
         }
 
-        // ── Refresh ──
+        // Refresh 
 
         private async Task RefreshAsync()
         {
@@ -345,7 +345,7 @@ namespace CrimsonX.Controls
             _hasTelemetry = true;
         }
 
-        // ── Rendering ──
+        // Rendering 
 
         private void Render()
         {
@@ -523,7 +523,7 @@ namespace CrimsonX.Controls
             AppStrings.ApplyToolTip(this, text);
         }
 
-        // ── Per-app hover boxes ──
+        // Per-app hover boxes
 
         private void ApplyAppTips()
         {
@@ -728,7 +728,7 @@ namespace CrimsonX.Controls
             }
         }
 
-        // ── Formatting ──
+        // Formatting
 
         internal static string FormatDuration(TimeSpan span)
         {

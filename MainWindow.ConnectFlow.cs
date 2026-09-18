@@ -82,7 +82,7 @@ namespace CrimsonX
             });
 
             await UpdateLanIpAsync();
-            await ApplySystemDnsAsync();
+            await CrimsonX.Services.SystemDnsService.ApplyAsync(_cfg);
             ProxyService.SetSystemProxy(false);
 
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log"));
