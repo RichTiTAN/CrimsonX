@@ -1690,7 +1690,7 @@ catch (Exception ex)
         {
             _customProxyEntries[comboName] = entries;
             cb.ItemsSource = AppCustomConfigStore.DisplayOptions(entries);
-            cb.SelectedIndex = -1;   // nothing picked: the box keeps showing its config
+            cb.SelectedIndex = -1;   
             cb.Text = text;
         }
         finally

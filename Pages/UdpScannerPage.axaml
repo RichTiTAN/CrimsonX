@@ -24,7 +24,6 @@
              x:DataType="pages:UdpScannerPage">
 
     <UserControl.Styles>
-        <!-- Graph highlight: only while hovered, like the app's graphHover rows -->
         <Style Selector="Border.graphBox">
             <Setter Property="Background" Value="#00FFFFFF"/>
             <Setter Property="Transitions">
@@ -48,7 +47,6 @@
             <Setter Property="Background" Value="#1AFFFFFF"/>
         </Style>
 
-        <!-- Cards: the same border highlight on hover the boxes elsewhere in the app use -->
         <Style Selector="Border.scanCard">
             <Setter Property="BorderBrush" Value="#2D3748"/>
             <Setter Property="Transitions">
@@ -61,7 +59,6 @@
             <Setter Property="BorderBrush" Value="#99FFFFFF"/>
         </Style>
 
-        <!-- Result rows: same border highlight on hover; the whole row is clickable and copies the config -->
         <Style Selector="Border.scanRow">
             <Setter Property="Background" Value="#CC0F1114"/>
             <Setter Property="BorderBrush" Value="#242E38"/>
@@ -75,12 +72,10 @@
         <Style Selector="Border.scanRow:pointerover">
             <Setter Property="BorderBrush" Value="#99FFFFFF"/>
         </Style>
-        <!-- A Border has no :pressed pseudo class, so the click flash is the same class the settings use -->
         <Style Selector="Border.scanRow.pressed">
             <Setter Property="Background" Value="#33FFFFFF"/>
         </Style>
 
-        <!-- While the row is held down its contents shrink, then grow back on release (like the settings buttons) -->
         <Style Selector="Border.scanRow > Grid">
             <Setter Property="RenderTransformOrigin" Value="50%,50%"/>
             <Setter Property="RenderTransform" Value="scale(1)"/>
@@ -96,7 +91,6 @@
     </UserControl.Styles>
 
     <UserControl.Resources>
-        <!-- One qualified config: location, real ping, stability result, STABILITY + copy -->
         <DataTemplate x:Key="ScanItemTemplate" x:DataType="pages:UdpScanItem">
             <Border Height="30" Margin="3,2" Classes="scanRow" BorderThickness="1" CornerRadius="5" Padding="7,0"
                     Cursor="Hand" ToolTip.Tip="{Binding Detail}" PointerPressed="ScanRow_PointerPressed"
@@ -134,17 +128,23 @@
             <!-- ── Header ── -->
             <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,8">
                 <Button Name="btnBackTop" Grid.Column="0" Classes="backArrow" Click="Back_Click" VerticalAlignment="Center">
-                    <PathIcon Data="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" Width="16" Height="16" Foreground="#E2E8F0"/>
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" Width="16" Height="16" Foreground="#E2E8F0"/>
+                        <TextBlock Name="lblTitle" Text="UDP SCANNER" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"
+                                   LetterSpacing="1" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Button>
-                <TextBlock Name="lblTitle" Grid.Column="1" Text="UDP SCANNER" FontSize="12" FontWeight="Bold" Foreground="#E2E8F0"
-                           LetterSpacing="1" VerticalAlignment="Center" Margin="6,0,0,0"/>
             </Grid>
 
-            <!-- ── Qualified configs (two columns, 5 rows visible each) ── -->
-            <Border Grid.Row="1" Classes="scanCard" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="7" Height="184" VerticalAlignment="Top">
+            <!-- ── Qualified configs ── -->
+            <Border Grid.Row="2" Classes="scanCard" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="7" Height="184" VerticalAlignment="Top">
                 <Grid>
-                    <TextBlock Name="lblEmpty" Text="NO CONFIGS TESTED YET" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
-                               LetterSpacing="1" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                    <StackPanel Name="pnlEmpty" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Name="lblEmpty" Text="NO CONFIGS TESTED YET" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
+                                   LetterSpacing="1" VerticalAlignment="Center" TextAlignment="Center"/>
+                        <TextBlock Name="lblEmptyDots" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
+                                   LetterSpacing="1" VerticalAlignment="Center" Width="0"/>
+                    </StackPanel>
 
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                         <Grid ColumnDefinitions="*, *">
@@ -155,8 +155,8 @@
                 </Grid>
             </Border>
 
-            <!-- ── Settings (left half) + graph, status and actions (right half) ── -->
-            <Border Grid.Row="2" Classes="scanCard" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,10,0,0">
+            <!-- ── Settings (left half) + graph, status and actions ── -->
+            <Border Grid.Row="1" Classes="scanCard" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,10">
                 <Grid ColumnDefinitions="*, *">
 
                     <!-- Left half: settings, all dropdowns aligned on the same x -->

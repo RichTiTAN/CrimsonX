@@ -36,7 +36,7 @@ namespace CrimsonX
         private ConcurrentQueue<string> _untestedConfigs = new ConcurrentQueue<string>();
         private List<string> _reservePool = new List<string>();
         private HashSet<string> _customOutboundJsons = new HashSet<string>();
-        private const int WorkerSourceCount = 5; 
+        private const int WorkerSourceCount = 6; 
         private int _backgroundSeedSourceIndex = 0;
         private static readonly HttpClient _workerClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 
@@ -61,6 +61,8 @@ namespace CrimsonX
                 _pipelineCts = new CancellationTokenSource();
             }
             var ct = _pipelineCts.Token;
+
+            await Task.Yield();
 
             _seenLogs.Clear();
             _state.IsEngineRunning = true;
@@ -104,10 +106,7 @@ namespace CrimsonX
             {
                 string? ParseCustomOutbound(string? raw)
                 {
-                    if (string.IsNullOrWhiteSpace(raw)) return null;
-                    var trimmed = raw.Trim();
-                    if (trimmed.StartsWith("{")) return trimmed;
-                    return CrimsonX.Services.XrayLinkParser.TryParseLink(trimmed, out var json) ? json : null;
+                    return CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(raw, out var json) ? json : null;
                 }
 
                 var j1 = ParseCustomOutbound(_cfg.CustomConfig1);
@@ -195,11 +194,11 @@ namespace CrimsonX
                 
                 if (configs != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseLink(_cfg.CustomConfig1, out string c1Json))
+                    if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig1, out string c1Json))
                     {
                         configs.RemoveAll(c => c == c1Json || c.Contains(c1Json));
                     }
-                    if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig2) && CrimsonX.Services.XrayLinkParser.TryParseLink(_cfg.CustomConfig2, out string c2Json))
+                    if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig2) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig2, out string c2Json))
                     {
                         configs.RemoveAll(c => c == c2Json || c.Contains(c2Json));
                     }
@@ -207,6 +206,11 @@ namespace CrimsonX
                 
                 if (configs == null || configs.Count == 0)
                 {
+                    if (passedConfigs.Count >= 2)
+                    {
+                        connectSourceIndex = sourceIndex;
+                        break;
+                    }
                     sourceIndex++;
                     continue;
                 }
@@ -273,7 +277,7 @@ namespace CrimsonX
                     }
                 }
 
-                if (passedConfigs.Count >= 2)
+                if (passedConfigs.Count >= (sourceIndex == -1 ? 5 : 2))
                 {
                     connectSourceIndex = sourceIndex;
                     break;
@@ -293,14 +297,14 @@ namespace CrimsonX
             var speedTasks = passedConfigs.Select(async cfgTest =>
             {
                 ct.ThrowIfCancellationRequested();
-                cfgTest.Speed = await ConfigTester.TestSpeedAsync(cfgTest.OutboundJson, _cfg, ct);
+                var speed = await ConfigTester.TestSpeedStabilityAsync(cfgTest.OutboundJson, _cfg, ct);
+                ConfigTester.ApplySpeedResult(cfgTest, speed);
                 return cfgTest;
             }).ToList();
 
             var speedTestedConfigsList = await Task.WhenAll(speedTasks);
-            var speedTestedConfigs = speedTestedConfigsList.ToList();
 
-            var finalConfigs = speedTestedConfigs.OrderByDescending(x => x.Speed).ToList();
+            var finalConfigs = ConfigTester.RankForConnection(speedTestedConfigsList);
             var workingJson = finalConfigs.Select(x => x.OutboundJson).ToList();
             var topConfigs = workingJson.Take(2).ToList();
             
@@ -364,11 +368,11 @@ namespace CrimsonX
                 }
                 if (configs == null || configs.Count == 0) { si++; continue; }
 
-                if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseLink(_cfg.CustomConfig1, out string c1Json))
+                if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig1, out string c1Json))
                 {
                     configs.RemoveAll(c => c == c1Json || c.Contains(c1Json));
                 }
-                if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig2) && CrimsonX.Services.XrayLinkParser.TryParseLink(_cfg.CustomConfig2, out string c2Json))
+                if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig2) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig2, out string c2Json))
                 {
                     configs.RemoveAll(c => c == c2Json || c.Contains(c2Json));
                 }
@@ -403,12 +407,13 @@ namespace CrimsonX
 
             var customSpeedTasks = passedScraped.Select(async r =>
             {
-                r.Speed = await CrimsonX.Services.ConfigTester.TestSpeedAsync(r.OutboundJson, _cfg, ct);
+                var speed = await CrimsonX.Services.ConfigTester.TestSpeedStabilityAsync(r.OutboundJson, _cfg, ct);
+                CrimsonX.Services.ConfigTester.ApplySpeedResult(r, speed);
                 return r;
             }).ToList();
 
             var speedResults = await Task.WhenAll(customSpeedTasks);
-            var fastest = speedResults.OrderByDescending(x => x.Speed).FirstOrDefault();
+            var fastest = CrimsonX.Services.ConfigTester.RankForConnection(speedResults).FirstOrDefault();
             return fastest?.OutboundJson;
         }
 
@@ -472,6 +477,7 @@ namespace CrimsonX
                             CrimsonX.Services.ConfigCache.SaveString(shaPath, newSha);
                             CrimsonX.Services.ConfigCache.SaveString(dataPath, content);
                         }
+                        CrimsonX.Services.SimpleLogger.Log($"[Fetch] worker#{wi}/{index} schemes: {XrayLinkParser.DescribeSchemes(content)}");
                         var configs = XrayLinkParser.ExtractConfigs(content);
                         if (configs.Count > 0) return configs;
                     }
@@ -710,11 +716,12 @@ namespace CrimsonX
                                 var speedTasks = passedConfigs.Select(async cfgTest =>
                                 {
                                     ct.ThrowIfCancellationRequested();
-                                    cfgTest.Speed = await ConfigTester.TestSpeedAsync(cfgTest.OutboundJson, _cfg, ct);
+                                    var speed = await ConfigTester.TestSpeedStabilityAsync(cfgTest.OutboundJson, _cfg, ct);
+                                    ConfigTester.ApplySpeedResult(cfgTest, speed);
                                     return cfgTest;
                                 });
 
-                                var speedTestedConfigs = (await Task.WhenAll(speedTasks)).OrderByDescending(x => x.Speed).ToList();
+                                var speedTestedConfigs = ConfigTester.RankForConnection(await Task.WhenAll(speedTasks));
                                 var replacements = speedTestedConfigs.Take(needed).Select(x => x.OutboundJson).ToList();
                                 
                                 var finalNewOutbounds = new List<string>(workingActive);

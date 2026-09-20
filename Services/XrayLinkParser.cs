@@ -59,6 +59,10 @@ namespace CrimsonX.Services
                 if (outbound == null || outbound["protocol"] == null)
                     return false;
 
+                if (outbound["streamSettings"] is JObject parsedStream
+                    && string.Equals(parsedStream["network"]?.ToString(), "quic", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
                 var outboundsArray = new JArray { outbound };
                 var root = new JObject { ["outbounds"] = outboundsArray };
                 jsonResult = root.ToString(Newtonsoft.Json.Formatting.Indented);
@@ -69,6 +73,44 @@ namespace CrimsonX.Services
                 return false;
             }
         }
+
+        public static bool TryParseCustomConfig(string? raw, out string outboundsJson)
+        {
+            outboundsJson = string.Empty;
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+
+            string text = raw.Trim();
+
+            if (!text.StartsWith("{")) return TryParseLink(text, out outboundsJson);
+
+            try
+            {
+                var root = JObject.Parse(text);
+
+                if (root["outbounds"] is JArray arr)
+                {
+                    if (arr.Count == 0) return false;
+                    outboundsJson = text;
+                    return true;
+                }
+
+                if (root["protocol"] != null)
+                {
+                    var wrapped = new JArray();
+                    wrapped.Add(root);
+                    outboundsJson = new JObject { ["outbounds"] = wrapped }.ToString(Newtonsoft.Json.Formatting.None);
+                    return true;
+                }
+
+                outboundsJson = text;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
 
         public static string ExtractServerAddress(string jsonResult)
         {
@@ -204,15 +246,7 @@ namespace CrimsonX.Services
             var links = new List<string>();
             if (string.IsNullOrWhiteSpace(content)) return links;
 
-            string decoded = content;
-            try
-            {
-                if (!content.Contains("://"))
-                {
-                    decoded = DecodeBase64(content);
-                }
-            }
-            catch { }
+            string decoded = DecodeFeedContent(content);
 
             var lines = decoded.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var line in lines)
@@ -229,6 +263,30 @@ namespace CrimsonX.Services
                 }
             }
             return links;
+        }
+
+        private static string DecodeFeedContent(string content)
+        {
+            if (content.Contains("://")) return content;
+            try { return DecodeBase64(content); }
+            catch { return content; }
+        }
+
+        public static string DescribeSchemes(string content)
+        {
+            if (string.IsNullOrEmpty(content)) return "empty";
+
+            int vless = 0, trojan = 0, ss = 0, vmess = 0, skipped = 0;
+            foreach (var line in DecodeFeedContent(content).Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                var l = line.Trim();
+                if (l.StartsWith("vless://", StringComparison.OrdinalIgnoreCase)) { vless++; if (IsGrpcLink(l)) skipped++; }
+                else if (l.StartsWith("trojan://", StringComparison.OrdinalIgnoreCase)) { trojan++; if (IsGrpcLink(l)) skipped++; }
+                else if (l.StartsWith("ss://", StringComparison.OrdinalIgnoreCase)) ss++;
+                else if (l.StartsWith("vmess://", StringComparison.OrdinalIgnoreCase)) vmess++;
+            }
+
+            return $"vless={vless} trojan={trojan} ss={ss} vmess={vmess} grpc-skipped={skipped}";
         }
 
         public static bool IsGrpcLink(string link)
@@ -481,43 +539,49 @@ namespace CrimsonX.Services
         private static JObject ParseShadowsocks(string link)
         {
             string payload = link.Substring(5);
-            string methodPass = "";
-            string hostPort = "";
 
-            int hashIdx = payload.IndexOf("#");
+            int hashIdx = payload.IndexOf('#');
             if (hashIdx >= 0) payload = payload.Substring(0, hashIdx);
 
-            if (payload.Contains("@"))
+            string queryStr = "";
+            int queryIdx = payload.IndexOf('?');
+            if (queryIdx >= 0)
             {
-                string[] parts = payload.Split(new[] { '@' }, 2);
-                methodPass = DecodeBase64(parts[0]);
-                hostPort = parts[1];
+                queryStr = payload.Substring(queryIdx + 1);
+                payload = payload.Substring(0, queryIdx);
+            }
+
+            if (!string.IsNullOrEmpty(HttpUtility.ParseQueryString(queryStr)["plugin"]))
+                return null;
+
+            string userInfo;
+            string authority;
+
+            int atIdx = payload.LastIndexOf('@');
+            if (atIdx >= 0)
+            {
+                userInfo = payload.Substring(0, atIdx);
+                authority = payload.Substring(atIdx + 1);
             }
             else
             {
-                string decoded = DecodeBase64(payload);
-                if (decoded.Contains("@"))
-                {
-                    string[] parts = decoded.Split(new[] { '@' }, 2);
-                    methodPass = parts[0];
-                    hostPort = parts[1];
-                }
+                string decoded;
+                try { decoded = DecodeBase64(payload); }
+                catch { return null; }
+
+                int decodedAt = decoded.LastIndexOf('@');
+                if (decodedAt < 0) return null;
+
+                userInfo = decoded.Substring(0, decodedAt);
+                authority = decoded.Substring(decodedAt + 1);
             }
 
+            string methodPass = DecodeSsUserInfo(userInfo);
             string[] mpParts = methodPass.Split(new[] { ':' }, 2);
-            string[] hpParts = hostPort.Split(new[] { ':' }, 2);
-
-            if (mpParts.Length < 2 || hpParts.Length < 2)
+            if (mpParts.Length < 2 || string.IsNullOrWhiteSpace(mpParts[0]) || string.IsNullOrEmpty(mpParts[1]))
                 return null;
 
-            string portStr = hpParts[1];
-            int slashIdx = portStr.IndexOf('/');
-            if (slashIdx >= 0) portStr = portStr.Substring(0, slashIdx);
-
-            int questionIdx = portStr.IndexOf('?');
-            if (questionIdx >= 0) portStr = portStr.Substring(0, questionIdx);
-
-            if (!int.TryParse(portStr, out int port))
+            if (!TrySplitHostPort(authority, out string host, out int port))
                 return null;
 
             var outbound = new JObject
@@ -529,7 +593,7 @@ namespace CrimsonX.Services
                     {
                         new JObject
                         {
-                            ["address"] = hpParts[0],
+                            ["address"] = host,
                             ["port"] = port,
                             ["method"] = mpParts[0],
                             ["password"] = mpParts[1]
@@ -539,6 +603,60 @@ namespace CrimsonX.Services
             };
 
             return outbound;
+        }
+
+        private static string DecodeSsUserInfo(string userInfo)
+        {
+            string raw = HttpUtility.UrlDecode(userInfo ?? "");
+            if (raw.Length == 0) return "";
+
+            if (raw.Contains(":")) return raw;
+
+            try
+            {
+                string decoded = HttpUtility.UrlDecode(DecodeBase64(raw));
+                return decoded.Contains(":") ? decoded : "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        private static bool TrySplitHostPort(string authority, out string host, out int port)
+        {
+            host = "";
+            port = 0;
+            if (string.IsNullOrWhiteSpace(authority)) return false;
+
+            authority = authority.Trim();
+
+            int separator;
+            if (authority.StartsWith("[", StringComparison.Ordinal))
+            {
+                int close = authority.IndexOf(']');
+                if (close < 0) return false;
+
+                host = authority.Substring(1, close - 1);
+                if (close + 1 >= authority.Length || authority[close + 1] != ':') return false;
+                separator = close + 1;
+            }
+            else
+            {
+                separator = authority.LastIndexOf(':');
+                if (separator <= 0) return false;
+
+                host = authority.Substring(0, separator);
+            }
+
+            string portStr = authority.Substring(separator + 1).Trim();
+
+            int slashIdx = portStr.IndexOf('/');
+            if (slashIdx >= 0) portStr = portStr.Substring(0, slashIdx);
+
+            return !string.IsNullOrWhiteSpace(host)
+                && int.TryParse(portStr, out port)
+                && port > 0 && port <= 65535;
         }
 
         private static JObject ParseSocks(string link)
@@ -651,7 +769,7 @@ namespace CrimsonX.Services
                 if (!string.IsNullOrEmpty(vcn)) tlsObj["verifyPeerCertByName"] = vcn;
 
                 string pcs = query["pcs"];
-                if (!string.IsNullOrEmpty(pcs)) tlsObj["pinnedCA256"] = pcs;
+                if (!string.IsNullOrEmpty(pcs)) tlsObj["pinnedPeerCertSha256"] = pcs;
 
                 string pqv = query["pqv"];
                 if (!string.IsNullOrEmpty(pqv)) tlsObj["mldsa65Verify"] = pqv;
@@ -662,7 +780,7 @@ namespace CrimsonX.Services
                 if (security == "reality")
                 {
                     string pbk = query["pbk"];
-                    if (!string.IsNullOrEmpty(pbk)) tlsObj["publicKey"] = pbk;
+                    if (!string.IsNullOrEmpty(pbk)) tlsObj["password"] = pbk;
 
                     string sid = query["sid"];
                     if (!string.IsNullOrEmpty(sid)) tlsObj["shortId"] = sid;
@@ -671,7 +789,11 @@ namespace CrimsonX.Services
                     if (!string.IsNullOrEmpty(spx)) tlsObj["spiderX"] = spx;
 
                     string fm = query["fm"];
-                    if (!string.IsNullOrEmpty(fm)) tlsObj["finalMask"] = fm;
+                    if (!string.IsNullOrEmpty(fm))
+                    {
+                        try { stream["finalMask"] = JObject.Parse(fm); }
+                        catch { tlsObj["finalMask"] = fm; }
+                    }
                 }
 
                 stream[security + "Settings"] = tlsObj;
@@ -684,11 +806,11 @@ namespace CrimsonX.Services
                 if (!string.IsNullOrEmpty(path)) wsObj["path"] = path;
 
                 string host = query["host"];
-                if (!string.IsNullOrEmpty(host)) wsObj["headers"] = new JObject { ["Host"] = host };
+                if (!string.IsNullOrEmpty(host)) wsObj["host"] = host;
 
                 stream["wsSettings"] = wsObj;
             }
-            else if (net == "tcp")
+            else if (net == "tcp" || net == "raw")
             {
                 string headerType = query["headerType"];
                 if (headerType == "http")
@@ -709,7 +831,7 @@ namespace CrimsonX.Services
                     if (!string.IsNullOrEmpty(host))
                         tcpObj["header"]!["request"]!["headers"] = new JObject { ["Host"] = new JArray(host.Split(',').Select(s => s.Trim())) };
 
-                    stream["tcpSettings"] = tcpObj;
+                    stream[net == "raw" ? "rawSettings" : "tcpSettings"] = tcpObj;
                 }
             }
             else if (net == "grpc")
@@ -727,33 +849,13 @@ namespace CrimsonX.Services
 
                 stream["grpcSettings"] = grpcObj;
             }
-            else if (net == "kcp")
+            else if (net == "kcp" || net == "mkcp")
             {
                 var kcpObj = new JObject();
-                string headerType = query["headerType"];
-                if (!string.IsNullOrEmpty(headerType)) kcpObj["header"] = new JObject { ["type"] = headerType };
-
-                string seed = query["seed"];
-                if (!string.IsNullOrEmpty(seed)) kcpObj["seed"] = seed;
-
                 if (int.TryParse(query["mtu"], out int mtu)) kcpObj["mtu"] = mtu;
                 if (int.TryParse(query["tti"], out int tti)) kcpObj["tti"] = tti;
 
                 stream["kcpSettings"] = kcpObj;
-            }
-            else if (net == "quic")
-            {
-                var quicObj = new JObject();
-                string headerType = query["headerType"];
-                if (!string.IsNullOrEmpty(headerType)) quicObj["header"] = new JObject { ["type"] = headerType };
-
-                string quicSec = query["quicSecurity"];
-                if (!string.IsNullOrEmpty(quicSec)) quicObj["security"] = quicSec;
-
-                string key = query["key"];
-                if (!string.IsNullOrEmpty(key)) quicObj["key"] = key;
-
-                stream["quicSettings"] = quicObj;
             }
             else if (net == "httpupgrade")
             {
@@ -793,6 +895,12 @@ namespace CrimsonX.Services
                 outbound["streamSettings"] = stream;
             }
         }
+        private static string RawTokenString(JToken token)
+        {
+            if (token == null || token.Type == JTokenType.Null) return "";
+            return token.Type == JTokenType.String ? token.ToString() : token.ToString(Newtonsoft.Json.Formatting.None);
+        }
+
         public static bool TryBuildShareLink(string outboundJson, out string link, string displayName = null)
         {
             link = string.Empty;
@@ -861,36 +969,48 @@ namespace CrimsonX.Services
                     ? string.Join(",", alpnArr.Select(a => a.ToString()))
                     : "";
                 bool insecure = tls?["allowInsecure"]?.Value<bool>() == true;
-                string pbk = tls?["publicKey"]?.ToString() ?? "";
+                string pbk = tls?["password"]?.ToString() ?? "";
+                if (pbk.Length == 0) pbk = tls?["publicKey"]?.ToString() ?? "";
                 string sid = tls?["shortId"]?.ToString() ?? "";
                 string spx = tls?["spiderX"]?.ToString() ?? "";
+                string fm = RawTokenString(stream?["finalMask"]);
+                if (fm.Length == 0) fm = RawTokenString(tls?["finalMask"]);
 
-                string path = "", host = "", serviceName = "", headerType = "";
+                string path = "", host = "", serviceName = "", headerType = "", xhttpMode = "", xhttpExtra = "";
                 switch (network)
                 {
                     case "ws":
                         path = stream?["wsSettings"]?["path"]?.ToString() ?? "";
-                        host = stream?["wsSettings"]?["headers"]?["Host"]?.ToString() ?? "";
+                        host = stream?["wsSettings"]?["host"]?.ToString() ?? "";
+                        if (host.Length == 0) host = stream?["wsSettings"]?["headers"]?["Host"]?.ToString() ?? "";
                         break;
                     case "grpc":
                         serviceName = stream?["grpcSettings"]?["serviceName"]?.ToString() ?? "";
                         break;
                     case "tcp":
-                        headerType = stream?["tcpSettings"]?["header"]?["type"]?.ToString() ?? "";
+                    case "raw":
+                    {
+                        var rawSettings = stream?["rawSettings"] ?? stream?["tcpSettings"];
+                        headerType = rawSettings?["header"]?["type"]?.ToString() ?? "";
                         if (headerType == "http")
                         {
-                            path = (stream?["tcpSettings"]?["header"]?["request"]?["path"] as JArray)?.FirstOrDefault()?.ToString() ?? "";
-                            host = (stream?["tcpSettings"]?["header"]?["request"]?["headers"]?["Host"] as JArray)?.FirstOrDefault()?.ToString() ?? "";
+                            path = (rawSettings?["header"]?["request"]?["path"] as JArray)?.FirstOrDefault()?.ToString() ?? "";
+                            host = (rawSettings?["header"]?["request"]?["headers"]?["Host"] as JArray)?.FirstOrDefault()?.ToString() ?? "";
                         }
                         break;
+                    }
                     case "httpupgrade":
                         path = stream?["httpupgradeSettings"]?["path"]?.ToString() ?? "";
                         host = stream?["httpupgradeSettings"]?["host"]?.ToString() ?? "";
                         break;
                     case "xhttp":
+                    {
                         path = stream?["xhttpSettings"]?["path"]?.ToString() ?? "";
                         host = stream?["xhttpSettings"]?["host"]?.ToString() ?? "";
+                        xhttpMode = stream?["xhttpSettings"]?["mode"]?.ToString() ?? "";
+                        xhttpExtra = RawTokenString(stream?["xhttpSettings"]?["extra"]);
                         break;
+                    }
                 }
 
                 string fragment = string.IsNullOrWhiteSpace(displayName) ? "" : "#" + Uri.EscapeDataString(displayName);
@@ -911,17 +1031,24 @@ namespace CrimsonX.Services
                 if (!string.IsNullOrEmpty(pbk)) query.Add("pbk=" + Uri.EscapeDataString(pbk));
                 if (!string.IsNullOrEmpty(sid)) query.Add("sid=" + Uri.EscapeDataString(sid));
                 if (!string.IsNullOrEmpty(spx)) query.Add("spx=" + Uri.EscapeDataString(spx));
+                if (!string.IsNullOrEmpty(fm)) query.Add("fm=" + Uri.EscapeDataString(fm));
 
                 if (network == "ws" || network == "httpupgrade" || network == "xhttp")
                 {
                     if (!string.IsNullOrEmpty(path)) query.Add("path=" + Uri.EscapeDataString(path));
                     if (!string.IsNullOrEmpty(host)) query.Add("host=" + Uri.EscapeDataString(host));
+
+                    if (network == "xhttp")
+                    {
+                        if (!string.IsNullOrEmpty(xhttpMode)) query.Add("mode=" + xhttpMode);
+                        if (!string.IsNullOrEmpty(xhttpExtra)) query.Add("extra=" + Uri.EscapeDataString(xhttpExtra));
+                    }
                 }
                 else if (network == "grpc")
                 {
                     if (!string.IsNullOrEmpty(serviceName)) query.Add("serviceName=" + Uri.EscapeDataString(serviceName));
                 }
-                else if (network == "tcp" && headerType == "http")
+                else if ((network == "tcp" || network == "raw") && headerType == "http")
                 {
                     query.Add("headerType=http");
                     if (!string.IsNullOrEmpty(path)) query.Add("path=" + Uri.EscapeDataString(path));

@@ -25,6 +25,13 @@
 
     <Grid>
         <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
+        <ScrollViewer.OpacityMask>
+            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,18%">
+                <GradientStop Offset="0" Color="Transparent"/>
+                <GradientStop Offset="0.5" Color="#80FFFFFF"/>
+                <GradientStop Offset="1" Color="White"/>
+            </LinearGradientBrush>
+        </ScrollViewer.OpacityMask>
             <Panel MinHeight="{Binding #Scroller.Bounds.Height}">
                 <Border Background="Transparent" BorderThickness="0" Padding="6,15,6,7" Margin="0,50,20,20" HorizontalAlignment="Stretch" VerticalAlignment="Top">
                     <StackPanel Spacing="6">

@@ -40,6 +40,12 @@ namespace CrimsonX.Services
         public long Ping { get; set; }
         public long UdpPing { get; set; }
         public double Speed { get; set; }
+        public double SpeedStability { get; set; }
+        public bool SpeedStable { get; set; }
+        public double SpeedMinMbps { get; set; }
+        public double SpeedMedianMbps { get; set; }
+        public int SpeedStalls { get; set; }
+        public bool SpeedDegraded { get; set; }
         public string Link { get; set; } = "";
         public string OutboundJson { get; set; } = "";
         public string Continent { get; set; } = "";
@@ -62,6 +68,28 @@ namespace CrimsonX.Services
         public long MinPingOrZero => Ok > 0 ? MinPingMs : 0;
     }
 
+    public class SpeedStabilityResult
+    {
+        public double Mbps { get; set; }
+        public double MedianMbps { get; set; }
+        public double MinMbps { get; set; }
+        public double PeakMbps { get; set; }
+        public double FirstHalfMbps { get; set; }
+        public double SecondHalfMbps { get; set; }
+        public double JitterCv { get; set; }
+
+        public int Windows { get; set; }
+        public int StalledWindows { get; set; }
+        public bool Degraded { get; set; }
+
+        public double Stability { get; set; }
+        public bool Stable { get; set; }
+
+        public bool HasSamples => Windows > 0;
+        public double StallRatio => Windows > 0 ? (double)StalledWindows / Windows : 0;
+        public int StabilityPercent => (int)Math.Round(Stability * 100);
+    }
+
     public static class ConfigTester
     {
         internal static readonly string[] TestTargets = {
@@ -70,7 +98,17 @@ namespace CrimsonX.Services
             "http://detectportal.firefox.com"
         };
         private const int TimeoutMs = 3000;
-        private const int SpeedTestDurationMs = 5000;
+        private const int SpeedTestDurationMs = 7000;
+        private const int SpeedSampleWindowMs = 250;
+        private const int SpeedWarmupMs = 1000;
+        private const int SpeedMinWindows = 4;
+        private const int SpeedSampleBufferSize = 64 * 1024;
+        private const double SpeedStallRatio = 0.10;
+        private const double SpeedStallLimitRatio = 0.15;
+        private const double SpeedJitterLimitCv = 0.35;
+        private const double SpeedDegradeRatio = 0.50;
+        private const double SpeedMinStableMbps = 1.0;
+        private const string SpeedTestUrl = "https://proof.ovh.net/files/100Mb.dat";
         private const int NtpPort = 123;
         private const int UdpProbeAttempts = 3;
         private const string ScanNtpServerIp = "162.159.200.1";
@@ -96,22 +134,53 @@ namespace CrimsonX.Services
             return "162.159.200.123";
         });
 
+        public static List<ConfigTestResult> RankForConnection(IEnumerable<ConfigTestResult> configs)
+        {
+            var all = configs?.ToList() ?? new List<ConfigTestResult>();
+
+            var stable = all.Where(c => c.SpeedStable).OrderByDescending(c => c.Speed).ToList();
+            var unstable = all.Where(c => !c.SpeedStable).OrderByDescending(c => c.Speed).ToList();
+
+            if (stable.Count == 0) return unstable;
+
+            var ranked = new List<ConfigTestResult>(all.Count);
+            ranked.AddRange(stable);
+            ranked.AddRange(unstable);
+            return ranked;
+        }
+
+        public static void ApplySpeedResult(ConfigTestResult target, SpeedStabilityResult speed)
+        {
+            target.Speed = speed.Mbps;
+            target.SpeedStability = speed.Stability;
+            target.SpeedStable = speed.Stable;
+            target.SpeedMinMbps = speed.MinMbps;
+            target.SpeedMedianMbps = speed.MedianMbps;
+            target.SpeedStalls = speed.StalledWindows;
+            target.SpeedDegraded = speed.Degraded;
+
+            var culture = System.Globalization.CultureInfo.InvariantCulture;
+            string trend = speed.Mbps <= 0
+                ? "no throughput"
+                : speed.Degraded
+                    ? $"dropped {speed.FirstHalfMbps.ToString("F1", culture)} -> {speed.SecondHalfMbps.ToString("F1", culture)} Mbps"
+                    : "no drop";
+
+            SimpleLogger.Log($"[Speed] {target.CountryCode} {XrayLinkParser.ExtractServerAddress(target.OutboundJson)}: " +
+                             $"{speed.Mbps.ToString("F1", culture)} Mbps, stability {speed.StabilityPercent}% " +
+                             $"({speed.Windows} windows, {speed.StalledWindows} stalls, {trend})" +
+                             $"{(speed.Stable ? "" : " - unstable")}");
+        }
+
         public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false, bool isActiveWatchdog = false)
         {
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr = string.Empty;
 
-            if (link.TrimStart().StartsWith("{"))
-            {
-                outboundJsonStr = link;
-                res.OutboundJson = outboundJsonStr;
-            }
-            else
-            {
-                if (!XrayLinkParser.TryParseLink(link, out outboundJsonStr))
-                    return res;
-                res.OutboundJson = outboundJsonStr;
-            }
+            if (!XrayLinkParser.TryParseCustomConfig(link, out outboundJsonStr))
+                return res;
+
+            res.OutboundJson = outboundJsonStr;
 
             int port = GetFreePort();
             int udpPort = GetFreeUdpPort();
@@ -279,8 +348,10 @@ namespace CrimsonX.Services
             return res;
         }
 
-        public static async Task<double> TestSpeedAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct)
+        public static async Task<SpeedStabilityResult> TestSpeedStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct)
         {
+            var res = new SpeedStabilityResult();
+
             int port = GetFreePort();
             string tempId = Guid.NewGuid().ToString("N");
             string cfgPath = Path.Combine(cfg.XrayDir, $"test_{tempId}.json");
@@ -352,49 +423,14 @@ namespace CrimsonX.Services
                 client.Timeout = TimeSpan.FromMilliseconds(10000); 
 
                 ct.ThrowIfCancellationRequested();
-                var sw = Stopwatch.StartNew();
-                using var req = new HttpRequestMessage(HttpMethod.Get, "https://proof.ovh.net/files/100Mb.dat");
-                req.Headers.ConnectionClose = true;
-                req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
-                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
-                
-                if (!resp.IsSuccessStatusCode)
-                {
-                    return 0;
-                }
-                
-                using var stream = await resp.Content.ReadAsStreamAsync(ct);
-                byte[] buffer = new byte[8192];
-                long totalBytes = 0;
-                
-                using var timeoutCts = new CancellationTokenSource(SpeedTestDurationMs);
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-                
-                try
-                {
-                    int read;
-                    while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, linkedCts.Token)) > 0)
-                    {
-                        totalBytes += read;
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                }
-                
-                sw.Stop();
-                
-                double seconds = sw.Elapsed.TotalSeconds;
-                if (seconds == 0) seconds = 0.001;
-                
-                double bytesPerSec = totalBytes / seconds;
-                double mbps = (bytesPerSec * 8) / 1000000.0;
-                
-                return mbps;
+                var samples = await SampleSpeedWindowsAsync(client, ct);
+                FillSpeedResult(samples, res);
+
+                return res;
             }
             catch
             {
-                return 0;
+                return res;
             }
             finally
             {
@@ -405,6 +441,160 @@ namespace CrimsonX.Services
                 }
                 try { if (File.Exists(cfgPath)) File.Delete(cfgPath); } catch { }
             }
+        }
+
+        private static async Task<List<(long Bytes, bool IsGap)>> SampleSpeedWindowsAsync(HttpClient client, CancellationToken ct)
+        {
+            var samples = new List<(long Bytes, bool IsGap)>();
+
+            using var timeoutCts = new CancellationTokenSource(SpeedTestDurationMs);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+
+            var sw = Stopwatch.StartNew();
+            long[] pending = new long[1];
+            long[] everRead = new long[1];
+            long[] gapStart = new long[1];
+            long[] noData = new long[1];
+            long[] readerAlive = new long[1];
+
+            Volatile.Write(ref gapStart[0], -1);
+
+            async Task ReadLoopAsync()
+            {
+                byte[] buffer = new byte[SpeedSampleBufferSize];
+
+                while (!linkedCts.IsCancellationRequested)
+                {
+                    try
+                    {
+                        Volatile.Write(ref gapStart[0], sw.ElapsedMilliseconds);
+
+                        using var req = new HttpRequestMessage(HttpMethod.Get, SpeedTestUrl);
+                        req.Headers.ConnectionClose = true;
+                        req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
+
+                        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token);
+                        if (!resp.IsSuccessStatusCode)
+                        {
+                            Volatile.Write(ref noData[0], Volatile.Read(ref everRead[0]) == 0 ? 1 : 0);
+                            return;
+                        }
+
+                        using var stream = await resp.Content.ReadAsStreamAsync(linkedCts.Token);
+
+                        int read;
+                        while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, linkedCts.Token)) > 0)
+                        {
+                            Interlocked.Add(ref pending[0], read);
+                            Interlocked.Add(ref everRead[0], read);
+                            Volatile.Write(ref gapStart[0], -1);
+                        }
+
+                    }
+                    catch
+                    {
+                        Volatile.Write(ref noData[0], Volatile.Read(ref everRead[0]) == 0 ? 1 : 0);
+                        return;
+                    }
+                }
+            }
+
+            var reader = Task.Run(ReadLoopAsync);
+
+            Volatile.Write(ref readerAlive[0], 1);
+            _ = reader.ContinueWith(_ => Volatile.Write(ref readerAlive[0], 0), TaskScheduler.Default);
+
+            try
+            {
+                long nextTick = SpeedSampleWindowMs;
+                while (!linkedCts.IsCancellationRequested && Volatile.Read(ref noData[0]) == 0)
+                {
+                    int wait = (int)(nextTick - sw.ElapsedMilliseconds);
+                    if (wait > 0) await Task.Delay(wait, linkedCts.Token);
+
+                    if (linkedCts.IsCancellationRequested) break;
+
+                    bool isGap = Volatile.Read(ref readerAlive[0]) == 1 && Volatile.Read(ref gapStart[0]) >= 0;
+                    samples.Add((Interlocked.Exchange(ref pending[0], 0), isGap));
+                    nextTick += SpeedSampleWindowMs;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            try { await reader; } catch { }
+
+            return samples;
+        }
+
+        private static void FillSpeedResult(List<(long Bytes, bool IsGap)> samples, SpeedStabilityResult res)
+        {
+            const int warmupWindows = SpeedWarmupMs / SpeedSampleWindowMs;
+            const double windowSeconds = SpeedSampleWindowMs / 1000.0;
+
+            var measured = new List<long>();
+            foreach (var sample in samples)
+            {
+                if (!sample.IsGap) measured.Add(sample.Bytes);
+            }
+
+            if (measured.Count > warmupWindows) measured.RemoveRange(0, warmupWindows);
+
+            res.Windows = measured.Count;
+            if (measured.Count == 0) return;
+
+            var speeds = new List<double>(measured.Count);
+            long totalBytes = 0;
+            foreach (long bytes in measured)
+            {
+                totalBytes += bytes;
+                speeds.Add(bytes * 8.0 / windowSeconds / 1000000.0);
+            }
+
+            res.Mbps = totalBytes * 8.0 / (measured.Count * windowSeconds) / 1000000.0;
+            res.PeakMbps = speeds.Max();
+            res.MinMbps = speeds.Min();
+
+            var sorted = speeds.OrderBy(s => s).ToList();
+            res.MedianMbps = sorted.Count % 2 == 1
+                ? sorted[sorted.Count / 2]
+                : (sorted[sorted.Count / 2 - 1] + sorted[sorted.Count / 2]) / 2.0;
+
+            double reference = sorted[(int)(sorted.Count * 0.75)];
+            res.StalledWindows = reference <= 0 ? speeds.Count : speeds.Count(s => s < reference * SpeedStallRatio);
+
+            int half = speeds.Count / 2;
+            if (half > 0)
+            {
+                res.FirstHalfMbps = speeds.Take(half).Average();
+                res.SecondHalfMbps = speeds.Skip(half).Average();
+            }
+            else
+            {
+                res.FirstHalfMbps = res.Mbps;
+                res.SecondHalfMbps = res.Mbps;
+            }
+
+            res.Degraded = res.FirstHalfMbps > 0 && res.SecondHalfMbps < res.FirstHalfMbps * SpeedDegradeRatio;
+
+            if (res.Mbps > 0 && speeds.Count > 1)
+            {
+                double variance = 0;
+                foreach (double s in speeds) variance += (s - res.Mbps) * (s - res.Mbps);
+                variance /= speeds.Count;
+                res.JitterCv = Math.Sqrt(variance) / res.Mbps;
+            }
+
+            res.Stability = res.Mbps < SpeedMinStableMbps
+                ? 0
+                : Math.Clamp(1.0 - (0.6 * res.JitterCv + 1.5 * res.StallRatio + (res.Degraded ? 0.3 : 0)), 0, 1);
+
+            res.Stable = res.Windows >= SpeedMinWindows
+                         && res.Mbps >= SpeedMinStableMbps
+                         && !res.Degraded
+                         && res.StallRatio <= SpeedStallLimitRatio
+                         && res.JitterCv <= SpeedJitterLimitCv;
         }
 
         private static int GetFreePort()
@@ -650,17 +840,10 @@ namespace CrimsonX.Services
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr;
 
-            if (link.TrimStart().StartsWith("{"))
-            {
-                outboundJsonStr = link;
-                res.OutboundJson = outboundJsonStr;
-            }
-            else
-            {
-                if (!XrayLinkParser.TryParseLink(link, out outboundJsonStr))
-                    return res;
-                res.OutboundJson = outboundJsonStr;
-            }
+            if (!XrayLinkParser.TryParseCustomConfig(link, out outboundJsonStr))
+                return res;
+
+            res.OutboundJson = outboundJsonStr;
 
             UdpTestSession session = null;
             try

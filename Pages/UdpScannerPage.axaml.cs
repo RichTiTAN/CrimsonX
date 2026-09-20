@@ -113,6 +113,10 @@ namespace CrimsonX.Pages
         private bool _isScanning;
         private bool _isStabilityRunning;
         private bool _hasStabilityResult;
+        private DispatcherTimer? _dotsTimer;
+        private int _dotsPhase;
+        private string _statusBase = "";
+        private const double EmptyDotsWidth = 14;
 
         private static MainWindow Main => MainWindow.Instance;
         internal event EventHandler? BackRequested;
@@ -187,6 +191,8 @@ namespace CrimsonX.Pages
             try { _lifetimeCts.Cancel(); } catch (Exception ex) { SimpleLogger.Log(ex); }
             try { _stabilityCts?.Cancel(); } catch (Exception ex) { SimpleLogger.Log(ex); }
 
+            _dotsTimer?.Stop();
+
             base.OnDetachedFromVisualTree(e);
         }
 
@@ -200,7 +206,7 @@ namespace CrimsonX.Pages
             FlowDirection = AppStrings.IsPersian ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
 
             AppStrings.Apply(T("lblTitle"), AppStrings.UdpScannerTitle);
-            AppStrings.Apply(T("lblEmpty"), AppStrings.UdpScannerEmpty);
+            RenderEmptyLabel();
             AppStrings.Apply(T("lblAmount"), AppStrings.UdpScannerAmount);
             AppStrings.Apply(T("lblConcurrency"), AppStrings.UdpScannerConcurrency);
             AppStrings.Apply(T("lblDiscard"), AppStrings.UdpScannerDiscard);
@@ -259,8 +265,12 @@ namespace CrimsonX.Pages
             var lstRight = this.FindControl<ItemsControl>("lstResultsRight");
             if (lstRight != null) lstRight.ItemsSource = right;
 
-            var empty = this.FindControl<TextBlock>("lblEmpty");
-            if (empty != null) empty.IsVisible = _items.Count == 0;
+            var empty = this.FindControl<StackPanel>("pnlEmpty");
+            if (empty != null)
+            {
+                empty.IsVisible = _items.Count == 0;
+                RenderEmptyLabel();
+            }
         }
 
         private void AddResult(ConfigTestResult r, bool overLimit = false)
@@ -394,8 +404,76 @@ namespace CrimsonX.Pages
 
         private void UpdateStatus(string text)
         {
+            _statusBase = text;
+            ApplyStatusLabel();
+        }
+
+        private static string Dots(int phase) => new string('.', phase + 1);
+
+        private void ApplyStatusLabel()
+        {
             var lbl = this.FindControl<TextBlock>("lblScanStatus");
-            if (lbl != null) AppStrings.Apply(lbl, text);
+            if (lbl == null) return;
+
+            bool animating = _isScanning && !_isStabilityRunning && _dotsTimer?.IsEnabled == true;
+            AppStrings.Apply(lbl, animating ? _statusBase + Dots(_dotsPhase) : _statusBase);
+        }
+
+        private void RenderEmptyLabel()
+        {
+            var lbl = this.FindControl<TextBlock>("lblEmpty");
+            var dots = this.FindControl<TextBlock>("lblEmptyDots");
+            if (lbl == null || dots == null) return;
+
+            if (_isScanning)
+            {
+                AppStrings.Apply(lbl, AppStrings.UdpScannerTesting);
+                AppStrings.Apply(dots, Dots(_dotsPhase));
+                dots.Width = EmptyDotsWidth;
+            }
+            else
+            {
+                AppStrings.Apply(lbl, AppStrings.UdpScannerEmpty);
+                AppStrings.Apply(dots, "");
+                dots.Width = 0;
+            }
+        }
+
+        private void StartDots()
+        {
+            if (_dotsTimer == null)
+            {
+                _dotsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+                _dotsTimer.Tick += (_, _) => OnDotsTick();
+            }
+
+            _dotsPhase = 0;
+            _dotsTimer.Start();
+            ApplyStatusLabel();
+            RenderEmptyLabel();
+        }
+
+        private void StopDots()
+        {
+            _dotsTimer?.Stop();
+            _dotsPhase = 0;
+            ApplyStatusLabel();
+            RenderEmptyLabel();
+        }
+
+        private void OnDotsTick()
+        {
+            if (!_isScanning)
+            {
+                StopDots();
+                return;
+            }
+
+            if (_isStabilityRunning) return;
+
+            _dotsPhase = (_dotsPhase + 1) % 3;
+            ApplyStatusLabel();
+            RenderEmptyLabel();
         }
 
         private void UpdateGraphInfo(string text)

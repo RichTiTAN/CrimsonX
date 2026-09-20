@@ -44,11 +44,11 @@ namespace CrimsonX
 
             if (configs == null) return new List<string>();
 
-            if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseLink(_cfg.CustomConfig1, out string c1Json))
+            if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig1, out string c1Json))
             {
                 configs.RemoveAll(c => c == c1Json || c.Contains(c1Json));
             }
-            if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig2) && CrimsonX.Services.XrayLinkParser.TryParseLink(_cfg.CustomConfig2, out string c2Json))
+            if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig2) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig2, out string c2Json))
             {
                 configs.RemoveAll(c => c == c2Json || c.Contains(c2Json));
             }

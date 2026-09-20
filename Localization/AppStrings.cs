@@ -389,6 +389,15 @@ namespace CrimsonX.Localization
         
 
         public static string CustomConfigsTitle => IsPersian ? "کانفیگ‌های دلخواه" : "CUSTOM CONFIGS";
+        public static string SavedConfigsTitle => IsPersian ? "کانفیگ‌های ذخیره‌شده" : "SAVED CONFIGS";
+
+        public static string SavedConfigsEmpty => IsPersian ? "هنوز کانفیگی ذخیره نشده است" : "NO SAVED CONFIGS YET";
+
+        public static string SavedConfigsImportPlaceholder => "vless:// / vmess:// / ...";
+
+        public static string ToastSavedConfigNotUsable => IsPersian ? "این کانفیگ ذخیره‌شده را نمی‌توان به عنوان کانفیگ دلخواه استفاده کرد" : "THIS SAVED CONFIG CANNOT BE USED AS A CUSTOM CONFIG";
+
+
 
         public static string AllowOneCustomConfig => IsPersian ? "اجازه اتصال با یک کانفیگ" : "Allow connecting with one config";
 
@@ -475,6 +484,8 @@ namespace CrimsonX.Localization
         public static string TtUdpScannerCopy => IsPersian ? "کپی لینک اشتراک" : "Copy share link";
 
         public static string UdpScannerEmpty => IsPersian ? "هنوز کانفیگی تست نشده است" : "NO CONFIGS TESTED YET";
+
+        public static string UdpScannerTesting => IsPersian ? "در حال تست" : "TESTING";
 
         public static string UdpScannerIdle => IsPersian ? "آماده" : "READY";
 
@@ -771,6 +782,19 @@ namespace CrimsonX.Localization
 
         public static string TtPingRefresh => IsPersian ? "برای به‌روزرسانی پینگ کلیک کنید" : "Click to refresh ping";
         
+
+        public static string TtSavedConfigs => IsPersian
+            ? "کانفیگ‌های ذخیره‌شده همان لیستی هستند که تب برنامه‌ها و بازی‌ها از آن انتخاب می‌کند. با پینگ هر کانفیگ را آزمایش کنید، با کلیک روی ردیف یا آیکون کپی آن را کپی کنید و با سطل زباله از لیست حذف کنید."
+            : "The saved configs the apps and games tab picks from. PING tests one, clicking the row or the copy icon copies it, and the trash button removes it from the list.";
+
+        public static string TtSavedConfigsAdd => IsPersian ? "این کانفیگ را در لیست ذخیره کن" : "Save this config to the list";
+
+        public static string TtSavedConfigsPing => IsPersian ? "آزمایش این کانفیگ" : "Test this config";
+
+        public static string TtSavedConfigsCopy => IsPersian ? "کپی لینک اشتراک" : "Copy share link";
+
+        public static string TtSavedConfigsDelete => IsPersian ? "حذف از لیست ذخیره‌شده" : "Remove from the saved list";
+
 
         public static string TtCustomConfigs => IsPersian
             ? "کانفیگ‌های شخصی خود را برای اتصال مستقیم وارد کنید. اگر دو کانفیگ معتبر باشند، برنامه مستقیم با هر دو وصل می‌شود. اگر یک کانفیگ معتبر باشد و «اجازه اتصال با یک کانفیگ» فعال باشد، فقط با همان یکی وصل می‌شود. در غیر این صورت، برنامه بهترین کانفیگ سرور را پیدا کرده و کنار کانفیگ شما از آن استفاده می‌کند. کانفیگ‌های شخصی در صورت خرابی به‌صورت خودکار جایگزین نمی‌شوند."

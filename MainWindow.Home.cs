@@ -37,7 +37,7 @@ public partial class MainWindow
 {
     private global::Avalonia.Controls.TextBlock? _lblTimerCache;
 
-    // ── Session Clock ──
+    // Session Clock
 
     private void StartSessionClock()
     {
@@ -56,7 +56,7 @@ public partial class MainWindow
     private int _isReadingLogs = 0; 
     private readonly System.Collections.Generic.List<string> _xrayLogLines = new();
 
-    // ── Stats & Logs Mini-Panels ──
+    // Stats & Logs Mini-Panels 
 
     private void StartLogsTimers()
     {
@@ -330,9 +330,9 @@ public partial class MainWindow
     }
 
 
-    // ── Network diagnostics event subscriptions 
+    // Network diagnostics event subscriptions 
 
-    // ── Geo Ping & Network Diagnostics ──
+    // Geo Ping & Network Diagnostics
 
     internal void InitNetDiag()
     {
@@ -391,7 +391,7 @@ public partial class MainWindow
         });
     }
 
-    // ── Stats Polling & Live Graph ──
+    // Stats Polling & Live Graph
 
     private void StartStatsPolling()
     {

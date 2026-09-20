@@ -70,6 +70,8 @@ namespace CrimsonX.Pages
         {
             var carousel = this.FindControl<Carousel>("settingsCarousel");
             if (carousel != null) carousel.SelectedIndex = 0;
+
+            RefreshSavedConfigs();
         }
 
         // ── Page Sync & Localization ──
@@ -155,11 +157,13 @@ namespace CrimsonX.Pages
             var togCustomConfigs = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togCustomConfigs");
             if (togCustomConfigs != null) togCustomConfigs.IsChecked = _cfg.EnableCustomConfigs;
             
-            var txtCustomConfig1 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig1");
-            if (txtCustomConfig1 != null) txtCustomConfig1.Text = _cfg.CustomConfig1;
+            var cbCustomConfig1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
+            if (cbCustomConfig1 != null) cbCustomConfig1.Text = _cfg.CustomConfig1;
             
-            var txtCustomConfig2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
-            if (txtCustomConfig2 != null) txtCustomConfig2.Text = _cfg.CustomConfig2;
+            var cbCustomConfig2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
+            if (cbCustomConfig2 != null) cbCustomConfig2.Text = _cfg.CustomConfig2;
+
+            RefreshConfigCombos();
             
             var chkAllowOneCustomConfig = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
             if (chkAllowOneCustomConfig != null) chkAllowOneCustomConfig.IsChecked = _cfg.AllowOneCustomConfig;
@@ -206,6 +210,7 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnRefreshPing"), CrimsonX.Localization.AppStrings.TtPingRefresh);
 
             CrimsonX.Localization.AppStrings.Apply(F("lblCustomConfigsTitle"), CrimsonX.Localization.AppStrings.CustomConfigsTitle);
+            ApplySavedConfigsLanguage();
             CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblAllowOneCustomConfig"), CrimsonX.Localization.AppStrings.OneConfigTooltip);
             var btn1 = B("btnCustomConfigsPing1");
             if (btn1 != null) btn1.Content = CrimsonX.Localization.AppStrings.PingBtn;
@@ -357,9 +362,9 @@ namespace CrimsonX.Pages
         {
             if (tog.IsChecked == true)
             {
-                var txt1 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig1");
-                var txt2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
-                bool isEmpty = string.IsNullOrWhiteSpace(txt1?.Text) && string.IsNullOrWhiteSpace(txt2?.Text);
+                var cb1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
+                var cb2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
+                bool isEmpty = string.IsNullOrWhiteSpace(cb1?.Text) && string.IsNullOrWhiteSpace(cb2?.Text);
 
                 if (isEmpty)
                 {
@@ -368,8 +373,8 @@ namespace CrimsonX.Pages
                     return;
                 }
 
-                if (txt1 != null) MainWindow.Instance.Config.CustomConfig1 = txt1.Text ?? "";
-                if (txt2 != null) MainWindow.Instance.Config.CustomConfig2 = txt2.Text ?? "";
+                if (cb1 != null) MainWindow.Instance.Config.CustomConfig1 = cb1.Text ?? "";
+                if (cb2 != null) MainWindow.Instance.Config.CustomConfig2 = cb2.Text ?? "";
             }
             MainWindow.Instance.Config.EnableCustomConfigs = tog.IsChecked.Value;
             MainWindow.Instance.RequestConfigSave();
@@ -413,12 +418,12 @@ namespace CrimsonX.Pages
 
     private void btnCustomConfigsClear_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var txt1 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig1");
-        var txt2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
+        var cb1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
+        var cb2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
         var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
         
-        if (txt1 != null) txt1.Text = "";
-        if (txt2 != null) txt2.Text = "";
+        if (cb1 != null) cb1.Text = "";
+        if (cb2 != null) cb2.Text = "";
         if (chk != null) chk.IsChecked = false;
         
         MainWindow.Instance.Config.CustomConfig1 = "";
@@ -434,13 +439,15 @@ namespace CrimsonX.Pages
 
     private void btnCustomConfigsSave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var txt1 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig1");
-        var txt2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
+        var cb1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
+        var cb2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
         var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
 
-        if (txt1 != null) MainWindow.Instance.Config.CustomConfig1 = txt1.Text ?? "";
-        if (txt2 != null) MainWindow.Instance.Config.CustomConfig2 = txt2.Text ?? "";
+        if (cb1 != null) MainWindow.Instance.Config.CustomConfig1 = cb1.Text ?? "";
+        if (cb2 != null) MainWindow.Instance.Config.CustomConfig2 = cb2.Text ?? "";
         if (chk != null) MainWindow.Instance.Config.AllowOneCustomConfig = chk.IsChecked ?? false;
+
+        SyncCustomConfigsToSavedList();
 
         bool hasConfig = !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1) ||
                          !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2);
@@ -473,8 +480,8 @@ namespace CrimsonX.Pages
             var btn = sender as global::Avalonia.Controls.Button;
             if (btn != null) btn.IsEnabled = false;
 
-            var txt1 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig1");
-            if (txt1 != null) MainWindow.Instance.Config.CustomConfig1 = txt1.Text ?? "";
+            var cb1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
+            if (cb1 != null) MainWindow.Instance.Config.CustomConfig1 = cb1.Text ?? "";
             MainWindow.Instance.RequestConfigSave();
 
             long ping1 = -1;
@@ -512,8 +519,8 @@ namespace CrimsonX.Pages
             var btn = sender as global::Avalonia.Controls.Button;
             if (btn != null) btn.IsEnabled = false;
 
-            var txt2 = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomConfig2");
-            if (txt2 != null) MainWindow.Instance.Config.CustomConfig2 = txt2.Text ?? "";
+            var cb2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
+            if (cb2 != null) MainWindow.Instance.Config.CustomConfig2 = cb2.Text ?? "";
             MainWindow.Instance.RequestConfigSave();
 
             long ping2 = -1;

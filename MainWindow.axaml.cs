@@ -211,13 +211,30 @@ public partial class MainWindow : Window
 
         if (_cfg.AutoStart && !_state.IsFirstLaunch)
         {
-            _autoBootTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            _autoBootTimer.Tick += (s, ev) =>
+            bool fired = false;
+
+            void FireAutoConnect()
             {
+                if (fired) return;
+                fired = true;
+                LayoutUpdated -= OnFirstLayout;
                 _autoBootTimer?.Stop();
                 if (!_state.AbortBoot)
-                    btnConnect_Click(null, new global::Avalonia.Interactivity.RoutedEventArgs());
-            };
+                    Dispatcher.UIThread.Post(
+                        () => btnConnect_Click(null, new global::Avalonia.Interactivity.RoutedEventArgs()),
+                        DispatcherPriority.Background);
+            }
+
+            void OnFirstLayout(object? s, EventArgs e)
+            {
+                LayoutUpdated -= OnFirstLayout;
+                DispatcherTimer.RunOnce(FireAutoConnect, TimeSpan.FromMilliseconds(250));
+            }
+
+            LayoutUpdated += OnFirstLayout;
+
+            _autoBootTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2500) };
+            _autoBootTimer.Tick += (s, ev) => FireAutoConnect();
             _autoBootTimer.Start();
         }
 

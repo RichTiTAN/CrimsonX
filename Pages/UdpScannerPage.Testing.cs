@@ -94,6 +94,8 @@ namespace CrimsonX.Pages
 
             _isScanning = false;
 
+            StopDots();
+
             var start = this.FindControl<Button>("btnStart");
             if (start != null) AppStrings.ApplyBtn(start, AppStrings.UdpScannerStart);
 
@@ -298,6 +300,8 @@ namespace CrimsonX.Pages
         private void SetScanning(bool scanning)
         {
             _isScanning = scanning;
+
+            if (scanning) StartDots(); else StopDots();
 
             var start = this.FindControl<Button>("btnStart");
             if (start != null)

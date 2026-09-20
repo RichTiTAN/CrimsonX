@@ -45,9 +45,6 @@
                 </Transitions>
             </Setter>
         </Style>
-        <!-- Editable custom-config combos (Classes="customProxy"): the ComboBox template pins its inner
-             TextBox to VerticalContentAlignment=Stretch, which parks the text at the top of the 24px box.
-             Centre it inside that TextBox so it lines up with the read-only combos. -->
         <Style Selector="ComboBox.customProxy /template/ TextBox">
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
@@ -516,10 +513,9 @@ Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
                                         <!-- Horizontal Separator 2 -->
                                         <Border Grid.Row="3" Height="1" Background="#2D3748" HorizontalAlignment="Stretch" Margin="0,0,0,0"/>
 
-                                        <!-- CUSTOM PROXY (config box doubles as the saved-configs dropdown, + ping + save) -->
+                                        <!-- CUSTOM PROXY -->
                                         <Grid Grid.Row="4" Margin="12,8,12,7" ColumnDefinitions="Auto, *">
                                             <TextBlock x:Name="lblCustomProxy" Grid.Column="0" Text="CUSTOM PROXY" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                            <!-- Config box = editable combo: type/paste a new config, or click the arrow for saved ones -->
                                             <Grid Grid.Column="1" Height="29" ColumnDefinitions="*,Auto">
                                                 <ComboBox x:Name="cbCustomProxy" Grid.Column="0" Classes="customProxy" IsEditable="True"
                                                           SelectedIndex="-1" MinHeight="24" Height="24" Margin="0"
@@ -684,7 +680,6 @@ Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
                                             <Border Grid.Row="1" Height="1" Background="#2D3748" HorizontalAlignment="Stretch"/>
                                             <Grid Grid.Row="2" Margin="12,8,12,7" ColumnDefinitions="Auto, *">
                                                 <TextBlock x:Name="lblDefaultCustomProxy" Grid.Column="0" Text="CUSTOM PROXY" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                                <!-- Config box = editable combo: type/paste a new config, or click the arrow for saved ones -->
                                                 <Grid Grid.Column="1" Height="29" ColumnDefinitions="*,Auto">
                                                     <ComboBox x:Name="cbDefaultCustomProxy" Grid.Column="0" Classes="customProxy" IsEditable="True"
                                                               SelectedIndex="-1" MinHeight="24" Height="24" Margin="0"
