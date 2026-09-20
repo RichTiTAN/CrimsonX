@@ -54,6 +54,7 @@ namespace CrimsonX.Pages
         public string StabilityLabel { get; set; } = "STABILITY";
         public string StabilityTip { get; set; } = "Stability test";
         public string CopyTip { get; set; } = "Copy share link";
+        public string SaveTip { get; set; } = "";
         public long Ping { get; set; }
 
         public string PingText => Ping > 0 ? $"{Ping} ms" : "-";
@@ -286,7 +287,8 @@ namespace CrimsonX.Pages
                 CountryCode = r.CountryCode ?? "",
                 StabilityLabel = AppStrings.UdpScannerStability,
                 StabilityTip = AppStrings.TtUdpScannerStability,
-                CopyTip = AppStrings.TtUdpScannerCopy
+                CopyTip = AppStrings.TtUdpScannerCopy,
+                SaveTip = AppStrings.TtSavedConfigsAdd
             });
 
             RefreshResults();
@@ -400,6 +402,38 @@ namespace CrimsonX.Pages
             }
 
             Main.ShowToast(AppStrings.ToastCopiedToClipboard, success: true);
+        }
+
+        private void Save_Click(object? sender, RoutedEventArgs e)
+        {
+            if ((sender as Control)?.DataContext is not UdpScanItem item) return;
+
+            SaveItem(item);
+        }
+
+        private void SaveItem(UdpScanItem item)
+        {
+            var cfg = Main.Config;
+            if (cfg == null) return;
+
+            string raw = BuildCopyText(item);
+            if (string.IsNullOrWhiteSpace(raw)) return;
+
+            switch (AppCustomConfigStore.Store(cfg, raw, out string label))
+            {
+                case CustomConfigSaveResult.Saved:
+                case CustomConfigSaveResult.Updated:
+                    Main.ShowToast($"{AppStrings.ToastCustomProxySaved}: {label}", success: true);
+                    break;
+
+                case CustomConfigSaveResult.PoolFull:
+                    Main.ShowToast(AppStrings.ToastCustomProxyPoolFull);
+                    break;
+
+                default:
+                    Main.ShowToast(AppStrings.ToastCustomProxyInvalid);
+                    break;
+            }
         }
 
         private void UpdateStatus(string text)
