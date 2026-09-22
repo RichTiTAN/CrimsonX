@@ -47,6 +47,7 @@ public class AppRuleViewModel
     public string  RuleId     { get; }
     public bool    IsEnabled  { get; set; }
     public string  ExeName    { get; }
+    public string  DisplayName { get; }
     public bool    HasIcon    { get; }
     public Bitmap? IconBitmap { get; }
     public bool    IsDefault  { get; }
@@ -90,6 +91,7 @@ public class AppRuleViewModel
         RuleId    = rule.Id;
         IsEnabled = rule.IsEnabled;
         ExeName   = rule.ExeName;
+        DisplayName = string.IsNullOrWhiteSpace(rule.DisplayName) ? rule.ExeName : rule.DisplayName;
         IsDefault = !string.IsNullOrEmpty(rule.DefaultKey);
         IsPinned  = rule.IsPinned;
         HasCountry = !string.IsNullOrEmpty(rule.Country);
@@ -112,6 +114,14 @@ public class AppRuleViewModel
         CountryItems = AppsGamesOverlay.CountryDisplayOptions();
         RegionItems  = AppsGamesOverlay.RegionDisplayOptions();
 
+        IconBitmap = RuleIcon(rule);
+        HasIcon    = IconBitmap != null;
+    }
+
+    internal static Bitmap? RuleIcon(AppGameRule rule)
+    {
+        if (rule == null) return null;
+
         if (!string.IsNullOrEmpty(rule.IconAsset))
         {
             if (!DefaultIconCache.TryGetValue(rule.IconAsset, out var bmp))
@@ -121,14 +131,13 @@ public class AppRuleViewModel
                 DefaultIconOrder.Enqueue(rule.IconAsset);
                 TrimIconCache(DefaultIconCache, DefaultIconOrder, DefaultIconCacheLimit);
             }
-            IconBitmap = bmp;
-            HasIcon = bmp != null;
+            return bmp;
         }
-        else if (!string.IsNullOrEmpty(rule.IconBase64))
-        {
-            IconBitmap = CustomIcon(rule.IconBase64);
-            HasIcon = IconBitmap != null;
-        }
+
+        if (!string.IsNullOrEmpty(rule.IconBase64))
+            return CustomIcon(rule.IconBase64);
+
+        return null;
     }
 
     private static Bitmap? CustomIcon(string base64)
@@ -186,6 +195,8 @@ public partial class AppsGamesOverlay : UserControl
     private string _editingRuleId = "";
     private string _iconBase64 = "";
     private string _exeName = "";
+    private string _displayName = "";
+    private bool _renamingName = false;
 
     private const string DiscordDefaultKey = "discord";
     private const string DiscordDefaultId = "d1a5c0de-0000-0000-0000-000000000001";
@@ -334,6 +345,22 @@ public partial class AppsGamesOverlay : UserControl
         "custom" => 1,
         "direct" => 2,
         _ => 0
+    };
+
+    // ── App type values: combo order is Game (0) / Launcher (1) / Other (2) ──
+
+    internal static string AppTypeName(int index) => index switch
+    {
+        1 => "Launcher",
+        2 => "Other",
+        _ => "Game"
+    };
+
+    internal static int AppTypeIndex(string appType) => appType?.Trim().ToLowerInvariant() switch
+    {
+        "launcher" => 1,
+        "other"    => 2,
+        _          => 0
     };
 
     internal static bool IsCustomRouting(string routing)
@@ -1182,7 +1209,9 @@ public partial class AppsGamesOverlay : UserControl
         if (!string.IsNullOrWhiteSpace(_searchText))
         {
             string st = _searchText.Trim();
-            filtered = filtered.Where(r => r.ExeName.Contains(st, StringComparison.OrdinalIgnoreCase));
+            filtered = filtered.Where(r =>
+                (r.ExeName ?? "").Contains(st, StringComparison.OrdinalIgnoreCase)
+                || (r.DisplayName ?? "").Contains(st, StringComparison.OrdinalIgnoreCase));
         }
 
         lst.ItemsSource = filtered
@@ -1191,6 +1220,49 @@ public partial class AppsGamesOverlay : UserControl
 
         if (!string.IsNullOrEmpty(_editingRuleId) && !_isClosing)
             Avalonia.Threading.Dispatcher.UIThread.Post(RehostRuleEditor, Avalonia.Threading.DispatcherPriority.Loaded);
+
+        if (!string.IsNullOrEmpty(_editingDefaultRuleId) && !_isClosingDefaultEditor)
+            Avalonia.Threading.Dispatcher.UIThread.Post(RehostDefaultRuleEditor, Avalonia.Threading.DispatcherPriority.Loaded);
+    }
+
+    private void RehostDefaultRuleEditor()
+    {
+        if (string.IsNullOrEmpty(_editingDefaultRuleId) || _isClosingDefaultEditor) return;
+
+        var panDefaultEditor = this.FindControl<Border>("panDefaultEditor");
+        var lst              = this.FindControl<ItemsControl>("lstRules");
+        if (panDefaultEditor == null || lst == null) return;
+
+        if (panDefaultEditor.Opacity <= 0) return;
+
+        if (panDefaultEditor.Parent is Visual currentHost
+            && Avalonia.VisualTree.VisualExtensions.GetVisualAncestors(currentHost).Contains(lst)) return;
+
+        var viewModels = (lst.ItemsSource as IEnumerable<AppRuleViewModel>)?.ToList();
+        if (viewModels == null) return;
+
+        int index = viewModels.FindIndex(v => v.RuleId == _editingDefaultRuleId);
+        if (index < 0) return;
+
+        var row = lst.ContainerFromIndex(index);
+        if (row == null) return;
+
+        var targetHost = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(row)
+            .OfType<ContentControl>().FirstOrDefault(c => c.Name == "EditContainer");
+        if (targetHost == null) return;
+
+        if (panDefaultEditor.Parent is Panel oldPanel) oldPanel.Children.Remove(panDefaultEditor);
+        else if (panDefaultEditor.Parent is ContentControl oldHost) { oldHost.Content = null; oldHost.IsVisible = false; }
+
+        targetHost.IsVisible = true;
+        targetHost.Content = panDefaultEditor;
+
+        var parentStack = targetHost.Parent as StackPanel;
+        _hiddenDefaultRuleView = parentStack?.Children.OfType<Avalonia.Controls.Border>().FirstOrDefault(b => b.Name == "panDefaultRuleWrapper");
+        if (_hiddenDefaultRuleView != null) { SetTransitionSpeed(_hiddenDefaultRuleView, 0); _hiddenDefaultRuleView.MaxHeight = 0; _hiddenDefaultRuleView.Opacity = 0; }
+
+        panDefaultEditor.MaxHeight = 800;
+        panDefaultEditor.Opacity = 1;
     }
 
     private void RehostRuleEditor()
@@ -1333,10 +1405,11 @@ public partial class AppsGamesOverlay : UserControl
     private void AddToggle_Click(object? sender, PointerPressedEventArgs e)
     {
         var panEditor = this.FindControl<Border>("panEditor");
-        if (panEditor != null && panEditor.Opacity == 0)
-        {
-            OpenEditor(null, null);
-        }
+        if (panEditor == null) return;
+
+        if (panEditor.Opacity > 0 && string.IsNullOrEmpty(_editingRuleId)) return;
+
+        OpenEditor(null, null);
     }
 
     private Avalonia.Controls.Panel? _defaultEditorParent = null;
@@ -1364,7 +1437,6 @@ public partial class AppsGamesOverlay : UserControl
 var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddToggleWrapper");
         var panEditor    = this.FindControl<Avalonia.Controls.Border>("panEditor");
         var btnSubmit    = this.FindControl<Avalonia.Controls.Button>("btnSubmit");
-        var lblHeader    = this.FindControl<Avalonia.Controls.TextBlock>("lblEditorHeader");
 
         CloseDefaultEditor(true);
 
@@ -1414,14 +1486,12 @@ var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddTogg
             _exeName = "";
             _iconBase64 = "";
             if (btnSubmit != null) btnSubmit.Content = CrimsonX.Localization.AppStrings.Submit;
-            if (lblHeader != null) lblHeader.Text = CrimsonX.Localization.AppStrings.AddProgram;
             ClearEditor();
         }
         else
         {
             _editingRuleId = ruleToEdit.Id;
             if (btnSubmit != null) btnSubmit.Content = CrimsonX.Localization.AppStrings.Update;
-            if (lblHeader != null) lblHeader.Text = CrimsonX.Localization.AppStrings.EditProgram;
             PreFill(ruleToEdit);
         }
     }
@@ -1532,14 +1602,16 @@ catch (Exception ex)
 
         private void ClearEditor()
     {
-        var rbGame = this.FindControl<RadioButton>("rbGame");
-        if (rbGame != null) rbGame.IsChecked = true;
-        
+        _displayName  = "";
+        _renamingName = false;
+
+        SetComboIndex("cbAppType", 0);
+
         SetComboIndex("cbTcpRouting", 0);
         SetComboIndex("cbUdpRouting", 2);
         SetComboIndex("cbTcpAdapter", 0);
         SetComboIndex("cbUdpAdapter", 0);
-        SetComboIndex("cbRegion", 0);
+        SetRegionIndex(0);
         RefreshCustomProxyPool("cbCustomProxy");
         var cbCustom = this.FindControl<ComboBox>("cbCustomProxy");
         if (cbCustom != null) cbCustom.Text = "";
@@ -1549,21 +1621,18 @@ catch (Exception ex)
 
     private void PreFill(AppGameRule rule)
     {
-        var rbGame   = this.FindControl<RadioButton>("rbGame");
-        var rbLaunch = this.FindControl<RadioButton>("rbLaunch");
-        var rbOther  = this.FindControl<RadioButton>("rbOther");
-        if (rbGame   != null) rbGame.IsChecked   = rule.AppType == "Game";
-        if (rbLaunch != null) rbLaunch.IsChecked = rule.AppType == "Launcher";
-        if (rbOther  != null) rbOther.IsChecked  = rule.AppType == "Other";
+        SetComboIndex("cbAppType", AppTypeIndex(rule.AppType));
 
         _exeName    = rule.ExeName;
         _iconBase64 = rule.IconBase64;
+        _displayName  = rule.DisplayName ?? "";
+        _renamingName = false;
         UpdateIconDisplay();
 
         SetComboIndex("cbTcpRouting", RoutingIndex(rule.TcpRouting));
         SetComboIndex("cbUdpRouting", RoutingIndex(rule.UdpRouting));
 
-        SetComboIndex("cbRegion", AppsGamesOverlay.RegionIndexFor(rule.Region));
+        SetRegionIndex(AppsGamesOverlay.RegionIndexFor(rule.Region));
 
         SetAdapterByName("cbTcpAdapter", rule.TcpAdapter);
         SetAdapterByName("cbUdpAdapter", rule.UdpAdapter);
@@ -1617,6 +1686,28 @@ catch (Exception ex)
     private void Routing_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         UpdateCustomAdapterAvailability();
+    }
+
+    // ── Connection region ──
+
+    private bool _suppressRegionToast;
+
+    private void SetRegionIndex(int index)
+    {
+        bool wasSuppressed = _suppressRegionToast;
+        _suppressRegionToast = true;
+        try { SetComboIndex("cbRegion", index); }
+        finally { _suppressRegionToast = wasSuppressed; }
+    }
+
+    private void Region_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (!_isReady || _suppressRegionToast) return;
+
+        var cbRegion = sender as ComboBox ?? this.FindControl<ComboBox>("cbRegion");
+        if (cbRegion == null || cbRegion.SelectedIndex <= 0) return;
+
+        MainWindow.Instance?.ShowToast(AS.ConnectionRegionWarning);
     }
 
     // ── Per-app CUSTOM PROXY (config + ping + save + saved pool) ──
@@ -1807,6 +1898,21 @@ catch (Exception ex)
             CrimsonX.Services.SimpleLogger.Log(ex);
         }
     }
+    // ── Custom proxy hint dialog (shared by the custom and default rule editors) ──
+
+    private async void CustomProxyHint_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dialog = new CrimsonX.Dialogs.CustomProxyHintDialog();
+            await dialog.ShowDialog<string>(MainWindow.Instance);
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
+    }
+
     private void ApplyCustomProxyToRule(AppGameRule rule, string comboName)
     {
         var cb = this.FindControl<ComboBox>(comboName);
@@ -1903,9 +2009,15 @@ catch (Exception ex)
     {
         var imgIcon       = this.FindControl<Image>("imgAppIcon");
         var iconHolder    = this.FindControl<Border>("iconPlaceholder");
+        var iconPanel     = this.FindControl<Panel>("panAppIcon");
         var lblExeName    = this.FindControl<TextBlock>("lblExeName");
+        var lblHeader     = this.FindControl<TextBlock>("lblEditorHeader");
 
-        bool hasIcon = !string.IsNullOrEmpty(_iconBase64);
+        bool hasExe  = !string.IsNullOrWhiteSpace(_exeName);
+        bool hasIcon = hasExe && !string.IsNullOrEmpty(_iconBase64);
+
+        if (iconPanel != null) iconPanel.IsVisible = hasExe;
+
         if (imgIcon != null)
         {
             imgIcon.IsVisible = hasIcon;
@@ -1919,8 +2031,71 @@ catch (Exception ex)
                 catch { imgIcon.IsVisible = false; }
             }
         }
-        if (iconHolder != null) iconHolder.IsVisible = !hasIcon;
-        if (lblExeName != null) lblExeName.Text = _exeName;
+        if (iconHolder != null) iconHolder.IsVisible = hasExe && !hasIcon;
+
+        if (lblExeName != null)
+        {
+            lblExeName.Text      = DisplayLabel();
+            lblExeName.IsVisible = hasExe && !_renamingName;
+        }
+
+        var nameBox = this.FindControl<TextBox>("txtDisplayName");
+        if (nameBox != null) nameBox.IsVisible = hasExe && _renamingName;
+
+        if (lblHeader != null) lblHeader.IsVisible = !hasExe;
+    }
+
+    private string DisplayLabel()
+        => string.IsNullOrWhiteSpace(_displayName) ? _exeName : _displayName;
+
+    // ── Inline rename of the displayed name (display only: the rule keeps the real exe name) ──
+
+    private void NameLabel_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_exeName)) return;
+        if (sender is not Control source || !e.GetCurrentPoint(source).Properties.IsLeftButtonPressed) return;
+
+        var box = this.FindControl<TextBox>("txtDisplayName");
+        if (box == null) return;
+
+        box.Text      = DisplayLabel();
+        _renamingName = true;
+        UpdateIconDisplay();
+        e.Handled = true;
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            box.Focus();
+            box.SelectAll();
+        }, Avalonia.Threading.DispatcherPriority.Background);
+    }
+
+    private void NameEdit_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            CommitDisplayNameRename();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            _renamingName = false;
+            UpdateIconDisplay();
+            e.Handled = true;
+        }
+    }
+
+    private void NameEdit_LostFocus(object? sender, RoutedEventArgs e) => CommitDisplayNameRename();
+
+    private void CommitDisplayNameRename()
+    {
+        if (!_renamingName) return;
+        _renamingName = false;
+
+        string typed = (this.FindControl<TextBox>("txtDisplayName")?.Text ?? "").Trim();
+        _displayName = string.Equals(typed, _exeName, StringComparison.OrdinalIgnoreCase) ? "" : typed;
+
+        UpdateIconDisplay();
     }
 
     private async void BtnBrowse_Click(object? sender, RoutedEventArgs e)
@@ -1946,6 +2121,11 @@ catch (Exception ex)
 
         var file      = result[0];
         var localPath = file.Path.LocalPath;
+
+        if (!string.Equals(file.Name, _exeName, StringComparison.OrdinalIgnoreCase))
+            _displayName = "";
+
+        _renamingName = false;
         _exeName      = file.Name;
 
         _iconBase64 = "";
@@ -1977,16 +2157,15 @@ catch (Exception ex)
     {
         if (string.IsNullOrWhiteSpace(_exeName)) return;
 
+        CommitDisplayNameRename();
+
         var cbTcpR = this.FindControl<ComboBox>("cbTcpRouting");
         var cbUdpR = this.FindControl<ComboBox>("cbUdpRouting");
         var cbTcpA = this.FindControl<ComboBox>("cbTcpAdapter");
         var cbUdpA = this.FindControl<ComboBox>("cbUdpAdapter");
-        var rbGame   = this.FindControl<RadioButton>("rbGame");
-        var rbLaunch = this.FindControl<RadioButton>("rbLaunch");
+        var cbAppType = this.FindControl<ComboBox>("cbAppType");
 
-        string appType = rbGame?.IsChecked == true ? "Game"
-                       : rbLaunch?.IsChecked == true ? "Launcher"
-                       : "Other";
+        string appType = AppTypeName(cbAppType?.SelectedIndex ?? 0);
 
         string GetRouting(ComboBox? cb) => AppsGamesOverlay.RoutingName(cb?.SelectedIndex ?? 0);
         string GetAdapter(ComboBox? cb)
@@ -2010,6 +2189,8 @@ catch (Exception ex)
         }
         rule.AppType    = appType;
         rule.ExeName    = _exeName;
+
+        rule.DisplayName = _displayName ?? "";
 
         if (string.IsNullOrEmpty(rule.DefaultKey))
         {
@@ -2217,6 +2398,23 @@ catch (Exception ex)
         ApplyDefaultEditorValues(rule);
     }
 
+    private void UpdateDefaultEditorHeader(AppGameRule rule)
+    {
+        var hdr = this.FindControl<Avalonia.Controls.TextBlock>("lblDefaultEditorHeader");
+        if (hdr != null) hdr.Text = string.IsNullOrEmpty(rule.ExeName) ? "APP" : rule.ExeName.ToUpperInvariant();
+
+        var img    = this.FindControl<Avalonia.Controls.Image>("imgDefaultEditorIcon");
+        var holder = this.FindControl<Avalonia.Controls.Border>("defaultEditorIconPlaceholder");
+        var bmp    = AppRuleViewModel.RuleIcon(rule);
+
+        if (img != null)
+        {
+            img.Source    = bmp;
+            img.IsVisible = bmp != null;
+        }
+        if (holder != null) holder.IsVisible = bmp == null;
+    }
+
     private void OpenDefaultEditor(AppGameRule rule, Avalonia.Controls.ContentControl? targetContainer)
     {
         CloseEditor(true);
@@ -2251,10 +2449,9 @@ catch (Exception ex)
         });
 
         _editingDefaultRuleId = rule.Id;
-        var hdr = this.FindControl<Avalonia.Controls.TextBlock>("lblDefaultEditorHeader");
-        if (hdr != null) hdr.Text = string.IsNullOrEmpty(rule.ExeName) ? "APP" : rule.ExeName.ToUpperInvariant();
+        UpdateDefaultEditorHeader(rule);
 
-        var panDefaultRouting = this.FindControl<Avalonia.Controls.StackPanel>("panDefaultRouting");
+        var panDefaultRouting = this.FindControl<Avalonia.Controls.Border>("panDefaultRouting");
         if (panDefaultRouting != null) panDefaultRouting.IsVisible = SupportsRoutingEditor(rule);
 
         ApplyDefaultEditorValues(rule);
@@ -2521,7 +2718,7 @@ catch (Exception ex)
                     MainWindow.Instance.SwitchToVpnMode();
                 }
 
-                if (!System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
+                if (!CrimsonX.Services.ConnectivityService.HasUsableConnection())
                 {
                     var noNetDlg = new CrimsonX.Dialogs.ConfirmDialog(
                         CrimsonX.Localization.AppStrings.NoInternetTitle,
@@ -2534,7 +2731,7 @@ catch (Exception ex)
                 }
             }
 
-            MainWindow.Instance.ConnectDisconnect();
+            MainWindow.Instance.ConnectAfterCheck();
             _hasPendingRuleChanges = false;
             UpdateOverlayConnectUI();
             }
@@ -2810,6 +3007,14 @@ catch (Exception ex)
                 if (cb != null && saved.Value < cb.Items.Count) cb.SelectedIndex = saved.Value;
             }
 
+            void FillRegionCombo(string name, string[] items, int defaultIndex, int? saved)
+            {
+                bool wasSuppressed = _suppressRegionToast;
+                _suppressRegionToast = true;
+                try { FillCombo(name, items, defaultIndex, saved); }
+                finally { _suppressRegionToast = wasSuppressed; }
+            }
+
             // Top bar: search, filter, master rules, mode
             var btnScan = this.FindControl<global::Avalonia.Controls.Button>("btnScanAdapters");
             if (btnScan != null) btnScan.Content = AS.OverlayScanAdapters;
@@ -2838,15 +3043,12 @@ catch (Exception ex)
             // Add/Edit rule editor
             Apply(F("lblAddToggle"), AS.AddToggle);
             bool adding = string.IsNullOrEmpty(_editingRuleId);
-            Apply(F("lblEditorHeader"), adding ? AS.AddProgram : AS.EditProgram);
+            Apply(F("lblEditorHeader"), AS.AddProgram);
             ApplyControl("btnSubmit", adding ? AS.Submit : AS.Update);
             ApplyControl("btnCancel", AS.Cancel);
             ApplyControl("btnBrowse", AS.Browse);
             Apply(F("lblType"), AS.TypeLabel);
-            ApplyControl("rbGame", AS.Game);
-            ApplyControl("rbLaunch", AS.Launcher);
-            ApplyControl("rbOther", AS.Other);
-            Apply(F("lblApp"), AS.AppLabel);
+            FillCombo("cbAppType", new[] { AS.Game, AS.Launcher, AS.Other }, 0, this.FindControl<ComboBox>("cbAppType")?.SelectedIndex);
             Apply(F("lblRouting"), AS.RoutingLabel);
             Apply(F("lblAdapter"), AS.AdapterLabel);
 
@@ -2864,6 +3066,9 @@ catch (Exception ex)
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnCustomProxyDelete"), AS.DeleteSavedConfigTooltip);
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnDefaultCustomProxyDelete"), AS.DeleteSavedConfigTooltip);
             Apply(F("lblDefaultCustomProxy"), AS.CustomProxyLabel);
+            Apply(F("lblDefaultConfigRow"), AS.ConfigBadge);
+            Apply(F("lblCustomProxyConfigRow"), AS.ConfigBadge);
+            ApplyControl("btnCustomProxyHint", AS.HintBtn);
 
             CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblCustomProxy"), AS.CustomProxyHint);
             CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblDefaultCustomProxy"), AS.CustomProxyHint);
@@ -2880,14 +3085,20 @@ catch (Exception ex)
 
             ApplyControl("btnDefaultSubmit", AS.Submit);
             ApplyControl("btnDefaultCancel", AS.Cancel);
+            ApplyControl("btnDefaultRestore", AS.RestoreDefaults);
+            ApplyControl("btnDefaultHint", AS.HintBtn);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnDefaultIconSubmit"), AS.Submit);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnDefaultIconCancel"), AS.Cancel);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnEditorIconSubmit"), AS.Submit);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnEditorIconCancel"), AS.Cancel);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblExeName"), AS.RenameDisplayName);
             Apply(F("lblConnectionRegion"), AS.ConnectionRegionLabel);
-            Apply(F("lblConnectionRegionWarning"), AS.ConnectionRegionWarning);
             Apply(F("txtApplyChanges"), AS.ApplyChanges);
             Apply(F("lblDefaultRoutingHeader"), AS.RoutingLabel);
             Apply(F("lblDefaultAdapterHeader"), AS.AdapterLabel);
             FillCombo("cbDefaultTcpRouting", routingItems, 0, this.FindControl<ComboBox>("cbDefaultTcpRouting")?.SelectedIndex);
             FillCombo("cbDefaultUdpRouting", routingItems, 1, this.FindControl<ComboBox>("cbDefaultUdpRouting")?.SelectedIndex);
-            FillCombo("cbRegion", RegionDisplayOptions(), 0, this.FindControl<ComboBox>("cbRegion")?.SelectedIndex);
+            FillRegionCombo("cbRegion", RegionDisplayOptions(), 0, this.FindControl<ComboBox>("cbRegion")?.SelectedIndex);
 
             int? tcpA = this.FindControl<ComboBox>("cbTcpAdapter")?.SelectedIndex;
             int? udpA = this.FindControl<ComboBox>("cbUdpAdapter")?.SelectedIndex;

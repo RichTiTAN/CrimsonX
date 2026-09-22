@@ -33,6 +33,12 @@ namespace CrimsonX.Behaviors
         public static bool GetIsEnabled(AvaloniaObject element) => element.GetValue(IsEnabledProperty);
         public static void SetIsEnabled(AvaloniaObject element, bool value) => element.SetValue(IsEnabledProperty, value);
 
+        public static readonly AttachedProperty<double> StepProperty =
+            AvaloniaProperty.RegisterAttached<ScrollViewer, double>("Step", typeof(SmoothScrollBehavior), 170.0);
+
+        public static double GetStep(AvaloniaObject element) => element.GetValue(StepProperty);
+        public static void SetStep(AvaloniaObject element, double value) => element.SetValue(StepProperty, value);
+
         private sealed class ScrollState
         {
             public ScrollViewer Scroller = null!;
@@ -105,7 +111,7 @@ namespace CrimsonX.Behaviors
                     state.Velocity = 0;
                 }
 
-                double scrollAmount = 170; 
+                double scrollAmount = GetStep(scroller);
                 state.Velocity += e.Delta.Y * scrollAmount;
                 
 

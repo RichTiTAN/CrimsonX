@@ -269,7 +269,8 @@ namespace CrimsonX.Controls
                         set.Add(name);
 
                     if (names.Count > 0)
-                        apps.Add((AppLabel(rule.ExeName, rule.ProcessNames), names));
+                        apps.Add((AppLabel(string.IsNullOrWhiteSpace(rule.DisplayName) ? rule.ExeName : rule.DisplayName,
+                                           rule.ProcessNames), names));
                 }
             }
             catch (Exception ex)

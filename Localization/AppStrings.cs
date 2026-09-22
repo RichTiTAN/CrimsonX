@@ -272,11 +272,11 @@ namespace CrimsonX.Localization
 
         public static string TypeLabel => IsPersian ? "نوع" : "TYPE";
 
-        public static string Game => IsPersian ? "بازی" : "GAME";
+        public static string Game => IsPersian ? "بازی" : "Game";
 
-        public static string Launcher => IsPersian ? "لانچر" : "LAUNCHER";
+        public static string Launcher => IsPersian ? "لانچر" : "Launcher";
 
-        public static string Other => IsPersian ? "سایر" : "OTHER";
+        public static string Other => IsPersian ? "سایر" : "Other";
 
         public static string AppLabel => IsPersian ? "برنامه" : "APP";
 
@@ -286,11 +286,45 @@ namespace CrimsonX.Localization
 
         public static string RoutingDirect => IsPersian ? "مستقیم" : "Direct";
 
-        public static string RoutingCustom => IsPersian ? "کانفیگ دلخواه" : "Custom Config";
+        public static string RoutingCustom => IsPersian ? "پروکسی دلخواه" : "Custom Proxy";
 
         public static string RoutingCustomShort => IsPersian ? "کانفیگ دلخواه" : "CUSTOM";
 
         public static string CustomProxyLabel => IsPersian ? "پروکسی دلخواه" : "CUSTOM PROXY";
+
+        public static string HintBtn => IsPersian ? "راهنما" : "HINT";
+
+        public static string RestoreDefaults => IsPersian ? "بازگردانی پیش‌فرض‌ها" : "RESTORE DEFAULTS";
+
+        public static string RenameDisplayName => IsPersian ? "برای تغییر نام کلیک کنید" : "Click to rename";
+
+        // ── Custom proxy hint dialog ──
+
+        public static string CustomProxyHintTitle => IsPersian ? "نحوه استفاده از پروکسی دلخواه" : "How to use the custom proxy";
+
+        public static string CustomProxyHintStep1Tag => IsPersian ? "مرحله ۰۱" : "STEP 01";
+
+        public static string CustomProxyHintStep1 => IsPersian
+            ? "یک کانفیگ xray را در کادر متن پیست کنید، یا با زدن فلش یکی از کانفیگ‌های ذخیره‌شده را انتخاب کنید."
+            : "Paste an xray config in the text box, or choose one from your saved configs by pressing the arrow.";
+
+        public static string CustomProxyHintStep2Tag => IsPersian ? "مرحله ۰۲" : "STEP 02";
+
+        public static string CustomProxyHintStep2 => IsPersian
+            ? "اگر کانفیگ هنوز ذخیره نشده است، دکمه ذخیره (SAVE) را بزنید."
+            : "If the config is not saved yet, click the SAVE button.";
+
+        public static string CustomProxyHintStep3Tag => IsPersian ? "مرحله ۰۳" : "STEP 03";
+
+        public static string CustomProxyHintStep3 => IsPersian
+            ? $"در گزینه‌های مسیریابی، TCP، UDP یا هر دو را روی «{RoutingCustom}» بگذارید."
+            : $"In the routing options, set TCP, UDP or both to \u201C{RoutingCustom}\u201D.";
+
+        public static string CustomProxyHintStep4Tag => IsPersian ? "مرحله ۰۴ (اختیاری)" : "STEP 04 (OPTIONAL)";
+
+        public static string CustomProxyHintStep4 => IsPersian
+            ? "اگر بیش از یک اتصال اینترنت دارید، می‌توانید انتخاب کنید کدام‌یک از پروکسی استفاده کند."
+            : "If you have more than one internet connection, you can choose which one should use the proxy.";
 
         public static string CustomProxyPlaceholder => IsPersian ? "vless:// یا vmess:// یا JSON سینگ‌باکس" : "vless:// / vmess:// / sing-box JSON";
 
@@ -328,7 +362,7 @@ namespace CrimsonX.Localization
 
         public static string AdapterDefault => IsPersian ? "پیش‌فرض" : "Default";
 
-        public static string ConnectionRegionLabel => IsPersian ? "منطقه اتصال" : "CONNECTION REGION";
+        public static string ConnectionRegionLabel => IsPersian ? "منطقه" : "REGION";
         public static string ConnectionRegionWarning => IsPersian ? "انتخاب یک منطقه ممکن است روی همه برنامه‌ها کار نکند." : "Choosing a region might not work on all programs.";
 
         public static string ConnRegionShort => IsPersian ? "منطقه اتصال" : "CONN-REGION";

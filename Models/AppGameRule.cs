@@ -30,6 +30,8 @@ namespace CrimsonX.Models
 
         public string ExeName { get; set; } = "";
 
+        public string DisplayName { get; set; } = "";
+
         public string IconBase64 { get; set; } = "";
 
         public string IconAsset { get; set; } = "";

@@ -1,0 +1,99 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dialogs="clr-namespace:CrimsonX.Dialogs"
+        x:Class="CrimsonX.Dialogs.CustomProxyHintDialog"
+        Title="How to use the custom proxy"
+        Width="930" SizeToContent="Height" MaxHeight="520"
+        CanResize="False" CanMinimize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E" Foreground="White"
+        FontFamily="Segoe UI, Tahoma, sans-serif"
+        KeyDown="Dialog_KeyDown">
+
+    <Grid Margin="5">
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid ColumnDefinitions="*, 5, *, 5, *, 5, *">
+
+                <!-- Step 01: paste a config or pick a saved one -->
+                <Border Grid.Column="0" Background="#141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" Padding="5">
+                    <Grid RowDefinitions="Auto, *, Auto">
+                        <TextBlock x:Name="lblStep1Tag" Grid.Row="0" Text="STEP 01" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1"/>
+                        <TextBlock x:Name="lblStep1Text" Grid.Row="1" FontSize="12" Foreground="#C7D0DB" TextWrapping="Wrap" LineHeight="18"
+                                   Margin="0,6,0,0" VerticalAlignment="Top"
+                                   Text="Paste an xray config in the text box, or choose one from your saved configs by pressing the arrow."/>
+                        <Border Grid.Row="2" Width="190" Height="190" Margin="0,10,0,0" CornerRadius="6" ClipToBounds="True"
+                                Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" HorizontalAlignment="Center">
+                            <Image Width="190" Height="190" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality"
+                                   Source="avares://CrimsonX/Assets/hints/01.png"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Step 02: save the config -->
+                <Border Grid.Column="2" Background="#141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" Padding="5">
+                    <Grid RowDefinitions="Auto, *, Auto">
+                        <TextBlock x:Name="lblStep2Tag" Grid.Row="0" Text="STEP 02" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1"/>
+                        <TextBlock x:Name="lblStep2Text" Grid.Row="1" FontSize="12" Foreground="#C7D0DB" TextWrapping="Wrap" LineHeight="18"
+                                   Margin="0,6,0,0" VerticalAlignment="Top"
+                                   Text="If the config is not saved yet, click the SAVE button."/>
+                        <Border Grid.Row="2" Width="190" Height="190" Margin="0,10,0,0" CornerRadius="6" ClipToBounds="True"
+                                Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" HorizontalAlignment="Center">
+                            <Image Width="190" Height="190" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality"
+                                   Source="avares://CrimsonX/Assets/hints/02.png"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Step 03: point a protocol's routing at the custom proxy -->
+                <Border Grid.Column="4" Background="#141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" Padding="5">
+                    <Grid RowDefinitions="Auto, *, Auto">
+                        <TextBlock x:Name="lblStep3Tag" Grid.Row="0" Text="STEP 03" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1"/>
+                        <TextBlock x:Name="lblStep3Text" Grid.Row="1" FontSize="12" Foreground="#C7D0DB" TextWrapping="Wrap" LineHeight="18"
+                                   Margin="0,6,0,0" VerticalAlignment="Top"
+                                   Text="In the routing options, set TCP, UDP or both to “Custom Proxy”."/>
+                        <Border Grid.Row="2" Width="190" Height="190" Margin="0,10,0,0" CornerRadius="6" ClipToBounds="True"
+                                Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" HorizontalAlignment="Center">
+                            <Image Width="190" Height="190" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality"
+                                   Source="avares://CrimsonX/Assets/hints/03.png"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Step 04 (optional): bind the proxy to one adapter -->
+                <Border Grid.Column="6" Background="#141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" Padding="5">
+                    <Grid RowDefinitions="Auto, *, Auto">
+                        <TextBlock x:Name="lblStep4Tag" Grid.Row="0" Text="STEP 04 (OPTIONAL)" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1"/>
+                        <TextBlock x:Name="lblStep4Text" Grid.Row="1" FontSize="12" Foreground="#C7D0DB" TextWrapping="Wrap" LineHeight="18"
+                                   Margin="0,6,0,0" VerticalAlignment="Top"
+                                   Text="If you have more than one internet connection, you can choose which one should use the proxy."/>
+                        <Border Grid.Row="2" Width="190" Height="190" Margin="0,10,0,0" CornerRadius="6" ClipToBounds="True"
+                                Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" HorizontalAlignment="Center">
+                            <Image Width="190" Height="190" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality"
+                                   Source="avares://CrimsonX/Assets/hints/04.png"/>
+                        </Border>
+                    </Grid>
+                </Border>
+
+            </Grid>
+        </ScrollViewer>
+
+    </Grid>
+</Window>

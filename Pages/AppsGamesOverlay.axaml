@@ -20,6 +20,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:CrimsonX.Pages"
              xmlns:controls="clr-namespace:CrimsonX.Controls"
+             xmlns:behaviors="clr-namespace:CrimsonX.Behaviors"
              x:Class="CrimsonX.Pages.AppsGamesOverlay">
 
     <UserControl.Styles>
@@ -139,6 +140,123 @@
             <Setter Property="BoxShadow" Value="0 0 26 6 #E6000000"/>
             <Setter Property="IsHitTestVisible" Value="False"/>
         </Style>
+
+        <!-- ── Default-Rule Editor: section boxes, bars and joined fields ── -->
+
+        <Style Selector="Border.editBox">
+            <Setter Property="Background" Value="#141414"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8"/>
+        </Style>
+
+        <Style Selector="Border.editBar">
+            <Setter Property="Background" Value="#141414"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+
+        <Style Selector="Border.editRow">
+            <Setter Property="Background" Value="#141414"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+
+        <Style Selector="TextBlock.boxTitle">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="LetterSpacing" Value="1"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="FlowDirection" Value="LeftToRight"/>
+        </Style>
+
+        <Style Selector="Border.fieldLabel">
+            <Setter Property="Background" Value="#0A0C0F"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1,1,0,1"/>
+            <Setter Property="CornerRadius" Value="4,0,0,4"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="Width" Value="36"/>
+        </Style>
+
+        <Style Selector="Border.fieldLabelWide">
+            <Setter Property="Width" Value="48"/>
+        </Style>
+
+        <Style Selector="Border.fieldLabel TextBlock">
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FlowDirection" Value="LeftToRight"/>
+        </Style>
+
+        <Style Selector="ComboBox.fieldCombo">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="Padding" Value="7,0,4,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#0A0C0F"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="0,4,4,0"/>
+        </Style>
+
+        <Style Selector="Button.seg">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#A0AEC0"/>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="Button.seg:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2AFFFFFF"/>
+            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <Style Selector="Button.iconBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="Button.iconBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2AFFFFFF"/>
+        </Style>
+
+        <Style Selector="TextBox.nameRename">
+            <Setter Property="Background" Value="#1A1C20"/>
+            <Setter Property="BorderBrush" Value="#3A3F44"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FlowDirection" Value="LeftToRight"/>
+        </Style>
     </UserControl.Styles>
 
     <UserControl.Transitions>
@@ -152,7 +270,8 @@
                 <!-- Rules Box -->
                 <Panel>
                 <Border x:Name="panRulesBox" Background="#99141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="6,6,2,6">
-                    <ScrollViewer x:Name="Scroller" BringIntoViewOnFocusChange="False">
+                    <ScrollViewer x:Name="Scroller" BringIntoViewOnFocusChange="False"
+                                  behaviors:SmoothScrollBehavior.Step="85">
                         <StackPanel Spacing="4" Margin="0,0,4,0">
 
                             <Border Height="45"/>
@@ -193,7 +312,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
                                                 </Panel>
-                                                <TextBlock Grid.Column="3" Text="{Binding ExeName}"
+                                                <TextBlock Grid.Column="3" Text="{Binding DisplayName}"
                                                            FontSize="11" FontWeight="SemiBold" Foreground="#A0AEC0"
                                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                                 <Button Grid.Column="4" Tag="{Binding RuleId}"
@@ -251,7 +370,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                             </Border>
                                                         </Panel>
-                                                        <TextBlock Grid.Column="3" Text="{Binding ExeName}"
+                                                        <TextBlock Grid.Column="3" Text="{Binding DisplayName}"
                                                                    FontSize="11" FontWeight="SemiBold" Foreground="#A0AEC0"
                                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Grid.Column="4" Text="{Binding ConfigLabel}" FontSize="8" FontWeight="SemiBold" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,4,0" IsVisible="{Binding HasCountry}"/>
@@ -328,255 +447,162 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                             <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
                                         </Transitions>
                                     </Border.Transitions>
+                                    <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="8">
+                                        <Grid RowDefinitions="Auto, 8, Auto, 8, Auto, 8, Auto">
 
-                                    <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8">
-                                      <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto, *" Margin="0,8,0,0">
-                                        <!-- Header -->
-                                        <Grid Grid.Row="0" Margin="12,0,12,10" ColumnDefinitions="*, Auto">
-                                            <TextBlock x:Name="lblEditorHeader" Grid.Column="0" Text="ADD PROGRAM" FontSize="11" FontWeight="Bold" Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                            <Grid Grid.Column="1">
-                                                <!-- Buttons -->
-                                        
-                                            <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                    CornerRadius="4" Height="26">
-                                                <Grid ColumnDefinitions="Auto, 1, *, 1, 80">
-<Button x:Name="btnScanAdapters" Grid.Column="0"
-Content="SCAN ADAPTERS" Click="BtnScanAdapters_Click"
-FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"
-Background="Transparent" HorizontalAlignment="Stretch"
-HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
-VerticalContentAlignment="Center" Padding="15,0"
-Cursor="Hand" BorderThickness="0" CornerRadius="4,0,0,4">
-<Button.Styles>
-<Style Selector="Button:pointerover /template/ ContentPresenter">
-<Setter Property="Background" Value="#2AFFFFFF"/>
-<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-</Style>
-</Button.Styles>
-</Button>
-<Border Grid.Column="1" Background="#2D3748"/>
-<Button x:Name="btnSubmit" Grid.Column="2"
-Content="SUBMIT" Click="BtnSubmit_Click"
-FontSize="10" FontWeight="Bold" Foreground="#E2E8F0"
-Background="Transparent" HorizontalAlignment="Stretch"
-HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
-VerticalContentAlignment="Center" Padding="20,0"
-Cursor="Hand" BorderThickness="0" CornerRadius="0">
-<Button.Styles>
-<Style Selector="Button:pointerover /template/ ContentPresenter">
-<Setter Property="Background" Value="#2AFFFFFF"/>
-<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-</Style>
-</Button.Styles>
-</Button>
-<Border Grid.Column="3" Background="#2D3748"/>
-<Button x:Name="btnCancel" Grid.Column="4"
-Content="CANCEL" Click="BtnCancel_Click"
-FontSize="10" FontWeight="Bold" Foreground="#A0AEC0"
-Background="Transparent" HorizontalAlignment="Stretch"
-HorizontalContentAlignment="Center" VerticalAlignment="Stretch"
-VerticalContentAlignment="Center"
-Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
-<Button.Styles>
-<Style Selector="Button:pointerover /template/ ContentPresenter">
-<Setter Property="Background" Value="#2AFFFFFF"/>
-<Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-</Style>
-</Button.Styles>
-</Button>
-</Grid>
+                                            <!-- Title bar: program icon + name + browse + submit / cancel -->
+                                            <Border Grid.Row="0" Classes="editBar hoverBox">
+                                                <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto" MinHeight="26">
+                                                    <Panel x:Name="panAppIcon" Grid.Column="0" Width="24" Height="24" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                        <Image x:Name="imgAppIcon" Width="24" Height="24" Stretch="Uniform" IsVisible="False"
+                                                               RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                        <Border x:Name="iconPlaceholder" Width="24" Height="24" Background="#1A1C20"
+                                                                BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" IsVisible="False"/>
+                                                    </Panel>
+                                                    <TextBlock x:Name="lblExeName" Grid.Column="1" Text="" FontSize="11" FontWeight="Bold"
+                                                               Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center"
+                                                               MaxWidth="230" TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight"
+                                                               Cursor="Ibeam" PointerPressed="NameLabel_PointerPressed"/>
+                                                    <TextBox x:Name="txtDisplayName" Grid.Column="1" Classes="nameRename" Width="220"
+                                                             IsVisible="False" KeyDown="NameEdit_KeyDown" LostFocus="NameEdit_LostFocus"/>
+                                                    <TextBlock x:Name="lblEditorHeader" Grid.Column="2" Text="ADD PROGRAM" FontSize="11" FontWeight="Bold"
+                                                               Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                    <Border Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                            Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
+                                                        <Button x:Name="btnBrowse" Classes="seg" Content="BROWSE" Click="BtnBrowse_Click" Padding="14,0"/>
+                                                    </Border>
+                                                    <Button x:Name="btnEditorIconSubmit" Grid.Column="4" Classes="iconBtn" Margin="6,0,2,0" Click="BtnSubmit_Click">
+                                                        <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="13" Height="13" Foreground="#68D391"/>
+                                                    </Button>
+                                                    <Button x:Name="btnEditorIconCancel" Grid.Column="5" Classes="iconBtn" Click="BtnCancel_Click">
+                                                        <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Width="13" Height="13" Foreground="#E53E3E"/>
+                                                    </Button>
+                                                </Grid>
                                             </Border>
+
+                                            <!-- Sections: routing / adapter / custom proxy -->
+                                            <Grid Grid.Row="2" ColumnDefinitions="*, 8, *, 8, *">
+
+                                                <!-- ROUTING -->
+                                                <Border Grid.Column="0" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblRouting" Classes="boxTitle" Text="ROUTING"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="TCP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbTcpRouting" Grid.Column="1" Classes="fieldCombo"
+                                                                      SelectionChanged="Routing_SelectionChanged"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="UDP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbUdpRouting" Grid.Column="1" Classes="fieldCombo"
+                                                                      SelectionChanged="Routing_SelectionChanged"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- ADAPTER -->
+                                                <Border Grid.Column="2" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblAdapter" Classes="boxTitle" Text="ADAPTER"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="TCP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbTcpAdapter" Grid.Column="1" Classes="fieldCombo"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="UDP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbUdpAdapter" Grid.Column="1" Classes="fieldCombo"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- CUSTOM PROXY -->
+                                                <Border Grid.Column="4" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblCustomProxy" Classes="boxTitle" Text="CUSTOM PROXY"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel fieldLabelWide">
+                                                                <TextBlock x:Name="lblCustomProxyConfigRow" Text="CONFIG"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbCustomProxy" Grid.Column="1" Classes="customProxy fieldCombo" IsEditable="True"
+                                                                      SelectedIndex="-1" FontFamily="Consolas" FontSize="9" Padding="4,3,18,2"
+                                                                      Background="#1A1C20"
+                                                                      PlaceholderText="vless:// / vmess:// / sing-box JSON"
+                                                                      ToolTip.Tip="Type or paste a config, or pick a previously saved one from the arrow. Set a protocol's routing to CUSTOM PROXY to use it."
+                                                                      SelectionChanged="CustomProxySaved_SelectionChanged"/>
+                                                        </Grid>
+                                                        <Grid Height="26" ColumnDefinitions="*, *, *, 34">
+                                                            <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4">
+                                                                <Button x:Name="btnCustomProxyPing" Classes="seg" Content="PING" Click="CustomProxyPing_Click"/>
+                                                            </Border>
+                                                            <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
+                                                                <Button x:Name="btnCustomProxySave" Classes="seg" Content="SAVE" Click="CustomProxySave_Click"/>
+                                                            </Border>
+                                                            <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
+                                                                <Button x:Name="btnCustomProxyHint" Classes="seg" Content="HINT" Click="CustomProxyHint_Click"/>
+                                                            </Border>
+                                                            <Border Grid.Column="3" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0">
+                                                                <Button x:Name="btnCustomProxyDelete" Classes="seg" Click="CustomProxyDelete_Click"
+                                                                        ToolTip.Tip="Remove the config in the box from the saved list">
+                                                                    <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Width="12" Height="12" Foreground="#E53E3E"/>
+                                                                </Button>
+                                                            </Border>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
                                             </Grid>
-                                        </Grid>
 
-                                        <!-- Horizontal Separator -->
-                                        <Border Grid.Row="1" Height="1" Background="#2D3748" HorizontalAlignment="Stretch"/>
+                                            <!--Type / region -->
+                                            <Grid Grid.Row="4" ColumnDefinitions="*, 8, *">
 
-                                        <!-- Main Content: 3 columns -->
-                                        <Grid Grid.Row="2" ColumnDefinitions="0.85*, Auto, 1.15*, Auto, Auto">
-
-                                            <!-- TYPE box -->
-                                            <Border Grid.Column="0" Background="Transparent" BorderThickness="0" Padding="0" Margin="12,10,0,10">
-                                                <StackPanel Spacing="6">
-                                                    <TextBlock x:Name="lblType" Text="TYPE" FontSize="10" FontWeight="Bold" Foreground="#8B949E"
-                                                               LetterSpacing="1" Margin="0,0,0,4"/>
-                                                    <RadioButton x:Name="rbGame" Classes="pill" GroupName="AppType" Content="GAME" IsChecked="True"/>
-                                                    <RadioButton x:Name="rbLaunch" Classes="pill" GroupName="AppType" Content="LAUNCHER"/>
-                                                    <RadioButton x:Name="rbOther" Classes="pill" GroupName="AppType" Content="OTHER"/>
-                                                </StackPanel>
-                                            </Border>
-
-                                            <!-- Separator -->
-                                            <Border Grid.Column="1" Width="1" Background="#2D3748" Margin="12,0,12,0"/>
-
-                                            <!-- APP box -->
-                                            <Border Grid.Column="2" Background="Transparent" BorderThickness="0" Padding="0" Margin="0,10,0,10">
-                                                <Grid RowDefinitions="Auto, *, Auto">
-                                                    <TextBlock Grid.Row="0" x:Name="lblApp" Text="APP" FontSize="10" FontWeight="Bold"
-                                                               Foreground="#8B949E" LetterSpacing="1" Margin="0,0,0,4"/>
-                                                    
-                                                    <!-- Icon / placeholder -->
-                                                    <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
-                                                        <Panel Width="32" Height="32">
-                                                            <Image x:Name="imgAppIcon" Width="32" Height="32" Stretch="Uniform"
-                                                                   HorizontalAlignment="Center" IsVisible="False"/>
-                                                            <Border x:Name="iconPlaceholder" Width="32" Height="32"
-                                                                    Background="Transparent" HorizontalAlignment="Center"/>
-                                                        </Panel>
-                                                        <TextBlock x:Name="lblExeName" Text="" FontSize="9" Foreground="#606060"
-                                                                   HorizontalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="76"/>
-                                                    </StackPanel>
-
-                                                    <!-- Browse button -->
-                                                    <Border Grid.Row="2" VerticalAlignment="Bottom" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                            CornerRadius="4" Height="26" HorizontalAlignment="Stretch" Margin="0">
-                                                        <Button x:Name="btnBrowse" Content="BROWSE" FontSize="9" FontWeight="Bold"
-                                                                Foreground="#A0AEC0" Background="Transparent"
-                                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                                VerticalAlignment="Stretch" VerticalContentAlignment="Center"
-                                                                Padding="0" BorderThickness="0" CornerRadius="4" Cursor="Hand"
-                                                                Click="BtnBrowse_Click">
-                                                            <Button.Styles>
-                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                </Style>
-                                                            </Button.Styles>
-                                                        </Button>
-                                                    </Border>
-                                                </Grid>
-                                            </Border>
-
-                                            <!-- Separator -->
-                                            <Border Grid.Column="3" Width="1" Background="#2D3748" Margin="12,0,12,0"/>
-
-                                            <!-- ROUTING + ADAPTER box -->
-                                            <Border Grid.Column="4" Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,12,0">
-                                                <Grid ColumnDefinitions="Auto, Auto, Auto">
-
-                                                    <!-- ROUTING -->
-                                                    <StackPanel Grid.Column="0" Spacing="8" Margin="0,10,0,10">
-                                                          <TextBlock x:Name="lblRouting" Text="ROUTING" FontSize="10" FontWeight="Bold"
-                                                                   Foreground="#8B949E" LetterSpacing="1" Margin="0,0,0,4"/>
-                                                        <!-- TCP -->
-                                                        <StackPanel Spacing="4">
-                                                            <TextBlock Text="TCP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
-                                                            <ComboBox x:Name="cbTcpRouting" SelectedIndex="0" Width="150" MinHeight="26"
-                                                                      SelectionChanged="Routing_SelectionChanged"
-                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                                      FontSize="10" Height="26" Padding="8,0"
-                                                                      VerticalContentAlignment="Center"
-                                                                      HorizontalAlignment="Left" CornerRadius="4"></ComboBox>
-                                                        </StackPanel>
-                                                        <!-- UDP -->
-                                                        <StackPanel Spacing="4">
-                                                            <TextBlock Text="UDP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
-                                                            <ComboBox x:Name="cbUdpRouting" SelectedIndex="1" Width="150" MinHeight="26"
-                                                                      SelectionChanged="Routing_SelectionChanged"
-                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                                      FontSize="10" Height="26" Padding="8,0"
-                                                                      VerticalContentAlignment="Center"
-                                                                      HorizontalAlignment="Left" CornerRadius="4"></ComboBox>
-                                                        </StackPanel>
-                                                    </StackPanel>
-
-                                                    <!-- Separator -->
-                                                    <Border Grid.Column="1" Width="1" Background="#2D3748" Margin="12,0,12,0"/>
-
-                                                    <!-- ADAPTER -->
-                                                    <StackPanel Grid.Column="2" Spacing="8" Margin="0,10,0,10">
-                                                          <TextBlock x:Name="lblAdapter" Text="ADAPTER" FontSize="10" FontWeight="Bold"
-                                                                   Foreground="#8B949E" LetterSpacing="1" Margin="0,0,0,4"/>
-                                                        <!-- TCP -->
-                                                        <StackPanel Spacing="4">
-                                                            <TextBlock Text="TCP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
-                                                            <ComboBox x:Name="cbTcpAdapter" Width="150" MinHeight="26"
-                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                                      FontSize="10" Height="26" Padding="8,0"
-                                                                      VerticalContentAlignment="Center"
-                                                                      HorizontalAlignment="Left" CornerRadius="4"/>
-                                                        </StackPanel>
-                                                        <!-- UDP -->
-                                                        <StackPanel Spacing="4">
-                                                            <TextBlock Text="UDP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
-                                                            <ComboBox x:Name="cbUdpAdapter" Width="150" MinHeight="26"
-                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                                      FontSize="10" Height="26" Padding="8,0"
-                                                                      VerticalContentAlignment="Center"
-                                                                      HorizontalAlignment="Left" CornerRadius="4"/>
-                                                        </StackPanel>
-                                                    </StackPanel>
-
-                                                </Grid>
-                                            </Border>
-                                        </Grid>
-                                        <!-- Horizontal Separator 2 -->
-                                        <Border Grid.Row="3" Height="1" Background="#2D3748" HorizontalAlignment="Stretch" Margin="0,0,0,0"/>
-
-                                        <!-- CUSTOM PROXY -->
-                                        <Grid Grid.Row="4" Margin="12,8,12,7" ColumnDefinitions="Auto, *">
-                                            <TextBlock x:Name="lblCustomProxy" Grid.Column="0" Text="CUSTOM PROXY" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                            <Grid Grid.Column="1" Height="29" ColumnDefinitions="*,Auto">
-                                                <ComboBox x:Name="cbCustomProxy" Grid.Column="0" Classes="customProxy" IsEditable="True"
-                                                          SelectedIndex="-1" MinHeight="24" Height="24" Margin="0"
-                                                          FontFamily="Consolas" FontSize="10" Padding="8,5,28,3"
-                                                          Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4"
-                                                          VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Stretch"
-                                                          PlaceholderText="vless:// / vmess:// / sing-box JSON"
-                                                          ToolTip.Tip="Type or paste a config, or pick a previously saved one from the arrow. Set a protocol's routing to CUSTOM PROXY to use it."
-                                                          SelectionChanged="CustomProxySaved_SelectionChanged"/>
-                                                    <Grid Grid.Column="1" Height="24" VerticalAlignment="Center" ColumnDefinitions="55,55,28">
-                                                    <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0" MinHeight="24">
-                                                        <Button x:Name="btnCustomProxyPing" Content="PING" Click="CustomProxyPing_Click" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
-                                                            <Button.Styles>
-                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                </Style>
-                                                            </Button.Styles>
-                                                        </Button>
-                                                    </Border>
-                                                    <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0" MinHeight="24">
-                                                        <Button x:Name="btnCustomProxySave" Content="SAVE" Click="CustomProxySave_Click" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
-                                                            <Button.Styles>
-                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                </Style>
-                                                            </Button.Styles>
-                                                        </Button>
-                                                    </Border>
-                                                    <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0" MinHeight="24">
-                                                        <Button x:Name="btnCustomProxyDelete" Click="CustomProxyDelete_Click" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0" ToolTip.Tip="Remove the config in the box from the saved list">
-                                                            <Button.Styles>
-                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                </Style>
-                                                            </Button.Styles>
-                                                            <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Width="12" Height="12" Foreground="#E53E3E"/>
-                                                        </Button>
-                                                    </Border>
+                                                <!-- TYPE -->
+                                                <Border Grid.Column="0" Classes="editRow hoverBox">
+                                                    <Grid ColumnDefinitions="Auto, *">
+                                                        <Border Grid.Column="0" Classes="fieldLabel">
+                                                            <TextBlock x:Name="lblType" Text="TYPE"/>
+                                                        </Border>
+                                                        <ComboBox x:Name="cbAppType" Grid.Column="1" Classes="fieldCombo"/>
                                                     </Grid>
+                                                </Border>
+
+                                                <!-- REGION -->
+                                                <Border Grid.Column="2" Classes="editRow hoverBox">
+                                                    <Grid ColumnDefinitions="Auto, *">
+                                                        <Border Grid.Column="0" Classes="fieldLabel fieldLabelWide">
+                                                            <TextBlock x:Name="lblConnectionRegion" Text="REGION"/>
+                                                        </Border>
+                                                        <ComboBox x:Name="cbRegion" Grid.Column="1" Classes="fieldCombo"
+                                                                  SelectionChanged="Region_SelectionChanged"/>
+                                                    </Grid>
+                                                </Border>
                                             </Grid>
-                                        </Grid>
 
-                                        <!-- Horizontal Separator 3 -->
-                                        <Border Grid.Row="5" Height="1" Background="#2D3748" HorizontalAlignment="Stretch"/>
-
-                                        <!-- CONNECTION REGION -->
-                                        <Grid Grid.Row="6" Margin="12,10,12,10" ColumnDefinitions="Auto, *">
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,12,0">
-                                                <TextBlock x:Name="lblConnectionRegion" Text="CONNECTION REGION" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
-                                                <TextBlock x:Name="lblConnectionRegionWarning" Text="Choosing a region might not work on all programs." FontSize="8" Foreground="#8B949E" Opacity="0.7" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <ComboBox Grid.Column="1" x:Name="cbRegion" SelectedIndex="0" Width="150" MinHeight="26"
-                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                      FontSize="10" Height="26" Padding="8,0"
-                                                      VerticalContentAlignment="Center" HorizontalAlignment="Right" CornerRadius="4"></ComboBox>
+                                            <!-- Bottom bar: scan adapters + submit / cancel -->
+                                            <Border Grid.Row="6" Classes="editRow hoverBox">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="26">
+                                                    <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
+                                                        <Button x:Name="btnScanAdapters" Classes="seg" Content="SCAN ADAPTERS" Click="BtnScanAdapters_Click" Padding="12,0"/>
+                                                    </Border>
+                                                    <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
+                                                        <Grid ColumnDefinitions="Auto, 1, Auto">
+                                                            <Button x:Name="btnSubmit" Grid.Column="0" Classes="seg" Content="SUBMIT" Click="BtnSubmit_Click"
+                                                                    Foreground="#E2E8F0" Padding="24,0" CornerRadius="4,0,0,4"/>
+                                                            <Border Grid.Column="1" Background="#2D3748"/>
+                                                            <Button x:Name="btnCancel" Grid.Column="2" Classes="seg" Content="CANCEL" Click="BtnCancel_Click"
+                                                                    Padding="24,0" CornerRadius="0,4,4,0"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
                                         </Grid>
-
-                                        </Grid>
-                                      </Border>
+                                    </Border>
                                 </Border>
                                 <!-- The Default-Rule Editor (adapters) -->
                                 <Border x:Name="panDefaultEditor" MaxHeight="0" Opacity="0" ClipToBounds="True">
@@ -586,179 +612,128 @@ Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
                                             <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
                                         </Transitions>
                                     </Border.Transitions>
-                                    <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8">
-                                        <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto">
-                                            <Grid Grid.Row="0" ColumnDefinitions="16, Auto, Auto, Auto, 16, Auto, Auto, Auto, *" Margin="6,0,6,0" MinHeight="120">
-                                                <LayoutTransformControl Grid.Column="0" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                        UseRenderTransform="False">
-                                                    <LayoutTransformControl.LayoutTransform>
-                                                        <RotateTransform Angle="-90"/>
-                                                    </LayoutTransformControl.LayoutTransform>
-                                                    <TextBlock x:Name="lblDefaultRoutingHeader" Text="ROUTING" FontSize="10" FontWeight="Bold"
-                                                               Foreground="#8B949E" LetterSpacing="1"/>
-                                                </LayoutTransformControl>
-                                                <Border Grid.Column="1" Width="1" Background="#2D3748" Margin="6,0,6,0"/>
-                                                <!-- Routing combos -->
-                                                <StackPanel x:Name="panDefaultRouting" Grid.Column="2" Spacing="8" Margin="5,0,5,0" VerticalAlignment="Center">
-                                                        <StackPanel Spacing="4">
-                                                            <TextBlock Text="TCP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
-                                                            <ComboBox x:Name="cbDefaultTcpRouting" Width="150" MinHeight="26" Height="26"
-                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                                      FontSize="10" Padding="8,0" VerticalContentAlignment="Center"
-                                                                      HorizontalAlignment="Left" CornerRadius="4"
+                                    <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="8">
+                                        <Grid RowDefinitions="Auto, 8, Auto, 8, Auto">
+
+                                            <!-- ── Title bar: app icon + name + submit / cancel ── -->
+                                            <Border Grid.Row="0" Classes="editBar hoverBox">
+                                                <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="26">
+                                                    <Panel Grid.Column="0" Width="24" Height="24" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                        <Image x:Name="imgDefaultEditorIcon" Width="24" Height="24" Stretch="Uniform" IsVisible="False"
+                                                               RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                        <Border x:Name="defaultEditorIconPlaceholder" Width="24" Height="24" Background="#1A1C20"
+                                                                BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" IsVisible="False"/>
+                                                    </Panel>
+                                                    <TextBlock x:Name="lblDefaultEditorHeader" Grid.Column="1" Text="APP" FontSize="11" FontWeight="Bold"
+                                                               Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight"/>
+                                                    <Button x:Name="btnDefaultIconSubmit" Grid.Column="2" Classes="iconBtn" Margin="6,0,2,0" Click="DefaultSubmit_Click">
+                                                        <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="13" Height="13" Foreground="#68D391"/>
+                                                    </Button>
+                                                    <Button x:Name="btnDefaultIconCancel" Grid.Column="3" Classes="iconBtn" Click="DefaultCancel_Click">
+                                                        <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Width="13" Height="13" Foreground="#E53E3E"/>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- ── Sections: routing / adapter / custom proxy ── -->
+                                            <Grid Grid.Row="2" ColumnDefinitions="*, 8, *, 8, *">
+
+                                                <!-- ROUTING -->
+                                                <Border x:Name="panDefaultRouting" Grid.Column="0" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblDefaultRoutingHeader" Classes="boxTitle" Text="ROUTING"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="TCP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbDefaultTcpRouting" Grid.Column="1" Classes="fieldCombo"
                                                                       SelectionChanged="DefaultRouting_SelectionChanged"/>
-                                                        </StackPanel>
-                                                        <StackPanel Spacing="4">
-                                                            <TextBlock Text="UDP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
-                                                            <ComboBox x:Name="cbDefaultUdpRouting" Width="150" MinHeight="26" Height="26"
-                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                                      FontSize="10" Padding="8,0" VerticalContentAlignment="Center"
-                                                                      HorizontalAlignment="Left" CornerRadius="4"
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="UDP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbDefaultUdpRouting" Grid.Column="1" Classes="fieldCombo"
                                                                       SelectionChanged="DefaultRouting_SelectionChanged"/>
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                <Border Grid.Column="3" Width="1" Background="#2D3748" Margin="6,0,6,0"/>
-                                                <LayoutTransformControl Grid.Column="4" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                        UseRenderTransform="False">
-                                                    <LayoutTransformControl.LayoutTransform>
-                                                        <RotateTransform Angle="-90"/>
-                                                    </LayoutTransformControl.LayoutTransform>
-                                                    <TextBlock x:Name="lblDefaultAdapterHeader" Text="ADAPTER" FontSize="10" FontWeight="Bold"
-                                                               Foreground="#8B949E" LetterSpacing="1"/>
-                                                </LayoutTransformControl>
-                                                <Border Grid.Column="5" Width="1" Background="#2D3748" Margin="6,0,6,0"/>
-                                                <!-- Adapter combos -->
-                                                <StackPanel Grid.Column="6" Spacing="8" Margin="5,0,5,0" VerticalAlignment="Center">
-                                                        <StackPanel Spacing="4">
-                                                            <TextBlock Text="TCP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
-                                                            <ComboBox x:Name="cbDefaultTcpAdapter" Width="150" MinHeight="26" Height="26"
-                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                                      FontSize="10" Padding="8,0" VerticalContentAlignment="Center"
-                                                                      HorizontalAlignment="Left" CornerRadius="4"/>
-                                                        </StackPanel>
-                                                        <StackPanel Spacing="4">
-                                                            <TextBlock Text="UDP" FontSize="9" FontWeight="SemiBold" Foreground="#606870" HorizontalAlignment="Left"/>
-                                                            <ComboBox x:Name="cbDefaultUdpAdapter" Width="150" MinHeight="26" Height="26"
-                                                                      Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                                      FontSize="10" Padding="8,0" VerticalContentAlignment="Center"
-                                                                      HorizontalAlignment="Left" CornerRadius="4"/>
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                <Border Grid.Column="7" Width="1" Background="#2D3748" Margin="6,0,6,0"/>
-                                                <Border Grid.Column="8" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
-                                                        CornerRadius="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <StackPanel Orientation="Vertical">
-                                                        <Button x:Name="btnDefaultRestore" Content="RESTORE DEFAULTS" Click="DefaultRestore_Click"
-                                                                FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent"
-                                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                                VerticalAlignment="Stretch" VerticalContentAlignment="Center"
-                                                                Padding="15,0" Height="26" Cursor="Hand" BorderThickness="0" CornerRadius="4,4,0,0">
-                                                            <Button.Styles>
-                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                </Style>
-                                                            </Button.Styles>
-                                                        </Button>
-                                                        <Border Height="1" Background="#2D3748"/>
-                                                        <Button x:Name="btnDefaultScanAdapters" Content="SCAN ADAPTERS" Click="BtnScanAdapters_Click"
-                                                                FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent"
-                                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                                VerticalAlignment="Stretch" VerticalContentAlignment="Center"
-                                                                Padding="15,0" Height="26" Cursor="Hand" BorderThickness="0" CornerRadius="0,0,4,4">
-                                                            <Button.Styles>
-                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                </Style>
-                                                            </Button.Styles>
-                                                        </Button>
+                                                        </Grid>
                                                     </StackPanel>
                                                 </Border>
-                                            </Grid>
-                                            <!-- Horizontal Separator -->
-                                            <Border Grid.Row="1" Height="1" Background="#2D3748" HorizontalAlignment="Stretch"/>
-                                            <Grid Grid.Row="2" Margin="12,8,12,7" ColumnDefinitions="Auto, *">
-                                                <TextBlock x:Name="lblDefaultCustomProxy" Grid.Column="0" Text="CUSTOM PROXY" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                                <Grid Grid.Column="1" Height="29" ColumnDefinitions="*,Auto">
-                                                    <ComboBox x:Name="cbDefaultCustomProxy" Grid.Column="0" Classes="customProxy" IsEditable="True"
-                                                              SelectedIndex="-1" MinHeight="24" Height="24" Margin="0"
-                                                              FontFamily="Consolas" FontSize="10" Padding="8,5,28,3"
-                                                              Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4"
-                                                              VerticalContentAlignment="Center" VerticalAlignment="Center" HorizontalAlignment="Stretch"
-                                                              PlaceholderText="vless:// / vmess:// / sing-box JSON"
-                                                              ToolTip.Tip="Type or paste a config, or pick a previously saved one from the arrow. Set a protocol's routing to CUSTOM PROXY to use it."
-                                                              SelectionChanged="CustomProxySaved_SelectionChanged"/>
-                                                        <Grid Grid.Column="1" Height="24" VerticalAlignment="Center" ColumnDefinitions="55,55,28">
-                                                            <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0" MinHeight="24">
-                                                                <Button x:Name="btnDefaultCustomProxyPing" Content="PING" Click="CustomProxyPing_Click" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
-                                                                    <Button.Styles>
-                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                        </Style>
-                                                                    </Button.Styles>
-                                                                </Button>
+                                                <!-- ADAPTER -->
+                                                <Border Grid.Column="2" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblDefaultAdapterHeader" Classes="boxTitle" Text="ADAPTER"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="TCP"/>
                                                             </Border>
-                                                            <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0" MinHeight="24">
-                                                                <Button x:Name="btnDefaultCustomProxySave" Content="SAVE" Click="CustomProxySave_Click" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
-                                                                    <Button.Styles>
-                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                        </Style>
-                                                                    </Button.Styles>
-                                                                </Button>
+                                                            <ComboBox x:Name="cbDefaultTcpAdapter" Grid.Column="1" Classes="fieldCombo"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="UDP"/>
                                                             </Border>
-                                                            <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0" MinHeight="24">
-                                                                <Button x:Name="btnDefaultCustomProxyDelete" Click="CustomProxyDelete_Click" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0" ToolTip.Tip="Remove the config in the box from the saved list">
-                                                                    <Button.Styles>
-                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                        </Style>
-                                                                    </Button.Styles>
+                                                            <ComboBox x:Name="cbDefaultUdpAdapter" Grid.Column="1" Classes="fieldCombo"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                                <!-- CUSTOM PROXY -->
+                                                <Border Grid.Column="4" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblDefaultCustomProxy" Classes="boxTitle" Text="CUSTOM PROXY"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel fieldLabelWide">
+                                                                <TextBlock x:Name="lblDefaultConfigRow" Text="CONFIG"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbDefaultCustomProxy" Grid.Column="1" Classes="customProxy fieldCombo" IsEditable="True"
+                                                                      SelectedIndex="-1" FontFamily="Consolas" FontSize="9" Padding="4,3,18,2"
+                                                                      Background="#1A1C20"
+                                                                      PlaceholderText="vless:// / vmess:// / sing-box JSON"
+                                                                      ToolTip.Tip="Type or paste a config, or pick a previously saved one from the arrow. Set a protocol's routing to CUSTOM PROXY to use it."
+                                                                      SelectionChanged="CustomProxySaved_SelectionChanged"/>
+                                                        </Grid>
+                                                        <Grid Height="26" ColumnDefinitions="*, *, *, 34">
+                                                            <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4">
+                                                                <Button x:Name="btnDefaultCustomProxyPing" Classes="seg" Content="PING" Click="CustomProxyPing_Click"/>
+                                                            </Border>
+                                                            <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
+                                                                <Button x:Name="btnDefaultCustomProxySave" Classes="seg" Content="SAVE" Click="CustomProxySave_Click"/>
+                                                            </Border>
+                                                            <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
+                                                                <Button x:Name="btnDefaultHint" Classes="seg" Content="HINT" Click="CustomProxyHint_Click"/>
+                                                            </Border>
+                                                            <Border Grid.Column="3" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0">
+                                                                <Button x:Name="btnDefaultCustomProxyDelete" Classes="seg" Click="CustomProxyDelete_Click"
+                                                                        ToolTip.Tip="Remove the config in the box from the saved list">
                                                                     <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Width="12" Height="12" Foreground="#E53E3E"/>
                                                                 </Button>
                                                             </Border>
                                                         </Grid>
-                                                </Grid>
-                                            </Grid>
-
-                                            <!-- Horizontal Separator -->
-                                            <Border Grid.Row="3" Height="1" Background="#2D3748" HorizontalAlignment="Stretch"/>
-                                            <!-- Bottom bar: title + submit/cancel -->
-                                            <Grid Grid.Row="4" Margin="12,10,12,10" ColumnDefinitions="*, Auto">
-                                                <TextBlock x:Name="lblDefaultEditorHeader" Grid.Column="0" Text="DISCORD" FontSize="11" FontWeight="Bold" Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center" Margin="6,0,0,0"/>
-                                                <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
-                                                    <Grid ColumnDefinitions="Auto, 1, Auto">
-                                                        <Button x:Name="btnDefaultSubmit" Grid.Column="0" Content="SUBMIT" Click="DefaultSubmit_Click"
-                                                                FontSize="10" FontWeight="Bold" Foreground="#E2E8F0" Background="Transparent"
-                                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                                VerticalAlignment="Stretch" VerticalContentAlignment="Center"
-                                                                Padding="24,0" Height="26" Cursor="Hand" BorderThickness="0" CornerRadius="4,0,0,4">
-                                                            <Button.Styles>
-                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                </Style>
-                                                            </Button.Styles>
-                                                        </Button>
-                                                        <Border Grid.Column="1" Background="#2D3748"/>
-                                                        <Button x:Name="btnDefaultCancel" Grid.Column="2" Content="CANCEL" Click="DefaultCancel_Click"
-                                                                FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent"
-                                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                                VerticalAlignment="Stretch" VerticalContentAlignment="Center"
-                                                                Padding="24,0" Height="26" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0">
-                                                            <Button.Styles>
-                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                </Style>
-                                                            </Button.Styles>
-                                                        </Button>
-                                                    </Grid>
+                                                    </StackPanel>
                                                 </Border>
                                             </Grid>
+                                            <!-- ── Bottom bar: restore / scan + submit / cancel ── -->
+                                            <Border Grid.Row="4" Classes="editRow hoverBox">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="26">
+                                                    <Grid Grid.Column="0" Height="26" ColumnDefinitions="Auto, Auto">
+                                                        <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4">
+                                                            <Button x:Name="btnDefaultRestore" Classes="seg" Content="RESTORE DEFAULTS" Click="DefaultRestore_Click" Padding="12,0"/>
+                                                        </Border>
+                                                        <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0">
+                                                            <Button x:Name="btnDefaultScanAdapters" Classes="seg" Content="SCAN ADAPTERS" Click="BtnScanAdapters_Click" Padding="12,0"/>
+                                                        </Border>
+                                                    </Grid>
+                                                    <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
+                                                        <Grid ColumnDefinitions="Auto, 1, Auto">
+                                                            <Button x:Name="btnDefaultSubmit" Grid.Column="0" Classes="seg" Content="SUBMIT" Click="DefaultSubmit_Click"
+                                                                    Foreground="#E2E8F0" Padding="24,0" CornerRadius="4,0,0,4"/>
+                                                            <Border Grid.Column="1" Background="#2D3748"/>
+                                                            <Button x:Name="btnDefaultCancel" Grid.Column="2" Classes="seg" Content="CANCEL" Click="DefaultCancel_Click"
+                                                                    Padding="24,0" CornerRadius="0,4,4,0"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
                                         </Grid>
                                     </Border>
                                 </Border>

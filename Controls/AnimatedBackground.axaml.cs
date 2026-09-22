@@ -40,6 +40,10 @@ namespace CrimsonX.Controls
         private bool _isDisabled = false;
         private bool _isWindowFocused = true;
 
+        private const double HomeTabFps  = 24.0;
+        private const double OtherTabFps = 20.0;
+        private double _glowFps = HomeTabFps;
+
     // ── Glow State Control (Pause / Disable / Focus) ──
 
         public void ApplySettings(bool pauseGlows, bool disableGlows)
@@ -55,6 +59,17 @@ namespace CrimsonX.Controls
             _isWindowFocused = isFocused;
             EvaluateTimer();
         }
+
+        public void SetHomeTabActive(bool isHomeTab)
+        {
+            double fps = isHomeTab ? HomeTabFps : OtherTabFps;
+            if (Math.Abs(fps - _glowFps) < 0.01) return;
+
+            _glowFps = fps;
+            if (_bgTimer != null) _bgTimer.Interval = IntervalFor(_glowFps);
+        }
+
+        private static TimeSpan IntervalFor(double fps) => TimeSpan.FromMilliseconds(1000.0 / fps);
 
                 private void EvaluateTimer()
         {
@@ -133,7 +148,7 @@ namespace CrimsonX.Controls
 
             _startTime = DateTime.UtcNow;
             _pauseStartTime = DateTime.UtcNow;
-            _bgTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) }; 
+            _bgTimer = new DispatcherTimer { Interval = IntervalFor(_glowFps) };
             _bgTimer.Tick += BgTimer_Tick;
                         EvaluateTimer();
         }
