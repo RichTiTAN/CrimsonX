@@ -74,7 +74,7 @@ namespace CrimsonX.Services
             }
         }
 
-        public static bool TryParseCustomConfig(string? raw, out string outboundsJson)
+        public static bool TryParseCustomConfig(string raw, out string outboundsJson)
         {
             outboundsJson = string.Empty;
             if (string.IsNullOrWhiteSpace(raw)) return false;

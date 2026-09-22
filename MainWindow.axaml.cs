@@ -51,6 +51,7 @@ public partial class MainWindow : Window
 
     private int? _xrayDebugPid, _sbDebugPid;
     private int? _xrayPid, _sbPid;
+    private bool _closeDeferred;
 
     private DispatcherTimer? _autoBootTimer; 
     private int _pollSelCount = 6;
@@ -66,7 +67,6 @@ public partial class MainWindow : Window
 
 
     internal Models.AppState GetState() => _state;
-    internal void ConnectDisconnect() => btnConnect_Click(null, new global::Avalonia.Interactivity.RoutedEventArgs());
     internal void SwitchToVpnMode()
     {
         _cfg.LastXrayMode = "VPN Mode";
@@ -137,6 +137,7 @@ public partial class MainWindow : Window
         ConfigService.Load(_cfg, _state, _cfg.CfgFile);
         CrimsonX.Services.SimpleLogger.EnableLogging = _cfg.DebugMode;
         CrimsonX.Services.SimpleLogger.Log($"[Startup] CrimsonX v{Services.UpdateService.AppVersion} — Mode={_cfg.LastXrayMode}");
+        _ = CrimsonX.Services.SystemDnsService.HealFromDiskAsync();
 
 
         InitializeComponent();
@@ -221,7 +222,7 @@ public partial class MainWindow : Window
                 _autoBootTimer?.Stop();
                 if (!_state.AbortBoot)
                     Dispatcher.UIThread.Post(
-                        () => btnConnect_Click(null, new global::Avalonia.Interactivity.RoutedEventArgs()),
+                        () => BeginAutoConnect(),
                         DispatcherPriority.Background);
             }
 
@@ -1084,9 +1085,40 @@ public partial class MainWindow : Window
             ConfigService.Save(_cfg, _state, _cfg.CfgFile);
         }
 
+        if (_closeDeferred)
+        {
+            Dispose();
+            return;
+        }
+
+        if (CrimsonX.Services.SystemDnsService.HasPendingRestore
+            && e.CloseReason != global::Avalonia.Controls.WindowCloseReason.OSShutdown)
+        {
+            _closeDeferred = true;
+            e.Cancel = true;
+            StopAllEngines(isClosing: true);
+            _ = FinishCloseAsync();
+            return;
+        }
+
         StopAllEngines(isClosing: true);
 
         Dispose();
+    }
+
+    private async Task FinishCloseAsync()
+    {
+        try
+        {
+            var restore = CrimsonX.Services.SystemDnsService.RestoreAsync(500);
+            await Task.WhenAny(restore, Task.Delay(500));
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
+
+        try { Close(); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
     }
 
     
@@ -1295,6 +1327,9 @@ public partial class MainWindow : Window
             case "About": carousel.SelectedIndex = 4; break;
             case "AppsGames": carousel.SelectedIndex = 5; break;
         }
+
+        // The background glows run at 24 fps on Home and 20 fps on every other tab.
+        CrimsonX.Controls.AnimatedBackground.Instance?.SetHomeTabActive(carousel.SelectedIndex == 0);
 
         var panTabDarken = this.FindControl<global::Avalonia.Controls.Border>("panTabDarken");
         if (panTabDarken != null)

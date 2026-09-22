@@ -105,6 +105,7 @@ namespace CrimsonX.Services
             IsPinned     = rule.IsPinned,
             AppType      = rule.AppType,
             ExeName      = rule.ExeName,
+            DisplayName  = rule.DisplayName,
             IconBase64   = rule.IconBase64,
             IconAsset    = rule.IconAsset,
             DefaultKey   = rule.DefaultKey,

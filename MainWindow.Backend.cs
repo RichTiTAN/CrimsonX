@@ -501,9 +501,7 @@ public partial class MainWindow
         _logTimer?.Stop();
         _logClearTimer?.Stop();
         ProxyService.SetSystemProxy(false);
-        _ = CrimsonX.Services.SystemDnsService.RestoreAsync();
 
-        
         SetConnectButtonProgress(-1);
 
         int? xrayDebugPid = _xrayDebugPid; _xrayDebugPid = null;
@@ -526,6 +524,10 @@ public partial class MainWindow
         {
             killTask.Wait(3000);
             CrimsonX.Services.JobManager.Shutdown();
+        }
+        else
+        {
+            _ = CrimsonX.Services.SystemDnsService.RestoreAsync();
         }
 
         CrimsonX.Services.SimpleLogger.Log($"[Disconnect] Mode={_pollMode}, isClosing={isClosing}");
@@ -639,7 +641,21 @@ public partial class MainWindow
 
     // ── Connect / Disconnect Trigger ──
 
-    private async void btnConnect_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    internal enum OfflineGuard
+    {
+        Ask,
+        AbortIfOffline,
+        Skip
+    }
+
+    private async void btnConnect_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e) =>
+        await HandleConnectRequestAsync(OfflineGuard.Ask);
+
+    internal void ConnectDisconnect() => _ = HandleConnectRequestAsync(OfflineGuard.Ask);
+    internal void ConnectAfterCheck() => _ = HandleConnectRequestAsync(OfflineGuard.Skip);
+    internal void BeginAutoConnect()  => _ = HandleConnectRequestAsync(OfflineGuard.AbortIfOffline);
+
+    private async Task HandleConnectRequestAsync(OfflineGuard guard)
     {
         try
         {
@@ -701,8 +717,25 @@ public partial class MainWindow
             }
         }
 
-        if (sender != null && !System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
+        if (guard != OfflineGuard.Skip && !CrimsonX.Services.ConnectivityService.HasUsableConnection())
         {
+            if (guard == OfflineGuard.AbortIfOffline)
+            {
+                CrimsonX.Services.SimpleLogger.Log("[Connect] No usable internet connection detected; auto-connect skipped.");
+
+                if (IsVisible && WindowState != WindowState.Minimized)
+                    ShowToast(CrimsonX.Localization.AppStrings.NoInternetTitle);
+
+                return;
+            }
+
+            if (!IsVisible || WindowState == WindowState.Minimized)
+            {
+                Show();
+                WindowState = WindowState.Normal;
+                Activate();
+            }
+
             var noNetDialog = new CrimsonX.Dialogs.ConfirmDialog(
                 CrimsonX.Localization.AppStrings.NoInternetTitle,
                 CrimsonX.Localization.AppStrings.NoInternetMessage,
