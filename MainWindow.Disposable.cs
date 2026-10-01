@@ -37,16 +37,21 @@ public partial class MainWindow : IDisposable
         StopTimer(ref _saveDebounceTimer);
         StopTimer(ref _xrayRestartTimer);
         StopTimer(ref _toastTimer);
-        StopTimer(ref _logTimer);
         StopTimer(ref _logClearTimer);
         StopTimer(ref _autoBootTimer);
 
         StopTimer(ref _fillAnimTimer);
         StopTimer(ref _colorTimer);
- 
+        StopTimer(ref _uiStallTimer);
+        StopTimer(ref _graphAnimTimer);
+
         CancelAndDispose(ref _updateCts);
 
         CancelAndDispose(ref _pipelineCts);
+
+        // ── Tray widget window 
+        try { _trayWidget?.Close(); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
+        _trayWidget = null;
 
         // ── Services 
         _session.Dispose();

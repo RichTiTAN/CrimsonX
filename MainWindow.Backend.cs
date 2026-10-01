@@ -33,6 +33,15 @@ using CrimsonX.Services;
 
 namespace CrimsonX;
 
+public enum ToastKind
+{
+    Info,
+
+    Success,
+
+    Error,
+}
+
 public partial class MainWindow
 {
     private bool _isInitializingSettings = false;
@@ -50,20 +59,29 @@ public partial class MainWindow
     private readonly CrimsonX.Services.SessionManager _session =
         new CrimsonX.Services.SessionManager();
 
-    private static readonly SolidColorBrush _brGreenFallback = new SolidColorBrush(Color.FromRgb(104, 211, 145));
-    internal static SolidColorBrush BrGreen
+    // ── Toast palette ──
+
+    private static readonly Color ToastSuccessColour = Color.FromRgb(104, 211, 145);
+
+    private static readonly Color ToastErrorColour = Color.FromRgb(245, 101, 101);
+
+    private static readonly Color ToastInfoColour = Color.FromRgb(226, 232, 240);
+
+    public static Color ToastColour(ToastKind kind) => kind switch
     {
-        get
-        {
-            if (global::Avalonia.Application.Current?.Resources.TryGetValue("ThemeGlowBrush", out var res) == true && res is SolidColorBrush b)
-                return b;
-            return _brGreenFallback;
-        }
-    }
+        ToastKind.Success => ToastSuccessColour,
+        ToastKind.Error => ToastErrorColour,
+        _ => ToastInfoColour,
+    };
+
+    public static IBrush ToastBrush(ToastKind kind) => new SolidColorBrush(ToastColour(kind));
+
+    public static string AsToastText(string message) => (message ?? "").ToUpperInvariant();
     private static readonly SolidColorBrush BrWhite = new SolidColorBrush(Color.FromRgb(226, 232, 240)); // #E2E8F0
-    private static readonly SolidColorBrush BrPink  = new SolidColorBrush(Color.FromRgb(252, 129, 129)); // #FC8181
 
     private System.Windows.Forms.NotifyIcon? _trayIcon;
+
+    private global::Avalonia.Controls.WindowState _restoreState = global::Avalonia.Controls.WindowState.Normal;
 
 
 
@@ -231,7 +249,7 @@ public partial class MainWindow
         
         if (_state.IsConnected || _state.IsEngineRunning)
         {
-            lblLocalIp.Text = "127.0.0.1:10919";
+            lblLocalIp.Text = "127.0.0.1:" + CrimsonX.Services.ExitNodeChain.ActivePort;
         }
         else
         {
@@ -255,7 +273,7 @@ public partial class MainWindow
             if (_state.IsConnected || _state.IsEngineRunning)
             {
                 string displayIp = (_cfg.EnableAdapterBinding && !string.IsNullOrWhiteSpace(_cfg.SelectedAdapterIp)) ? _cfg.SelectedAdapterIp : (_state.LanIp ?? "Unknown");
-                    lblLanIp.Text = displayIp + ":10919";
+                    lblLanIp.Text = displayIp + ":" + CrimsonX.Services.ExitNodeChain.ActivePort;
             }
             else
             {
@@ -266,38 +284,9 @@ public partial class MainWindow
 
 
 
-    // ── Connect Button Ring Animation ──
-
-        private void UpdateRingAnimation(string state)
-    {
-        var panConnectGlow = this.FindControl<global::Avalonia.Controls.Border>("panConnectGlow");
-        var connectGlowRect = this.FindControl<global::Avalonia.Controls.Shapes.Rectangle>("connectGlowRect");
-        
-        if (panConnectGlow != null)
-        {
-            bool isConnecting = (state == "Connecting");
-            panConnectGlow.Opacity = isConnecting ? 1.0 : 0.0;
-            
-            if (connectGlowRect != null)
-            {
-                if (isConnecting)
-                {
-                    if (!connectGlowRect.Classes.Contains("is-connected"))
-                        connectGlowRect.Classes.Add("is-connected");
-                }
-                else
-                {
-                    connectGlowRect.Classes.Remove("is-connected");
-                }
-            }
-        }
-    }
-
-
-
     // ── Toast Notifications ──
 
-    public void ShowToast(string message, bool success = false)
+    public void ShowToast(string message, ToastKind kind = ToastKind.Info)
     {
         Dispatcher.UIThread.InvokeAsync(() =>
         {
@@ -314,9 +303,7 @@ public partial class MainWindow
 
             bool isFa = CrimsonX.Localization.AppStrings.IsPersian;
 
-            toastText.Text = isFa
-                ? message
-                : message.ToUpperInvariant();
+            toastText.Text = AsToastText(message);
             toastText.FontFamily = isFa
                 ? new global::Avalonia.Media.FontFamily("Segoe UI")
                 : global::Avalonia.Media.FontFamily.Default;
@@ -324,8 +311,9 @@ public partial class MainWindow
                 ? global::Avalonia.Media.FlowDirection.RightToLeft
                 : global::Avalonia.Media.FlowDirection.LeftToRight;
             toastText.FontWeight = global::Avalonia.Media.FontWeight.Bold;
-            toastText.LetterSpacing = 1;
-            toastText.Foreground = success ? BrGreen : BrPink;
+
+            toastText.LetterSpacing = 0.5;
+            toastText.Foreground = ToastBrush(kind);
 
             toast.Opacity = 0;
             toast.IsVisible = true;
@@ -354,75 +342,82 @@ public partial class MainWindow
 
 
 
-    // ── Connect Progress & Engine Adjustment ──
-
-    internal void OnEngineCountChanged()
-    {
-        RequestConfigSave();
-    }
+    // ── Connect Progress ──
 
     private global::Avalonia.Threading.DispatcherTimer? _fillAnimTimer;
     private double _currentFillPct = 0;
     private double _targetFillPct = -1;
 
-    private global::Avalonia.Controls.TextBlock? _fillTxtBg;
-    private global::Avalonia.Controls.TextBlock? _fillTxtConnected;
-    private global::Avalonia.Media.LinearGradientBrush? _fillBrush;
-    private global::Avalonia.Media.GradientStop? _fillStop1;  
-    private global::Avalonia.Media.GradientStop? _fillStop2;  
-    private global::Avalonia.Media.GradientStop? _fillStop3;  
-    private global::Avalonia.Media.GradientStop? _fillStop4;  
+    private global::Avalonia.Controls.TextBlock? _connectText;
+    private global::Avalonia.Controls.TextBlock? _connectConnectedText;
+    private global::Avalonia.Controls.Border? _connectBox;
+    private global::Avalonia.Controls.Border? _connectPress;
+    private global::Avalonia.Controls.Border? _connectBreathControl;
+    private readonly CrimsonX.Services.ConnectBreath _connectBreath = new CrimsonX.Services.ConnectBreath();
 
-    private void EnsureFillResources()
+    private void EnsureConnectBoxResources()
     {
-        if (_fillTxtBg == null)
-            _fillTxtBg = this.FindControl<global::Avalonia.Controls.TextBlock>("txtConnectBtn");
-        if (_fillTxtConnected == null)
-            _fillTxtConnected = this.FindControl<global::Avalonia.Controls.TextBlock>("txtConnectedBtn");
+        _connectText ??= this.FindControl<global::Avalonia.Controls.TextBlock>("txtConnectBtn");
+        _connectConnectedText ??= this.FindControl<global::Avalonia.Controls.TextBlock>("txtConnectedBtn");
+        _connectBox ??= this.FindControl<global::Avalonia.Controls.Border>("panConnectBox");
+        _connectPress ??= this.FindControl<global::Avalonia.Controls.Border>("panConnectPress");
+        _connectBreathControl ??= this.FindControl<global::Avalonia.Controls.Border>("panConnectBreath");
+    }
 
-        global::Avalonia.Media.Color fillCol = global::Avalonia.Media.Color.Parse("#DD6B20");
-        if (this.TryFindResource("ThemeGlow", out var glowObj) && glowObj is global::Avalonia.Media.Color glow)
+    private void ApplyConnectBreath(bool comingUp)
+    {
+        EnsureConnectBoxResources();
+        if (_connectBreathControl == null) return;
+
+        _connectBreathControl.Opacity = _connectBreath.Next(DateTime.UtcNow, comingUp);
+    }
+
+    // ── Connect box press feedback (same feel as the Apps & Games strip) ──
+
+    private void HomeConnectBoxPress(object? sender, global::Avalonia.Input.PointerPressedEventArgs e)
+        => SetHomeConnectBoxPressed(true);
+
+    private void HomeConnectBoxRelease(object? sender, global::Avalonia.Input.PointerReleasedEventArgs e)
+        => SetHomeConnectBoxPressed(false);
+
+    private void HomeConnectBoxCaptureLost(object? sender, global::Avalonia.Input.PointerCaptureLostEventArgs e)
+        => SetHomeConnectBoxPressed(false);
+
+    private void SetHomeConnectBoxPressed(bool pressed)
+    {
+        EnsureConnectBoxResources();
+
+        var inner = this.FindControl<global::Avalonia.Controls.Panel>("panConnectBoxInner");
+        if (inner != null)
         {
-            fillCol = glow;
+            double s = pressed ? 0.97 : 1.0;
+            inner.RenderTransform = new global::Avalonia.Media.ScaleTransform(s, s);
         }
 
-        if (_fillBrush == null)
-        {
-            _fillStop1 = new global::Avalonia.Media.GradientStop(fillCol, 0.0);
-            _fillStop2 = new global::Avalonia.Media.GradientStop(fillCol, 0.0);
-            _fillStop3 = new global::Avalonia.Media.GradientStop(global::Avalonia.Media.Colors.White, 0.0);
-            _fillStop4 = new global::Avalonia.Media.GradientStop(global::Avalonia.Media.Colors.White, 1.0);
-            _fillBrush = new global::Avalonia.Media.LinearGradientBrush
-            {
-                StartPoint = new global::Avalonia.RelativePoint(0, 0, global::Avalonia.RelativeUnit.Relative),
-                EndPoint   = new global::Avalonia.RelativePoint(1, 0, global::Avalonia.RelativeUnit.Relative),
-                GradientStops = new global::Avalonia.Media.GradientStops
-                    { _fillStop1, _fillStop2, _fillStop3, _fillStop4 }
-            };
-        }
-        else
-        {
-            if (_fillStop1 != null) _fillStop1.Color = fillCol;
-            if (_fillStop2 != null) _fillStop2.Color = fillCol;
-        }
+        if (_connectPress != null) _connectPress.Opacity = pressed ? 1.0 : 0.0;
     }
 
     private void SetConnectButtonProgress(int percent)
     {
         CrimsonX.Services.UiEventBus.Instance.PublishConnectionProgress(percent);
+
+        EnsureConnectBoxResources();
+
         if (percent < 0)
         {
             _targetFillPct = -1;
             _currentFillPct = 0;
             _fillAnimTimer?.Stop();
 
-            if (_fillTxtBg == null)
-                _fillTxtBg = this.FindControl<global::Avalonia.Controls.TextBlock>("txtConnectBtn");
-            if (_fillTxtConnected == null)
-                _fillTxtConnected = this.FindControl<global::Avalonia.Controls.TextBlock>("txtConnectedBtn");
+            _connectBox?.Classes.Remove("connected");
+            ApplyConnectBreath(false);
 
-            if (_fillTxtBg != null) { _fillTxtBg.Foreground = BrWhite; _fillTxtBg.Opacity = 1; }
-            if (_fillTxtConnected != null) { _fillTxtConnected.Opacity = 0; }
+            if (_connectText != null)
+            {
+                _connectText.Text = CrimsonX.Localization.AppStrings.StatusConnect;
+                _connectText.Opacity = 1;
+            }
+            if (_connectConnectedText != null) _connectConnectedText.Opacity = 0;
             return;
         }
 
@@ -441,30 +436,34 @@ public partial class MainWindow
                 if (System.Math.Abs(diff) < 0.005) _currentFillPct = _targetFillPct;
                 else _currentFillPct += diff * 0.35;
 
-                EnsureFillResources();
+                EnsureConnectBoxResources();
 
-                if (_fillTxtBg != null)
+                bool comingUp = CrimsonX.Services.ConnectPhaseUi.IsComingUp(_state.IsConnected, _state.IsEngineRunning, _state.IsReconnecting);
+
+                if (!_state.IsConnected)
                 {
-                    if (_currentFillPct <= 0.001)
-                    {
-                        _fillTxtBg.Foreground = BrWhite;
-                    }
-                    else
-                    {
-                        _fillStop2!.Offset = _currentFillPct;
-                        _fillStop3!.Offset = _currentFillPct;
-                        _fillTxtBg.Foreground = _fillBrush;
-                    }
+                    if (_connectText != null && _connectText.Opacity < 1) _connectText.Opacity = 1;
+                    if (_connectConnectedText != null && _connectConnectedText.Opacity > 0) _connectConnectedText.Opacity = 0;
                 }
+
+                ApplyConnectBreath(comingUp);
 
                 if (_currentFillPct >= 0.999 && _targetFillPct >= 1.0 && _state.IsConnected)
                 {
-                    if (_fillTxtBg != null && _fillTxtConnected != null)
+                    ApplyConnectBreath(false);
+
+                    if (_connectBox != null && !_connectBox.Classes.Contains("connected")) _connectBox.Classes.Add("connected");
+
+                    SetSparklinesVisible(true);
+                    SetReadoutTilesGrown(true);
+
+                    if (_connectText != null) _connectText.Opacity = 0;
+                    if (_connectConnectedText != null)
                     {
-                        _fillTxtConnected.Text = CrimsonX.Localization.AppStrings.StatusConnected;
-                        _fillTxtBg.Opacity = 0;
-                        _fillTxtConnected.Opacity = 1;
+                        _connectConnectedText.Text = CrimsonX.Localization.AppStrings.StatusConnected;
+                        _connectConnectedText.Opacity = 1;
                     }
+
                     _targetFillPct = -1;
                     _fillAnimTimer.Stop();
                 }
@@ -482,8 +481,13 @@ public partial class MainWindow
 
     private void StopAllEngines(bool isClosing = false)
     {
+        try { _reapplyCts?.Cancel(); } catch { }
+
+        CrimsonX.Services.ExitNodeChain.SetChainActive(false);
+        _lastEngineChangeUtc = DateTime.UtcNow;
         lock (_pipelineCtsLock) { try { _pipelineCts?.Cancel(); } catch { } }
-        _ = Task.Run(() => CrimsonX.Services.XrayPipelineManager.StopXray());
+        CrimsonX.Services.BackgroundTask.Run("stop engine", () => Task.Run(() => CrimsonX.Services.XrayPipelineManager.StopXray()));
+        CrimsonX.Services.TunnelEngine.Stop();
 
         _state.AbortBoot       = true;
         _state.IsEngineRunning = false;
@@ -498,11 +502,13 @@ public partial class MainWindow
         _netDiag.StopStatsPolling();
         _netDiag.StopGeoTrace();
 
-        _logTimer?.Stop();
         _logClearTimer?.Stop();
         ProxyService.SetSystemProxy(false);
 
         SetConnectButtonProgress(-1);
+
+        EnsureConnectBoxResources();
+        _connectBox?.Classes.Remove("connected");
 
         int? xrayDebugPid = _xrayDebugPid; _xrayDebugPid = null;
         int? sbDebugPid = _sbDebugPid; _sbDebugPid = null;
@@ -519,6 +525,8 @@ public partial class MainWindow
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log"));
             TryDeleteFile(GetAppPath(@"Data\Xray\error.log"));
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log.tmp"));
+
+            CrimsonX.Services.GeneratedArtifacts.Cleanup();
         });
         if (isClosing)
         {
@@ -527,19 +535,13 @@ public partial class MainWindow
         }
         else
         {
-            _ = CrimsonX.Services.SystemDnsService.RestoreAsync();
+            CrimsonX.Services.BackgroundTask.Run("dns restore", () => CrimsonX.Services.SystemDnsService.RestoreAsync());
         }
 
         CrimsonX.Services.SimpleLogger.Log($"[Disconnect] Mode={_pollMode}, isClosing={isClosing}");
 
-        try
-        {
-            foreach (var f in System.IO.Directory.GetFiles(_cfg.XrayDir, "test_*.json"))
-                TryDeleteFile(f);
-        }
-        catch { }
-
         _state.IsConnected      = false;
+        _state.IsReconnecting   = false;
         _state.LastTotalBytes   = 0;
         _state.SessionDataBytes = 0;
         _state.SessionStartTime = null;
@@ -554,6 +556,9 @@ public partial class MainWindow
         if (graphDownload != null) graphDownload.Data = null;
         if (graphUploadFill != null) graphUploadFill.Data = null;
         if (graphDownloadFill != null) graphDownloadFill.Data = null;
+
+        SetSparklinesVisible(false);
+        SetReadoutTilesGrown(false);
 
         var panTimerContent = this.FindControl<global::Avalonia.Controls.StackPanel>("panTimerContent");
             if (panTimerContent != null) panTimerContent.IsVisible = false;
@@ -570,6 +575,13 @@ public partial class MainWindow
             if (lblTimer != null) lblTimer.Text = "00:00:00";
             var lblCountryName = this.FindControl<TextBlock>("lblCountryName");
             if (lblCountryName != null) lblCountryName.Text = CrimsonX.Localization.AppStrings.StatusDisconnected;
+            var lblPublicIp = this.FindControl<TextBlock>("lblPublicIp");
+            if (lblPublicIp != null) lblPublicIp.Text = CrimsonX.Localization.AppStrings.StatusDisconnected;
+
+            _exitIpFull = "";
+            SetPublicIpTip("");
+
+            UpdateStatusText();
         });
 
 
@@ -584,9 +596,6 @@ public partial class MainWindow
                 }
 
 
-                var txtXrayLogs = this.FindControl<TextBox>("txtXrayLogs");
-                if (txtXrayLogs != null) { txtXrayLogs.Text = ""; _xrayLogLines.Clear(); System.Threading.Interlocked.Exchange(ref _lastXrayLogPos, 0); }
-
                 var lblTot = this.FindControl<TextBlock>("lblTotalData");
                 if (lblTot != null) lblTot.Text = "0 MB";
                 var lblDn = this.FindControl<TextBlock>("lblDownloadSpeed");
@@ -595,8 +604,6 @@ public partial class MainWindow
                 if (lblUp != null) lblUp.Text = "0 KB/s";
                 var lblPing = this.FindControl<TextBlock>("lblPing");
                 if (lblPing != null) lblPing.Text = "0 ms";
-
-                UpdateRingAnimation("Idle");
             });
         }
     }
@@ -618,6 +625,30 @@ public partial class MainWindow
         if (lbl != null) DoCopyIp(lbl.Text);
     }
 
+    private void PublicIp_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var lbl = this.FindControl<TextBlock>("lblPublicIp");
+        if (lbl != null) DoCopyPublicIp(_exitIpFull.Length > 0 ? _exitIpFull : lbl.Text);
+    }
+
+    private void DoCopyPublicIp(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+
+        string value = text.Trim();
+        if (value == CrimsonX.Localization.AppStrings.StatusDisconnected
+            || value == CrimsonX.Localization.AppStrings.Disabled
+            || value == CrimsonX.Localization.AppStrings.GeoTracing
+            || value == CrimsonX.Localization.AppStrings.GeoTimeout) return;
+
+        if (!System.Net.IPAddress.TryParse(value, out _)) return;
+
+        var clipboard = global::Avalonia.Controls.TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard != null) _ = clipboard.SetTextAsync(value);
+
+        ShowToast(CrimsonX.Localization.AppStrings.ToastCopiedToClipboard, kind: ToastKind.Success);
+    }
+
     private void DoCopyIp(string? text)
     {
         if (!string.IsNullOrWhiteSpace(text) && text.Contains(":") && text != CrimsonX.Localization.AppStrings.StatusDisconnected && text != CrimsonX.Localization.AppStrings.Disabled)
@@ -626,7 +657,7 @@ public partial class MainWindow
             if (clipboard != null) _ = clipboard.SetTextAsync(text);
             
             string msg = CrimsonX.Localization.AppStrings.ToastCopiedToClipboard;
-            ShowToast(msg, success: true);
+            ShowToast(msg, kind: ToastKind.Success);
         }
     }
 
@@ -638,6 +669,9 @@ public partial class MainWindow
         }
     }
 
+
+    private DateTime _lastEngineChangeUtc = DateTime.MinValue;
+    private const int ConnectSettleWindowMs = 1500;
 
     // ── Connect / Disconnect Trigger ──
 
@@ -651,16 +685,33 @@ public partial class MainWindow
     private async void btnConnect_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e) =>
         await HandleConnectRequestAsync(OfflineGuard.Ask);
 
-    internal void ConnectDisconnect() => _ = HandleConnectRequestAsync(OfflineGuard.Ask);
-    internal void ConnectAfterCheck() => _ = HandleConnectRequestAsync(OfflineGuard.Skip);
-    internal void BeginAutoConnect()  => _ = HandleConnectRequestAsync(OfflineGuard.AbortIfOffline);
+    internal void ConnectDisconnect() => CrimsonX.Services.BackgroundTask.Run("connect request", () => HandleConnectRequestAsync(OfflineGuard.Ask));
+    internal void ConnectAfterCheck() => CrimsonX.Services.BackgroundTask.Run("connect after check", () => HandleConnectRequestAsync(OfflineGuard.Skip));
+    internal void BeginAutoConnect()  => CrimsonX.Services.BackgroundTask.Run("auto-connect", () => HandleConnectRequestAsync(OfflineGuard.AbortIfOffline));
 
     private async Task HandleConnectRequestAsync(OfflineGuard guard)
     {
         try
         {
-        if (_state.IsConnected || _state.IsEngineRunning)
+        bool busy = _state.IsConnected || _state.IsEngineRunning;
+
+        if (busy)
         {
+            if (guard != OfflineGuard.Ask)
+            {
+                CrimsonX.Services.SimpleLogger.Log(
+                    $"[Connect] request ignored (guard={guard}, already {(_state.IsConnected ? "connected" : "connecting")}).");
+                return;
+            }
+
+            if (!_state.IsConnected && (DateTime.UtcNow - _lastEngineChangeUtc).TotalMilliseconds < ConnectSettleWindowMs)
+            {
+                CrimsonX.Services.SimpleLogger.Log(
+                    $"[Connect] the click landed within {ConnectSettleWindowMs} ms of a fresh connect; ignored so the engine is not torn down.");
+                return;
+            }
+
+            CrimsonX.Services.SimpleLogger.Log($"[Connect] disconnecting on request (guard={guard}).");
             StopAllEngines();
             return;
         }
@@ -670,7 +721,7 @@ public partial class MainWindow
             if (IsVpnAdapterInUse())
             {
                 bool isFa = CrimsonX.Localization.AppStrings.IsPersian;
-                ShowToast(CrimsonX.Localization.AppStrings.ToastVpnInUse);
+                ShowToast(CrimsonX.Localization.AppStrings.ToastVpnInUse, ToastKind.Error);
                 return;
             }
         }
@@ -691,7 +742,7 @@ public partial class MainWindow
             }
             if (!exists)
             {
-                ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNotAvailable);
+                ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNotAvailable, ToastKind.Error);
                 return;
             }
         }
@@ -724,7 +775,7 @@ public partial class MainWindow
                 CrimsonX.Services.SimpleLogger.Log("[Connect] No usable internet connection detected; auto-connect skipped.");
 
                 if (IsVisible && WindowState != WindowState.Minimized)
-                    ShowToast(CrimsonX.Localization.AppStrings.NoInternetTitle);
+                    ShowToast(CrimsonX.Localization.AppStrings.NoInternetTitle, ToastKind.Error);
 
                 return;
             }
@@ -794,26 +845,18 @@ public partial class MainWindow
                 var outbounds = CrimsonX.Services.XrayPipelineManager.ActiveOutbounds;
                 if (outbounds == null || outbounds.Count == 0)
                 {
-                    ShowToast(CrimsonX.Localization.AppStrings.ToastModeSwitchFailed);
+                    ShowToast(CrimsonX.Localization.AppStrings.ToastModeSwitchFailed, ToastKind.Error);
                     return false;
                 }
 
                 await CrimsonX.Services.XrayPipelineManager.SwapOutboundsAsync(outbounds, _cfg, _cfg.XrayDir, true);
 
-                if (!SingboxConfigWriter.Write(_cfg, _cfg.SbDir))
+                if (!await StartOrRestartSingBoxVerifiedAsync(killRunning: false, RestartExitNodeTimeoutSeconds))
                 {
-                    ShowToast(CrimsonX.Localization.AppStrings.ToastWriteVpnFailed);
+                    ShowToast(CrimsonX.Localization.AppStrings.ToastStartVpnFailed, ToastKind.Error);
                     return false;
                 }
 
-                var sbProc = ProcessService.StartProcessDirect(
-                    GetAppPath(@"Data\sing_box\sing-box.exe"), "run -c config.json", _cfg.SbDir);
-                if (sbProc == null)
-                {
-                    ShowToast(CrimsonX.Localization.AppStrings.ToastStartVpnFailed);
-                    return false;
-                }
-                _sbPid = sbProc.Id;
                 CrimsonX.Services.SimpleLogger.Log($"[ModeHotSwap] {oldMode} -> VPN Mode (sing-box pid={_sbPid})");
             }
             else
@@ -821,6 +864,8 @@ public partial class MainWindow
                 int? sbPid = _sbPid;
                 _sbPid = null;
                 CrimsonX.Services.ProcessService.KillVpnProcess(sbPid);
+
+                CrimsonX.Services.TunnelEngine.Stop(CrimsonX.Services.TunnelEngine.GroupRules);
 
                 var outbounds = CrimsonX.Services.XrayPipelineManager.ActiveOutbounds;
                 if (outbounds != null && outbounds.Count > 0)
@@ -841,7 +886,7 @@ public partial class MainWindow
         catch (Exception ex)
         {
             CrimsonX.Services.SimpleLogger.Log(ex);
-            ShowToast(CrimsonX.Localization.AppStrings.ToastModeSwitchFailed);
+            ShowToast(CrimsonX.Localization.AppStrings.ToastModeSwitchFailed, ToastKind.Error);
             return false;
         }
     }
@@ -862,38 +907,197 @@ public partial class MainWindow
         catch (Exception ex)
         {
             CrimsonX.Services.SimpleLogger.Log(ex);
-            ShowToast(CrimsonX.Localization.AppStrings.ToastEngineStartFailedPrefix + ex.Message);
+            ShowToast(CrimsonX.Localization.AppStrings.ToastEngineStartFailedPrefix + ex.Message, ToastKind.Error);
             StopAllEngines();
         }
     }
 
 
-    internal bool RestartSingBoxOnly()
+    private const int RestartExitNodeTimeoutSeconds = 15;
+
+    private readonly System.Threading.SemaphoreSlim _singBoxRestartLock = new System.Threading.SemaphoreSlim(1, 1);
+
+    private CancellationTokenSource? _reapplyCts;
+
+    internal void SetConnectVisualState(bool connecting)
     {
-        if (_cfg.LastXrayMode != "VPN Mode" || !_state.IsConnected) return false;
+        Dispatcher.UIThread.Post(() =>
+        {
+            EnsureConnectBoxResources();
+
+            if (connecting)
+            {
+                if (_connectText != null)
+                {
+                    _connectText.Text = CrimsonX.Localization.AppStrings.StatusConnecting;
+                    _connectText.Opacity = 1;
+                }
+                if (_connectConnectedText != null) _connectConnectedText.Opacity = 0;
+
+                _connectBox?.Classes.Remove("connected");
+
+                SetConnectButtonProgress(15);
+                return;
+            }
+
+            if (_state.IsConnected)
+            {
+                if (_connectText != null) _connectText.Text = CrimsonX.Localization.AppStrings.StatusConnected;
+                if (_connectConnectedText != null) _connectConnectedText.Text = CrimsonX.Localization.AppStrings.StatusConnected;
+
+                if (_connectBox != null && !_connectBox.Classes.Contains("connected")) _connectBox.Classes.Add("connected");
+
+                SetSparklinesVisible(true);
+                SetReadoutTilesGrown(true);
+            }
+
+            SetConnectButtonProgress(100);
+        });
+    }
+
+    internal async Task<bool> StartOrRestartSingBoxVerifiedAsync(bool killRunning, int timeoutSeconds, CancellationToken ct = default)
+    {
+        try { await _singBoxRestartLock.WaitAsync(ct); }
+        catch (OperationCanceledException) { return false; }
+
+        bool chained = CrimsonX.Services.ExitNodeChain.ShouldChain(_cfg);
+
+        bool showConnecting = chained && killRunning;
 
         try
         {
-            if (_sbPid != null) { CrimsonX.Services.ProcessService.KillVpnProcess(_sbPid); _sbPid = null; }
+            CrimsonX.Services.ExitNodeChain.SetChainActive(false);
 
-            if (!CrimsonX.Services.SingboxConfigWriter.Write(_cfg, _cfg.SbDir))
+            if (killRunning)
             {
-                CrimsonX.Services.SimpleLogger.Log("[SingBox] Config write failed during rule apply.");
+                int? previous = _sbPid;
+                _sbPid = null;
+                CrimsonX.Services.ProcessService.KillVpnProcess(previous);
+            }
+
+            if (showConnecting) SetConnectVisualState(true);
+
+            CrimsonX.Services.AppRulesSingboxBuilder.EnsureRuleTunnels(_cfg, out string ruleTunnelError);
+            if (ruleTunnelError.Length > 0)
+                CrimsonX.Services.SimpleLogger.Log($"[SingBox] Rule tunnels: {ruleTunnelError}");
+            else
+                CrimsonX.Services.SimpleLogger.Log($"[Tunnel] engines: rules({CrimsonX.Services.TunnelEngine.Describe(CrimsonX.Services.TunnelEngine.GroupRules)})");
+
+            if (!await Task.Run(() => CrimsonX.Services.SingboxConfigWriter.Write(_cfg, _cfg.SbDir), ct)) return false;
+
+            var process = await Task.Run(() => ProcessService.StartProcessDirect(GetAppPath(@"Data\sing_box\sing-box.exe"), "run -c config.json", _cfg.SbDir), ct);
+            if (process == null) return false;
+
+            _sbPid = process.Id;
+
+            try { await Task.Delay(350, ct); }
+            catch (OperationCanceledException)
+            {
+                try { CrimsonX.Services.ProcessService.KillVpnProcess(process.Id); } catch { }
                 return false;
             }
 
-            var proc = CrimsonX.Services.ProcessService.StartProcessDirect(
-                GetAppPath(@"Data\sing_box\sing-box.exe"), "run -c config.json", _cfg.SbDir);
-            if (proc == null) return false;
+            if (!chained)
+            {
+                if (HasExited(process))
+                {
+                    CrimsonX.Services.SimpleLogger.Log($"[SingBox] the instance exited right after start (code {ExitCodeOf(process)}); see the [sing-box.exe] lines above.");
+                    return false;
+                }
 
-            _sbPid = proc.Id;
-            CrimsonX.Services.SimpleLogger.Log($"[SingBox] Restarted with updated app rules (pid={_sbPid}).");
+                CrimsonX.Services.SimpleLogger.Log($"[SingBox] started (pid={_sbPid}).");
+                return true;
+            }
+
+            if (await AwaitExitNodeEstablishedAsync(process, ct, timeoutSeconds))
+            {
+                CrimsonX.Services.ExitNodeChain.SetChainActive(true);
+                Dispatcher.UIThread.Post(() => StartGeoPing());
+                return true;
+            }
+
+            if (ct.IsCancellationRequested) return false;
+
+            CrimsonX.Services.SimpleLogger.Log("[ExitNode] Falling back to the entry nodes only.");
+            try { CrimsonX.Services.ProcessService.KillVpnProcess(process.Id); } catch { }
+
+            if (!await Task.Run(() => CrimsonX.Services.SingboxConfigWriter.Write(_cfg, _cfg.SbDir, skipExitNode: true))) return false;
+
+            var retry = await Task.Run(() => ProcessService.StartProcessDirect(GetAppPath(@"Data\sing_box\sing-box.exe"), "run -c config.json", _cfg.SbDir));
+            if (retry == null) return false;
+
+            _sbPid = retry.Id;
+            CrimsonX.Services.SimpleLogger.Log(
+                $"[ExitNode] The exit node was dropped; proxied traffic is back on xray 127.0.0.1:{CrimsonX.Services.ExitNodeChain.ActivePort}.");
+
+            Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastExitNodeFailed, ToastKind.Error));
             return true;
         }
         catch (Exception ex)
         {
             CrimsonX.Services.SimpleLogger.Log(ex);
             return false;
+        }
+        finally
+        {
+            try { _singBoxRestartLock.Release(); } catch { }
+
+            if (showConnecting && _state.IsConnected) SetConnectVisualState(false);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                UpdateLocalPortUI();
+                UpdateLanPortUI();
+            });
+        }
+    }
+
+    internal async Task<bool> RestartSingBoxOnlyAsync()
+    {
+        if (_cfg.LastXrayMode != "VPN Mode" || !_state.IsConnected || _state.IsReconnecting) return false;
+
+        _reapplyCts?.Dispose();
+        _reapplyCts = new CancellationTokenSource();
+        var ct = _reapplyCts.Token;
+
+        _state.IsReconnecting = true;
+        SetConnectVisualState(true);
+        SetConnectButtonProgress(15);
+
+        try
+        {
+            var restart = StartOrRestartSingBoxVerifiedAsync(killRunning: true, RestartExitNodeTimeoutSeconds, ct);
+
+            int progress = 15;
+            while (!restart.IsCompleted && !ct.IsCancellationRequested && progress < 90)
+            {
+                try { await Task.Delay(150); } catch { }
+
+                if (restart.IsCompleted) break;
+
+                progress += 5;
+                SetConnectButtonProgress(progress);
+            }
+
+            bool ok = await restart;
+
+            if (ok)
+            {
+                CrimsonX.Services.SimpleLogger.Log($"[SingBox] Restarted with updated app rules (pid={_sbPid}).");
+            }
+            else if (ct.IsCancellationRequested)
+            {
+                CrimsonX.Services.SimpleLogger.Log(
+                    "[AppRules] The apply was interrupted by a disconnect; the rule changes stay pending.");
+            }
+
+            return ok;
+        }
+        finally
+        {
+            _state.IsReconnecting = false;
+
+            if (_state.IsConnected) SetConnectVisualState(false);
         }
     }
 
@@ -991,11 +1195,18 @@ public partial class MainWindow
             {
                 Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    WindowState = global::Avalonia.Controls.WindowState.Normal;
+                    using var _busy = CrimsonX.Services.UiBusy.Scope("tray: restore window");
+
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+
+                    WindowState = _restoreState;
                     Show();
                     Activate();
-                    Topmost = true;
-                    Topmost = false;
+
+                    sw.Stop();
+
+                    if (sw.ElapsedMilliseconds > 150)
+                        CrimsonX.Services.SimpleLogger.Log($"[UI] restoring the window from the tray took {sw.ElapsedMilliseconds} ms (state {_restoreState})");
                 });
             }
             else if (e.Button == System.Windows.Forms.MouseButtons.Right)

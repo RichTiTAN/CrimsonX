@@ -96,7 +96,41 @@
         </Style>
 
         <Style Selector="Control">
-            <Setter Property="ToolTip.ShowDelay" Value="1500"/>
+            <Setter Property="ToolTip.ShowDelay" Value="400"/>
+        </Style>
+
+        <!-- Tooltips now carry the sidebar's item names, so they get the app's own card: the toast palette, our
+             own template (so the look can't drift with the theme), and room for the longer descriptions used
+             elsewhere. -->
+        <Style Selector="ToolTip">
+            <Setter Property="Background" Value="#F20E1014"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="MaxWidth" Value="340"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}"
+                            BoxShadow="0 6 18 -4 #80000000">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          MaxWidth="{TemplateBinding MaxWidth}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          FontSize="{TemplateBinding FontSize}"
+                                          FontWeight="{TemplateBinding FontWeight}"
+                                          TextBlock.LetterSpacing="{TemplateBinding LetterSpacing}"
+                                          TextBlock.TextWrapping="Wrap"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
         </Style>
         <Style Selector="ScrollViewer">
             <Setter Property="(behaviors:SmoothScrollBehavior.IsEnabled)" Value="True"/>
@@ -113,6 +147,96 @@
         </Style>
         <Style Selector="Border.hoverBox:pointerover">
             <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+        </Style>
+
+        <!-- ── Connect button box: shared by the home tab and the Apps & Games strip ── -->
+
+        <Style Selector="Border.floatBox">
+            <Setter Property="Background" Value="#FF000000"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="BoxShadow" Value="0 0 26 6 #E6000000"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.floatBox:pointerover">
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+        </Style>
+
+        <Style Selector="Border.connectBox">
+            <Setter Property="Background" Value="#FF000000"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BoxShadow" Value="0 0 26 6 #E6000000"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.connectBox:pointerover">
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+        </Style>
+        <!-- The box's button is a real Button, so Fluent paints its own hover and press fill into the content
+             presenter and the whole box lights up. Neutralised here, so hovering only turns the border white
+             (the rule above) and press feedback stays with panConnectPress, which is code driven. -->
+        <Style Selector="Border.connectBox Button:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Border.connectBox Button:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Border.connectBox.connected">
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSuccessBrush}"/>
+        </Style>
+        <Style Selector="Border.connectBox.connected:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSuccessPointerOverBrush}"/>
+        </Style>
+
+        <Style Selector="Border.shadowCarrier">
+            <Setter Property="Background" Value="#FF000000"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BoxShadow" Value="0 0 26 6 #E6000000"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+
+        <!-- The breathing ring a connect box wears while a connection is coming up (opacity is driven from
+             code: ConnectPhaseUi.Breath over a 1.6 s sine). It is a separate border so the underlying
+             border keeps its grey / hover / green states untouched.
+             Margin="-2" in the boxes is load-bearing: the boxes carry BorderThickness=2 and no padding, so
+             their content area sits 2px inside - the negative margin lifts this ring back onto the border
+             band, where its 2px stroke and radius 8 line up with the box's own border exactly, so the edge
+             itself reads as the thing that breathes. -->
+        <Style Selector="Border.connectBreath">
+            <Setter Property="BorderBrush" Value="#DD6B20"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+        <!-- ── The pale-highlight pill: Home's MODE choice and the panel's ALLOW SINGLE CONFIG ──
+             Lit means on. The lit fill is the same #1AFFFFFF the app already uses for a chosen option,
+             and the hover is a whisper on top of it (6% white), so hovering never looks more on than on. -->
+        <Style Selector="Button.pillBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Padding" Value="10,3"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.pillBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#0FFFFFFF"/>
+        </Style>
+        <Style Selector="Button.pillBtn.on">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
         </Style>
     </Application.Styles>
 </Application>

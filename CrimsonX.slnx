@@ -2,4 +2,5 @@
   <Project Path="CrimsonX.csproj">
     <BuildType Project="Debug" />
   </Project>
+  <Project Path="CrimsonX.Tests\CrimsonX.Tests.csproj" />
 </Solution>

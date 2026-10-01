@@ -45,21 +45,14 @@ public partial class MainWindow : Window
 
     private AppConfig _cfg;
     private AppState _state;
-    private global::Avalonia.Threading.DispatcherTimer _glowAnimTimer;
-    private DateTime _lastGlowTick;
-    private double _currentGlowAngle;
 
     private int? _xrayDebugPid, _sbDebugPid;
     private int? _xrayPid, _sbPid;
     private bool _closeDeferred;
 
     private DispatcherTimer? _autoBootTimer; 
-    private int _pollSelCount = 6;
     internal string _pollMode = "Proxy Mode";
-    private string _pollSelBridge = "Direct";
 
-    private string _activeBridge = "Direct";
-    private int _activeEngines = 6;
 
 
 
@@ -69,9 +62,9 @@ public partial class MainWindow : Window
     internal Models.AppState GetState() => _state;
     internal void SwitchToVpnMode()
     {
-        _cfg.LastXrayMode = "VPN Mode";
-        _pollMode = "VPN Mode";
-        ApplyModeUI("VPN Mode");
+        _cfg.LastXrayMode = CrimsonX.Services.ConnectionModes.Vpn;
+        _pollMode = CrimsonX.Services.ConnectionModes.Vpn;
+        ApplyModeUI(CrimsonX.Services.ConnectionModes.Vpn);
         RequestConfigSave();
     }
     internal string GetSpeedText()
@@ -83,42 +76,6 @@ public partial class MainWindow : Window
     }
 
 
-    protected override void OnPropertyChanged(global::Avalonia.AvaloniaPropertyChangedEventArgs change)
-    {
-        base.OnPropertyChanged(change);
-        if (change.Property.Name == "IsActive")
-        {
-            if (change.NewValue is bool isActive)
-            {
-                if (isActive)
-                {
-                    if (_wasLanguagePopupOpen && LanguagePopup != null)
-                    {
-                        LanguagePopup.IsOpen = true;
-                    }
-
-                    if (_wasLbPolicyPopupOpen && LbPolicyPopup != null)
-                    {
-                        LbPolicyPopup.IsOpen = true;
-                    }
-                }
-                else
-                {
-                    if (LanguagePopup != null)
-                    {
-                        _wasLanguagePopupOpen = LanguagePopup.IsOpen;
-                        if (LanguagePopup.IsOpen) LanguagePopup.IsOpen = false;
-                    }
-
-                    if (LbPolicyPopup != null)
-                    {
-                        _wasLbPolicyPopupOpen = LbPolicyPopup.IsOpen;
-                        if (LbPolicyPopup.IsOpen) LbPolicyPopup.IsOpen = false;
-                    }
-                }
-            }
-        }
-    }
 
     public MainWindow()
     {
@@ -137,10 +94,20 @@ public partial class MainWindow : Window
         ConfigService.Load(_cfg, _state, _cfg.CfgFile);
         CrimsonX.Services.SimpleLogger.EnableLogging = _cfg.DebugMode;
         CrimsonX.Services.SimpleLogger.Log($"[Startup] CrimsonX v{Services.UpdateService.AppVersion} — Mode={_cfg.LastXrayMode}");
-        _ = CrimsonX.Services.SystemDnsService.HealFromDiskAsync();
+
+        CrimsonX.Services.BackgroundTask.Run("engine report", () => CrimsonX.Services.EngineReport.AnnounceAsync(_cfg));
+
+        CrimsonX.Services.GeneratedArtifacts.RunStartupCleanup();
+
+        CrimsonX.Services.SecureJsonStore.MigrateLegacyStores();
+
+        CrimsonX.Services.BackgroundTask.Run("dns heal", () => CrimsonX.Services.SystemDnsService.HealFromDiskAsync());
 
 
         InitializeComponent();
+
+        var startupNav = this.FindControl<CrimsonX.Controls.NavigationBar>("navBar");
+        startupNav?.SetAdBlockerState(_cfg.EnableAdBlock);
 
         if (_cfg.StartupTab == "AppsGames")
         {
@@ -152,20 +119,11 @@ public partial class MainWindow : Window
         }
 
 
-        _glowAnimTimer = new global::Avalonia.Threading.DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(33) 
-        };
-        _glowAnimTimer.Tick += GlowAnimTimer_Tick;
-        _glowAnimTimer.Start();
-        _lastGlowTick = DateTime.UtcNow;
-
         DataContext = this;
 
         this.Deactivated += (s, e) => { CloseAllOverlays(); CrimsonX.Controls.AnimatedBackground.Instance?.SetFocusState(false); };
         this.Activated += (s, e) => CrimsonX.Controls.AnimatedBackground.Instance?.SetFocusState(true);
 
-        this.LayoutUpdated += (s, e) => UpdateMiniNavUnderline();
         
         var lblVer = this.FindControl<global::Avalonia.Controls.TextBlock>("lblVersion");
         if (lblVer != null) lblVer.Text = Services.UpdateService.AppVersion;
@@ -240,17 +198,23 @@ public partial class MainWindow : Window
         }
 
 
-        _ = CheckUpdateSilentAsync();
+        CrimsonX.Services.BackgroundTask.Run("update check", () => CheckUpdateSilentAsync());
     }
 
 
     // ── Overlay & Popup Dismissal ──
 
 
+    public void SetLightDismissLayer(bool visible)
+    {
+        if (LightDismissOverlay != null) LightDismissOverlay.IsVisible = visible;
+    }
+
     private void CloseAllOverlays()
     {
         Pages.SettingsPage.Instance?.ClosePopups();
         Controls.QuickSettingsPanel.Instance?.ClosePopups();
+        navBar?.ClosePopups();
         if (LightDismissOverlay != null) LightDismissOverlay.IsVisible = false;
     }
 
@@ -288,7 +252,7 @@ public partial class MainWindow : Window
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(address);
-                ShowToast(CrimsonX.Localization.AppStrings.ToastAddressCopied, success: true);
+                ShowToast(CrimsonX.Localization.AppStrings.ToastAddressCopied, kind: ToastKind.Success);
             }
         }
         }
@@ -304,12 +268,89 @@ public partial class MainWindow : Window
 
     // ── Update Check & Installation ──
 
-        private void SetUpdateUIStatus(string status)
+    private void SetUpdateUIStatus(string status)
     {
-        var btnTitleUpdate = this.FindControl<global::Avalonia.Controls.Button>("btnTitleUpdate");
-        if (btnTitleUpdate != null) btnTitleUpdate.Content = status;
-        
         Pages.AboutPage.Instance?.SetUpdateStatus(status);
+    }
+
+    internal enum TitleUpdateState
+    {
+        Hidden,
+
+        Available,
+
+        Downloading,
+
+        Extracting
+    }
+
+    private void SetTitleUpdateBadge(TitleUpdateState state, int percent = 0)
+    {
+        var badge = this.FindControl<global::Avalonia.Controls.StackPanel>("panTitleUpdate");
+        if (badge == null) return;
+
+        badge.IsVisible = state != TitleUpdateState.Hidden;
+
+        var stripTitle = this.FindControl<global::Avalonia.Controls.TextBlock>("lblTabTitle");
+        if (stripTitle != null)
+        {
+            bool badgeUp = state != TitleUpdateState.Hidden;
+
+            global::Avalonia.Controls.Grid.SetColumnSpan(stripTitle, badgeUp ? 1 : 3);
+            stripTitle.HorizontalAlignment = badgeUp
+                ? global::Avalonia.Layout.HorizontalAlignment.Left
+                : global::Avalonia.Layout.HorizontalAlignment.Center;
+            stripTitle.Margin = badgeUp ? new global::Avalonia.Thickness(72, 0, 0, 0) : new global::Avalonia.Thickness(0);
+        }
+
+        if (!badge.IsVisible) return;
+
+        var title  = this.FindControl<global::Avalonia.Controls.Button>("btnTitleUpdate");
+        var dot    = this.FindControl<global::Avalonia.Controls.Shapes.Ellipse>("dotTitleUpdate");
+        var ring   = this.FindControl<CrimsonX.Controls.ProgressRing>("ringTitleUpdate");
+        var label  = this.FindControl<global::Avalonia.Controls.TextBlock>("lblTitleUpdate");
+        var cancel = this.FindControl<global::Avalonia.Controls.Button>("btnTitleUpdateCancel");
+
+        bool downloading = state == TitleUpdateState.Downloading;
+
+        if (title != null && (state == TitleUpdateState.Available) != title.Classes.Contains("graphHover"))
+        {
+            if (state == TitleUpdateState.Available)
+            {
+                title.Classes.Add("graphHover");
+                title.Cursor = new global::Avalonia.Input.Cursor(global::Avalonia.Input.StandardCursorType.Hand);
+            }
+            else
+            {
+                title.Classes.Remove("graphHover");
+                title.Cursor = global::Avalonia.Input.Cursor.Default;
+            }
+        }
+
+        if (dot != null)
+        {
+            dot.IsVisible = !downloading;
+            dot.Fill = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse(
+                state == TitleUpdateState.Extracting ? "#ED8936" : "#F56565"));
+        }
+
+        if (ring != null)
+        {
+            ring.IsVisible = downloading;
+            ring.Value = Math.Clamp(percent / 100.0, 0, 1);
+        }
+
+        if (label != null)
+        {
+            label.Text = state switch
+            {
+                TitleUpdateState.Downloading => CrimsonX.Localization.AppStrings.UpdateBadgeDownloading,
+                TitleUpdateState.Extracting  => CrimsonX.Localization.AppStrings.UpdateBadgeExtracting,
+                _                            => CrimsonX.Localization.AppStrings.UpdateBadgeAvailable
+            };
+        }
+
+        if (cancel != null) cancel.IsVisible = state != TitleUpdateState.Available;
     }
 
     private async Task CheckUpdateSilentAsync()
@@ -326,6 +367,7 @@ public partial class MainWindow : Window
                 
                 string msg = CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable;
                 SetUpdateUIStatus(msg);
+                SetTitleUpdateBadge(TitleUpdateState.Available);
             }
         }
         catch (Exception ex)
@@ -349,12 +391,17 @@ public partial class MainWindow : Window
         _updateCts = new System.Threading.CancellationTokenSource();
         var token = _updateCts.Token;
 
+        SetTitleUpdateBadge(TitleUpdateState.Downloading, 0);
+
         try
         {
-            await Services.UpdateService.DownloadAndInstallUpdateAsync(_remoteUpdateVersion, _cfg.BaseDir, (status) => 
+            await Services.UpdateService.DownloadAndInstallUpdateAsync(_remoteUpdateVersion, _cfg.BaseDir, (status) =>
             {
                 SetUpdateUIStatus(status);
-            }, token);
+            }, token, (pct) =>
+            {
+                SetTitleUpdateBadge(pct >= 100 ? TitleUpdateState.Extracting : TitleUpdateState.Downloading, pct);
+            });
 
             ProxyService.SetSystemProxy(false);
             StopAllEngines(true);
@@ -368,16 +415,17 @@ public partial class MainWindow : Window
             }
             else
             {
-                ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateDownloadTimeout);
+                ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateDownloadTimeout, ToastKind.Error);
             }
-            string msg = CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable;
-            SetUpdateUIStatus(msg);
+
+            SetUpdateUIStatus(CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable);
+            SetTitleUpdateBadge(TitleUpdateState.Available);
         }
         catch (Exception ex)
         {
-            ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateFailedPrefix + ex.Message);
-            string msg = CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable;
-            SetUpdateUIStatus(msg);
+            ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateFailedPrefix + ex.Message, ToastKind.Error);
+            SetUpdateUIStatus(CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable);
+            SetTitleUpdateBadge(TitleUpdateState.Available);
         }
         finally
         {
@@ -386,17 +434,22 @@ public partial class MainWindow : Window
         }
     }
 
+    private void BtnTitleUpdateCancel_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_updateCts == null) return;
+
+        _updateCts.Cancel();
+        _updateCts.Dispose();
+        _updateCts = null;
+
+        SetTitleUpdateBadge(TitleUpdateState.Available);
+    }
+
     private async void BtnTitleUpdate_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         try
         {
-        if (_updateCts != null)
-        {
-            _updateCts.Cancel();
-            _updateCts.Dispose();
-            _updateCts = null;
-            return;
-        }
+        if (_updateCts != null) return;
 
         bool isManual = Version.Parse(Services.UpdateService.AppVersion) < Version.Parse(_remoteMinUpdateVersion);
         var dialog = new Dialogs.UpdateDialog(isManual: isManual, _remoteUpdateVersion);
@@ -407,7 +460,7 @@ public partial class MainWindow : Window
             if (isManual)
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/RichTiTAN/CrimsonX/releases") { UseShellExecute = true })?.Dispose();
             else
-                _ = StartUpdateDownloadAsync();
+                CrimsonX.Services.BackgroundTask.Run("update download", () => StartUpdateDownloadAsync());
         }
         else if (result == "Secondary")
         {
@@ -430,6 +483,8 @@ public partial class MainWindow : Window
             _updateCts.Cancel();
             _updateCts.Dispose();
             _updateCts = null;
+
+            SetTitleUpdateBadge(TitleUpdateState.Available);
             return;
         }
 
@@ -446,7 +501,7 @@ public partial class MainWindow : Window
                 if (isManual)
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/RichTiTAN/CrimsonX/releases") { UseShellExecute = true })?.Dispose();
                 else
-                    _ = StartUpdateDownloadAsync();
+                    CrimsonX.Services.BackgroundTask.Run("update download", () => StartUpdateDownloadAsync());
             }
             else if (result == "Secondary")
             {
@@ -464,7 +519,7 @@ public partial class MainWindow : Window
             var (remoteVer, remoteMin) = await Services.UpdateService.CheckForUpdatesAsync(token);
             if (remoteVer == null)
             {
-                ShowToast(CrimsonX.Localization.AppStrings.ToastLatestVersion, success: true);
+                ShowToast(CrimsonX.Localization.AppStrings.ToastLatestVersion, kind: ToastKind.Success);
                 Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.UpdateLatest);
                 try { await Task.Delay(3000, token); } catch { }
                 Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.CheckForUpdates);
@@ -493,11 +548,8 @@ public partial class MainWindow : Window
             }
 
             _remoteUpdateVersion = remoteVer;
-            var btnTitleUpdate = this.FindControl<global::Avalonia.Controls.Button>("btnTitleUpdate");
-            if (btnTitleUpdate != null) btnTitleUpdate.IsVisible = true;
-
-            string msg = CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable;
-            SetUpdateUIStatus(msg);
+            SetUpdateUIStatus(CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable);
+            SetTitleUpdateBadge(TitleUpdateState.Available);
 
             _updateCts?.Dispose();
             _updateCts = null;
@@ -507,7 +559,7 @@ public partial class MainWindow : Window
             
             if (result2 == "Primary")
             {
-                _ = StartUpdateDownloadAsync();
+                CrimsonX.Services.BackgroundTask.Run("update download", () => StartUpdateDownloadAsync());
             }
             else if (result2 == "Secondary")
             {
@@ -524,13 +576,13 @@ public partial class MainWindow : Window
             }
             else
             {
-                ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateCheckTimeout);
+                ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateCheckTimeout, ToastKind.Error);
             }
             Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.CheckForUpdates);
         }
         catch (Exception ex)
         {
-            ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateFailedPrefix + ex.Message);
+            ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateFailedPrefix + ex.Message, ToastKind.Error);
             Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.CheckForUpdates);
         }
         finally
@@ -557,16 +609,14 @@ public partial class MainWindow : Window
         AppStrings.SetLanguage(_cfg.Language);
         bool fa = AppStrings.IsPersian;
         
-        panMainInteraction.FlowDirection = fa 
-            ? global::Avalonia.Media.FlowDirection.RightToLeft 
-            : global::Avalonia.Media.FlowDirection.LeftToRight;
+        panMainInteraction.FlowDirection = global::Avalonia.Media.FlowDirection.LeftToRight;
             
-        panMainInteraction.Margin = fa
-            ? new global::Avalonia.Thickness(0, 20, 20, 0)
-            : new global::Avalonia.Thickness(20, 20, 0, 0);
+        panMainInteraction.Margin = new global::Avalonia.Thickness(62, 0, 0, 0);
 
         this.FindControl<CrimsonX.Controls.NavigationBar>("navBar")?.ApplyLanguage();
+        ApplyTitleBarName(_previousNav);
         CrimsonX.Pages.SettingsPage.Instance?.ApplyLanguage();
+        this.FindControl<global::CrimsonX.Pages.UdpScannerPage>("pageUdpScanner")?.ApplyLanguage();
         CrimsonX.Pages.ThemesPage.Instance?.ApplyLanguage();
         CrimsonX.Pages.AboutPage.Instance?.ApplyLanguage();
         this.FindControl<CrimsonX.Controls.QuickSettingsPanel>("quickSettings")?.ApplyLanguage();
@@ -574,46 +624,7 @@ public partial class MainWindow : Window
         this.FindControl<global::CrimsonX.Pages.AppsGamesOverlay>("overlayAppsGames")?.ApplyLanguage();
 
         TextBlock? F(string name) => this.FindControl<TextBlock>(name);
-        Button? B(string name)    => this.FindControl<Button>(name);
 
-        AppStrings.Apply(F("lblSidebarConnection"),  AppStrings.SectionConnection);
-
-        AppStrings.Apply(F("lblSidebarSplitTunnel"), AppStrings.NavSplitTunneling);
-        AppStrings.Apply(F("lblSidebarSettings"),    AppStrings.NavSettings);
-        AppStrings.Apply(F("lblSidebarAbout"),       AppStrings.NavAbout);
-
-        AppStrings.Apply(F("lblStatNav"), AppStrings.NavStats);
-        AppStrings.Apply(F("lblLogNav"),  AppStrings.NavLogs);
-
-        AppStrings.Apply(F("lblProxyMode"),  AppStrings.ProxyMode);
-        AppStrings.Apply(F("lblVpnMode"),    AppStrings.VpnMode);
-        AppStrings.Apply(F("lblClearProxy"), AppStrings.ClearProxy);
-
-        AppStrings.ApplyToolTip(B("btnProxyMode"),  AppStrings.TtProxyMode);
-        AppStrings.ApplyToolTip(B("btnVpnMode"),    AppStrings.TtVpnMode);
-        AppStrings.ApplyToolTip(B("btnClearProxy"), AppStrings.TtClearProxy);
-
-        AppStrings.ApplyToolTip(B("btnLbLeastLoad"), AppStrings.TtLbLeastLoad);
-        AppStrings.ApplyToolTip(B("btnLbRoundRobin"), AppStrings.TtLbRoundRobin);
-        AppStrings.ApplyToolTip(B("btnLbLeastPing"), AppStrings.TtLbLeastPing);
-        AppStrings.ApplyToolTip(B("btnLbRandom"), AppStrings.TtLbRandom);
-        
-        var tbLbPolicy = this.FindControl<TextBlock>("lblLbPolicy");
-        if (tbLbPolicy != null)
-        {
-            AppStrings.Apply(tbLbPolicy, AppStrings.LbPolicy);
-            AppStrings.ApplyToolTip(tbLbPolicy, AppStrings.TtLbPolicy);
-        }
-        var btnLbPolicy = this.FindControl<Button>("btnLbPolicy");
-        if (btnLbPolicy != null)
-        {
-            AppStrings.ApplyToolTip(btnLbPolicy, AppStrings.TtLbPolicy);
-        }
-
-        
-
-
-        
         var panTimerContent = this.FindControl<StackPanel>("panTimerContent");
         if (panTimerContent != null)
         {
@@ -622,25 +633,24 @@ public partial class MainWindow : Window
                 : global::Avalonia.Media.FlowDirection.LeftToRight;
         }
 
-        AppStrings.Apply(F("lblLogsStatus"),    AppStrings.LogsStatus);
-        AppStrings.Apply(F("lblXrayLogHeader"), AppStrings.XrayLogHeader);
-        AppStrings.Apply(F("lblConnectedFor"),  AppStrings.ConnectedFor);
         AppStrings.Apply(F("lblConnectedTo"),   AppStrings.ConnectedTo);
         var lblD = F("lblDisconnected");
-        if (lblD != null) lblD.Text = AppStrings.StatusDisconnected;
+        if (lblD != null) lblD.Text = "00:00:00";
         var lblLoc = F("lblCountryName");
         if (lblLoc != null && (lblLoc.Text == "Disconnected" || lblLoc.Text == "منتظر اتصال" || string.IsNullOrWhiteSpace(lblLoc.Text)))
             lblLoc.Text = AppStrings.StatusDisconnected;
         AppStrings.Apply(F("lblLocalPortLabel"), AppStrings.OpenLocalPort);
         AppStrings.Apply(F("lblLanPortLabel"), AppStrings.OpenLanPort);
         AppStrings.Apply(F("lblSessionLabel"),  AppStrings.SessionLabel);
+        AppStrings.Apply(F("lblStatusLabel"),   AppStrings.StatusLabel);
         AppStrings.Apply(F("lblLocationLabel"), AppStrings.LocationLabel);
+        AppStrings.Apply(F("lblPublicIpLabel"), AppStrings.PublicIpLabel);
         AppStrings.Apply(F("lblPingLabel"),     AppStrings.PingLabel);
         AppStrings.Apply(F("lblTotalLabel"),    AppStrings.TotalLabel);
         AppStrings.Apply(F("lblDownloadLabel"), AppStrings.DownloadLabel);
         AppStrings.Apply(F("lblUploadLabel"),   AppStrings.UploadLabel);
-        AppStrings.Apply(F("lblLogsDownloadLabel"), AppStrings.DownloadLabel);
-        AppStrings.Apply(F("lblLogsUploadLabel"),   AppStrings.UploadLabel);
+
+        UpdateStatusText();
 
         var btnConn = this.FindControl<Button>("btnConnect");
         if (btnConn != null)
@@ -648,7 +658,7 @@ public partial class MainWindow : Window
             var txt = this.FindControl<TextBlock>("txtConnectBtn");
             if (txt != null)
             {
-                bool connected = _state.IsConnected;
+                bool connected = _state.IsConnected && !_state.IsReconnecting;
                 txt.Text = connected
                     ? CrimsonX.Localization.AppStrings.StatusConnected
                     : CrimsonX.Localization.AppStrings.StatusConnect;
@@ -658,135 +668,16 @@ public partial class MainWindow : Window
             }
         }
 
-        AppStrings.Apply(F("lblSectionStartup"), AppStrings.SectionStartup, forceLtr: true);
-        AppStrings.Apply(F("lblLaunchOnStartup"),  AppStrings.LaunchOnStartup);
-        AppStrings.Apply(F("lblAutoConnect"), AppStrings.AutoConnect);
-        AppStrings.Apply(F("lblStartMinimized"), AppStrings.StartMinimized);
-        AppStrings.Apply(F("lblMinimizeToTray"), AppStrings.MinimizeToTray);
 
-        AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblLaunchOnStartup"), AppStrings.TtLaunchOnStartup);
-        AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblAutoConnect"), AppStrings.TtAutoConnect);
-        AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblStartMinimized"), AppStrings.TtStartMinimized);
-        AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblMinimizeToTray"), AppStrings.TtMinimizeToTray);
         AppStrings.ApplyToolTip(this.FindControl<Button>("btnRefreshPing"), AppStrings.TtPingRefresh);
 
-        AppStrings.Apply(F("lblSectionConnection"), AppStrings.SectionConnection, forceLtr: true);
+        AppStrings.ApplyToolTip(this.FindControl<Button>("btnPinTopBar"), AppStrings.PinTopBar);
+        ApplyTopBarPin(_previousNav);
 
-        tbLbPolicy = this.FindControl<TextBlock>("lblLbPolicy");
-
-
-        var tbCustomXray = this.FindControl<TextBlock>("lblCustomXrayExit");
-        AppStrings.Apply(tbCustomXray, AppStrings.CustomXrayExit);
-        AppStrings.ApplyToolTip(tbCustomXray, AppStrings.TtCustomXray);
-        
-
-        var tbAdapterBinding = this.FindControl<TextBlock>("lblAdapterBindingTitle");
-        AppStrings.Apply(tbAdapterBinding, AppStrings.AdapterBinding);
-        AppStrings.ApplyToolTip(tbAdapterBinding, AppStrings.TtAdapterBinding);
-        AppStrings.ApplyBtn(B("btnScanAdapters"), AppStrings.ScanAdapters);
-        
-        var tbDnsSetting = this.FindControl<TextBlock>("lblDnsSettingTitle");
-        AppStrings.Apply(tbDnsSetting, AppStrings.DnsSettings);
-        AppStrings.ApplyToolTip(tbDnsSetting, AppStrings.TtDnsSettings);
-
-        var tbAdBlocker = this.FindControl<TextBlock>("lblAdBlockerSetting");
-        AppStrings.Apply(tbAdBlocker, AppStrings.AdBlocker);
-        AppStrings.ApplyToolTip(tbAdBlocker, AppStrings.TtAdBlocker);
-        
-        var tbAllowLan = this.FindControl<TextBlock>("lblAllowLanSetting");
-        AppStrings.Apply(tbAllowLan, AppStrings.AllowLan);
-        AppStrings.ApplyToolTip(tbAllowLan, AppStrings.TtAllowLan);
-        AppStrings.Apply(this.FindControl<TextBlock>("lblLanAuthTitle"), AppStrings.Authentication);
-        AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.TextBlock>("lblLanAuthTitle"), AppStrings.TtLanAuth);
-
-        AppStrings.Apply(F("lblOutboundType"), AppStrings.ProxyType);
-        AppStrings.Apply(F("lblOutboundAddress"), AppStrings.AddressIp);
-        AppStrings.Apply(F("lblOutboundPort"), AppStrings.Port);
-        AppStrings.Apply(F("lblOutboundAuth"), AppStrings.Authentication);
-        AppStrings.Apply(F("lblOutboundUsername"), AppStrings.Username);
-        AppStrings.Apply(F("lblOutboundPassword"), AppStrings.Password);
-        AppStrings.Apply(F("lblUpstreamDoh"), AppStrings.UpstreamDohUrl);
-        AppStrings.Apply(F("lblSysDnsTitle"), AppStrings.SystemDns);
-        AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.TextBlock>("lblSysDnsTitle"), AppStrings.TtSystemDns);
-
-
-        AppStrings.Apply(F("lblSectionSystem"),    AppStrings.SectionSystem, forceLtr: true);
-        
-        var tbLanguageSetting = this.FindControl<TextBlock>("lblLanguageSetting");
-        AppStrings.Apply(tbLanguageSetting, AppStrings.LanguageSetting);
-        AppStrings.ApplyToolTip(tbLanguageSetting, AppStrings.TtLanguage);
-        
-        var tbDebugMode = this.FindControl<TextBlock>("lblDebugMode");
-        AppStrings.Apply(tbDebugMode, AppStrings.DebugMode);
-        AppStrings.ApplyToolTip(tbDebugMode, AppStrings.TtDebugMode);
-        
-        AppStrings.Apply(F("lblDesktopShortcut"),  AppStrings.DesktopShortcut);
-        AppStrings.Apply(F("lblStartMenuShortcut"), AppStrings.StartMenuShortcut);
-
-        AppStrings.ApplyBtn(B("btnDesktopShortcut"), AppStrings.Create);
-        AppStrings.ApplyBtn(B("btnStartMenuShortcut"), AppStrings.Create);
-
-        AppStrings.Apply(F("lblSplitTunnelingHeader"), AppStrings.NavSplitTunneling, forceLtr: true);
-        AppStrings.Apply(F("lblDomainsAndIps"), AppStrings.DomainsAndIps);
-        AppStrings.Apply(F("lblApplications"), AppStrings.Applications);
-        var lblSplitAppsWarning = this.FindControl<TextBlock>("lblSplitAppsWarning");
-        if (lblSplitAppsWarning != null) lblSplitAppsWarning.Text = CrimsonX.Localization.AppStrings.WarningCaseSensitive;
-        AppStrings.Apply(F("lblBlockedDomainsIps"), AppStrings.BlockedDomains);
-        AppStrings.Apply(F("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDP);
-        AppStrings.ApplyToolTip(F("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDPTooltip);
-        AppStrings.Apply(F("lblDirectUdpDesc"), AppStrings.SplitTunnelDirectUDPDesc);
-        
-
-
-        var btnSplitDisabled  = this.FindControl<Button>("btnSplitDisabled");
-        var btnSplitExclusive = this.FindControl<Button>("btnSplitExclusive");
-        var btnSplitInclusive = this.FindControl<Button>("btnSplitInclusive");
-        
-        AppStrings.ApplyToolTip(btnSplitDisabled, AppStrings.TtSplitDis);
-        AppStrings.ApplyToolTip(btnSplitExclusive, AppStrings.SplitExplanationExclusive);
-        AppStrings.ApplyToolTip(btnSplitInclusive, AppStrings.SplitExplanationInclusive);
-        
-        if (btnSplitDisabled?.Content  is TextBlock tbDis) AppStrings.Apply(tbDis, AppStrings.Disabled);
-        if (btnSplitExclusive?.Content is TextBlock tbEx)  AppStrings.Apply(tbEx, AppStrings.Exclusive);
-        if (btnSplitInclusive?.Content is TextBlock tbIn)  AppStrings.Apply(tbIn, AppStrings.Inclusive);
-
-        var btnToggleDomains = this.FindControl<Button>("btnToggleDomains");
-        var btnToggleApps    = this.FindControl<Button>("btnToggleApps");
-        var btnToggleBlock   = this.FindControl<Button>("btnToggleBlock");
-        if (btnToggleDomains != null) 
-            btnToggleDomains.Content = string.IsNullOrWhiteSpace(this.FindControl<TextBox>("txtSplitDomains")?.Text) ? AppStrings.Add : AppStrings.Edit;
-        if (btnToggleApps    != null) 
-            btnToggleApps.Content    = string.IsNullOrWhiteSpace(this.FindControl<TextBox>("txtSplitApps")?.Text) ? AppStrings.Add : AppStrings.Edit;
-        if (btnToggleBlock   != null) 
-            btnToggleBlock.Content   = string.IsNullOrWhiteSpace(this.FindControl<TextBox>("txtSplitBlock")?.Text) ? AppStrings.Add : AppStrings.Edit;
-
-        var btnBrowseApp = this.FindControl<Button>("btnBrowseApp");
-        if (btnBrowseApp != null) btnBrowseApp.Content = CrimsonX.Localization.AppStrings.Browse;
+        HookStatTileResize();
 
         Pages.AboutPage.Instance?.UpdateLocalization();
         Pages.ThemesPage.Instance?.UpdateLocalization();
-
-        
-        AppStrings.ApplyBtn(B("btnXraySave"), AppStrings.Save);
-        AppStrings.ApplyBtn(B("btnXrayCancel"), AppStrings.Cancel);
-        AppStrings.ApplyBtn(B("btnOutboundSave"), AppStrings.Save);
-        AppStrings.ApplyBtn(B("btnOutboundCancel"), AppStrings.Cancel);
-        AppStrings.ApplyBtn(B("btnDohSave"), AppStrings.Save);
-        AppStrings.ApplyBtn(B("btnSysDnsSave"), AppStrings.Save);
-        AppStrings.ApplyBtn(B("btnLanAuthSave"), AppStrings.Save);
-        AppStrings.ApplyBtn(B("btnSaveDomains"), AppStrings.Save);
-        AppStrings.ApplyBtn(B("btnCancelDomains"), AppStrings.Cancel);
-        AppStrings.ApplyBtn(B("btnSaveApps"), AppStrings.Save);
-        AppStrings.ApplyBtn(B("btnCancelApps"), AppStrings.Cancel);
-        AppStrings.ApplyBtn(B("btnSaveBlock"), AppStrings.Save);
-        AppStrings.ApplyBtn(B("btnCancelBlock"), AppStrings.Cancel);
-        
-        AppStrings.ApplyBtn(B("btnCaptchaSubmit"), AppStrings.Submit);
-        AppStrings.ApplyBtn(B("btnCaptchaCancel"), AppStrings.Cancel);
-        AppStrings.ApplyBtn(B("btnCustomSave"), AppStrings.Save);
-        AppStrings.ApplyBtn(B("btnCustomCancel"), AppStrings.Cancel);
-
-
 
 
         if (_trayWidget != null)
@@ -798,12 +689,14 @@ public partial class MainWindow : Window
 
         var txtConnectBtn = F("txtConnectBtn");
         var txtConnectedBtn = F("txtConnectedBtn");
-        if (_state.IsConnected)
+        bool settled = _state.IsConnected && !_state.IsReconnecting;
+
+        if (settled)
         {
             if (txtConnectedBtn != null) txtConnectedBtn.Text = AppStrings.StatusConnected;
             if (txtConnectBtn != null) txtConnectBtn.Text = AppStrings.StatusConnected;
         }
-        else if (_state.IsEngineRunning)
+        else if (_state.IsEngineRunning || _state.IsReconnecting)
         {
             if (txtConnectBtn != null) txtConnectBtn.Text = CrimsonX.Localization.AppStrings.StatusConnecting;
         }
@@ -817,27 +710,21 @@ public partial class MainWindow : Window
 
     // ── Operating Mode Switching ──
 
-    private async void Mode_Click(object? sender, RoutedEventArgs e)
+    internal async Task SetConnectionModeAsync(string newMode)
     {
         try
         {
-        if (sender is not Button clickedBtn) return;
-        if (clickedBtn.Name == "btnVpnMode" && _activeBridge == "snowflake" && !_cfg.EnableDirectUDP) return;
+        newMode = CrimsonX.Services.ConnectionModes.Normalise(newMode);
+
         if (_isModeHotSwapping) return;
 
-        string newMode;
-        if (clickedBtn.Name == "btnProxyMode")       newMode = "Proxy Mode";
-        else if (clickedBtn.Name == "btnVpnMode")    newMode = "VPN Mode";
-        else if (clickedBtn.Name == "btnClearProxy") newMode = "Clear Proxy";
-        else                                         newMode = "Proxy Mode";
-
-        string oldMode = _cfg.LastXrayMode ?? "Proxy Mode";
+        string oldMode = CrimsonX.Services.ConnectionModes.Normalise(_cfg.LastXrayMode);
         if (oldMode == newMode) return;
 
         bool live = _state.IsEngineRunning || _state.IsConnected;
-        if (live && newMode == "VPN Mode" && IsVpnAdapterInUse())
+        if (live && newMode == CrimsonX.Services.ConnectionModes.Vpn && IsVpnAdapterInUse())
         {
-            ShowToast(CrimsonX.Localization.AppStrings.ToastVpnAdapterInUse);
+            ShowToast(CrimsonX.Localization.AppStrings.ToastVpnInUse, ToastKind.Error);
             return;
         }
 
@@ -871,120 +758,14 @@ public partial class MainWindow : Window
         }
     }
 
-    
-
-    
-
-    
-
-    private void Engines_ValueChanged(object? sender, global::Avalonia.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-    {
-        if (sender is global::Avalonia.Controls.Slider slider)
-        {
-            int engines = (int)slider.Value;
-            var lbl = this.FindControl<TextBlock>("lblEngineCount");
-            if (lbl != null) lbl.Text = engines.ToString();
-
-            if (_activeEngines == engines) return;
-
-            _activeEngines = engines;
-
-            if (_state.IsEngineRunning)
-                OnEngineCountChanged();
-            else
-            {
-                RequestConfigSave();
-            }
-        }
-    }
-
 
     // ── Apply Settings & Mode UI ──
 
     private void ApplyLoadedSettings()
     {
-        this.FindControl<global::Avalonia.Controls.Button>("btnBridgeDirect")?.Classes.Remove("activeOpt");
-        this.FindControl<global::Avalonia.Controls.Button>("btnBridgeObfs4")?.Classes.Remove("activeOpt");
-        this.FindControl<global::Avalonia.Controls.Button>("btnBridgeSnowflake")?.Classes.Remove("activeOpt");
-        this.FindControl<global::Avalonia.Controls.Button>("btnBridgeMeek")?.Classes.Remove("activeOpt");
-        this.FindControl<global::Avalonia.Controls.Button>("btnBridgeConjure")?.Classes.Remove("activeOpt");
-        this.FindControl<global::Avalonia.Controls.Button>("btnBridgeCustom")?.Classes.Remove("activeOpt");
 
-        if (_activeBridge == "obfs4")          this.FindControl<global::Avalonia.Controls.Button>("btnBridgeObfs4")?.Classes.Add("activeOpt");
-        else if (_activeBridge == "snowflake") this.FindControl<global::Avalonia.Controls.Button>("btnBridgeSnowflake")?.Classes.Add("activeOpt");
-        else if (_activeBridge == "meek_lite") this.FindControl<global::Avalonia.Controls.Button>("btnBridgeMeek")?.Classes.Add("activeOpt");
-        else if (_activeBridge == "conjure")   this.FindControl<global::Avalonia.Controls.Button>("btnBridgeConjure")?.Classes.Add("activeOpt");
-        else if (_activeBridge == "Custom")    this.FindControl<global::Avalonia.Controls.Button>("btnBridgeCustom")?.Classes.Add("activeOpt");
-        else                                   this.FindControl<global::Avalonia.Controls.Button>("btnBridgeDirect")?.Classes.Add("activeOpt");
-
-        var txtCustomBridge = this.FindControl<global::Avalonia.Controls.TextBox>("txtCustomBridge");
-
-        var sldEngines = this.FindControl<global::Avalonia.Controls.Slider>("sldEngines");
-        if (sldEngines != null) sldEngines.Value = _activeEngines;
-        var lblEngineCount = this.FindControl<global::Avalonia.Controls.TextBlock>("lblEngineCount");
-        if (lblEngineCount != null) lblEngineCount.Text = _activeEngines.ToString();
-
-        var chkLogs = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("chkLogs");
-        if (chkLogs != null) chkLogs.IsChecked = _state.IsLogsOpen;
 
         _isInitializingSettings = true;
-        
-        var btnBootTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("btnBootTog");
-        if (btnBootTog != null) btnBootTog.IsChecked = _cfg.LaunchOnBoot;
-        
-        var btnAutoTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("btnAutoTog");
-        if (btnAutoTog != null) btnAutoTog.IsChecked = _cfg.AutoStart;
-        
-        var btnStartMinTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("btnStartMinTog");
-        if (btnStartMinTog != null) btnStartMinTog.IsChecked = _cfg.StartMinimized;
-        
-        var btnTrayTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("btnTrayTog");
-        if (btnTrayTog != null) btnTrayTog.IsChecked = _cfg.MinimizeToTray;
-        
-        var togDnsSettings = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togDnsSettings");
-        if (togDnsSettings != null) togDnsSettings.IsChecked = _cfg.EnableUpstreamDoh;
-        
-        var cmbDohUrl = this.FindControl<global::Avalonia.Controls.ComboBox>("cmbDohUrl");
-        if (cmbDohUrl != null) cmbDohUrl.Text = _cfg.UpstreamDohUrl;
-
-        var togSysDns = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togSysDns");
-        if (togSysDns != null) togSysDns.IsChecked = _cfg.EnableSystemDns;
-
-        var txtSysDnsPrimary = this.FindControl<global::Avalonia.Controls.TextBox>("txtSysDnsPrimary");
-        if (txtSysDnsPrimary != null) txtSysDnsPrimary.Text = _cfg.SystemDnsPrimary;
-
-        var txtSysDnsSecondary = this.FindControl<global::Avalonia.Controls.TextBox>("txtSysDnsSecondary");
-        if (txtSysDnsSecondary != null) txtSysDnsSecondary.Text = _cfg.SystemDnsSecondary;
-        
-        var btnAdBlockTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("btnAdBlockTog");
-        if (btnAdBlockTog != null) btnAdBlockTog.IsChecked = _cfg.EnableAdBlock;
-        
-        var btnLanTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("btnLanTog");
-        if (btnLanTog != null) btnLanTog.IsChecked = _cfg.AllowLanConnections;
-
-        var togLanAuth = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togLanAuth");
-        if (togLanAuth != null) togLanAuth.IsChecked = _cfg.EnableLanAuth;
-        
-        var btnDebugTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("btnDebugTog");
-        if (btnDebugTog != null) btnDebugTog.IsChecked = _cfg.DebugMode;
-
-
-        var togXrayExitNode = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
-        if (togXrayExitNode != null) togXrayExitNode.IsChecked = _cfg.EnableV2rayChain;
-
-        var togDirectUDP = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togDirectUDP");
-        if (togDirectUDP != null) togDirectUDP.IsChecked = _cfg.EnableDirectUDP;
-
-
-        var togAdapterBinding = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togAdapterBinding");
-        var panAdapterBinding = this.FindControl<global::Avalonia.Controls.Border>("panAdapterBinding");
-        var icoAdapterBindingExpander = this.FindControl<global::Avalonia.Controls.PathIcon>("icoAdapterBindingExpander");
-
-
-        if (togAdapterBinding != null)
-        {
-            togAdapterBinding.IsChecked = _cfg.EnableAdapterBinding;
-        }
 
         _isInitializingSettings = false;
 
@@ -993,58 +774,16 @@ public partial class MainWindow : Window
         UpdateLanPortUI();
         
 
-        var langLbl = this.FindControl<TextBlock>("lblCurrentLanguage");
-        if (langLbl != null) langLbl.Text = _cfg.Language;
         ApplyLanguage();
         CrimsonX.Pages.SettingsPage.Instance?.SyncUI();
         CrimsonX.Pages.SplitTunnelPage.Instance?.SyncUI();
 
-        var lbLbl = this.FindControl<TextBlock>("lblCurrentLbPolicy");
-        if (lbLbl != null)
-        {
-            lbLbl.Text = _cfg.XrayBalancePolicy switch
-            {
-                "leastload"  => "LEAST LOAD",
-                "leastping"  => "LEAST PING",
-                "roundrobin" => "ROUND ROBIN",
-                "random"     => "RANDOM",
-                "leastconn"  => "LEAST LOAD",
-                "first"      => "ROUND ROBIN",
-                _            => (_cfg.XrayBalancePolicy ?? "roundrobin").ToUpperInvariant()
-            };
-        }
     }
 
     private void ApplyModeUI(string mode)
     {
-        this.FindControl<global::Avalonia.Controls.Button>("btnProxyMode")?.Classes.Remove("activeMode");
-        this.FindControl<global::Avalonia.Controls.Button>("btnVpnMode")?.Classes.Remove("activeMode");
-        this.FindControl<global::Avalonia.Controls.Button>("btnClearProxy")?.Classes.Remove("activeMode");
+        CrimsonX.Pages.SettingsPage.Instance?.ApplyConnectionModeUI(mode);
 
-        var panVpnMode = this.FindControl<global::Avalonia.Controls.Panel>("panVpnMode");
-        var btnVpnMode = this.FindControl<global::Avalonia.Controls.Button>("btnVpnMode");
-        if (btnVpnMode != null)
-        {
-            if (_activeBridge == "snowflake" && !_cfg.EnableDirectUDP)
-            {
-                btnVpnMode.IsEnabled = false;
-                btnVpnMode.Opacity = 0.3;
-            }
-            else
-            {
-                btnVpnMode.IsEnabled = true;
-                btnVpnMode.Opacity = 1.0;
-                if (panVpnMode != null) global::Avalonia.Controls.ToolTip.SetTip(panVpnMode, null);
-            }
-        }
-
-        if (mode == "VPN Mode")       
-            this.FindControl<global::Avalonia.Controls.Button>("btnVpnMode")?.Classes.Add("activeMode");
-        else if (mode == "Clear Proxy") 
-            this.FindControl<global::Avalonia.Controls.Button>("btnClearProxy")?.Classes.Add("activeMode");
-        else                           
-            this.FindControl<global::Avalonia.Controls.Button>("btnProxyMode")?.Classes.Add("activeMode");
-            
         CrimsonX.Pages.SplitTunnelPage.Instance?.UpdateSplitTunnelUI();
     }
 
@@ -1064,9 +803,14 @@ public partial class MainWindow : Window
     private void Minimize_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_cfg.MinimizeToTray)
+        {
+            _restoreState = WindowState;
             Hide();
+        }
         else
+        {
             WindowState = WindowState.Minimized;
+        }
     }
 
     private void Close_Click(object? sender, RoutedEventArgs e)
@@ -1097,7 +841,7 @@ public partial class MainWindow : Window
             _closeDeferred = true;
             e.Cancel = true;
             StopAllEngines(isClosing: true);
-            _ = FinishCloseAsync();
+            CrimsonX.Services.BackgroundTask.Run("close", () => FinishCloseAsync());
             return;
         }
 
@@ -1274,6 +1018,8 @@ public partial class MainWindow : Window
         {
             this.Resources["ThemeCurrentBrush"] = this.Resources[$"Theme{themeName}Brush"];
         }
+
+        this.FindControl<CrimsonX.Controls.NavigationBar>("navBar")?.ApplyTheme();
     }
 
     
@@ -1303,9 +1049,47 @@ public partial class MainWindow : Window
 
     // ── Tab Navigation ──
 
+    public void SetAdBlock(bool enabled)
+    {
+        if (_cfg.EnableAdBlock == enabled) return;
+
+        _cfg.EnableAdBlock = enabled;
+
+        CrimsonX.Pages.SettingsPage.Instance?.SetAdBlockToggle(enabled);
+        this.FindControl<CrimsonX.Controls.NavigationBar>("navBar")?.SetAdBlockerState(enabled);
+
+        if (_state.IsEngineRunning) SmartRestartXray();
+        RequestConfigSave();
+    }
+
+    private void NavBar_AdBlockerToggled(object? sender, bool enabled) => SetAdBlock(enabled);
+
+    private static string TitleBarNameFor(string viewName) => viewName switch
+    {
+        "SplitTunneling" => CrimsonX.Localization.AppStrings.NavSplitTunneling,
+        "Themes" => CrimsonX.Localization.AppStrings.NavThemes,
+        "UdpScanner" => CrimsonX.Localization.AppStrings.UdpScannerTitle,
+        "About" => CrimsonX.Localization.AppStrings.NavAbout,
+        "AppsGames" => CrimsonX.Localization.AppStrings.NavAppsGames,
+        "Settings" => CrimsonX.Localization.AppStrings.NavSettings,
+        "Home" => CrimsonX.Localization.AppStrings.AppName,
+        _ => string.Empty,
+    };
+
+    private void ApplyTitleBarName(string viewName)
+    {
+        var label = this.FindControl<global::Avalonia.Controls.TextBlock>("lblTabTitle");
+        if (label != null) label.Text = TitleBarNameFor(viewName);
+    }
+
     private void NavBar_NavChanged(object? sender, string viewName)
     {
+        using var _busy = CrimsonX.Services.UiBusy.Scope("nav " + viewName);
+
         _previousNav = viewName;
+        ApplyTitleBarName(viewName);
+
+        ApplyTopBarPin(viewName);
         var carousel = this.FindControl<global::Avalonia.Controls.Carousel>("MainCarousel");
         if (carousel == null) return;
 
@@ -1320,56 +1104,43 @@ public partial class MainWindow : Window
 
         switch (viewName)
         {
-            case "Home": carousel.SelectedIndex = 0; RestoreHomeMiniNav(); break;
+            case "Home":
+                carousel.SelectedIndex = 0;
+                this.FindControl<CrimsonX.Controls.QuickSettingsPanel>("quickSettings")?.SyncCustomConfigsView();
+                break;
             case "SplitTunneling": carousel.SelectedIndex = 1; break;
-            case "Settings": carousel.SelectedIndex = 2; break;
+            case "Settings":
+                carousel.SelectedIndex = 2;
+                CrimsonX.Pages.SettingsPage.Instance?.ShowSettingsPage();
+                break;
+            case "UdpScanner":
+                carousel.SelectedIndex = 6;
+                this.FindControl<CrimsonX.Pages.UdpScannerPage>("pageUdpScanner")?.OnEnter();
+                break;
             case "Themes": carousel.SelectedIndex = 3; break;
             case "About": carousel.SelectedIndex = 4; break;
             case "AppsGames": carousel.SelectedIndex = 5; break;
         }
 
-        // The background glows run at 24 fps on Home and 20 fps on every other tab.
         CrimsonX.Controls.AnimatedBackground.Instance?.SetHomeTabActive(carousel.SelectedIndex == 0);
 
         var panTabDarken = this.FindControl<global::Avalonia.Controls.Border>("panTabDarken");
         if (panTabDarken != null)
         {
-            panTabDarken.Opacity = (carousel.SelectedIndex == 1 || carousel.SelectedIndex == 2 || carousel.SelectedIndex == 3 || carousel.SelectedIndex == 4 || carousel.SelectedIndex == 5) ? 1 : 0;
+            panTabDarken.Opacity = carousel.SelectedIndex >= 1 ? 1 : 0;
         }
         
         if (viewName == "AppsGames")
-{
-    var page = this.FindControl<global::CrimsonX.Pages.AppsGamesOverlay>("overlayAppsGames");
-    if (page != null) page.LoadRules();
-}
+        {
+            var page = this.FindControl<global::CrimsonX.Pages.AppsGamesOverlay>("overlayAppsGames");
+            if (page != null)
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => page.LoadRules(), global::Avalonia.Threading.DispatcherPriority.Background);
+        }
 if (viewName == "SplitTunneling")
 {
     var page = this.FindControl<global::CrimsonX.Pages.SplitTunnelPage>("pageSplit");
     if (page != null) page.SyncUI();
 }
-    }
-
-    private void GlowAnimTimer_Tick(object? sender, EventArgs e)
-    {
-        var now = DateTime.UtcNow;
-        var dt = (now - _lastGlowTick).TotalSeconds;
-        _lastGlowTick = now;
-
-        _currentGlowAngle = (_currentGlowAngle + 120 * dt) % 360;
-
-        if (!this.Classes.Contains("anim-glows")) return;
-
-        var connectGlowRect = this.FindControl<global::Avalonia.Controls.Shapes.Rectangle>("connectGlowRect");
-        if (connectGlowRect != null)
-        {
-            if (connectGlowRect.Classes.Contains("is-connected") || connectGlowRect.Classes.Contains("is-animating"))
-            {
-                if (connectGlowRect.RenderTransform is global::Avalonia.Media.RotateTransform rt)
-                {
-                    rt.Angle = _currentGlowAngle;
-                }
-            }
-        }
     }
 
 }

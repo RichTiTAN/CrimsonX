@@ -50,36 +50,34 @@ public partial class MainWindow
     }
 
 
-    private global::Avalonia.Threading.DispatcherTimer? _logTimer;
     private global::Avalonia.Threading.DispatcherTimer? _logClearTimer;
-    private long _lastXrayLogPos = 0;
     private int _isReadingLogs = 0; 
-    private readonly System.Collections.Generic.List<string> _xrayLogLines = new();
 
-    // Stats & Logs Mini-Panels 
+    private const int LogReadCapBytes = 64 * 1024;
 
-    private void StartLogsTimers()
+    private global::Avalonia.Threading.DispatcherTimer? _uiStallTimer;
+    private DateTime _uiStallLast = DateTime.UtcNow;
+
+    private void StartUiStallWatch()
     {
-        if (_logTimer != null)
-        {
-            _logTimer.Stop();
-            _logTimer.Tick -= LogTimer_Tick;
-        }
-        _logTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
-        _logTimer.Tick += LogTimer_Tick;
-        _logTimer.Start();
-        _logClearTimer?.Start();
-    }
+        if (_uiStallTimer != null) return;
 
-    private void StopLogsTimers()
-    {
-        if (_logTimer != null)
+        _uiStallLast = DateTime.UtcNow;
+        _uiStallTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _uiStallTimer.Tick += (s, e) =>
         {
-            _logTimer.Stop();
-            _logTimer.Tick -= LogTimer_Tick;
-            _logTimer = null;
-        }
-        _logClearTimer?.Stop();
+            var now = DateTime.UtcNow;
+            int gap = (int)(now - _uiStallLast).TotalMilliseconds;
+            _uiStallLast = now;
+
+            if (gap < 400) return;
+            if (!(MainWindow.Instance?.Config?.DebugMode ?? false)) return;
+
+            string busy = CrimsonX.Services.UiBusy.Current;
+            CrimsonX.Services.SimpleLogger.Log($"[UI] the interface thread was blocked for {gap} ms while: {(busy.Length > 0 ? busy : "nothing claimed")} (gc {GC.CollectionCount(0)}/{GC.CollectionCount(1)}/{GC.CollectionCount(2)}, working set {Environment.WorkingSet / (1024 * 1024)} MB)");
+        };
+
+        _uiStallTimer.Start();
     }
 
     internal void InitLogClearTimer()
@@ -95,218 +93,6 @@ public partial class MainWindow
             }
         };
     }
-
-    private void chkLogs_CheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (_isInitializingSettings) return;
-        var panLogs = this.FindControl<global::Avalonia.Controls.Border>("panLogs");
-        var chkLogs = sender as global::Avalonia.Controls.ToggleSwitch;
-        if (panLogs != null && chkLogs != null)
-        {
-            if (chkLogs.IsChecked ?? false)
-            {
-                panLogs.MaxHeight       = 500;
-                panLogs.Opacity         = 1;
-                panLogs.BorderThickness = new global::Avalonia.Thickness(1);
-                _state.IsLogsOpen       = true;
-                
-                var txtLogs = this.FindControl<global::Avalonia.Controls.TextBox>("txtXrayLogs");
-                if (txtLogs != null) { txtLogs.Text = string.Join("\n", _xrayLogLines); txtLogs.CaretIndex = txtLogs.Text.Length; }
-                
-                StartLogsTimers();
-            }
-            else
-            {
-                panLogs.MaxHeight       = 0;
-                panLogs.Opacity         = 0;
-                panLogs.BorderThickness = new global::Avalonia.Thickness(0);
-                _state.IsLogsOpen       = false;
-                StopLogsTimers();
-            }
-            RequestConfigSave();
-        }
-    }
-
-    private int _activeMiniNav = 0;
-
-    private void UpdateMiniNavUnderline()
-    {
-        var container = this.FindControl<global::Avalonia.Controls.Panel>("panMiniNavContainer");
-        var underline = this.FindControl<global::Avalonia.Controls.Shapes.Rectangle>("rectStatsUnderline");
-        var btnStat = this.FindControl<global::Avalonia.Controls.Button>("btnStatNav");
-        var btnLog = this.FindControl<global::Avalonia.Controls.Button>("btnLogNav");
-
-        if (container == null || underline == null || btnStat == null || btnLog == null) return;
-
-        var activeBtn = _activeMiniNav == 0 ? btnStat : btnLog;
-        if (activeBtn.Bounds.Width == 0) return;
-
-        var point = activeBtn.TranslatePoint(new global::Avalonia.Point(0, 0), container);
-        if (!point.HasValue) return;
-
-        double width = activeBtn.Bounds.Width;
-        double xPos = point.Value.X;
-        double underlineWidth = 28;
-        double centerOffset = xPos + (width / 2) - (underlineWidth / 2);
-
-        underline.Margin = new global::Avalonia.Thickness(centerOffset, 0, 0, 0);
-    }
-
-    private void StatNav_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var statsCarousel = this.FindControl<global::Avalonia.Controls.Carousel>("statsCarousel");
-        var btnStat      = this.FindControl<global::Avalonia.Controls.Button>("btnStatNav");
-        var btnLog       = this.FindControl<global::Avalonia.Controls.Button>("btnLogNav");
-        if (statsCarousel != null) statsCarousel.SelectedIndex = 0;
-        _activeMiniNav = 0;
-        UpdateMiniNavUnderline();
-        if (btnStat      != null) { var tb = btnStat.Content as global::Avalonia.Controls.TextBlock; if (tb != null) tb.Foreground = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#A0AEC0")); }
-        if (btnLog       != null) { var tb = btnLog.Content  as global::Avalonia.Controls.TextBlock; if (tb != null) tb.Foreground = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#8B949E")); }
-        
-        _state.IsLogsOpen = false;
-        StopLogsTimers();
-    }
-
-    private void LogNav_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var statsCarousel = this.FindControl<global::Avalonia.Controls.Carousel>("statsCarousel");
-        var btnStat      = this.FindControl<global::Avalonia.Controls.Button>("btnStatNav");
-        var btnLog       = this.FindControl<global::Avalonia.Controls.Button>("btnLogNav");
-        if (statsCarousel != null) statsCarousel.SelectedIndex = 1;
-        _activeMiniNav = 1;
-        UpdateMiniNavUnderline();
-        if (btnStat      != null) { var tb = btnStat.Content as global::Avalonia.Controls.TextBlock; if (tb != null) tb.Foreground = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#8B949E")); }
-        if (btnLog       != null) { var tb = btnLog.Content  as global::Avalonia.Controls.TextBlock; if (tb != null) tb.Foreground = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse("#A0AEC0")); }
-        
-        _state.IsLogsOpen = true;
-        StartLogsTimers();
-    }
-
-    private void RestoreHomeMiniNav()
-    {
-        var statsCarousel = this.FindControl<global::Avalonia.Controls.Carousel>("statsCarousel");
-        var btnStat = this.FindControl<global::Avalonia.Controls.Button>("btnStatNav");
-        var btnLog  = this.FindControl<global::Avalonia.Controls.Button>("btnLogNav");
-
-        if (_state.IsLogsOpen)
-        {
-            if (statsCarousel != null) statsCarousel.SelectedIndex = 1;
-            _activeMiniNav = 1;
-            StartLogsTimers();
-            LogTimer_Tick(null, EventArgs.Empty);
-        }
-        else
-        {
-            if (statsCarousel != null) statsCarousel.SelectedIndex = 0;
-            _activeMiniNav = 0;
-        }
-
-        var statColor = _activeMiniNav == 0 ? "#A0AEC0" : "#8B949E";
-        var logColor  = _activeMiniNav == 1 ? "#A0AEC0" : "#8B949E";
-        if (btnStat != null) { var tb = btnStat.Content as global::Avalonia.Controls.TextBlock; if (tb != null) tb.Foreground = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse(statColor)); }
-        if (btnLog  != null) { var tb = btnLog.Content  as global::Avalonia.Controls.TextBlock; if (tb != null) tb.Foreground = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse(logColor)); }
-
-        UpdateMiniNavUnderline();
-        global::Avalonia.Threading.Dispatcher.UIThread.Post(UpdateMiniNavUnderline, global::Avalonia.Threading.DispatcherPriority.Render);
-    }
-
-    private void LogTimer_Tick(object? sender, EventArgs e)
-    {
-        if (!_state.IsLogsOpen) return;
-        var selCount = _state.IsEngineRunning ? _activeEngines : 1;
-
-        if (!_state.IsEngineRunning)
-        {
-            var txtLogs = this.FindControl<global::Avalonia.Controls.TextBox>("txtXrayLogs");
-            if (txtLogs != null) txtLogs.Text = "";
-            _xrayLogLines.Clear();
-            System.Threading.Interlocked.Exchange(ref _lastXrayLogPos, 0);
-            return;
-        }
-
-        if (System.Threading.Interlocked.CompareExchange(ref _isReadingLogs, 1, 0) != 0) return;
-        var xrayLogPath = GetAppPath(@"Data\Xray\access.log");
-        Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            try
-            {
-                var txtXrayLogs = this.FindControl<global::Avalonia.Controls.TextBox>("txtXrayLogs");
-                if (txtXrayLogs != null)
-                {
-                    if (File.Exists(xrayLogPath))
-                    {
-                        using var fs = new FileStream(xrayLogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-
-                        if (fs.Length < _lastXrayLogPos)
-                            _lastXrayLogPos = 0; 
-
-                        fs.Seek(_lastXrayLogPos, SeekOrigin.Begin);
-
-                        var newRawLines = new List<string>();
-                        using (var sr = new StreamReader(fs, System.Text.Encoding.UTF8, true, 1 << 16, leaveOpen: true))
-                        {
-                            string? line;
-                            while ((line = sr.ReadLine()) != null)
-                            {
-                                if (!line.Contains(":10999"))
-                                    newRawLines.Add(line);
-                            }
-                            _lastXrayLogPos = fs.Position;
-                        }
-
-                        if (newRawLines.Count > 0)
-                        {
-                            _xrayLogLines.AddRange(newRawLines);
-                            if (_xrayLogLines.Count > 300)
-                                _xrayLogLines.RemoveRange(0, _xrayLogLines.Count - 300);
-                        }
-
-                        var last15 = _xrayLogLines.Skip(Math.Max(0, _xrayLogLines.Count - 15)).ToArray();
-
-                        var cleanLines = new List<string>();
-                        foreach (var line in last15)
-                        {
-                            int firstSpace = line.IndexOf(' ');
-                            if (firstSpace > 0 && firstSpace + 1 < line.Length)
-                            {
-                                int secondSpace = line.IndexOf(' ', firstSpace + 1);
-                                if (secondSpace > 0 && secondSpace + 1 < line.Length)
-                                {
-                                    cleanLines.Add(line.Substring(secondSpace + 1));
-                                    continue;
-                                }
-                            }
-                            cleanLines.Add(line);
-                        }
-
-                        if (cleanLines.Count > 0)
-                        {
-                            txtXrayLogs.Text = string.Join("\n", cleanLines);
-                            txtXrayLogs.CaretIndex = txtXrayLogs.Text.Length;
-                        }
-                        else if (fs.Length == 0)
-                        {
-                            txtXrayLogs.Text = "Waiting for traffic logs...";
-                        }
-                    }
-                    else
-                    {
-                        txtXrayLogs.Text = "Log file not created yet.";
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                var txtXrayLogs = this.FindControl<global::Avalonia.Controls.TextBox>("txtXrayLogs");
-                if (txtXrayLogs != null) txtXrayLogs.Text = "Error: " + ex.Message;
-            }
-            finally
-            {
-                System.Threading.Interlocked.Exchange(ref _isReadingLogs, 0);
-            }
-        });
-    }
-
 
     private void chkStats_CheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -340,7 +126,13 @@ public partial class MainWindow
         _netDiag.StatsUpdated      += OnStatsUpdated;
 
         CrimsonX.Services.UiEventBus.Instance.ToastRequested += evt =>
-            Dispatcher.UIThread.Post(() => ShowToast(evt.Message, evt.Success));
+            Dispatcher.UIThread.Post(() => ShowToast(evt.Message, evt.Success ? ToastKind.Success : ToastKind.Error));
+
+        CrimsonX.Services.UiEventBus.Instance.ConnectionProgress += percent =>
+        {
+            _statusTargetPercent = percent;
+            UpdateStatusText();
+        };
 
         _session.ElapsedTimeUpdated += elapsed =>
             Dispatcher.UIThread.Post(() =>
@@ -360,7 +152,24 @@ public partial class MainWindow
         if (lblCountry != null) lblCountry.Text = CrimsonX.Localization.AppStrings.GeoTracing;
         if (lblPing    != null) lblPing.Text    = "0 ms";
 
+        var lblPublicIp = this.FindControl<TextBlock>("lblPublicIp");
+        if (lblPublicIp != null) lblPublicIp.Text = CrimsonX.Localization.AppStrings.GeoTracing;
+
+        _exitIpFull = "";
+        SetPublicIpTip("");
+
         _netDiag.StartGeoTrace();
+    }
+
+    private string _exitIpFull = "";
+
+    private void SetPublicIpTip(string fullIp)
+    {
+        var tile = this.FindControl<global::Avalonia.Controls.Button>("btnCopyPublicIp");
+        if (tile == null) return;
+
+        if (fullIp.Length == 0) tile.ClearValue(global::Avalonia.Controls.ToolTip.TipProperty);
+        else                    global::Avalonia.Controls.ToolTip.SetTip(tile, fullIp);
     }
 
     private void OnGeoTraceCompleted(CrimsonX.Services.GeoTraceResult result)
@@ -372,6 +181,7 @@ public partial class MainWindow
 
             var lblCountry = this.FindControl<TextBlock>("lblCountryName");
             var lblPing    = this.FindControl<TextBlock>("lblPing");
+            var lblPublicIp = this.FindControl<TextBlock>("lblPublicIp");
 
             bool isFa    = CrimsonX.Localization.AppStrings.IsPersian;
             string country = result.Country;
@@ -388,7 +198,91 @@ public partial class MainWindow
 
             if (lblCountry != null) lblCountry.Text = displayName;
             if (lblPing    != null) lblPing.Text    = result.PingMs > 0 ? $"{result.PingMs}ms" : "0 ms";
+
+            string ipText = string.IsNullOrWhiteSpace(result.Ip)
+                ? (result.PingMs == 0
+                    ? CrimsonX.Localization.AppStrings.GeoTimeout
+                    : CrimsonX.Localization.AppStrings.StatusDisconnected)
+                : result.Ip;
+
+            _exitIpFull = System.Net.IPAddress.TryParse(ipText, out _) ? ipText : "";
+            if (lblPublicIp != null) lblPublicIp.Text = CrimsonX.Services.IpDisplay.ForTile(ipText);
+            SetPublicIpTip(_exitIpFull);
         });
+    }
+
+    // Status Readout
+
+    private global::Avalonia.Controls.TextBlock? _statusValue;
+    private global::Avalonia.Threading.DispatcherTimer? _statusTimer;
+    private int _statusTargetPercent = -1;
+    private double _statusShownPercent = -1;
+    private CrimsonX.Services.StatusKind _statusPhase = CrimsonX.Services.StatusKind.Idle;
+
+    private void UpdateStatusText()
+    {
+        _statusValue ??= this.FindControl<global::Avalonia.Controls.TextBlock>("lblStatusValue");
+        if (_statusValue == null) return;
+
+        var phase = CrimsonX.Services.ConnectPhaseUi.Status(_state.IsConnected, _state.IsEngineRunning, _state.IsReconnecting);
+
+        if (phase != _statusPhase)
+        {
+            _statusPhase = phase;
+
+            if (phase == CrimsonX.Services.StatusKind.ComingUp)
+            {
+                _statusShownPercent = 0;
+                _statusValue.Text = "0%";
+            }
+        }
+
+        switch (phase)
+        {
+            case CrimsonX.Services.StatusKind.ComingUp:
+                StartStatusTimer();
+                break;
+
+            case CrimsonX.Services.StatusKind.Connected:
+                StopStatusTimer();
+                _statusValue.Text = CrimsonX.Localization.AppStrings.StatusConnectedWord;
+                break;
+
+            default:
+                StopStatusTimer();
+                _statusValue.Text = CrimsonX.Localization.AppStrings.StatusOffline;
+                break;
+        }
+    }
+
+    private void StartStatusTimer()
+    {
+        if (_statusTimer == null)
+        {
+            _statusTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
+            _statusTimer.Tick += (s, e) => TickStatusText();
+        }
+
+        if (!_statusTimer.IsEnabled) _statusTimer.Start();
+    }
+
+    private void StopStatusTimer()
+    {
+        if (_statusTimer != null && _statusTimer.IsEnabled) _statusTimer.Stop();
+    }
+
+    private void TickStatusText()
+    {
+        if (_statusValue == null) return;
+
+        double target = System.Math.Clamp(_statusTargetPercent, 0, 100);
+
+        _statusShownPercent = CrimsonX.Services.ConnectPhaseUi.Approach(_statusShownPercent, target);
+
+        _statusValue.Text = ((int)System.Math.Round(_statusShownPercent)) + "%";
+
+        if (_statusPhase != CrimsonX.Services.StatusKind.ComingUp || System.Math.Abs(_statusShownPercent - target) < 0.5)
+            StopStatusTimer();
     }
 
     // Stats Polling & Live Graph
@@ -399,6 +293,7 @@ public partial class MainWindow
         _logClearTimer?.Stop();
         _logClearTimer?.Start();
 
+        StartUiStallWatch();
         _netDiag.StartStatsPolling(() => _state.IsConnected);
     }
 
@@ -409,8 +304,8 @@ public partial class MainWindow
         string tot = _state.SessionDataBytes >= 1_073_741_824
             ? $"{Math.Round(_state.SessionDataBytes / 1_073_741_824.0, 2)} GB"
             : _state.SessionDataBytes >= 1_048_576
-                ? $"{Math.Round(_state.SessionDataBytes / 1_048_576.0, 1)} MB"
-                : $"{Math.Round(_state.SessionDataBytes / 1024.0, 1)} KB";
+                ? $"{(long)(_state.SessionDataBytes / 1_048_576.0)} MB"
+                : $"{(long)(_state.SessionDataBytes / 1024.0)} KB";
 
         Dispatcher.UIThread.Post(() =>
         {
@@ -430,9 +325,11 @@ public partial class MainWindow
     private readonly System.Collections.Generic.List<global::Avalonia.Point> _ptsUpCache = new System.Collections.Generic.List<global::Avalonia.Point>(40);
     private readonly System.Collections.Generic.List<global::Avalonia.Point> _ptsDnCache = new System.Collections.Generic.List<global::Avalonia.Point>(40);
     private global::Avalonia.Threading.DispatcherTimer? _graphAnimTimer;
+    private global::Avalonia.Threading.DispatcherTimer? _sparkHideTimer;
     private DateTime _graphAnimStartTime;
     private double _graphAnimStep;
-    private global::Avalonia.Media.TranslateTransform? _graphTransform;
+    private global::Avalonia.Media.TranslateTransform? _graphUpTransform;
+    private global::Avalonia.Media.TranslateTransform? _graphDnTransform;
 
     private void DrawGraph(double[] upHistory, double[] dnHistory)
     {
@@ -450,30 +347,30 @@ public partial class MainWindow
 
         if (graphUpload == null || graphDownload == null || graphUploadFill == null || graphDownloadFill == null) return;
 
-        const double width         = 150;
-        const double height        = 40;
-        const double topPadding    = 4;
+        const double width         = 51;
+        const double height        = 30;
+        const double topPadding    = 3;
         const double bottomPadding = 2;
         int count = Math.Min(upHistory.Length, dnHistory.Length);
         if (count < 2) return;
 
-        double step   = width / (40 - 1);
+        double step   = width / (NetworkDiagnosticsService.HistorySamples - 1);
         double maxUp  = upHistory.Length > 0 ? upHistory.Max() : 0;
         double maxDn  = dnHistory.Length > 0 ? dnHistory.Max() : 0;
-        double maxVal = Math.Max(maxUp, maxDn);
-        if (maxVal < 1024) maxVal = 1024;
+        if (maxUp < 1024) maxUp = 1024;
+        if (maxDn < 1024) maxDn = 1024;
 
         _ptsUpCache.Clear();
         _ptsDnCache.Clear();
 
-        int    startIdx    = 40 - count;
+        int    startIdx    = NetworkDiagnosticsService.HistorySamples - count;
         double drawHeight  = height - topPadding - bottomPadding;
 
         for (int i = 0; i < count; i++)
         {
             double x   = (startIdx + i) * step;
-            double yUp = (height - bottomPadding) - (upHistory[i] / maxVal * drawHeight);
-            double yDn = (height - bottomPadding) - (dnHistory[i] / maxVal * drawHeight);
+            double yUp = (height - bottomPadding) - (upHistory[i] / maxUp * drawHeight);
+            double yDn = (height - bottomPadding) - (dnHistory[i] / maxDn * drawHeight);
             _ptsUpCache.Add(new global::Avalonia.Point(x, yUp));
             _ptsDnCache.Add(new global::Avalonia.Point(x, yDn));
         }
@@ -483,36 +380,326 @@ public partial class MainWindow
         graphUploadFill.Data   = GenerateSmoothSpline(_ptsUpCache, true,  width, height);
         graphDownloadFill.Data = GenerateSmoothSpline(_ptsDnCache, true,  width, height);
 
-        var canvas = graphUpload.Parent as global::Avalonia.Controls.Canvas;
-        if (canvas != null && canvas.RenderTransform is global::Avalonia.Media.TranslateTransform t)
+        _graphUpTransform = (graphUpload.Parent   as global::Avalonia.Controls.Canvas)?.RenderTransform as global::Avalonia.Media.TranslateTransform;
+        _graphDnTransform = (graphDownload.Parent as global::Avalonia.Controls.Canvas)?.RenderTransform as global::Avalonia.Media.TranslateTransform;
+
+        if (_graphUpTransform != null || _graphDnTransform != null)
         {
             if (_graphAnimTimer == null)
             {
                 _graphAnimTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
                 _graphAnimTimer.Tick += (s, e) =>
                 {
-                    if (_graphTransform != null)
-                    {
-                        double elapsed = (DateTime.UtcNow - _graphAnimStartTime).TotalMilliseconds;
-                        if (elapsed >= 1000)
-                        {
-                            _graphTransform.X = -_graphAnimStep;
-                            _graphAnimTimer.Stop();
-                        }
-                        else
-                        {
-                            _graphTransform.X = -_graphAnimStep * (elapsed / 1000.0);
-                        }
-                    }
+                    double elapsed = (DateTime.UtcNow - _graphAnimStartTime).TotalMilliseconds;
+                    bool   finished = elapsed >= 1000;
+                    double x        = finished ? -_graphAnimStep : -_graphAnimStep * (elapsed / 1000.0);
+
+                    if (_graphUpTransform != null) _graphUpTransform.X = x;
+                    if (_graphDnTransform != null) _graphDnTransform.X = x;
+
+                    if (finished) _graphAnimTimer.Stop();
                 };
             }
-            
+
             _graphAnimStartTime = DateTime.UtcNow;
-            _graphAnimStep = step;
-            _graphTransform = t;
-            t.X = 0;
+            _graphAnimStep      = step;
+            if (_graphUpTransform != null) _graphUpTransform.X = 0;
+            if (_graphDnTransform != null) _graphDnTransform.X = 0;
             _graphAnimTimer.Start();
         }
+    }
+
+
+    internal void SetSparklinesVisible(bool show)
+    {
+        var dn = this.FindControl<global::Avalonia.Controls.Button>("cellSparkDn");
+        var up = this.FindControl<global::Avalonia.Controls.Button>("cellSparkUp");
+        if (dn == null || up == null) return;
+
+        _sparkHideTimer?.Stop();
+
+        if (show)
+        {
+            dn.IsVisible = true;
+            up.IsVisible = true;
+
+            double width = this.FindControl<global::Avalonia.Controls.Canvas>("graphDnCanvas")?.Width ?? 51;
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                dn.Width = width;
+                up.Width = width;
+            });
+            return;
+        }
+
+        dn.Width = 0;
+        up.Width = 0;
+
+        _sparkHideTimer ??= new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(320) };
+        _sparkHideTimer.Tick -= OnSparkHideTick;
+        _sparkHideTimer.Tick += OnSparkHideTick;
+        _sparkHideTimer.Start();
+    }
+
+    private void OnSparkHideTick(object? sender, EventArgs e)
+    {
+        _sparkHideTimer?.Stop();
+
+        if (_state.IsConnected) return;
+
+        var dn = this.FindControl<global::Avalonia.Controls.Button>("cellSparkDn");
+        var up = this.FindControl<global::Avalonia.Controls.Button>("cellSparkUp");
+        if (dn != null) dn.IsVisible = false;
+        if (up != null) up.IsVisible = false;
+
+    }
+
+    // ── The two readout tiles an invisible ghost holds open ──
+
+    private readonly System.Collections.Generic.Dictionary<string, double> _readoutGhostWidth = new(StringComparer.Ordinal);
+
+    internal void SetReadoutTilesGrown(bool grown)
+    {
+        using var _busy = CrimsonX.Services.UiBusy.Scope("readout fold");
+
+        GrowReadoutGhost("lblStatusGhost", grown);
+        GrowReadoutGhost("lblUploadGhost", grown);
+    }
+
+    private void GrowReadoutGhost(string name, bool grown)
+    {
+        var ghost = this.FindControl<global::Avalonia.Controls.TextBlock>(name);
+        if (ghost == null) return;
+
+        if (!grown)
+        {
+            ghost.Width = 0;
+            return;
+        }
+
+        if (!_readoutGhostWidth.TryGetValue(name, out double width))
+        {
+            ghost.Width = double.NaN;
+            ghost.Measure(new global::Avalonia.Size(double.PositiveInfinity, double.PositiveInfinity));
+            width = ghost.DesiredSize.Width;
+            if (width <= 0) return;
+            _readoutGhostWidth[name] = width;
+        }
+
+        global::Avalonia.Threading.Dispatcher.UIThread.Post(() => ghost.Width = width);
+    }
+
+    // ── The readout bar's pin ──
+
+    private const string ReadoutHostTabs   = "panReadoutHostTabs";
+
+    private bool _readoutResizeHooked;
+
+    internal void ApplyTopBarPin(string viewName)
+    {
+        using var _busy = CrimsonX.Services.UiBusy.Scope("readout bar pin");
+
+        var bar = this.FindControl<global::Avalonia.Controls.StackPanel>("panReadouts");
+        if (bar == null) return;
+
+        HookReadoutResize(bar);
+
+        bool pinned = _cfg?.PinTopBar ?? false;
+        string host = pinned && viewName is "SplitTunneling" or "Themes" or "UdpScanner" or "About"
+            ? ReadoutHostTabs
+            : "";
+
+        MoveReadoutBar(bar, host.Length > 0 ? ReadoutHost(host) : null);
+
+        ApplyAboutReadoutInset(pinned && viewName == "About");
+        ApplySplitReadoutInset(pinned && viewName == "SplitTunneling");
+        ApplyUdpReadoutInset(pinned && viewName == "UdpScanner");
+        PaintTopBarPin();
+    }
+
+    private void MoveReadoutBar(global::Avalonia.Controls.Control bar, global::Avalonia.Controls.Panel? target)
+    {
+        target ??= this.FindControl<global::Avalonia.Controls.Grid>("viewHome");
+        if (target == null || ReferenceEquals(bar.Parent, target)) return;
+
+        if (bar.Parent is global::Avalonia.Controls.Panel parent) parent.Children.Remove(bar);
+
+        global::Avalonia.Controls.Grid.SetRow(bar, 0);
+        target.Children.Add(bar);
+    }
+
+    private global::Avalonia.Controls.Panel? ReadoutHost(string name)
+        => this.FindControl<global::Avalonia.Controls.Panel>(name);
+
+    internal double ReadoutBarHeight()
+    {
+        var bar = this.FindControl<global::Avalonia.Controls.StackPanel>("panReadouts");
+        if (bar == null) return 0;
+
+        double height = bar.Bounds.Height > 0 ? bar.Bounds.Height : bar.DesiredSize.Height;
+        return height > 0 ? height + bar.Margin.Top : 0;
+    }
+
+    private void ApplyAboutReadoutInset(bool on)
+    {
+        var page = this.FindControl<CrimsonX.Pages.AboutPage>("pageAbout");
+        page?.SetReadoutInset(on ? ReadoutBarHeight() : 0);
+    }
+
+    private void ApplySplitReadoutInset(bool on)
+    {
+        CrimsonX.Pages.SplitTunnelPage.Instance?.SetReadoutInset(on ? ReadoutBarHeight() : 0);
+    }
+
+    private void ApplyUdpReadoutInset(bool on)
+    {
+        this.FindControl<CrimsonX.Pages.UdpScannerPage>("pageUdpScanner")?.SetReadoutInset(on ? ReadoutBarHeight() : 0);
+    }
+
+    private void ReapplyReadoutInset()
+    {
+        bool pinned = _cfg?.PinTopBar ?? false;
+
+        if (_previousNav == "About") ApplyAboutReadoutInset(pinned);
+        if (_previousNav == "SplitTunneling") ApplySplitReadoutInset(pinned);
+        if (_previousNav == "UdpScanner") ApplyUdpReadoutInset(pinned);
+    }
+
+    private void PaintTopBarPin()
+    {
+        bool pinned = _cfg?.PinTopBar ?? false;
+
+        var on  = this.FindControl<global::Avalonia.Controls.PathIcon>("icoPinTopBarOn");
+        var off = this.FindControl<global::Avalonia.Controls.PathIcon>("icoPinTopBarOff");
+        if (on != null) on.IsVisible = pinned;
+        if (off != null) off.IsVisible = !pinned;
+    }
+
+    private void HookReadoutResize(global::Avalonia.Controls.StackPanel bar)
+    {
+        if (_readoutResizeHooked) return;
+
+        bar.SizeChanged += (_, _) => ReapplyReadoutInset();
+        bar.AttachedToVisualTree += (_, _) => ReapplyReadoutInset();
+        _readoutResizeHooked = true;
+    }
+
+    private void PinTopBar_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_cfg == null) return;
+
+        _cfg.PinTopBar = !_cfg.PinTopBar;
+        RequestConfigSave();
+        ApplyTopBarPin(_previousNav);
+    }
+
+    // ── The four stat tiles resize instead of snapping ──
+
+    private bool _statResizeHooked;
+
+    private sealed class StatTile
+    {
+        public StatTile(global::Avalonia.Controls.Button tile, global::Avalonia.Controls.TextBlock measurer)
+        {
+            Tile = tile;
+            Measurer = measurer;
+        }
+
+        public global::Avalonia.Controls.Button Tile { get; }
+
+        public global::Avalonia.Controls.TextBlock Measurer { get; }
+
+        public System.Collections.Generic.List<global::Avalonia.Controls.TextBlock> Labels { get; } = new();
+
+        public double LastTarget { get; set; } = double.NaN;
+    }
+
+    private readonly System.Collections.Generic.List<StatTile> _statTiles = new();
+
+    private void HookStatTileResize()
+    {
+        if (!_statResizeHooked)
+        {
+            _statResizeHooked = true;
+
+            HookStatTile("panStatLocation", "lblLocationLabel", "lblCountryName");
+            HookStatTile("panStatIp", "lblPublicIpLabel", "lblPublicIp");
+            HookStatTile("panStatLocalPort", "lblLocalPortLabel", "lblLocalIp");
+            HookStatTile("panStatLanPort", "lblLanPortLabel", "lblLanIp");
+        }
+
+        RefreshStatWidths();
+    }
+
+    private void HookStatTile(string boxName, params string[] labelNames)
+    {
+        var box = this.FindControl<global::Avalonia.Controls.Border>(boxName);
+        if (box?.Child is not global::Avalonia.Controls.Button tile) return;
+
+        var entry = new StatTile(tile, new global::Avalonia.Controls.TextBlock
+        {
+            TextWrapping = global::Avalonia.Media.TextWrapping.NoWrap,
+            TextTrimming = global::Avalonia.Media.TextTrimming.None
+        });
+
+        foreach (string name in labelNames)
+        {
+            var text = this.FindControl<global::Avalonia.Controls.TextBlock>(name);
+            if (text == null) continue;
+
+            entry.Labels.Add(text);
+            text.PropertyChanged += (_, e) =>
+            {
+                if (e.Property != global::Avalonia.Controls.TextBlock.TextProperty) return;
+
+                SmoothStatWidth(entry);
+            };
+        }
+
+        if (entry.Labels.Count > 0) _statTiles.Add(entry);
+    }
+
+    private void RefreshStatWidths()
+    {
+        using var _busy = CrimsonX.Services.UiBusy.Scope("stat tiles resize");
+
+        foreach (var tile in _statTiles) SmoothStatWidth(tile);
+    }
+
+    private static void SmoothStatWidth(StatTile tile)
+    {
+        double widest = 0;
+        foreach (var label in tile.Labels)
+        {
+            var measurer = tile.Measurer;
+            measurer.FontFamily = label.FontFamily;
+            measurer.FontSize = label.FontSize;
+            measurer.FontWeight = label.FontWeight;
+            measurer.FontStyle = label.FontStyle;
+            measurer.Text = label.Text;
+            measurer.InvalidateMeasure();
+            measurer.Measure(new global::Avalonia.Size(double.PositiveInfinity, double.PositiveInfinity));
+            if (measurer.DesiredSize.Width > widest) widest = measurer.DesiredSize.Width;
+        }
+
+        double target = Math.Ceiling(widest) + 1
+                      + tile.Tile.Padding.Left + tile.Tile.Padding.Right
+                      + tile.Tile.BorderThickness.Left + tile.Tile.BorderThickness.Right;
+
+        if (target <= 1 || Math.Abs(tile.LastTarget - target) < 0.5) return;
+
+        tile.LastTarget = target;
+
+        if (double.IsNaN(tile.Tile.Width))
+        {
+            var transitions = tile.Tile.Transitions;
+            tile.Tile.Transitions = null;
+            tile.Tile.Width = target;
+            tile.Tile.Transitions = transitions;
+            return;
+        }
+
+        global::Avalonia.Threading.Dispatcher.UIThread.Post(() => tile.Tile.Width = target);
     }
 
     private global::Avalonia.Media.StreamGeometry GenerateSmoothSpline(System.Collections.Generic.List<global::Avalonia.Point> points, bool isFill, double width, double height)
