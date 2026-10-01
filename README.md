@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="Assets/CrimsonX.png" width="128" height="128" alt="CrimsonX Logo">
+  <img src="Assets/CrimsonX.ico" width="128" height="128" alt="CrimsonX Logo">
   
   # CrimsonX
 
