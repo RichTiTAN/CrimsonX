@@ -39,6 +39,8 @@ namespace CrimsonX.Models
         public bool PauseGlows { get; set; } = false;
         public bool DisableGlows { get; set; } = false;
 
+        public bool PinTopBar { get; set; } = true;
+
 
         public bool AutoStart { get; set; } = true;
         public string StartupTab { get; set; } = "Home";
@@ -67,12 +69,18 @@ namespace CrimsonX.Models
         public string V2rayChainJson { get; set; } = "";
         public bool EnableV2rayChain { get; set; } = false;
 
-        public string QuickSetting1 { get; set; } = "DIRECT UDP";
+        public string QuickSetting1 { get; set; } = "CUSTOM CONFIGS";
         public string QuickSetting2 { get; set; } = "AUTO-CONNECT";
+
+        public string LastAppVersion { get; set; } = "";
 
         public bool EnableAdapterBinding { get; set; } = false;
         public string SelectedAdapterName { get; set; } = "";
         public string SelectedAdapterIp { get; set; } = "";
+
+        public bool EnableLoadBalanceAdapters { get; set; } = false;
+
+        public System.Collections.Generic.List<string> LoadBalanceAdapters { get; set; } = new();
 
         public bool EnableUpstreamDoh { get; set; } = false;
         public string UpstreamDohUrl { get; set; } = "https://cloudflare-dns.com/dns-query";
@@ -90,12 +98,24 @@ namespace CrimsonX.Models
         [JsonProperty("XrayBalancePolicy")]
         public string XrayBalancePolicy { get; set; } = "leastping";
 
+        [JsonProperty("AdapterBalancePolicy")]
+        public string AdapterBalancePolicy { get; set; } = "roundrobin";
+
         // UDP Scanner page options
         public int UdpScanAmount { get; set; } = 10;
         public int UdpScanConcurrency { get; set; } = 5;
         public int UdpScanDiscardMs { get; set; } = 500;
         public string UdpScanAdapterName { get; set; } = "";
         public string UdpScanAdapterIp { get; set; } = "";
+
+        public List<DnsRestoreEntry> DnsRestore { get; set; } = new List<DnsRestoreEntry>();
+    }
+
+    public class DnsRestoreEntry
+    {
+        public string Adapter { get; set; } = "";
+        public bool WasDhcp { get; set; }
+        public string[] Servers { get; set; } = new string[0];
     }
 
     public class AppState
@@ -103,10 +123,12 @@ namespace CrimsonX.Models
         public bool IsFirstLaunch { get; set; } = true;
         public bool IsConnected { get; set; } = false;
         public bool IsEngineRunning { get; set; } = false;
+
+        public bool IsReconnecting { get; set; } = false;
+
         public bool AbortBoot { get; set; } = false;
         public bool IsGeoTracing { get; set; } = false;
         public bool IsAdvancedOpen { get; set; } = false;
-        public bool IsLogsOpen { get; set; } = false;
         public bool IgnoreComboChange { get; set; } = false;
         public bool AppInitialized { get; set; } = false;
         public string PreviousBridge { get; set; } = "Direct";

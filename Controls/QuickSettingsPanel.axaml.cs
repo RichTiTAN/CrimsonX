@@ -64,13 +64,29 @@ namespace CrimsonX.Controls
             "DIRECT UDP", "XRAY EXIT-NODE", "BIND ADAPTER", "DOH", 
             "SYSTEM DNS", "AD BLOCKER", "LAN CONNECTIONS", 
             "LAUNCH ON START-UP", "AUTO-CONNECT", "START MINIMIZED", 
-            "MINIMIZE TO TRAY", "EXCLUDE LOCATIONS", "CUSTOM CONFIGS", 
+            "MINIMIZE TO TRAY", "CUSTOM CONFIGS", 
             "DISABLE BACKGROUND CHECK", "DISABLE SEAMLESS SWAP"
         };
 
         private bool _isUpdating = false;
 
-        private string _pendingSlot1 = "DIRECT UDP";
+        // Custom configs view
+
+        private global::Avalonia.Controls.Button? _btnTabQuick;
+        private global::Avalonia.Controls.Button? _btnTabCustom;
+        private global::Avalonia.Controls.TextBlock? _lblTabQuick;
+        private global::Avalonia.Controls.TextBlock? _lblTabCustom;
+        private global::Avalonia.Controls.Carousel? _panCarousel;
+        private global::Avalonia.Controls.StackPanel? _panCustomActions;
+        private global::Avalonia.Controls.ComboBox? _cbCfg1;
+        private global::Avalonia.Controls.ComboBox? _cbCfg2;
+        private global::Avalonia.Controls.Button? _btnAllowSingle;
+        private bool _allowSingle;
+        private bool _customView;
+        private bool _editMode;
+        private bool _syncingCustomView;
+
+        private string _pendingSlot1 = "CUSTOM CONFIGS";
         private string _pendingSlot2 = "AUTO-CONNECT";
 
         public QuickSettingsPanel()
@@ -96,7 +112,6 @@ namespace CrimsonX.Controls
                 case "AUTO-CONNECT": return CrimsonX.Localization.AppStrings.AutoConnect;
                 case "START MINIMIZED": return CrimsonX.Localization.AppStrings.StartMinimized;
                 case "MINIMIZE TO TRAY": return CrimsonX.Localization.AppStrings.MinimizeToTray;
-                case "EXCLUDE LOCATIONS": return CrimsonX.Localization.AppStrings.ExcludeLocationsTitle;
                 case "CUSTOM CONFIGS": return CrimsonX.Localization.AppStrings.CustomConfigsTitle;
                 case "DISABLE BACKGROUND CHECK": return CrimsonX.Localization.AppStrings.DisableBackgroundChecks;
                 case "DISABLE SEAMLESS SWAP": return CrimsonX.Localization.AppStrings.DisableRefreshTimer;
@@ -109,7 +124,6 @@ namespace CrimsonX.Controls
             switch (key)
             {
                 case "LOAD-BALANCE POLICY": return CrimsonX.Localization.AppStrings.TtLbPolicy;
-                case "EXCLUDE LOCATIONS": return CrimsonX.Localization.AppStrings.ExcludeLocationsTooltip;
                 case "DOH": return CrimsonX.Localization.AppStrings.TtDnsSettings;
                 case "AD BLOCKER": return CrimsonX.Localization.AppStrings.TtAdBlocker;
                 case "LANGUAGE": return CrimsonX.Localization.AppStrings.TtLanguage;
@@ -123,7 +137,7 @@ namespace CrimsonX.Controls
                 case "AUTO-CONNECT": return CrimsonX.Localization.AppStrings.TtAutoConnect;
                 case "START MINIMIZED": return CrimsonX.Localization.AppStrings.TtStartMinimized;
                 case "MINIMIZE TO TRAY": return CrimsonX.Localization.AppStrings.TtMinimizeToTray;
-                case "CUSTOM CONFIGS": return null;
+                case "CUSTOM CONFIGS": return CrimsonX.Localization.AppStrings.TtCustomConfigs;
                 case "DISABLE BACKGROUND CHECK": return CrimsonX.Localization.AppStrings.TtDisableBackgroundChecks;
                 case "DISABLE SEAMLESS SWAP": return CrimsonX.Localization.AppStrings.TtDisableRefreshTimer;
                 default: return null;
@@ -145,7 +159,6 @@ namespace CrimsonX.Controls
                 "AUTO-CONNECT" => "M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z",
                 "START MINIMIZED" => "M19 13H5v-2h14v2z",
                 "MINIMIZE TO TRAY" => "M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7h2v3h-2z",
-                "EXCLUDE LOCATIONS" => "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z",
                 "CUSTOM CONFIGS" => "M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z",
                 "DISABLE BACKGROUND CHECK" => "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z",
                 "DISABLE SEAMLESS SWAP" => "M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z",
@@ -163,6 +176,13 @@ namespace CrimsonX.Controls
             CrimsonX.Localization.AppStrings.Apply(F("lblCustomize"), CrimsonX.Localization.AppStrings.Customize);
             CrimsonX.Localization.AppStrings.Apply(F("lblSave"), CrimsonX.Localization.AppStrings.Save);
             CrimsonX.Localization.AppStrings.Apply(F("lblCancel"), CrimsonX.Localization.AppStrings.Cancel);
+            CrimsonX.Localization.AppStrings.Apply(F("lblQSTabCustom"),   CrimsonX.Localization.AppStrings.CustomConfigsTitle);
+            CrimsonX.Localization.AppStrings.Apply(F("lblQSSubmit"),      CrimsonX.Localization.AppStrings.Submit);
+            CrimsonX.Localization.AppStrings.Apply(F("lblQSAllowSingle"), CrimsonX.Localization.AppStrings.AllowSingleConfig);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnQSAllowSingle"), CrimsonX.Localization.AppStrings.OneConfigTooltip);
+
+            SyncCustomConfigsView();
+            UpdateHeaderActions();
             
             _panPopupSlot1Items.Children.Clear();
             _panPopupSlot2Items.Children.Clear();
@@ -188,6 +208,18 @@ namespace CrimsonX.Controls
 
             _btnCustomize = this.FindControl<Button>("btnCustomize")!;
             _panEditButtons = this.FindControl<StackPanel>("panEditButtons")!;
+
+            _btnTabQuick = this.FindControl<Button>("btnQSTabQuick");
+            _btnTabCustom = this.FindControl<Button>("btnQSTabCustom");
+            _lblTabQuick = this.FindControl<TextBlock>("lblQuickSettings");
+            _lblTabCustom = this.FindControl<TextBlock>("lblQSTabCustom");
+            _panCarousel = this.FindControl<Carousel>("panQSCarousel");
+            _panCustomActions = this.FindControl<StackPanel>("panCustomActions");
+            _cbCfg1 = this.FindControl<ComboBox>("cbQSCustomConfig1");
+            _cbCfg2 = this.FindControl<ComboBox>("cbQSCustomConfig2");
+
+            Pages.SettingsPage.Instance?.AttachQuickSettingsConfigBoxes(_cbCfg1, _cbCfg2);
+            _btnAllowSingle = this.FindControl<Button>("btnQSAllowSingle");
             
             _btnSlot1 = this.FindControl<Button>("btnSlot1")!;
             _btnSlot2 = this.FindControl<Button>("btnSlot2")!;
@@ -236,7 +268,7 @@ namespace CrimsonX.Controls
             var categories = new Dictionary<string, List<string>>
             {
                 { "START-UP", new List<string> { "LAUNCH ON START-UP", "AUTO-CONNECT", "START MINIMIZED", "MINIMIZE TO TRAY" } },
-                { "SPLIT TUNNELING", new List<string> { "DIRECT UDP", "EXCLUDE LOCATIONS", "AD BLOCKER" } },
+                { "SPLIT TUNNELING", new List<string> { "DIRECT UDP", "AD BLOCKER" } },
                 { "SYSTEM", new List<string> { "DISABLE BACKGROUND CHECK", "DISABLE SEAMLESS SWAP" } },
                 { "CONNECTION", new List<string> { "XRAY EXIT-NODE", "BIND ADAPTER", "DOH", "SYSTEM DNS", "LAN CONNECTIONS", "CUSTOM CONFIGS" } }
             };
@@ -324,12 +356,23 @@ namespace CrimsonX.Controls
             }
         }
 
+        private string EffectiveSlotName(string? stored, string fallback)
+            => !string.IsNullOrWhiteSpace(stored) && _availableSettings.Contains(stored) ? stored : fallback;
+
         private void RefreshUI()
         {
-            if (MainWindow.Instance?.Config == null) return;
-            
-            _pendingSlot1 = MainWindow.Instance.Config.QuickSetting1;
-            _pendingSlot2 = MainWindow.Instance.Config.QuickSetting2;
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null) return;
+
+            _pendingSlot1 = EffectiveSlotName(cfg.QuickSetting1, "CUSTOM CONFIGS");
+            _pendingSlot2 = EffectiveSlotName(cfg.QuickSetting2, "AUTO-CONNECT");
+
+            if (cfg.QuickSetting1 != _pendingSlot1 || cfg.QuickSetting2 != _pendingSlot2)
+            {
+                cfg.QuickSetting1 = _pendingSlot1;
+                cfg.QuickSetting2 = _pendingSlot2;
+                MainWindow.Instance!.RequestConfigSave();
+            }
 
             _lblSlot1.Text = GetLocalizedSettingName(_pendingSlot1);
             _lblSlot2.Text = GetLocalizedSettingName(_pendingSlot2);
@@ -376,7 +419,6 @@ namespace CrimsonX.Controls
                 case "AUTO-CONNECT": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("btnAutoTog");
                 case "START MINIMIZED": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("btnStartMinTog");
                 case "MINIMIZE TO TRAY": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("btnTrayTog");
-                case "EXCLUDE LOCATIONS": return Pages.SplitTunnelPage.Instance?.FindControl<ToggleSwitch>("togExcludeLocations");
                 case "CUSTOM CONFIGS": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togCustomConfigs");
                 case "DISABLE BACKGROUND CHECK": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togDisableBgChecks");
                 case "DISABLE SEAMLESS SWAP": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togDisableRefreshTimer");
@@ -384,13 +426,127 @@ namespace CrimsonX.Controls
             return null;
         }
 
+        // Custom Configs view (the tab beside QUICK SETTINGS)
+
+        public void OpenCustomConfigsView() => ShowCustomView(true);
+
+        public void SyncCustomConfigsView()
+        {
+            if (_syncingCustomView) return;
+
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null) return;
+
+            _syncingCustomView = true;
+            try
+            {
+                Pages.SettingsPage.Instance?.AttachQuickSettingsConfigBoxes(_cbCfg1, _cbCfg2);
+                Pages.SettingsPage.Instance?.ShowQuickSettingsConfigs();
+
+                SetAllowSinglePill(cfg.AllowOneCustomConfig);
+            }
+            finally { _syncingCustomView = false; }
+        }
+
+        private void QSTab_Click(object? sender, RoutedEventArgs e)
+            => ShowCustomView(ReferenceEquals(sender, _btnTabCustom));
+
+        private void ShowCustomView(bool custom)
+        {
+            _customView = custom;
+
+            if (custom) SyncCustomConfigsView();
+
+            if (_panCarousel != null) _panCarousel.SelectedIndex = custom ? 1 : 0;
+
+            UpdateHeaderActions();
+        }
+
+        private void UpdateHeaderActions()
+        {
+            bool editing = _editMode && !_customView;
+            bool plain   = !_editMode && !_customView;
+
+            if (_btnCustomize != null)
+            {
+                _btnCustomize.Opacity = plain ? 1 : 0;
+                _btnCustomize.IsHitTestVisible = plain;
+            }
+            if (_panEditButtons != null)
+            {
+                _panEditButtons.Opacity = editing ? 1 : 0;
+                _panEditButtons.IsHitTestVisible = editing;
+            }
+            if (_panCustomActions != null)
+            {
+                _panCustomActions.Opacity = _customView ? 1 : 0;
+                _panCustomActions.IsHitTestVisible = _customView;
+            }
+
+            if (_lblTabQuick != null)
+                _lblTabQuick.Foreground = global::Avalonia.Media.Brush.Parse(_customView ? "#718096" : "#E2E8F0");
+            if (_lblTabCustom != null)
+                _lblTabCustom.Foreground = global::Avalonia.Media.Brush.Parse(_customView ? "#E2E8F0" : "#718096");
+        }
+
+        private void btnQSSubmit_Click(object? sender, RoutedEventArgs e)
+        {
+            Pages.SettingsPage.Instance?.SubmitCustomConfigsFromQuickSettings(
+                _cbCfg1?.Text ?? "", _cbCfg2?.Text ?? "", _allowSingle);
+
+            RefreshTogglesState();
+
+            ShowCustomView(false);
+        }
+
+        private void btnQSAllowSingle_Click(object? sender, RoutedEventArgs e)
+        {
+            SetAllowSinglePill(!_allowSingle);
+            Pages.SettingsPage.Instance?.SetAllowOneCustomConfig(_allowSingle);
+        }
+
+        private void SetAllowSinglePill(bool on)
+        {
+            _allowSingle = on;
+
+            if (_btnAllowSingle == null) return;
+
+            _btnAllowSingle.Classes.Remove("on");
+            if (on) _btnAllowSingle.Classes.Add("on");
+        }
+
+
+        private static int SlotOf(object? sender)
+            => (sender as global::Avalonia.Controls.Control)?.Tag?.ToString() == "2" ? 2 : 1;
+
+        private string TextOf(int slot) => (slot == 2 ? _cbCfg2?.Text : _cbCfg1?.Text) ?? "";
+
+        private void btnQSCfgImport_Click(object? sender, RoutedEventArgs e)
+        {
+            int slot = SlotOf(sender);
+
+            Pages.SettingsPage.Instance?.ImportCustomConfig(slot, TextOf(slot));
+            Pages.SettingsPage.Instance?.ShowQuickSettingsConfigs();
+        }
+
+        private void btnQSCfgPing_Click(object? sender, RoutedEventArgs e)
+        {
+            int slot = SlotOf(sender);
+            Pages.SettingsPage.Instance?.PingCustomConfig(slot, TextOf(slot));
+            Pages.SettingsPage.Instance?.ShowQuickSettingsConfigs();
+        }
+
+        private void btnQSCfgSave_Click(object? sender, RoutedEventArgs e)
+        {
+            int slot = SlotOf(sender);
+            Pages.SettingsPage.Instance?.SaveCustomConfig(slot, TextOf(slot));
+            Pages.SettingsPage.Instance?.ShowQuickSettingsConfigs();
+        }
+
         private void SetEditMode(bool editMode)
         {
-            _btnCustomize.Opacity = editMode ? 0 : 1;
-            _btnCustomize.IsHitTestVisible = !editMode;
-
-            _panEditButtons.Opacity = editMode ? 1 : 0;
-            _panEditButtons.IsHitTestVisible = editMode;
+            _editMode = editMode;
+            UpdateHeaderActions();
 
             _panSlot1Content.Opacity = editMode ? 0.2 : 1.0;
             _panSlot2Content.Opacity = editMode ? 0.2 : 1.0;
@@ -407,8 +563,8 @@ namespace CrimsonX.Controls
         private void btnCustomize_Click(object? sender, RoutedEventArgs e)
         {
             var cfg = MainWindow.Instance?.Config;
-            _pendingSlot1 = !string.IsNullOrWhiteSpace(cfg?.QuickSetting1) ? cfg.QuickSetting1 : "DIRECT UDP";
-            _pendingSlot2 = !string.IsNullOrWhiteSpace(cfg?.QuickSetting2) ? cfg.QuickSetting2 : "AUTO-CONNECT";
+            _pendingSlot1 = EffectiveSlotName(cfg?.QuickSetting1, "CUSTOM CONFIGS");
+            _pendingSlot2 = EffectiveSlotName(cfg?.QuickSetting2, "AUTO-CONNECT");
             SetEditMode(true);
         }
 
@@ -521,6 +677,14 @@ namespace CrimsonX.Controls
             var orig = GetOriginalToggle(MainWindow.Instance.Config.QuickSetting1);
             if (orig != null && _togSlot1.IsChecked.HasValue)
                 orig.IsChecked = _togSlot1.IsChecked.Value;
+
+            if (_togSlot1.IsChecked == true && orig != null && orig.IsChecked != true)
+            {
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    if (_togSlot1.IsChecked == true && orig.IsChecked != true) OpenCustomConfigsView();
+                });
+            }
         }
 
         private void TogSlot2_IsCheckedChanged(object? sender, RoutedEventArgs e)

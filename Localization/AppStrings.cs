@@ -1,4 +1,4 @@
-﻿/*
+/*
  * CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
  * Copyright (C) 2026 RichTiTAN
  *
@@ -26,13 +26,15 @@ namespace CrimsonX.Localization
 
         public static bool IsPersian { get; private set; } = false;
 
+        public static string AppName => "CrimsonX";
+
         public static void SetLanguage(string lang)
         {
             IsPersian = lang == "PERSIAN";
         }
 
 
-        public static void Apply(TextBlock? tb, string text, bool forceLtr = false)
+        public static void Apply(TextBlock? tb, string text, bool forceLtr = false, string? latinFont = null)
         {
             if (tb == null) return;
             tb.Text = text;
@@ -45,15 +47,25 @@ namespace CrimsonX.Localization
             }
             else
             {
-                tb.FontFamily = global::Avalonia.Media.FontFamily.Default;
+                tb.FontFamily = string.IsNullOrWhiteSpace(latinFont)
+                    ? global::Avalonia.Media.FontFamily.Default
+                    : new global::Avalonia.Media.FontFamily(latinFont);
                 tb.FlowDirection = global::Avalonia.Media.FlowDirection.LeftToRight;
             }
             
-            if (forceLtr && IsPersian)
+            var alignment = AlignmentFor(tb.HorizontalAlignment, forceLtr, IsPersian);
+            if (alignment != tb.HorizontalAlignment &&
+                alignment != global::Avalonia.Layout.HorizontalAlignment.Stretch)
             {
-                tb.HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Left;
+                tb.HorizontalAlignment = alignment;
             }
         }
+
+        public static global::Avalonia.Layout.HorizontalAlignment AlignmentFor(
+            global::Avalonia.Layout.HorizontalAlignment current, bool forceLtr, bool persian)
+            => forceLtr && persian && current != global::Avalonia.Layout.HorizontalAlignment.Center
+                ? global::Avalonia.Layout.HorizontalAlignment.Left
+                : current;
 
         public static void ApplyBtn(Button? btn, string text)
         {
@@ -62,13 +74,13 @@ namespace CrimsonX.Localization
             if (IsPersian)
             {
                 btn.FontFamily = new global::Avalonia.Media.FontFamily("Segoe UI");
-                btn.FlowDirection = global::Avalonia.Media.FlowDirection.RightToLeft;
             }
             else
             {
                 btn.FontFamily = global::Avalonia.Media.FontFamily.Default;
-                btn.FlowDirection = global::Avalonia.Media.FlowDirection.LeftToRight;
             }
+
+            btn.FlowDirection = global::Avalonia.Media.FlowDirection.LeftToRight;
         }
 
         public static void ApplyToolTip(Control? c, string text)
@@ -103,13 +115,8 @@ namespace CrimsonX.Localization
         public static string NavAbout           => IsPersian ? "درباره ما" : "ABOUT";
 
         public static string NavThemes          => IsPersian ? "تم ها" : "THEMES";
-        
 
-        public static string NavStats           => IsPersian ? "آمار" : "STATS";
-
-        public static string NavLogs            => IsPersian ? "گزارشات" : "LOGS";
-
-        public static string NavAppsGames       => IsPersian ? "برنامه‌ها و بازی‌ها" : "APPS & GAMES";
+        public static string NavAppsGames       => IsPersian ? "برنامه ها و بازی ها" : "APPS & GAMES";
 
         // ── Home (Connect & Quick Settings) ──
 
@@ -127,11 +134,13 @@ namespace CrimsonX.Localization
 
         public static string QuickSettings      => IsPersian ? "تنظیمات سریع" : "QUICK SETTINGS";
 
-        public static string Customize          => IsPersian ? "شخصی‌سازی" : "CUSTOMIZE";
+        public static string Customize          => IsPersian ? "شخصی سازی" : "CUSTOMIZE";
 
         public static string StatusConnecting => IsPersian ? "در حال اتصال..." : "CONNECTING";
 
         public static string StatusConnected => IsPersian ? "متصل" : "CONNECTED";
+
+        public static string StatusConnectedWord => IsPersian ? "متصل" : "Connected";
 
         public static string StatusDisconnect => IsPersian ? "قطع اتصال" : "DISCONNECT";
 
@@ -149,7 +158,7 @@ namespace CrimsonX.Localization
 
         public static string NoInternetTitle => IsPersian ? "عدم اتصال به اینترنت" : "No Internet Connection";
 
-        public static string NoInternetMessage => IsPersian ? "به نظر می‌رسد اتصال اینترنت شما کار نمی‌کند. مطمئن هستید می‌خواهید متصل شوید؟" : "You don't seem to have a working internet connection. Are you sure you want to connect?";
+        public static string NoInternetMessage => IsPersian ? "به نظر می رسد اتصال اینترنت شما کار نمی کند. مطمئن هستید می خواهید متصل شوید؟" : "You don't seem to have a working internet connection. Are you sure you want to connect?";
 
         public static string StatusDisconnected => IsPersian ? "منتظر اتصال" : "Disconnected";
 
@@ -173,9 +182,7 @@ namespace CrimsonX.Localization
 
         // ── Stats & Logs ──
 
-        public static string LogsStatus         => IsPersian ? "لاگ‌ها و وضعیت"   : "LOGS & STATUS";
 
-        public static string XrayLogHeader      => IsPersian ? "اتصالات (لاگ Xray)" : "CONNECTIONS (XRAY LOG)";
 
         public static string OpenLocalPort      => IsPersian ? "پورت لوکال:"       : "LOCAL PORT:";
 
@@ -183,9 +190,22 @@ namespace CrimsonX.Localization
 
         public static string SessionLabel       => IsPersian ? "نشست:"             : "SESSION:";
 
+        public static string StatusLabel        => IsPersian ? "وضعیت:"            : "STATUS:";
+
+        public static string StatusOffline      => IsPersian ? "آفلاین"            : "Offline";
+
+
+        public static string AllowSingleConfig  => IsPersian ? "اجازه با یک کانفیگ" : "ALLOW SINGLE CONFIG";
+
         public static string LocationLabel      => IsPersian ? "موقعیت:"           : "LOCATION:";
 
+        public static string PublicIpLabel      => IsPersian ? "آی پی:"            : "IP ADDRESS:";
+
         public static string PingLabel          => IsPersian ? "پینگ:"             : "PING:";
+
+        public static string TcpPingPrefix      => IsPersian ? "پینگ TCP: "         : "TCP PING: ";
+
+        public static string PingSlowSuffix     => IsPersian ? " (کند)"             : " (slow)";
 
         public static string TotalLabel         => IsPersian ? "مجموع:"            : "TOTAL:";
 
@@ -201,7 +221,7 @@ namespace CrimsonX.Localization
 
         public static string SplitTunnelDirectUDP => IsPersian ? "UDP مستقیم" : "DIRECT UDP";
 
-        public static string SplitTunnelDirectUDPDesc => IsPersian ? "این گزینه می‌تواند به بازی‌های ویدیویی، چت صوتی دیسکورد یا سایر پلتفرم‌های وابسته به UDP کمک کند." : "This option can help with video games, discord voice or other udp dependant platforms.";
+        public static string SplitTunnelDirectUDPDesc => IsPersian ? "این گزینه می تواند به بازی های ویدیویی، چت صوتی دیسکورد یا سایر پلتفرم های وابسته به UDP کمک کند." : "This option can help with video games, discord voice or other udp dependant platforms.";
 
         public static string Disabled           => IsPersian ? "غیرفعال"           : "DISABLED";
 
@@ -209,17 +229,20 @@ namespace CrimsonX.Localization
 
         public static string Inclusive          => IsPersian ? "شامل"              : "INCLUSIVE";
 
-        public static string DomainsAndIps      => IsPersian ? "دامنه‌ها، IPها و پورت‌ها" : "DOMAINS, IPs & PORTS";
+        public static string DomainsAndIps      => IsPersian ? "دامنه ها، IPها و پورت ها" : "DOMAINS, IPs & PORTS";
 
-        public static string Applications       => IsPersian ? "برنامه‌ها"          : "APPLICATIONS";
+        public static string Applications       => IsPersian ? "برنامه ها"          : "APPLICATIONS";
 
-        public static string BlockedDomains     => IsPersian ? "دامنه‌ها، IPها و پورت‌های مسدود شده" : "BLOCKED DOMAINS, IPs & PORTS";
+        public static string BlockedDomains     => IsPersian ? "دامنه ها، IPها و پورت های مسدود شده" : "BLOCKED DOMAINS, IPs & PORTS";
 
         public static string SplitExplanationExclusive => IsPersian ? "فقط برنامه ها، دامنه ها، آیپی ها و پورت های لیست شده در اینجا از پروکسی مستثنی می شوند." : "Only bypass the proxy for the apps, domains, IPs and ports listed below.";
 
         public static string SplitExplanationInclusive => IsPersian ? "فقط برنامه ها، دامنه ها، آیپی ها و پورت های لیست شده در اینجا از طریق پروکسی هدایت می شوند." : "Only route the apps, domains, IPs and ports listed below through the proxy.";
 
-        public static string ExcludeLocationsTitle => IsPersian ? "مستثنی کردن قاره‌ها" : "EXCLUDE LOCATIONS";
+        public static string LocationsTitle => IsPersian ? "مکان ها" : "LOCATIONS";
+
+        public static string LocationsClose => IsPersian ? "بستن" : "CLOSE";
+
 
         public static string ExcludeContinentAsia => IsPersian ? "آسیا" : "Asia";
 
@@ -232,7 +255,7 @@ namespace CrimsonX.Localization
         public static string ExcludeContinentAfrica => IsPersian ? "آفریقا" : "Africa";
 
         public static string ExcludeContinentOceania => IsPersian ? "اقیانوسیه" : "Oceania";
-    
+
 
         // ── Apps & Games Overlay ──
 
@@ -246,11 +269,11 @@ namespace CrimsonX.Localization
 
         public static string AdvancedRulesVpnOnlyTitle => IsPersian ? "نیاز به حالت VPN" : "VPN MODE REQUIRED";
 
-        public static string AdvancedRulesVpnOnlyMsg => IsPersian ? "قوانین پیشرفته فقط در حالت VPN قابل فعال‌سازی هستند. آیا مایل به تغییر به حالت VPN و ادامه هستید؟" : "ADVANCED RULES CAN ONLY BE ENABLED IN VPN MODE, DO YOU WISH TO SWITCH TO VPN MODE AND CONTINUE?";
+        public static string AdvancedRulesVpnOnlyMsg => IsPersian ? "قوانین پیشرفته فقط در حالت VPN قابل فعال سازی هستند. آیا مایل به تغییر به حالت VPN و ادامه هستید؟" : "ADVANCED RULES CAN ONLY BE ENABLED IN VPN MODE, DO YOU WISH TO SWITCH TO VPN MODE AND CONTINUE?";
 
         public static string FilterAll => IsPersian ? "همه" : "All";
 
-        public static string FilterGames => IsPersian ? "بازی‌ها" : "Games";
+        public static string FilterGames => IsPersian ? "بازی ها" : "Games";
 
         public static string FilterLaunchers => IsPersian ? "لانچرها" : "Launchers";
 
@@ -268,7 +291,7 @@ namespace CrimsonX.Localization
 
         public static string EditProgram => IsPersian ? "ویرایش برنامه" : "EDIT PROGRAM";
 
-        public static string Update => IsPersian ? "به‌روزرسانی" : "UPDATE";
+        public static string Update => IsPersian ? "به روزرسانی" : "UPDATE";
 
         public static string TypeLabel => IsPersian ? "نوع" : "TYPE";
 
@@ -294,7 +317,7 @@ namespace CrimsonX.Localization
 
         public static string HintBtn => IsPersian ? "راهنما" : "HINT";
 
-        public static string RestoreDefaults => IsPersian ? "بازگردانی پیش‌فرض‌ها" : "RESTORE DEFAULTS";
+        public static string RestoreDefaults => IsPersian ? "بازگردانی پیش فرض ها" : "RESTORE DEFAULTS";
 
         public static string RenameDisplayName => IsPersian ? "برای تغییر نام کلیک کنید" : "Click to rename";
 
@@ -305,8 +328,8 @@ namespace CrimsonX.Localization
         public static string CustomProxyHintStep1Tag => IsPersian ? "مرحله ۰۱" : "STEP 01";
 
         public static string CustomProxyHintStep1 => IsPersian
-            ? "یک کانفیگ xray را در کادر متن پیست کنید، یا با زدن فلش یکی از کانفیگ‌های ذخیره‌شده را انتخاب کنید."
-            : "Paste an xray config in the text box, or choose one from your saved configs by pressing the arrow.";
+            ? "یک کانفیگ xray، وایرگارد یا اپن وی پی ان (فایل ovpn. یا conf.) را در کادر متن پیست کنید، یا با زدن فلش یکی از کانفیگ های ذخیره شده را انتخاب کنید."
+            : "Paste an xray config, a WireGuard or an OpenVPN config (.conf / .ovpn) in the text box, or choose one from your saved configs by pressing the arrow.";
 
         public static string CustomProxyHintStep2Tag => IsPersian ? "مرحله ۰۲" : "STEP 02";
 
@@ -317,57 +340,57 @@ namespace CrimsonX.Localization
         public static string CustomProxyHintStep3Tag => IsPersian ? "مرحله ۰۳" : "STEP 03";
 
         public static string CustomProxyHintStep3 => IsPersian
-            ? $"در گزینه‌های مسیریابی، TCP، UDP یا هر دو را روی «{RoutingCustom}» بگذارید."
+            ? $"در گزینه های مسیریابی، TCP، UDP یا هر دو را روی «{RoutingCustom}» بگذارید."
             : $"In the routing options, set TCP, UDP or both to \u201C{RoutingCustom}\u201D.";
 
         public static string CustomProxyHintStep4Tag => IsPersian ? "مرحله ۰۴ (اختیاری)" : "STEP 04 (OPTIONAL)";
 
         public static string CustomProxyHintStep4 => IsPersian
-            ? "اگر بیش از یک اتصال اینترنت دارید، می‌توانید انتخاب کنید کدام‌یک از پروکسی استفاده کند."
+            ? "اگر بیش از یک اتصال اینترنت دارید، می توانید انتخاب کنید کدام یک از پروکسی استفاده کند."
             : "If you have more than one internet connection, you can choose which one should use the proxy.";
 
-        public static string CustomProxyPlaceholder => IsPersian ? "vless:// یا vmess:// یا JSON سینگ‌باکس" : "vless:// / vmess:// / sing-box JSON";
+        public static string CustomProxyPlaceholder => IsPersian ? "vless:// یا wireguard:// یا ovpn. یا JSON" : "vless:// / wireguard:// / .ovpn / sing-box JSON";
 
-        public static string CustomProxyHint => IsPersian ? "فقط برای این برنامه استفاده می‌شود" : "Used only by this program";
+        public static string CustomProxyHint => IsPersian ? "فقط برای این برنامه استفاده می شود" : "Used only by this program";
 
         public static string CustomProxyTooltip => IsPersian
-            ? "یک کانفیگ را وارد یا پیست کنید، یا از فلش یکی از کانفیگ‌های ذخیره‌شده را انتخاب کنید. برای استفاده، مسیریابی یکی از پروتکل‌ها را روی کانفیگ دلخواه بگذارید."
+            ? "یک کانفیگ را وارد یا پیست کنید، یا از فلش یکی از کانفیگ های ذخیره شده را انتخاب کنید. برای استفاده، مسیریابی یکی از پروتکل ها را روی کانفیگ دلخواه بگذارید."
             : "Type or paste a config, or pick a previously saved one from the arrow. Set a protocol's routing to CUSTOM PROXY to use it.";
 
         public static string CustomProxyNoResponse => IsPersian ? "کانفیگ دلخواه پاسخی نداد!" : "CUSTOM CONFIG DID NOT RESPOND!";
 
         public static string CustomProxyNone => IsPersian ? "بدون کانفیگ" : "NONE";
 
-        public static string CustomProxyEmpty => IsPersian ? "کانفیگ دلخواه خالی است!" : "CUSTOM CONFIG IS EMPTY!";
+        public static string CustomProxyEmpty => IsPersian ? "کانفیگ دلخواه خالی است!" : "Custom config is empty!";
 
-        public static string CustomProxyRequired => IsPersian ? "برای حالت کانفیگ دلخواه باید کانفیگ وارد شود!" : "CUSTOM ROUTING NEEDS A CONFIG!";
+        public static string CustomProxyRequired => IsPersian ? "برای حالت کانفیگ دلخواه باید کانفیگ وارد شود!" : "Custom routing needs a config!";
 
-        public static string ToastCustomProxySaved => IsPersian ? "کانفیگ دلخواه ذخیره شد" : "CUSTOM CONFIG SAVED";
+        public static string ToastCustomProxySaved => IsPersian ? "کانفیگ دلخواه ذخیره شد" : "Custom config saved";
 
-        public static string ToastCustomProxyInvalid => IsPersian ? "کانفیگ دلخواه نامعتبر است!" : "INVALID CUSTOM CONFIG!";
+        public static string ToastCustomProxyInvalid => IsPersian ? "کانفیگ دلخواه نامعتبر است!" : "Invalid custom config!";
 
-        public static string ToastCustomProxyRejected => IsPersian ? "کانفیگ دلخواه توسط سینگ‌باکس رد شد!" : "CUSTOM CONFIG REJECTED BY SING-BOX!";
+        public static string ToastCustomProxyRejected => IsPersian ? "کانفیگ دلخواه توسط سینگ باکس رد شد!" : "Custom config rejected by sing-box!";
 
-        public static string ToastCustomProxyDropped => IsPersian ? "کانفیگ دلخواه نامعتبر نادیده گرفته شد" : "INVALID CUSTOM CONFIG IGNORED";
+        public static string ToastCustomProxyDropped => IsPersian ? "کانفیگ دلخواه نامعتبر نادیده گرفته شد" : "Invalid custom config ignored";
 
-        public static string ToastCustomProxyPoolFull => IsPersian ? "لیست کانفیگ‌های ذخیره‌شده پر است" : "SAVED CONFIGS LIST IS FULL";
+        public static string ToastCustomProxyPoolFull => IsPersian ? "لیست کانفیگ های ذخیره شده پر است" : "Saved configs list is full";
 
-        public static string DeleteSavedConfigTooltip => IsPersian ? "حذف این کانفیگ از لیست ذخیره‌شده‌ها" : "Remove the config in the box from the saved list";
+        public static string DeleteSavedConfigTooltip => IsPersian ? "حذف این کانفیگ از لیست ذخیره شده ها" : "Remove the config in the box from the saved list";
 
-        public static string ToastCustomProxyDeleted => IsPersian ? "کانفیگ ذخیره‌شده حذف شد" : "SAVED CONFIG DELETED";
+        public static string ToastCustomProxyDeleted => IsPersian ? "کانفیگ ذخیره شده حذف شد" : "Saved config deleted";
 
-        public static string ToastCustomProxyNotSaved => IsPersian ? "این کانفیگ در لیست ذخیره‌شده‌ها نیست" : "THIS CONFIG IS NOT IN THE SAVED LIST";
+        public static string ToastCustomProxyNotSaved => IsPersian ? "این کانفیگ در لیست ذخیره شده ها نیست" : "This config is not in the saved list";
 
         public static string AdapterLabel => IsPersian ? "آداپتور" : "ADAPTER";
 
-        public static string AdapterDefault => IsPersian ? "پیش‌فرض" : "Default";
+        public static string AdapterDefault => IsPersian ? "پیش فرض" : "Default";
 
         public static string ConnectionRegionLabel => IsPersian ? "منطقه" : "REGION";
-        public static string ConnectionRegionWarning => IsPersian ? "انتخاب یک منطقه ممکن است روی همه برنامه‌ها کار نکند." : "Choosing a region might not work on all programs.";
+        public static string ConnectionRegionWarning => IsPersian ? "انتخاب یک منطقه ممکن است روی همه برنامه ها کار نکند." : "Choosing a region might not work on all programs.";
 
         public static string ConnRegionShort => IsPersian ? "منطقه اتصال" : "CONN-REGION";
 
-        public static string MatchMakingRegion => IsPersian ? "منطقه مچ‌میکینگ" : "MATCH-MAKING REGION";
+        public static string MatchMakingRegion => IsPersian ? "منطقه مچ میکینگ" : "MATCH-MAKING REGION";
 
         public static string TcpAdapterLabel => IsPersian ? "آداپتور TCP" : "TCP ADAPTER";
 
@@ -377,13 +400,12 @@ namespace CrimsonX.Localization
 
         public static string UdpRoutingLabel => IsPersian ? "مسیریابی UDP" : "UDP ROUTING";
 
-        public static string CountryEverywhere => IsPersian ? "همه‌جا" : "Everywhere";
+        public static string CountryEverywhere => IsPersian ? "همه جا" : "Everywhere";
 
         public static string CountryIran => IsPersian ? "ایران" : "Iran";
 
         public static string CountryUae => IsPersian ? "امارات" : "UAE";
 
-        public static string RegionAll => IsPersian ? "همه" : "All";
 
         public static string RegionNorthAmerica => IsPersian ? "آمریکای شمالی" : "North America";
 
@@ -403,6 +425,10 @@ namespace CrimsonX.Localization
 
         public static string PinUnpin => IsPersian ? "سنجاق / برداشتن سنجاق" : "Pin / Unpin";
 
+        public static string PinTopBar => IsPersian
+            ? "نوار بالا را روی تب های اسپلیت تانلینگ، تم ها، اسکنر UDP و درباره نگه می دارد"
+            : "Keeps the readout bar on the split tunneling, themes, UDP scanner and about tabs";
+
         public static string EditAdapters => IsPersian ? "ویرایش آداپتورها" : "Edit Adapters";
 
         // ── Settings - Start-up ──
@@ -413,23 +439,41 @@ namespace CrimsonX.Localization
 
         public static string AutoConnect        => IsPersian ? "اتصال خودکار"      : "AUTO-CONNECT";
 
-        public static string StartMinimized     => IsPersian ? "شروع کوچک‌شده"     : "START MINIMIZED";
+        public static string StartMinimized     => IsPersian ? "شروع کوچک شده"     : "START MINIMIZED";
 
         public static string MinimizeToTray     => IsPersian ? "کوچک کردن به tray" : "MINIMIZE TO TRAY";
 
         // ── Settings - Connection ──
 
         public static string SectionConnection  => IsPersian ? "اتصال"             : "CONNECTION";
+
+        public static string SectionLegacyModes => IsPersian ? "حالت های اتصال قدیمی" : "LEGACY CONNECTION MODES";
         
 
-        public static string CustomConfigsTitle => IsPersian ? "کانفیگ‌های دلخواه" : "CUSTOM CONFIGS";
-        public static string SavedConfigsTitle => IsPersian ? "کانفیگ‌های ذخیره‌شده" : "SAVED CONFIGS";
+        public static string CustomConfigsTitle => IsPersian ? "کانفیگ های دلخواه" : "CUSTOM CONFIGS";
+        public static string SavedConfigsTitle => IsPersian ? "کانفیگ های ذخیره شده" : "SAVED CONFIGS";
 
         public static string SavedConfigsEmpty => IsPersian ? "هنوز کانفیگی ذخیره نشده است" : "NO SAVED CONFIGS YET";
 
         public static string SavedConfigsImportPlaceholder => "vless:// / vmess:// / ...";
 
-        public static string ToastSavedConfigNotUsable => IsPersian ? "این کانفیگ ذخیره‌شده را نمی‌توان به عنوان کانفیگ دلخواه استفاده کرد" : "THIS SAVED CONFIG CANNOT BE USED AS A CUSTOM CONFIG";
+        public static string ToastSavedConfigNotUsable => IsPersian ? "این کانفیگ ذخیره شده را نمی توان به عنوان کانفیگ دلخواه استفاده کرد" : "This saved config cannot be used as a custom config";
+
+        public static string ToastConfigNotForXray => IsPersian ? "این کانفیگ در این بخش کار نمی کند؛ xray نمی تواند آن را اجرا کند: " : "This config cannot be used here - xray cannot dial it: ";
+
+        public static string ToastConfigNotForSingbox => IsPersian ? "این کانفیگ در این بخش کار نمی کند؛ سینگ باکس نمی تواند آن را اجرا کند: " : "This config cannot be used here - sing-box cannot dial it: ";
+
+        public static string ToastFinalMaskDropped => IsPersian
+            ? "xray ماسک نهایی این کانفیگ را رد کرد؛ بدون آن استفاده می شود: "
+            : "Xray refused the final mask - using the config without it: ";
+
+        public static string ToastNotSupportedPrefix => IsPersian ? "این کانفیگ در این بخش پشتیبانی نمی شود: " : "Config not supported in ";
+
+        public static string PaneExitNode => IsPersian ? "نود خروجی" : "EXIT NODE";
+
+        public static string PaneCustomConfig => IsPersian ? "کانفیگ دلخواه" : "CUSTOM CONFIG";
+
+
 
 
 
@@ -439,15 +483,66 @@ namespace CrimsonX.Localization
 
         public static string ValidatingConfig => IsPersian ? "در حال بررسی..." : "VALIDATING...";
 
-        public static string InvalidConfig => IsPersian ? "کانفیگ نامعتبر!" : "INVALID CONFIG!";
+        public static string InvalidConfig => IsPersian ? "کانفیگ نامعتبر!" : "Invalid config!";
 
-        public static string CustomXrayExit     => IsPersian ? "نود خروجی Xray" : "CUSTOM XRAY EXIT-NODE";
+        public static string InvalidConfigReason => IsPersian ? "دلیل: " : "Reason: ";
+
+        public static string TunnelCredsTitle => IsPersian ? "ورود اطلاعات اپن وی پی ان" : "OPENVPN CREDENTIALS";
+
+        public static string TunnelCredsSubtitle => IsPersian
+            ? "این کانفیگ نام کاربری و رمز عبور می خواهد:"
+            : "This config asks for a username and password:";
+
+        public static string TunnelCredsUser => IsPersian ? "نام کاربری" : "USERNAME";
+
+        public static string TunnelCredsPass => IsPersian ? "رمز عبور" : "PASSWORD";
+
+        public static string TunnelCredsRemember => IsPersian ? "برای همین کانفیگ ذخیره شود" : "Remember for this config";
+
+
+        public static string TunnelCredsCancel => IsPersian ? "انصراف" : "CANCEL";
+
+        public static string ToastTunnelNeedsCredentials => IsPersian
+            ? "برای این کانفیگ اپن وی پی ان نام کاربری و رمز لازم است"
+            : "This OpenVPN config needs a username and password";
+
+        public static string ToastTunnelFailed => IsPersian
+            ? "اجرای تانل اپن وی پی ان / وایرگارد ناموفق بود"
+            : "OpenVPN / WireGuard tunnel failed to start";
+
+        public static string BrowseBtn => IsPersian ? "انتخاب فایل" : "BROWSE";
+
+        public static string ImportConfigTooltip => IsPersian
+            ? "افزودن یک فایل کانفیگ (.ovpn / .conf / .json)"
+            : "Add a config file (.ovpn / .conf / .json)";
+
+        public static string ToastConfigUnreadable => IsPersian
+            ? "این کانفیگ خوانده نشد؛ دوباره پیست کنید یا فایل آن را انتخاب کنید"
+            : "This config could not be read - paste it again or pick its file";
+
+        public static string ToastExitNodeNeedsVpnMode => IsPersian
+            ? "نود خروجی OpenVPN/WireGuard فقط در حالت VPN زنجیره می شود."
+            : "OpenVPN / WireGuard exit nodes only chain in VPN mode.";
+
+        public static string ToastExitNodeFailed => IsPersian
+            ? "اتصال به نود خروجی برقرار نشد؛ بدون آن متصل شدید."
+            : "The exit node did not come up - connected without it.";
+
+        public static string ToastStillConnecting => IsPersian
+            ? "در حال تلاش برای اتصال..."
+            : "Still trying to connect...";
+
+        public static string CustomXrayExit     => IsPersian ? "نود خروجی دلخواه" : "CUSTOM EXIT-NODE";
+
+        public static string ExitNodePlaceholder => IsPersian ? "xray · openvpn · wireguard" : "xray · openvpn · wireguard";
 
         public static string AdapterBinding     => IsPersian ? "اتصال به آداپتور" : "BIND ADAPTER";
 
         
         public static string OverlayScanAdapters => IsPersian ? "اسکن آداپتورها" : "SCAN ADAPTERS";
         public static string ScanAdapters       => IsPersian ? "اسکن"            : "SCAN";
+
+        public static string UdpAdapterBinding  => IsPersian ? "اتصال به آداپتور UDP" : "UDP ADAPTER BINDING";
 
         public static string DnsSettings        => IsPersian ? "تنظیمات DNS"       : "DNS SETTINGS";
 
@@ -463,7 +558,6 @@ namespace CrimsonX.Localization
 
         public static string SystemDnsSecondary => IsPersian ? "DNS دوم"            : "SECONDARY DNS";
 
-        public static string ProxyType          => IsPersian ? "نوع"               : "TYPE";
 
         public static string AddressIp          => IsPersian ? "آدرس/IP"           : "ADDRESS/IP";
 
@@ -471,41 +565,34 @@ namespace CrimsonX.Localization
 
         public static string Authentication     => IsPersian ? "احراز هویت"        : "AUTHENTICATION";
 
-        public static string Username           => IsPersian ? "نام کاربری"         : "USERNAME";
 
-        public static string Password           => IsPersian ? "رمز عبور"           : "PASSWORD";
 
         public static string WarningCaseSensitive => IsPersian ? "هشدار: به حروف بزرگ و کوچک حساس است" : "Warning: Case sensitive";
-
-        public static string XtlsVisionNotSupported => IsPersian ? "کانفیگ های XTLS Vision به عنوان نود خروجی پشتیبانی نمی‌شوند." : "XTLS Vision configs cannot be used as a Custom Exit Node.";
 
         // ── Settings - Connection - UDP Scanner ──
 
         public static string UdpScannerTitle => IsPersian ? "اسکنر UDP" : "UDP SCANNER";
 
-        public static string UdpScannerBack => IsPersian ? "بازگشت" : "BACK";
+        public static string TtUdpScanner => IsPersian ? "کانفیگ ها را فقط با تست UDP بررسی می کند تا بهترین نودها برای بازی و تماس صوتی پیدا شوند." : "Tests configs with the UDP probe only, to find the best nodes for gaming and voice traffic.";
 
-        public static string TtUdpScanner => IsPersian ? "کانفیگ‌ها را فقط با تست UDP بررسی می‌کند تا بهترین نودها برای بازی و تماس صوتی پیدا شوند." : "Tests configs with the UDP probe only, to find the best nodes for gaming and voice traffic.";
+        public static string UdpScannerAmount => IsPersian ? "تعداد کانفیگ ها" : "AMOUNT OF CONFIGS";
 
-        public static string UdpScannerAmount => IsPersian ? "تعداد کانفیگ‌ها" : "AMOUNT OF CONFIGS";
-
-        public static string TtUdpScannerAmount => IsPersian ? "چند کانفیگ سالم باید جمع‌آوری شود." : "How many working configs the scan should collect.";
+        public static string TtUdpScannerAmount => IsPersian ? "چند کانفیگ سالم باید جمع آوری شود." : "How many working configs the scan should collect.";
 
         public static string UdpScannerConcurrency => IsPersian ? "تست همزمان" : "CONCURRENT TESTING";
 
-        public static string TtUdpScannerConcurrency => IsPersian ? "تعداد کانفیگ‌هایی که همزمان تست می‌شوند." : "How many configs are tested at the same time.";
+        public static string TtUdpScannerConcurrency => IsPersian ? "تعداد کانفیگ هایی که همزمان تست می شوند." : "How many configs are tested at the same time.";
 
         public static string UdpScannerDiscard => IsPersian ? "حذف بالاتر از" : "DISCARD HIGHER THAN";
 
-        public static string TtUdpScannerDiscard => IsPersian ? "کانفیگ‌هایی که پینگ واقعی‌شان از این مقدار بیشتر باشد تا وقتی کانفیگ سریع‌تر پیدا شود نادیده گرفته می‌شوند و فقط در پایان برای پر کردن تعداد اضافه می‌شوند." : "Configs slower than this are held back while faster ones are found, and only added at the end to fill the amount.";
+        public static string TtUdpScannerDiscard => IsPersian ? "کانفیگ هایی که پینگ واقعی شان از این مقدار بیشتر باشد تا وقتی کانفیگ سریع تر پیدا شود نادیده گرفته می شوند و فقط در پایان برای پر کردن تعداد اضافه می شوند." : "Configs slower than this are held back while faster ones are found, and only added at the end to fill the amount.";
 
         public static string UdpScannerNoLimit => IsPersian ? "بدون محدودیت" : "No limit";
 
         public static string UdpScannerAdapter => IsPersian ? "آداپتور تست" : "TEST ADAPTER";
 
-        public static string TtUdpScannerAdapter => IsPersian ? "تست‌ها از طریق این آداپتور شبکه انجام می‌شوند." : "Which network adapter the tests should go out through.";
+        public static string TtUdpScannerAdapter => IsPersian ? "تست ها از طریق این آداپتور شبکه انجام می شوند." : "Which network adapter the tests should go out through.";
 
-        public static string UdpScannerAdapterDefault => IsPersian ? "پیش‌فرض" : "Default";
 
         public static string UdpScannerStart => IsPersian ? "شروع تست" : "START TESTING";
 
@@ -513,7 +600,7 @@ namespace CrimsonX.Localization
 
         public static string UdpScannerStability => IsPersian ? "پایداری" : "STABILITY";
 
-        public static string TtUdpScannerStability => IsPersian ? "یک تست پایداری ۱۰ ثانیه‌ای روی این کانفیگ اجرا می‌کند (هر ۵۰۰ میلی‌ثانیه یک تست)." : "Runs a 10 second UDP stability test on this config (one probe every 500ms).";
+        public static string TtUdpScannerStability => IsPersian ? "یک تست پایداری ۱۰ ثانیه ای روی این کانفیگ اجرا می کند (هر ۵۰۰ میلی ثانیه یک تست)." : "Runs a 10 second UDP stability test on this config (one probe every 500ms).";
 
         public static string TtUdpScannerCopy => IsPersian ? "کپی لینک اشتراک" : "Copy share link";
 
@@ -533,9 +620,9 @@ namespace CrimsonX.Localization
 
         public static string UdpScannerOverLimit => IsPersian ? "بالاتر از محدودیت پینگ" : "ABOVE THE DISCARD LIMIT";
 
-        public static string UdpScannerDetailRealPing => IsPersian ? "پینگ واقعی {0} میلی‌ثانیه" : "REAL PING {0} ms";
+        public static string UdpScannerDetailRealPing => IsPersian ? "پینگ واقعی {0} میلی ثانیه" : "REAL PING {0} ms";
 
-        public static string UdpScannerDetailUdpPing => IsPersian ? "UDP {0} میلی‌ثانیه" : "UDP {0} ms";
+        public static string UdpScannerDetailUdpPing => IsPersian ? "UDP {0} میلی ثانیه" : "UDP {0} ms";
 
         public static string UdpScannerNone => IsPersian ? "چیزی پیدا نشد" : "NOTHING FOUND";
 
@@ -545,21 +632,20 @@ namespace CrimsonX.Localization
 
         public static string UdpScannerStabilityTesting => IsPersian ? "تست پایداری" : "STABILITY TEST";
 
-        public static string UdpScannerStabilityResult => IsPersian ? "پایداری {0}٪ • میانگین {1} میلی‌ثانیه" : "STABILITY {0}% • {1} MS AVG";
+        public static string UdpScannerStabilityResult => IsPersian ? "پایداری {0}٪ • میانگین {1} میلی ثانیه" : "STABILITY {0}% • {1} MS AVG";
 
-        public static string UdpScannerStabilityDetail => IsPersian ? "UDP {0}٪ سالم • {1}/{2} • میانگین {3} • کمینه {4} • بیشینه {5} میلی‌ثانیه" : "UDP {0}% OK • {1}/{2} • AVG {3} ms • MIN {4} ms • MAX {5} ms";
+        public static string UdpScannerStabilityDetail => IsPersian ? "UDP {0}٪ سالم • {1}/{2} • میانگین {3} • کمینه {4} • بیشینه {5} میلی ثانیه" : "UDP {0}% OK • {1}/{2} • AVG {3} ms • MIN {4} ms • MAX {5} ms";
 
         public static string UdpScannerStabilityFailed => IsPersian ? "تست پایداری ناموفق بود" : "STABILITY TEST FAILED";
 
-        public static string UdpScannerGraphTitle => IsPersian ? "پایداری" : "STABILITY";
 
         public static string UdpScannerGraphIdle => IsPersian ? "یک تست پایداری اجرا کنید" : "RUN A STABILITY TEST";
 
-        public static string UdpScannerGraphLive => IsPersian ? "تست {0} • ناموفق {1} • آخرین {2} میلی‌ثانیه" : "PROBES {0} • LOSS {1} • LAST {2} MS";
+        public static string UdpScannerGraphLive => IsPersian ? "تست {0} • ناموفق {1} • آخرین {2} میلی ثانیه" : "PROBES {0} • LOSS {1} • LAST {2} MS";
 
         // ── Settings - System ──
 
-        public static string DisableBackgroundChecks => IsPersian ? "غیرفعال کردن بررسی پس‌زمینه" : "DISABLE BACKGROUND CHECK";
+        public static string DisableBackgroundChecks => IsPersian ? "غیرفعال کردن بررسی پس زمینه" : "DISABLE BACKGROUND CHECK";
 
         public static string DisableRefreshTimer     => IsPersian ? "غیرفعال کردن تعویض یکپارچه" : "DISABLE SEAMLESS SWAP";
 
@@ -579,8 +665,8 @@ namespace CrimsonX.Localization
 
         public static string ClearFetchedCache  => IsPersian ? "پاکسازی دیتای دریافتی" : "CLEAR FETCHED CACHE";
 
-        public static string TtClearWorkingCache => IsPersian ? "حافظه پنهان در حال کار (Working Cache) را پاک می‌کند." : "Clears the active working cache.";
-        public static string TtClearFetchedCache => IsPersian ? "حافظه پنهان کانفیگ‌های دریافت شده را پاک می‌کند." : "Clears the fetched configurations cache.";
+        public static string TtClearWorkingCache => IsPersian ? "حافظه پنهان در حال کار (Working Cache) را پاک می کند." : "Clears the active working cache.";
+        public static string TtClearFetchedCache => IsPersian ? "حافظه پنهان کانفیگ های دریافت شده را پاک می کند." : "Clears the fetched configurations cache.";
 
         public static string ToastCacheCleared  => IsPersian ? "کش پاک شد." : "Cache cleared.";
 
@@ -613,7 +699,7 @@ namespace CrimsonX.Localization
 
         public static string ThemeDisableGlows => IsPersian ? "غیرفعال" : "DISABLE";
 
-        public static string ThemeManageGlow => IsPersian ? "مدیریت پس‌زمینه" : "MANAGE GLOW";
+        public static string ThemeManageGlow => IsPersian ? "مدیریت پس زمینه" : "MANAGE GLOW";
 
         // ── About ──
 
@@ -625,18 +711,51 @@ namespace CrimsonX.Localization
 
         public static string UpdateLatest       => IsPersian ? "آخرین نسخه نصب شده است" : "LATEST VERSION INSTALLED";
 
+        public static string UpdateBadgeAvailable   => IsPersian ? "آپدیت جدید موجود است" : "NEW UPDATE AVAILABLE";
+        public static string UpdateBadgeDownloading => IsPersian ? "در حال دانلود آپدیت"   : "DOWNLOADING UPDATE";
+        public static string UpdateBadgeExtracting  => IsPersian ? "در حال استخراج آپدیت"  : "EXTRACTING UPDATE";
+
+        // ── Settings - Load-balanced adapters ──
+
+        public static string LoadBalanceAdaptersTitle => IsPersian ? "تعادل بار آداپتور ها" : "LOAD-BALANCE ADAPTERS";
+        public static string LoadBalancePolicyTitle    => IsPersian ? "سیاست تعادل بار"     : "ADAPTER BALANCING POLICY";
+        public static string LoadBalanceAddAdapter     => IsPersian ? "افزودن آداپتور"       : "+ ADD ADAPTER";
+
+        public static string TtLbRemoveAdapter => IsPersian
+            ? "این آداپتور را از فهرست بردارید؛ آداپتورهای پایین تر یک پله بالا می آیند."
+            : "Take this adapter out of the list - the rows below it move up one.";
+
+        public static string TtLoadBalanceAdapters => IsPersian
+            ? "اتصال خود را روی آداپتورهای شبکهٔ مختلف تعادل بار کنید. سیاست تعادل باری که در این گزینه تنظیم می شود، گزینهٔ «LOAD-BALANCE» در تنظیمات را بازنویسی می کند."
+            : "Load-balance your connection over different network adapters. The load-balance policy set in this option overwrites the \"LOAD-BALANCE\" option in settings.";
+
+        public static string TtAdapterBalancePolicy => IsPersian
+            ? "نحوهٔ نوبت گیری آداپتورها: نوبتی هر اتصال جدید را به آداپتور بعدی می سپارد، تصادفی برای هر اتصال یکی را برمی گزیند، کمترین پینگ آداپتوری را که سریع تر پاسخ داده و کمترین بار کم ارتباط ترین آداپتور را نگه می دارد."
+            : "How the adapters take turns: ROUND ROBIN hands each new connection to the next adapter, RANDOM picks one for it, LEAST PING stays on the adapter that answers fastest and LEAST LOAD on the one that is least busy.";
+
+        public static string AdapterSlot(int slot) => IsPersian ? $"آداپتور {slot:00}" : $"ADAPTER {slot:00}";
+
+        public static string LoadBalancePolicyName(string tag) => tag switch
+        {
+            "leastload"  => "LEAST LOAD",
+            "roundrobin" => "ROUND ROBIN",
+            "leastping"  => "LEAST PING",
+            "random"     => "RANDOM",
+            _            => (tag ?? "").ToUpperInvariant()
+        };
+
         public static string UpdateAutoTitle    => IsPersian ? "آپدیت موجود است" : "UPDATE AVAILABLE";
 
         public static string UpdateAutoMsg      => IsPersian ? "نسخه جدید (v{0}) آماده نصب است! مایلید الان آپدیت کنید؟" : "A new version of CrimsonX (v{0}) is ready to install! Would you like to update now?";
 
         public static string UpdateManualTitle  => IsPersian ? "نیاز به آپدیت دستی" : "MANUAL UPDATE REQUIRED";
 
-        public static string UpdateManualMsg    => IsPersian ? "نسخه v{0} موجود است! نسخه فعلی شما برای آپدیت خودکار خیلی قدیمی است. لطفا آخرین نسخه را از گیت‌هاب دانلود کنید." : "CrimsonX v{0} is available! Your current version is too old to safely auto-update. Please download the latest release from GitHub.";
+        public static string UpdateManualMsg    => IsPersian ? "نسخه v{0} موجود است! نسخه فعلی شما برای آپدیت خودکار خیلی قدیمی است. لطفا آخرین نسخه را از گیت هاب دانلود کنید." : "CrimsonX v{0} is available! Your current version is too old to safely auto-update. Please download the latest release from GitHub.";
         
 
         public static string BtnUpdateNow       => IsPersian ? "همین الان آپدیت کن" : "UPDATE NOW";
 
-        public static string BtnDownloadGithub  => IsPersian ? "دانلود از گیت‌هاب" : "DOWNLOAD FROM GITHUB";
+        public static string BtnDownloadGithub  => IsPersian ? "دانلود از گیت هاب" : "DOWNLOAD FROM GITHUB";
 
         public static string BtnChangeLog       => IsPersian ? "تغییرات" : "CHANGE LOG";
 
@@ -646,13 +765,13 @@ namespace CrimsonX.Localization
 
         public static string DonationsTitle     => IsPersian ? "حمایت مالی"         : "DONATIONS";
 
-        public static string DonationsDesc      => IsPersian ? "اگر می‌خواهید از من یا پروژه حمایت کنید، می‌توانید با ارسال مبلغ دلخواه به یکی از آدرس‌های کیف پول زیر این کار را انجام دهید،" : "if u want to support me or the project you can do so by sending your desired amount to one of these wallet addresses,";
+        public static string DonationsDesc      => IsPersian ? "اگر می خواهید از من یا پروژه حمایت کنید، می توانید با ارسال مبلغ دلخواه به یکی از آدرس های کیف پول زیر این کار را انجام دهید،" : "if u want to support me or the project you can do so by sending your desired amount to one of these wallet addresses,";
 
         public static string DonateCardTitle      => IsPersian ? "اهدا با کارت بانکی" : "DONATE WITH CREDIT CARD";
 
-        public static string WalletAddressesTitle => IsPersian ? "آدرس‌های کیف پول" : "WALLET ADDRESSES";
+        public static string WalletAddressesTitle => IsPersian ? "آدرس های کیف پول" : "WALLET ADDRESSES";
 
-        public static string OtherApps          => IsPersian ? "سایر برنامه‌ها" : "OTHER APPS";
+        public static string OtherApps          => IsPersian ? "سایر برنامه ها" : "OTHER APPS";
 
         // ── Common UI Buttons & Actions ──
 
@@ -661,6 +780,14 @@ namespace CrimsonX.Localization
         public static string Cancel             => IsPersian ? "لغو"               : "CANCEL";
 
         public static string Submit             => IsPersian ? "ثبت"               : "SUBMIT";
+
+        public static string SaveToPoolTooltip => IsPersian
+            ? "این کانفیگ را در فهرست کانفیگ های ذخیره شده نگه می دارد."
+            : "Stores this config in SAVED CONFIGS.";
+
+        public static string SubmitTooltip => IsPersian
+            ? "کانفیگ این کادر را اعمال می کند، بدون آنکه در فهرست کانفیگ های ذخیره شده ذخیره شود."
+            : "Applies the config in this box without adding it to SAVED CONFIGS.";
 
         public static string Clear              => IsPersian ? "پاک کردن"          : "CLEAR";
         
@@ -699,8 +826,6 @@ namespace CrimsonX.Localization
 
         public static string ToastShortcutFailed => IsPersian ? "ایجاد شورتکات ناموفق بود." : "Failed to create shortcut.";
 
-        public static string ToastAllExcluded => IsPersian ? "پس نمی‌خوای به هیچ‌جا وصل شی؟" : "So you don't want to connect to anywhere?";
-
         public static string ToastReconnectChanges  => IsPersian ? "لطفا برای اعمال تغییرات مجددا متصل شوید." : "Please reconnect to apply the changes.";
 
         public static string ToastReconnectSafely   => ToastReconnectChanges;
@@ -723,7 +848,9 @@ namespace CrimsonX.Localization
 
         public static string ToastAdapterNoLongerAvail => IsPersian ? "آداپتور شبکه قبلی شما دیگر در دسترس نیست." : "Your previously selected network adapter is no longer available.";
 
-        public static string ToastDirectUdpAdapterFallback => IsPersian ? "آداپتور UDP مستقیم قبلی شما دیگر در دسترس نیست. با آداپتور پیش‌فرض ادامه می‌دهیم." : "Your Direct UDP adapter is no longer available. Continuing with the default adapter.";
+        public static string ToastLoadBalanceNeedsTwoAdapters => IsPersian ? "برای تعادل بار حداقل دو آداپتور انتخاب کنید." : "Pick at least two adapters to load-balance over.";
+
+        public static string ToastDirectUdpAdapterFallback => IsPersian ? "آداپتور UDP مستقیم قبلی شما دیگر در دسترس نیست. با آداپتور پیش فرض ادامه می دهیم." : "Your Direct UDP adapter is no longer available. Continuing with the default adapter.";
 
         public static string ToastEngineStartFailedPrefix => IsPersian ? "خطا در شروع موتور: " : "Engine start failed: ";
 
@@ -735,9 +862,7 @@ namespace CrimsonX.Localization
 
         public static string ToastLanAuthSaved => IsPersian ? "اطلاعات ورود ذخیره شد." : "Credentials saved.";
 
-        public static string ToastVpnAdapterInUse => IsPersian ? "آداپتور VPN از قبل توسط برنامه دیگری در حال استفاده است!" : "VPN adapter is already in use by another app!";
 
-        public static string ToastCredentialsSaved => IsPersian ? "اطلاعات ورود ذخیره شد." : "Credentials saved.";
 
         public static string ToastUpdateCheckTimeout => IsPersian ? "اتصال هنگام بررسی بروزرسانی قطع شد." : "Connection timed out while checking for updates.";
 
@@ -745,50 +870,50 @@ namespace CrimsonX.Localization
 
         public static string ToastUpdateFailedPrefix => IsPersian ? "خطا در بروزرسانی: " : "Failed to update: ";
 
-        public static string ToastNewUpdateAvailable => IsPersian ? "بروزرسانی جدید در دسترس است" : "NEW UPDATE AVAILABLE";
+        public static string ToastNewUpdateAvailable => IsPersian ? "بروزرسانی جدید در دسترس است" : "New update available";
 
-        public static string ToastVpnInUse => IsPersian ? "آداپتور VPN از قبل توسط برنامه دیگری در حال استفاده است!" : "VPN adapter is already in use by another program!";
+        public static string ToastVpnInUse => IsPersian ? "آداپتور VPN از قبل توسط برنامه دیگری در حال استفاده است!" : "VPN adapter is already in use by another app!";
 
         public static string ToastModeSwitchFailed => IsPersian ? "تعویض حالت ناموفق بود." : "Mode switch failed.";
 
         public static string ToastWriteVpnFailed => IsPersian ? "نوشتن تنظیمات VPN ناموفق بود." : "Failed to write VPN config.";
 
-        public static string ToastStartVpnFailed => IsPersian ? "راه‌اندازی VPN ناموفق بود." : "Failed to start VPN.";
+        public static string ToastStartVpnFailed => IsPersian ? "راه اندازی VPN ناموفق بود." : "Failed to start VPN.";
 
         // ── Tooltips ──
 
-        public static string TtLbPolicy         => IsPersian ? "کنترل نحوه توزیع اتصالات توسط Xray بین پروکسی‌های شما." : "Controls how Xray distributes connections across your proxy nodes.";
+        public static string TtLbPolicy         => IsPersian ? "کنترل نحوه توزیع اتصالات توسط Xray بین پروکسی های شما." : "Controls how Xray distributes connections across your proxy nodes.";
 
-        public static string TtLbLeastLoad      => IsPersian ? "هر اتصال جدید را به کم‌بارترین پروکسی هدایت می‌کند. بهترین برای ترافیک ترکیبی با حجم‌های متغیر." : "Distributes each new connection to the least-loaded proxy node. Best for mixed traffic with varying connection size.";
+        public static string TtLbLeastLoad      => IsPersian ? "هر اتصال جدید را به کم بارترین پروکسی هدایت می کند. بهترین برای ترافیک ترکیبی با حجم های متغیر." : "Distributes each new connection to the least-loaded proxy node. Best for mixed traffic with varying connection size.";
 
-        public static string TtLbRoundRobin     => IsPersian ? "اتصالات را به طور مساوی و به ترتیب بین پروکسی‌ها توزیع می‌کند. مناسب برای توزیع پایدار و یکنواخت." : "Distributes connections evenly across all proxy nodes in order, cycling through them one by one. Good for consistent, equal distribution.";
+        public static string TtLbRoundRobin     => IsPersian ? "اتصالات را به طور مساوی و به ترتیب بین پروکسی ها توزیع می کند. مناسب برای توزیع پایدار و یکنواخت." : "Distributes connections evenly across all proxy nodes in order, cycling through them one by one. Good for consistent, equal distribution.";
 
-        public static string TtLbLeastPing      => IsPersian ? "پروکسی با کمترین پینگ اخیر را انتخاب می‌کند. بهترین برای ترافیک حساس به تأخیر." : "Picks the proxy node with the lowest recent ping. Best for latency-sensitive traffic.";
+        public static string TtLbLeastPing      => IsPersian ? "پروکسی با کمترین پینگ اخیر را انتخاب می کند. بهترین برای ترافیک حساس به تأخیر." : "Picks the proxy node with the lowest recent ping. Best for latency-sensitive traffic.";
 
-        public static string TtLbRandom         => IsPersian ? "برای هر اتصال یک پروکسی تصادفی انتخاب می‌کند. در طول زمان از نظر آماری یکنواخت است اما نسبت به حالت چرخشی واریانس بیشتری دارد." : "Picks a proxy node at random for each new connection. Statistically even over time but with more variance than Round Robin.";
+        public static string TtLbRandom         => IsPersian ? "برای هر اتصال یک پروکسی تصادفی انتخاب می کند. در طول زمان از نظر آماری یکنواخت است اما نسبت به حالت چرخشی واریانس بیشتری دارد." : "Picks a proxy node at random for each new connection. Statistically even over time but with more variance than Round Robin.";
 
         public static string TtLanAuth          => IsPersian
-            ? "اگر فعال باشد، دستگاه‌های روی شبکه باید نام کاربری و رمز عبور وارد کنند تا از این پروکسی استفاده کنند. فقط در حالت پروکسی و Clear Proxy اعمال می‌شود."
+            ? "اگر فعال باشد، دستگاه های روی شبکه باید نام کاربری و رمز عبور وارد کنند تا از این پروکسی استفاده کنند. فقط در حالت پروکسی و Clear Proxy اعمال می شود."
             : "When enabled, devices on the network must supply a username and password to use this proxy. Only applies in Proxy and Clear Proxy mode.";
 
-        public static string SplitTunnelDirectUDPTooltip => IsPersian ? "این گزینه می‌تواند به بازی‌های ویدیویی، چت صوتی دیسکورد یا سایر پلتفرم‌های وابسته به UDP کمک کند. ترافیک UDP را مستقیم و بدون عبور از شبکه پروکسی به اینترنت ارسال می‌کند. این ترافیک تونل نخواهد شد، بنابراین این گزینه ناشناس بودن را کاهش می‌دهد." : "This option could help with Games or Discord Voice Chat or other UDP dependant platforms. Bypass the proxy and route all UDP traffic directly to the internet adapter. UDP traffic will not be tunneled, so this option reduces anonymity.";
+        public static string SplitTunnelDirectUDPTooltip => IsPersian ? "این گزینه می تواند به بازی های ویدیویی، چت صوتی دیسکورد یا سایر پلتفرم های وابسته به UDP کمک کند. ترافیک UDP را مستقیم و بدون عبور از شبکه پروکسی به اینترنت ارسال می کند. این ترافیک تونل نخواهد شد، بنابراین این گزینه ناشناس بودن را کاهش می دهد." : "This option could help with Games or Discord Voice Chat or other UDP dependant platforms. Bypass the proxy and route all UDP traffic directly to the internet adapter. UDP traffic will not be tunneled, so this option reduces anonymity.";
 
-        public static string TtCustomXray   => IsPersian ? "یک نود پروکسی شخصی تنظیم کنید تا به عنوان نود خروجی شما عمل کند. ترافیک شما از طریق این سرور عبور کرده و وب‌سایت‌ها آدرس IP این سرور را خواهند دید. یک خروجی JSON جایگذاری کنید یا یک لینک اشتراک‌گذاری (VLESS, VMess, Trojan, SS-2022) وارد کنید." : "Configure a custom proxy node to act as your exit node. Your traffic will be routed through this server, and websites will see its IP address. Paste an outbound JSON or import a share link (VLESS, VMess, Trojan, SS-2022).";
+        public static string TtCustomXray   => IsPersian ? "یک نود خروجی شخصی تنظیم کنید تا ترافیک از آن عبور کند و وب سایت ها آدرس IP آن را ببینند. با فلش یکی از کانفیگ های ذخیره شده را انتخاب کنید یا یک کانفیگ xray، سینگ باکس، اپن وی پی ان یا وایرگارد را پیست کنید؛ دکمه + فایل را وارد می کند و SAVE آن را در کانفیگ های ذخیره شده نگه می دارد. کانفیگ های OpenVPN و WireGuard فقط در حالت VPN زنجیره می شوند." : "Configure a custom proxy node to act as your exit node. Traffic will be routed through this server, and websites will see its IP address. Pick one of your saved configs with the arrow, or paste any xray / sing-box / OpenVPN / WireGuard config: + imports a file and SAVE keeps it in your saved configs. OpenVPN and WireGuard exit nodes chain in VPN Mode only.";
 
-        public static string TtAdapterBinding => IsPersian ? "کل ترافیک پروکسی را مجبور می‌کند منحصراً از طریق آداپتور شبکه انتخاب شده خارج شود. " : "Forces all proxy traffic to exclusively exit through the selected network adapter. ";
+        public static string TtAdapterBinding => IsPersian ? "کل ترافیک پروکسی را مجبور می کند منحصراً از طریق آداپتور شبکه انتخاب شده خارج شود. " : "Forces all proxy traffic to exclusively exit through the selected network adapter. ";
 
-        public static string TtDnsSettings  => IsPersian ? "تنظیمات DNS رمزگذاری‌شده را کنترل می‌کند. DoH: DNS را از طریق HTTPS رمزگذاری می‌کند تا نشت و سانسور کاهش یابد؛ برای حالت پروکسی (Xray) و VPN (sing-box) اعمال می‌شود. DNS سیستم: DNS آداپتور شبکه اصلی ویندوز را هنگام اتصال تغییر می‌دهد تا پروکسی بتواند بوت‌استرپ کند؛ پس از قطع اتصال یا بستن برنامه بازگردانده می‌شود." : "Controls encrypted DNS settings. DoH: resolves DNS over HTTPS to reduce leaks and censorship; applies in proxy mode (Xray) and VPN mode (sing-box). System Proxy DNS: changes the Windows DNS on your main adapter at connect time so the proxy can bootstrap; restored on disconnect or app close.";
+        public static string TtDnsSettings  => IsPersian ? "تنظیمات DNS رمزگذاری شده را کنترل می کند. DoH: DNS را از طریق HTTPS رمزگذاری می کند تا نشت و سانسور کاهش یابد؛ برای حالت پروکسی (Xray) و VPN (sing-box) اعمال می شود. DNS سیستم: DNS آداپتور شبکه اصلی ویندوز را هنگام اتصال تغییر می دهد تا پروکسی بتواند بوت استرپ کند؛ پس از قطع اتصال یا بستن برنامه بازگردانده می شود." : "Controls encrypted DNS settings. DoH: resolves DNS over HTTPS to reduce leaks and censorship; applies in proxy mode (Xray) and VPN mode (sing-box). System Proxy DNS: changes the Windows DNS on your main adapter at connect time so the proxy can bootstrap; restored on disconnect or app close.";
 
-        public static string TtAdBlocker    => IsPersian ? "مسدود کردن درخواست‌ها به دامنه‌های شناخته‌شده تبلیغات و ردیاب‌ها قبل از خروج از رایانه شما. Xray دامنه‌های مطابق را به یک خروجی نامعتبر (blackhole) هدایت می‌کند. فقط بر ترافیک عبوری از پروکسی محلی تأثیر می‌گذارد، نه برنامه‌هایی که از اسپلیت تانل عبور نمی‌کنند." : "Drop requests to known ad and tracker domains before they leave your PC. Xray routes matching domains to a blackhole outbound. Only affects traffic going through the local proxy—not apps on split-tunnel bypass.";
+        public static string TtAdBlocker    => IsPersian ? "مسدود کردن درخواست ها به دامنه های شناخته شده تبلیغات و ردیاب ها قبل از خروج از رایانه شما. Xray دامنه های مطابق را به یک خروجی نامعتبر (blackhole) هدایت می کند. فقط بر ترافیک عبوری از پروکسی محلی تأثیر می گذارد، نه برنامه هایی که از اسپلیت تانل عبور نمی کنند." : "Drop requests to known ad and tracker domains before they leave your PC. Xray routes matching domains to a blackhole outbound. Only affects traffic going through the local proxy—not apps on split-tunnel bypass.";
 
-        public static string TtAllowLan     => IsPersian ? "به دستگاه‌های دیگر در شبکه خود اجازه دهید از این رایانه به عنوان پروکسی استفاده کنند. وقتی روشن است، پروکسی محلی روی تمام رابط‌ها (0.0.0.0) گوش می‌دهد؛ وقتی خاموش است، فقط همین دستگاه (127.0.0.1) می‌تواند متصل شود. فقط در شبکه‌هایی که به آنها اعتماد دارید روشن کنید." : "Let other devices on your network use this PC as a proxy. When on, the local proxy listens on all interfaces (0.0.0.0); when off, only this machine (127.0.0.1) can connect. Turn on only on networks you trust.";
+        public static string TtAllowLan     => IsPersian ? "به دستگاه های دیگر در شبکه خود اجازه دهید از این رایانه به عنوان پروکسی استفاده کنند. وقتی روشن است، پروکسی محلی روی تمام رابط ها (0.0.0.0) گوش می دهد؛ وقتی خاموش است، فقط همین دستگاه (127.0.0.1) می تواند متصل شود. فقط در شبکه هایی که به آنها اعتماد دارید روشن کنید." : "Let other devices on your network use this PC as a proxy. When on, the local proxy listens on all interfaces (0.0.0.0); when off, only this machine (127.0.0.1) can connect. Turn on only on networks you trust.";
 
         public static string TtLanguage     => IsPersian ? "تغییر زبان برنامه. برای اعمال کامل تغییرات ممکن است نیاز به باز کردن مجدد برنامه باشد." : "Change the application language. Reopening the app may be required for all changes to take effect.";
 
-        public static string TtDebugMode    => IsPersian ? "گزارش‌های زنده Xray و sing-box را در لحظه ضبط می‌کند. برای عیب‌یابی در هنگام قطع اتصال مفید است. تأثیری بر مسیریابی یا امنیت ندارد." : "Captures live logs from Xray and sing-box. Helpful for diagnosing issues when something fails to connect. Does not change routing or security.";
+        public static string TtDebugMode    => IsPersian ? "گزارش های زنده Xray و sing-box را در لحظه ضبط می کند. برای عیب یابی در هنگام قطع اتصال مفید است. تأثیری بر مسیریابی یا امنیت ندارد." : "Captures live logs from Xray and sing-box. Helpful for diagnosing issues when something fails to connect. Does not change routing or security.";
 
         public static string TtSystemDns    => IsPersian
-            ? "DNS ویندوز آداپتور شبکه اصلی را هنگام اتصال تغییر می‌دهد تا پروکسی بتواند از آن استفاده کند. پس از قطع اتصال یا بستن برنامه، DNS قبلی بازگردانده می‌شود."
+            ? "DNS ویندوز آداپتور شبکه اصلی را هنگام اتصال تغییر می دهد تا پروکسی بتواند از آن استفاده کند. پس از قطع اتصال یا بستن برنامه، DNS قبلی بازگردانده می شود."
             : "Changes the Windows DNS of your main network adapter when you connect, so the proxy bootstrap benefits from it. Restored to original on disconnect or app close.";
         
 
@@ -802,9 +927,8 @@ namespace CrimsonX.Localization
         public static string TtSplitDis     => IsPersian ? "اسپلیت تانل غیرفعال است." : "Split tunneling is disabled.";
 
         public static string StartupTabLabel => IsPersian ? "تب شروع" : "START-UP TAB";
-        public static string TtStartupTab => IsPersian ? "انتخاب تبی که برنامه در هنگام شروع نمایش می‌دهد." : "Choose which tab the app opens on launch.";
-        public static string TabHome => IsPersian ? "خانه" : "HOME";
-        public static string TabAppsGames => IsPersian ? "برنامه‌ها و بازی‌ها" : "APPS & GAMES";
+        public static string TtStartupTab => IsPersian ? "انتخاب تبی که برنامه در هنگام شروع نمایش می دهد." : "Choose which tab the app opens on launch.";
+        public static string TabAppsGames => IsPersian ? "برنامه ها و بازی ها" : "APPS & GAMES";
 
         public static string TtLaunchOnStartup => IsPersian ? "اجرای خودکار برنامه هنگام ورود به ویندوز." : "Automatically launch the application when Windows starts.";
 
@@ -814,11 +938,11 @@ namespace CrimsonX.Localization
 
         public static string TtMinimizeToTray => IsPersian ? "کوچک کردن برنامه در سینی سیستم به جای نوار وظیفه." : "Minimize the application to the system tray instead of the taskbar.";
 
-        public static string TtPingRefresh => IsPersian ? "برای به‌روزرسانی پینگ کلیک کنید" : "Click to refresh ping";
+        public static string TtPingRefresh => IsPersian ? "برای به روزرسانی پینگ کلیک کنید" : "Click to refresh ping";
         
 
         public static string TtSavedConfigs => IsPersian
-            ? "کانفیگ‌های ذخیره‌شده همان لیستی هستند که تب برنامه‌ها و بازی‌ها از آن انتخاب می‌کند. با پینگ هر کانفیگ را آزمایش کنید، با کلیک روی ردیف یا آیکون کپی آن را کپی کنید و با سطل زباله از لیست حذف کنید."
+            ? "کانفیگ های ذخیره شده همان لیستی هستند که تب برنامه ها و بازی ها از آن انتخاب می کند. با پینگ هر کانفیگ را آزمایش کنید، با کلیک روی ردیف یا آیکون کپی آن را کپی کنید و با سطل زباله از لیست حذف کنید."
             : "The saved configs the apps and games tab picks from. PING tests one, clicking the row or the copy icon copies it, and the trash button removes it from the list.";
 
         public static string TtSavedConfigsAdd => IsPersian ? "این کانفیگ را در لیست ذخیره کن" : "Save this config to the list";
@@ -827,40 +951,40 @@ namespace CrimsonX.Localization
 
         public static string TtSavedConfigsCopy => IsPersian ? "کپی لینک اشتراک" : "Copy share link";
 
-        public static string TtSavedConfigsDelete => IsPersian ? "حذف از لیست ذخیره‌شده" : "Remove from the saved list";
+        public static string TtSavedConfigsDelete => IsPersian ? "حذف از لیست ذخیره شده" : "Remove from the saved list";
 
 
         public static string TtCustomConfigs => IsPersian
-            ? "کانفیگ‌های شخصی خود را برای اتصال مستقیم وارد کنید. اگر دو کانفیگ معتبر باشند، برنامه مستقیم با هر دو وصل می‌شود. اگر یک کانفیگ معتبر باشد و «اجازه اتصال با یک کانفیگ» فعال باشد، فقط با همان یکی وصل می‌شود. در غیر این صورت، برنامه بهترین کانفیگ سرور را پیدا کرده و کنار کانفیگ شما از آن استفاده می‌کند. کانفیگ‌های شخصی در صورت خرابی به‌صورت خودکار جایگزین نمی‌شوند."
+            ? "کانفیگ های شخصی خود را برای اتصال مستقیم وارد کنید. اگر دو کانفیگ معتبر باشند، برنامه مستقیم با هر دو وصل می شود. اگر یک کانفیگ معتبر باشد و «اجازه اتصال با یک کانفیگ» فعال باشد، فقط با همان یکی وصل می شود. در غیر این صورت، برنامه بهترین کانفیگ سرور را پیدا کرده و کنار کانفیگ شما از آن استفاده می کند. کانفیگ های شخصی در صورت خرابی به صورت خودکار جایگزین نمی شوند."
             : "Enter your own proxy configs for direct connection. If both configs are valid, the app connects with them immediately. If one is valid and 'Allow connecting with one config' is on, it connects with just that one. Otherwise the app finds the fastest server config and pairs it with yours. Custom configs will not be replaced automatically if they fail a connection health check.";
 
         public static string TtDisableBackgroundChecks => IsPersian
-            ? "بررسی پس‌زمینه به‌طور مداوم کانفیگ‌های جدید را آزمایش می‌کند و آنها را در استخر ذخیره می‌کند تا در صورت قطع اتصال جایگزین سریع‌تری در دسترس باشد. با فعال کردن این گزینه، استخر ذخیره بین‌جلسه‌ای به‌روز نمی‌شود."
+            ? "بررسی پس زمینه به طور مداوم کانفیگ های جدید را آزمایش می کند و آنها را در استخر ذخیره می کند تا در صورت قطع اتصال جایگزین سریع تری در دسترس باشد. با فعال کردن این گزینه، استخر ذخیره بین جلسه ای به روز نمی شود."
             : "Background checks continuously test new configs and store them in a reserve pool for faster failover if a connection drops. Enabling this stops the between-session reserve pool from being updated.";
 
         public static string TtDisableRefreshTimer => IsPersian
-            ? "هر ۱ ساعت یک‌بار، برنامه کانفیگ‌های جدید را دانلود کرده و در صورت نیاز آن‌ها را بدون قطع شدن اتصال شما به‌صورت یکپارچه جایگزین می‌کند. با فعال کردن این گزینه، این تعویض هوشمند بین‌جلسه‌ای غیرفعال می‌شود."
+            ? "هر ۱ ساعت یک بار، برنامه کانفیگ های جدید را دانلود کرده و در صورت نیاز آن ها را بدون قطع شدن اتصال شما به صورت یکپارچه جایگزین می کند. با فعال کردن این گزینه، این تعویض هوشمند بین جلسه ای غیرفعال می شود."
             : "Every 1 hour the app fetches updated configs and seamlessly swaps them in the background without dropping your connection. Enabling this stops the mid-session seamless swap.";
 
-        public static string ExcludeLocationsTooltip => IsPersian ? "شما به کانفیگ‌های قاره‌های انتخاب شده متصل نخواهید شد." : "You won't be connected to configs from the selected continents.";
+        public static string LocationsTooltip => IsPersian ? "شما فقط به کانفیگ های قاره های انتخاب شده متصل خواهید شد." : "You will only be connected to configs from the selected continents.";
 
-        public static string OneConfigTooltip => IsPersian ? "برنامه معمولاً با دو کانفیگ متصل می‌شود تا در صورت خرابی بتواند جابجا شود. با فعال کردن این گزینه، برنامه تنها با استفاده از کانفیگ ارائه‌شده در اینجا متصل می‌شود و کانفیگ دیگری را دریافت نمی‌کند." : "The app normally connects with two configs so it can switch over in the case of a failure. By enabling this option the app will connect using the single config provided here and will not fetch another config.";
+        public static string OneConfigTooltip => IsPersian ? "برنامه معمولاً با دو کانفیگ متصل می شود تا در صورت خرابی بتواند جابجا شود. با فعال کردن این گزینه، برنامه تنها با استفاده از کانفیگ ارائه شده در اینجا متصل می شود و کانفیگ دیگری را دریافت نمی کند." : "The app normally connects with two configs so it can switch over in the case of a failure. By enabling this option the app will connect using the single config provided here and will not fetch another config.";
 
-        public static string OverlaySplitRegularTooltip => IsPersian ? "هدایت تمام ترافیک از طریق VPN، با رعایت قوانین تنظیم‌شده در این تب. این گزینه با انتخاب هر دو گزینه \"غیرفعال\" و \"اختصاصی\" در تب \"اسپلیت تانل\" فعال می‌شود." : "Route all traffic through the VPN, with respect to the rules set here. This option can be enabled with both \"DISABLED\" and \"EXCLUSIVE\" options in the \"Split Tunneling\" tab.";
+        public static string OverlaySplitRegularTooltip => IsPersian ? "هدایت تمام ترافیک از طریق VPN، با رعایت قوانین تنظیم شده در این تب. این گزینه با انتخاب هر دو گزینه \"غیرفعال\" و \"اختصاصی\" در تب \"اسپلیت تانل\" فعال می شود." : "Route all traffic through the VPN, with respect to the rules set here. This option can be enabled with both \"DISABLED\" and \"EXCLUSIVE\" options in the \"Split Tunneling\" tab.";
 
-        public static string OverlaySplitInclusiveTooltip => IsPersian ? "تنها برنامه‌های لیست شده در پایین از طریق پروکسی عبور داده می‌شوند." : "Only route the apps listed below through the proxy.";
+        public static string OverlaySplitInclusiveTooltip => IsPersian ? "تنها برنامه های لیست شده در پایین از طریق پروکسی عبور داده می شوند." : "Only route the apps listed below through the proxy.";
 
         public static string MasterRulesTooltip => IsPersian ? "فعال یا غیرفعال کردن همه قوانین مسیریابی این تب." : "Enable or disable all the routing rules in this tab.";
 
-        public static string TtOverlayStatsTitle   => IsPersian ? "ترافیک قوانین برنامه‌ها" : "APP RULE TRAFFIC";
+        public static string TtOverlayStatsTitle   => IsPersian ? "ترافیک قوانین برنامه ها" : "APP RULE TRAFFIC";
 
         public static string TtOverlayStatsSession => IsPersian ? "نشست:" : "SESSION";
 
-        public static string TtOverlayStatsHint    => IsPersian ? "فقط ترافیک برنامه‌هایی که قانون فعال دارند محاسبه می‌شود." : "Only traffic of apps that have an enabled rule is counted.";
+        public static string TtOverlayStatsHint    => IsPersian ? "فقط ترافیک برنامه هایی که قانون فعال دارند محاسبه می شود." : "Only traffic of apps that have an enabled rule is counted.";
 
         public static string TtOverlayStatsProxy   => IsPersian ? "آمار زنده قوانین فقط در حالت VPN در دسترس است." : "Live rule stats are only available in VPN Mode.";
 
-        public static string TtOverlayStatsNoRules => IsPersian ? "در حال حاضر هیچ قانون فعالی برای اندازه‌گیری وجود ندارد." : "There is no enabled rule to measure right now.";
+        public static string TtOverlayStatsNoRules => IsPersian ? "در حال حاضر هیچ قانون فعالی برای اندازه گیری وجود ندارد." : "There is no enabled rule to measure right now.";
 
 }
 }

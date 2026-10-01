@@ -17,89 +17,273 @@
  */
 
 using System;
-using Avalonia;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
-using Avalonia.Threading;
+using Avalonia.Media;
 
 namespace CrimsonX.Controls;
+
+public class LocationOption
+{
+    public string Tag { get; set; } = "";
+
+    public string DisplayName { get; set; } = "";
+
+    public bool IsSelected { get; set; }
+
+    public bool IsNotSelected => !IsSelected;
+}
 
 public partial class NavigationBar : UserControl
 {
     public event EventHandler<string>? NavChanged;
-    private RadioButton? _selectedButton;
+
+    public event EventHandler<bool>? AdBlockerToggled;
+
+    private bool _syncingAdBlocker;
+
+    private static readonly IBrush AdBlockShieldIdle = new SolidColorBrush(Color.Parse("#909090"));
+
+    private static readonly IBrush AdBlockShieldOn = new SolidColorBrush(Color.Parse("#68D391"));
+
+    private bool _themesTabOpen;
 
     public NavigationBar()
     {
         InitializeComponent();
+
+        var lstLocations = this.FindControl<ItemsControl>("lstLocations");
+        if (lstLocations != null) lstLocations.ItemsSource = LocationOptions;
     }
 
-    // ── Localization ──
+    // Localization
 
     public void ApplyLanguage()
     {
-        bool isFa = CrimsonX.Localization.AppStrings.IsPersian;
-        var pWide = new Thickness(20, 8);
-        var pNorm = new Thickness(12, 8);
+        SetTip("btnNavHome", CrimsonX.Localization.AppStrings.NavHome);
+        SetTip("btnNavSplit", CrimsonX.Localization.AppStrings.NavSplitTunneling);
+        SetTip("btnNavThemes", CrimsonX.Localization.AppStrings.NavThemes);
+        SetTip("btnNavUdp", CrimsonX.Localization.AppStrings.UdpScannerTitle);
+        SetTip("btnNavLocations", CrimsonX.Localization.AppStrings.LocationsTitle);
+        SetTip("btnNavAppsGames", CrimsonX.Localization.AppStrings.NavAppsGames);
+        SetTip("btnNavSettings", CrimsonX.Localization.AppStrings.NavSettings);
+        SetTip("btnNavAdBlock", CrimsonX.Localization.AppStrings.AdBlocker);
 
-        var btnNavHome = this.FindControl<RadioButton>("btnNavHome");
-        if (btnNavHome != null) 
-        {
-            btnNavHome.Content = CrimsonX.Localization.AppStrings.NavHome;
-            btnNavHome.Padding = isFa ? pWide : pNorm;
-        }
-        
-        var btnNavSplit = this.FindControl<RadioButton>("btnNavSplit");
-        if (btnNavSplit != null) 
-        {
-            btnNavSplit.Content = CrimsonX.Localization.AppStrings.NavSplitTunneling;
-            btnNavSplit.Padding = pNorm;
-        }
-        
-        var btnNavSettings = this.FindControl<RadioButton>("btnNavSettings");
-        if (btnNavSettings != null) 
-        {
-            btnNavSettings.Content = CrimsonX.Localization.AppStrings.NavSettings;
-            btnNavSettings.Padding = pNorm;
-        }
-        
-        var btnNavAbout = this.FindControl<RadioButton>("btnNavAbout");
-        if (btnNavAbout != null) 
-        {
-            btnNavAbout.Content = CrimsonX.Localization.AppStrings.NavAbout;
-            btnNavAbout.Padding = pNorm;
-        }
-        
-        var btnNavThemes = this.FindControl<RadioButton>("btnNavThemes");
-        if (btnNavThemes != null) 
-        {
-            btnNavThemes.Content = CrimsonX.Localization.AppStrings.NavThemes;
-            btnNavThemes.Padding = isFa ? pWide : pNorm;
-        }
-        
-        var btnNavAppsGames = this.FindControl<RadioButton>("btnNavAppsGames");
-        if (btnNavAppsGames != null)
-        {
-            btnNavAppsGames.Content = CrimsonX.Localization.AppStrings.NavAppsGames;
-            btnNavAppsGames.Padding = pNorm;
-        }
-
-        this.InvalidateMeasure();
-        
-        var navStack = this.FindControl<StackPanel>("NavStack");
-        if (navStack != null)
-        {
-            foreach (var child in navStack.Children)
-            {
-                child.InvalidateMeasure();
-            }
-            navStack.InvalidateMeasure();
-        }
-        
-        Dispatcher.UIThread.Post(() => UpdateUnderline(), DispatcherPriority.Render);
+        var locationsTitle = this.FindControl<TextBlock>("lblLocationsTitle");
+        if (locationsTitle != null) locationsTitle.Text = CrimsonX.Localization.AppStrings.LocationsTitle;
+        SetTip("btnLocationsClose", CrimsonX.Localization.AppStrings.LocationsClose);
+        RefreshLocationOptions();
     }
 
-    // ── Nav Selection & Animated Underline ──
+    private void SetTip(string name, string text)
+    {
+        var control = this.FindControl<Control>(name);
+        if (control != null) ToolTip.SetTip(control, text);
+    }
+
+    // Ad & tracker blocker tile
+
+    private void AdBlocker_Changed(object? sender, RoutedEventArgs e)
+    {
+        if (sender is ToggleButton tile)
+        {
+            ShowAdBlockerIcon(tile.IsChecked == true);
+
+            if (_syncingAdBlocker) return;
+
+            AdBlockerToggled?.Invoke(this, tile.IsChecked == true);
+        }
+    }
+
+    public void SetAdBlockerState(bool enabled)
+    {
+        var tile = this.FindControl<ToggleButton>("btnNavAdBlock");
+        if (tile == null) return;
+
+        ShowAdBlockerIcon(enabled);
+
+        if (tile.IsChecked == enabled) return;
+
+        _syncingAdBlocker = true;
+        try
+        {
+            tile.IsChecked = enabled;
+        }
+        finally
+        {
+            _syncingAdBlocker = false;
+        }
+    }
+
+    private void ShowAdBlockerIcon(bool enabled)
+    {
+        var icon = this.FindControl<PathIcon>("adBlockIcon");
+        if (icon != null) icon.Foreground = enabled ? AdBlockShieldOn : AdBlockShieldIdle;
+    }
+
+    // Themes tile colour
+
+    public static IBrush? ThemesIconBrush(bool selected) => selected ? Brushes.White : null;
+
+    public void ApplyTheme() => ShowThemeIcon();
+
+    private void ShowThemeIcon()
+    {
+        var icon = this.FindControl<PathIcon>("themeNavIcon");
+        if (icon == null) return;
+
+        var brush = ThemesIconBrush(_themesTabOpen);
+
+        if (brush == null) icon.ClearValue(PathIcon.ForegroundProperty);
+        else               icon.Foreground = brush;
+    }
+
+    // Locations overlay
+
+    public const string AllTag = "*";
+
+    public static readonly string[] ContinentNames =
+    {
+        "Asia", "Europe", "North America", "South America", "Africa", "Oceania",
+    };
+
+    public ObservableCollection<LocationOption> LocationOptions { get; } = new();
+
+    public static List<string> ExcludedContinentsFor(IEnumerable<string> allowed)
+    {
+        var keep = new HashSet<string>(allowed, StringComparer.Ordinal);
+        var excluded = new List<string>();
+        foreach (var name in ContinentNames)
+            if (!keep.Contains(name)) excluded.Add(name);
+
+        return excluded;
+    }
+
+    private static IEnumerable<(string FullName, string DisplayName)> ContinentOptions()
+    {
+        yield return ("Asia", CrimsonX.Localization.AppStrings.ExcludeContinentAsia);
+        yield return ("Europe", CrimsonX.Localization.AppStrings.ExcludeContinentEurope);
+        yield return ("North America", CrimsonX.Localization.AppStrings.ExcludeContinentNorthAmerica);
+        yield return ("South America", CrimsonX.Localization.AppStrings.ExcludeContinentSouthAmerica);
+        yield return ("Africa", CrimsonX.Localization.AppStrings.ExcludeContinentAfrica);
+        yield return ("Oceania", CrimsonX.Localization.AppStrings.ExcludeContinentOceania);
+    }
+
+    private void RefreshLocationOptions()
+    {
+        var cfg = MainWindow.Instance?.Config;
+        var excluded = cfg?.ExcludedContinents ?? new List<string>();
+        int excludedCount = ContinentNames.Count(name => excluded.Contains(name));
+
+        if (cfg != null && cfg.EnableExcludedContinents && (excludedCount == 0 || excludedCount >= ContinentNames.Length))
+            cfg.EnableExcludedContinents = false;
+
+        bool filtering = cfg != null && cfg.EnableExcludedContinents
+                         && excludedCount > 0 && excludedCount < ContinentNames.Length;
+
+        LocationOptions.Clear();
+        LocationOptions.Add(new LocationOption
+        {
+            Tag = AllTag,
+            DisplayName = CrimsonX.Localization.AppStrings.FilterAll,
+            IsSelected = !filtering,
+        });
+
+        foreach (var (fullName, displayName) in ContinentOptions())
+        {
+            LocationOptions.Add(new LocationOption
+            {
+                Tag = fullName,
+                DisplayName = displayName,
+                IsSelected = filtering && !excluded.Contains(fullName),
+            });
+        }
+    }
+
+    private async void NavLocations_Changed(object? sender, RoutedEventArgs e)
+    {
+        var tile = sender as ToggleButton;
+        var popup = this.FindControl<Popup>("LocationsPopup");
+        if (tile == null || popup == null) return;
+
+        if (tile.IsChecked == true)
+        {
+            CrimsonX.Pages.SettingsPage.Instance?.ClosePopups();
+            QuickSettingsPanel.Instance?.ClosePopups();
+
+            RefreshLocationOptions();
+            popup.PlacementTarget = tile;
+
+            if (popup.Child is Border card) card.Classes.Remove("popupOpen");
+
+            popup.IsOpen = true;
+            ShowLightDismissLayer(visible: true);
+
+            await Task.Delay(10);
+            if (popup.IsOpen && popup.Child is Border opened) opened.Classes.Add("popupOpen");
+        }
+        else if (popup.IsOpen)
+        {
+            await CloseLocationsAnimatedAsync();
+        }
+    }
+
+    private void LocationsPopup_Closed(object? sender, EventArgs e)
+    {
+        var tile = this.FindControl<ToggleButton>("btnNavLocations");
+        if (tile != null && tile.IsChecked == true) tile.IsChecked = false;
+    }
+
+    private void LocationsClose_Click(object? sender, RoutedEventArgs e) => ClosePopups();
+
+    private async Task CloseLocationsAnimatedAsync()
+    {
+        var popup = this.FindControl<Popup>("LocationsPopup");
+        if (popup == null || !popup.IsOpen) return;
+
+        if (popup.Child is Border card)
+        {
+            card.Classes.Remove("popupOpen");
+            await Task.Delay(200);
+        }
+
+        popup.IsOpen = false;
+        ShowLightDismissLayer(visible: false);
+    }
+
+    public void ClosePopups() => _ = CloseLocationsAnimatedAsync();
+
+    private void ShowLightDismissLayer(bool visible) => MainWindow.Instance?.SetLightDismissLayer(visible);
+
+    private void LocationOption_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Control control || control.DataContext is not LocationOption option) return;
+
+        var window = MainWindow.Instance;
+        var cfg = window?.Config;
+        if (cfg == null) return;
+
+        var selected = LocationOptions.Where(o => o.IsSelected && o.Tag != AllTag).Select(o => o.Tag).ToList();
+
+        if (option.Tag == AllTag) selected.Clear();
+        else if (!selected.Remove(option.Tag)) selected.Add(option.Tag);
+
+        bool allowEverything = selected.Count == 0;
+        cfg.EnableExcludedContinents = !allowEverything;
+        cfg.ExcludedContinents = allowEverything ? new List<string>() : ExcludedContinentsFor(selected);
+
+        RefreshLocationOptions();
+
+        window!.RequestConfigSave();
+        if (window.State.IsEngineRunning)
+            window.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+    }
+
+    // Nav Selection
 
 
     public void SelectTab(string tag)
@@ -124,8 +308,10 @@ public partial class NavigationBar : UserControl
         {
             if (rb.IsChecked == true)
             {
-                _selectedButton = rb;
-                UpdateUnderline();
+                _themesTabOpen = rb.Tag is "Themes";
+                ShowThemeIcon();
+
+                ClosePopups();
 
                 if (rb.Tag is string tag)
                 {
@@ -135,31 +321,4 @@ public partial class NavigationBar : UserControl
         }
     }
 
-    private void UserControl_SizeChanged(object? sender, SizeChangedEventArgs e)
-    {
-        UpdateUnderline();
-    }
-
-    private void UpdateUnderline()
-    {
-        if (_selectedButton == null) return;
-
-        var container = this.FindControl<Panel>("MainContainer");
-        var underline = this.FindControl<Border>("AnimatedUnderline");
-        
-        if (container == null || underline == null) return;
-
-        double width = _selectedButton.Bounds.Width;
-        if (width == 0) return;
-        
-        var point = _selectedButton.TranslatePoint(new Point(0, 0), container);
-        if (!point.HasValue) return;
-
-        double xPos = point.Value.X;
-        
-        double underlineWidth = 34;
-        double centerOffset = xPos + (width / 2) - (underlineWidth / 2);
-
-        underline.Margin = new Thickness(centerOffset, 0, 0, 0);
-    }
 }

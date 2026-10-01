@@ -37,7 +37,8 @@ namespace CrimsonX.Pages
     public partial class SettingsPage : UserControl
     {
         private bool _isInitializingSettings = true;
-        private UdpScannerPage? _udpScannerPage;
+
+        private bool _lbResetByPage;
         public static SettingsPage? Instance { get; private set; }
         internal static void ClearInstance() => Instance = null;
         
@@ -47,25 +48,8 @@ namespace CrimsonX.Pages
             InitializeComponent();
             Instance = this;
 
-            _udpScannerPage = this.FindControl<UdpScannerPage>("pageUdpScanner");
-            if (_udpScannerPage != null)
-                _udpScannerPage.BackRequested += (s, e) => ShowSettingsPage();
         }
 
-        // ── UDP Scanner page ──
-        internal void ShowUdpScannerPage()
-        {
-            var languagePopup = this.FindControl<Popup>("LanguagePopup");
-            if (languagePopup != null) languagePopup.IsOpen = false;
-
-            var lbPopup = this.FindControl<Popup>("LbPolicyPopup");
-            if (lbPopup != null) lbPopup.IsOpen = false;
-
-            _udpScannerPage?.OnEnter();
-
-            var carousel = this.FindControl<Carousel>("settingsCarousel");
-            if (carousel != null) carousel.SelectedIndex = 1;
-        }
         internal void ShowSettingsPage()
         {
             var carousel = this.FindControl<Carousel>("settingsCarousel");
@@ -81,17 +65,7 @@ namespace CrimsonX.Pages
         _isInitializingSettings = true;
         try 
         {
-            var policy = MainWindow.Instance.Config.XrayBalancePolicy;
-            string displayName = policy switch
-            {
-                "leastload"  => "LEAST LOAD",
-                "roundrobin" => "ROUND ROBIN",
-                "leastping"  => "LEAST PING",
-                "random"     => "RANDOM",
-                _            => policy?.ToUpperInvariant() ?? "LEAST PING"
-            };
-            var lbl = this.FindControl<global::Avalonia.Controls.TextBlock>("lblCurrentLbPolicy");
-            if (lbl != null) lbl.Text = displayName;
+            RefreshCurrentLbPolicyLabel();
 
             var _cfg = MainWindow.Instance.Config;
             
@@ -173,12 +147,61 @@ namespace CrimsonX.Pages
 
             var togAdapterBinding = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togAdapterBinding");
             if (togAdapterBinding != null) togAdapterBinding.IsChecked = _cfg.EnableAdapterBinding;
+
+            if (_cfg.EnableLoadBalanceAdapters
+                && CrimsonX.Services.XrayConfigWriter.AdapterIps(_cfg.LoadBalanceAdapters).Count < 2)
+            {
+                _cfg.EnableLoadBalanceAdapters = false;
+                MainWindow.Instance.RequestConfigSave();
+            }
+
+            var togLoadBalance = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togLoadBalance");
+            if (togLoadBalance != null) togLoadBalance.IsChecked = _cfg.EnableLoadBalanceAdapters;
+
+            SyncLbAdapterPanel();
+
+            ApplyConnectionModeUI(_cfg.LastXrayMode);
         }
         finally
         {
             _isInitializingSettings = false;
         }
     }
+
+        public void ApplyConnectionModeUI(string mode)
+        {
+            string wanted = CrimsonX.Services.ConnectionModes.Normalise(mode);
+
+            this.FindControl<Button>("btnSetProxyMode")?.Classes.Remove("activeMode");
+            this.FindControl<Button>("btnSetVpnMode")?.Classes.Remove("activeMode");
+            this.FindControl<Button>("btnSetClearProxy")?.Classes.Remove("activeMode");
+
+            string active = wanted switch
+            {
+                CrimsonX.Services.ConnectionModes.Vpn   => "btnSetVpnMode",
+                CrimsonX.Services.ConnectionModes.Clear => "btnSetClearProxy",
+                _                                        => "btnSetProxyMode"
+            };
+
+            this.FindControl<Button>(active)?.Classes.Add("activeMode");
+        }
+
+        private async void ConnectionMode_Click(object? sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (sender is not Button button) return;
+
+                var main = MainWindow.Instance;
+                if (main == null) return;
+
+                await main.SetConnectionModeAsync(CrimsonX.Services.ConnectionModes.Normalise(button.Tag as string));
+            }
+            catch (Exception ex)
+            {
+                CrimsonX.Services.SimpleLogger.Log(ex);
+            }
+        }
         
         public void ApplyLanguage()
         {
@@ -194,7 +217,7 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.Apply(F("lblStartupTab"), CrimsonX.Localization.AppStrings.StartupTabLabel);
             CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblStartupTab"), CrimsonX.Localization.AppStrings.TtStartupTab);
             var cbiHome = this.FindControl<global::Avalonia.Controls.ComboBoxItem>("cbiHome");
-            if (cbiHome != null) cbiHome.Content = CrimsonX.Localization.AppStrings.TabHome;
+            if (cbiHome != null) cbiHome.Content = CrimsonX.Localization.AppStrings.NavHome;
             var cbiAppsGames = this.FindControl<global::Avalonia.Controls.ComboBoxItem>("cbiAppsGames");
             if (cbiAppsGames != null) cbiAppsGames.Content = CrimsonX.Localization.AppStrings.TabAppsGames;
 
@@ -217,9 +240,6 @@ namespace CrimsonX.Pages
             var btn2 = B("btnCustomConfigsPing2");
             if (btn2 != null) btn2.Content = CrimsonX.Localization.AppStrings.PingBtn;
 
-            CrimsonX.Localization.AppStrings.Apply(F("lblUdpScanner"), CrimsonX.Localization.AppStrings.UdpScannerTitle);
-            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Border>("panUdpScannerLabel"), CrimsonX.Localization.AppStrings.TtUdpScanner);
-            _udpScannerPage?.ApplyLanguage();
             var chkAllow = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
             if (chkAllow != null)
             {
@@ -236,16 +256,32 @@ namespace CrimsonX.Pages
                     chkAllow.FlowDirection = fa ? global::Avalonia.Media.FlowDirection.RightToLeft : global::Avalonia.Media.FlowDirection.LeftToRight;
                 }
             }
-            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsPing"), CrimsonX.Localization.AppStrings.PingBtn);
-            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsClear"), CrimsonX.Localization.AppStrings.Clear);
-            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsSave"), CrimsonX.Localization.AppStrings.Save);
+            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsPing1"), CrimsonX.Localization.AppStrings.PingBtn);
+            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsPing2"), CrimsonX.Localization.AppStrings.PingBtn);
+            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsSave1"), CrimsonX.Localization.AppStrings.Save);
+            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsSave2"), CrimsonX.Localization.AppStrings.Save);
+            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsSubmit"), CrimsonX.Localization.AppStrings.Submit);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(B("btnCustomConfigsSave1"), CrimsonX.Localization.AppStrings.SaveToPoolTooltip);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(B("btnCustomConfigsSave2"), CrimsonX.Localization.AppStrings.SaveToPoolTooltip);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(B("btnCustomConfigsSubmit"), CrimsonX.Localization.AppStrings.SubmitTooltip);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnXraySave"), CrimsonX.Localization.AppStrings.Save);
+            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnXrayExitPing"), CrimsonX.Localization.AppStrings.PingBtn);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnXrayCancel"), CrimsonX.Localization.AppStrings.Cancel);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnDohSave"), CrimsonX.Localization.AppStrings.Save);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnSysDnsSave"), CrimsonX.Localization.AppStrings.Save);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnLanAuthSave"), CrimsonX.Localization.AppStrings.Save);
             
             CrimsonX.Localization.AppStrings.Apply(F("lblSectionConnection"), CrimsonX.Localization.AppStrings.SectionConnection);
+
+            // the LEGACY CONNECTION MODES row (mode labels + their tooltips, moved out of the connect box)
+            CrimsonX.Localization.AppStrings.Apply(F("lblLegacyModes"),    CrimsonX.Localization.AppStrings.SectionLegacyModes);
+            CrimsonX.Localization.AppStrings.Apply(F("lblSetProxyMode"),   CrimsonX.Localization.AppStrings.ProxyMode);
+            CrimsonX.Localization.AppStrings.Apply(F("lblSetVpnMode"),     CrimsonX.Localization.AppStrings.VpnMode);
+            CrimsonX.Localization.AppStrings.Apply(F("lblSetClearProxy"),  CrimsonX.Localization.AppStrings.ClearProxy);
+
+            CrimsonX.Localization.AppStrings.ApplyToolTip(B("btnSetProxyMode"),  CrimsonX.Localization.AppStrings.TtProxyMode);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(B("btnSetVpnMode"),    CrimsonX.Localization.AppStrings.TtVpnMode);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(B("btnSetClearProxy"), CrimsonX.Localization.AppStrings.TtClearProxy);
             
             var tbCustomXray = this.FindControl<TextBlock>("lblCustomXrayExit");
             CrimsonX.Localization.AppStrings.Apply(tbCustomXray, CrimsonX.Localization.AppStrings.CustomXrayExit);
@@ -255,14 +291,13 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.Apply(tbAdapterBinding, CrimsonX.Localization.AppStrings.AdapterBinding);
             CrimsonX.Localization.AppStrings.ApplyToolTip(tbAdapterBinding, CrimsonX.Localization.AppStrings.TtAdapterBinding);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnScanAdapters"), CrimsonX.Localization.AppStrings.ScanAdapters);
+
+            ApplyLoadBalanceLanguage();
             
             var tbDnsSetting = this.FindControl<TextBlock>("lblDnsSettingTitle");
             CrimsonX.Localization.AppStrings.Apply(tbDnsSetting, CrimsonX.Localization.AppStrings.DnsSettings);
             CrimsonX.Localization.AppStrings.ApplyToolTip(tbDnsSetting, CrimsonX.Localization.AppStrings.TtDnsSettings);
 
-            var tbAdBlocker = this.FindControl<TextBlock>("lblAdBlockerSetting");
-            CrimsonX.Localization.AppStrings.Apply(tbAdBlocker, CrimsonX.Localization.AppStrings.AdBlocker);
-            CrimsonX.Localization.AppStrings.ApplyToolTip(tbAdBlocker, CrimsonX.Localization.AppStrings.TtAdBlocker);
             
             var tbAllowLan = this.FindControl<TextBlock>("lblAllowLanSetting");
             CrimsonX.Localization.AppStrings.Apply(tbAllowLan, CrimsonX.Localization.AppStrings.AllowLan);
@@ -270,12 +305,12 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.Apply(this.FindControl<TextBlock>("lblLanAuthTitle"), CrimsonX.Localization.AppStrings.Authentication);
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.TextBlock>("lblLanAuthTitle"), CrimsonX.Localization.AppStrings.TtLanAuth);
 
-            CrimsonX.Localization.AppStrings.Apply(F("lblOutboundType"), CrimsonX.Localization.AppStrings.ProxyType);
+            CrimsonX.Localization.AppStrings.Apply(F("lblOutboundType"), CrimsonX.Localization.AppStrings.TypeLabel);
             CrimsonX.Localization.AppStrings.Apply(F("lblOutboundAddress"), CrimsonX.Localization.AppStrings.AddressIp);
             CrimsonX.Localization.AppStrings.Apply(F("lblOutboundPort"), CrimsonX.Localization.AppStrings.Port);
             CrimsonX.Localization.AppStrings.Apply(F("lblOutboundAuth"), CrimsonX.Localization.AppStrings.Authentication);
-            CrimsonX.Localization.AppStrings.Apply(F("lblOutboundUsername"), CrimsonX.Localization.AppStrings.Username);
-            CrimsonX.Localization.AppStrings.Apply(F("lblOutboundPassword"), CrimsonX.Localization.AppStrings.Password);
+            CrimsonX.Localization.AppStrings.Apply(F("lblOutboundUsername"), CrimsonX.Localization.AppStrings.TunnelCredsUser);
+            CrimsonX.Localization.AppStrings.Apply(F("lblOutboundPassword"), CrimsonX.Localization.AppStrings.TunnelCredsPass);
             CrimsonX.Localization.AppStrings.Apply(F("lblUpstreamDoh"), CrimsonX.Localization.AppStrings.UpstreamDohUrl);
             CrimsonX.Localization.AppStrings.Apply(F("lblSysDnsTitle"), CrimsonX.Localization.AppStrings.SystemDns);
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.TextBlock>("lblSysDnsTitle"), CrimsonX.Localization.AppStrings.TtSystemDns);
@@ -373,8 +408,7 @@ namespace CrimsonX.Pages
                     return;
                 }
 
-                if (cb1 != null) MainWindow.Instance.Config.CustomConfig1 = cb1.Text ?? "";
-                if (cb2 != null) MainWindow.Instance.Config.CustomConfig2 = cb2.Text ?? "";
+                ResolveCustomConfigSlots();
             }
             MainWindow.Instance.Config.EnableCustomConfigs = tog.IsChecked.Value;
             MainWindow.Instance.RequestConfigSave();
@@ -388,19 +422,19 @@ namespace CrimsonX.Pages
         {
             if (MainWindow.Instance.Config.LastXrayMode == "VPN Mode")
             {
-                if (showSaveToast) MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastSavedReconnect, success: true);
+                if (showSaveToast) MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastSavedReconnect, kind: ToastKind.Success);
                 else MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
             }
             else
             {
                 MainWindow.Instance.SmartRestartXray();
-                if (showSaveToast) MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastSavedApplied, success: true);
-                else MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastChangesApplied, success: true);
+                if (showSaveToast) MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastSavedApplied, kind: ToastKind.Success);
+                else MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastChangesApplied, kind: ToastKind.Success);
             }
         }
         else if (showSaveToast)
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastSaved, success: true);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastSaved, kind: ToastKind.Success);
         }
     }
 
@@ -416,38 +450,72 @@ namespace CrimsonX.Pages
         }
     }
 
-    private void btnCustomConfigsClear_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var cb1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
-        var cb2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
-        var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
-        
-        if (cb1 != null) cb1.Text = "";
-        if (cb2 != null) cb2.Text = "";
-        if (chk != null) chk.IsChecked = false;
-        
-        MainWindow.Instance.Config.CustomConfig1 = "";
-        MainWindow.Instance.Config.CustomConfig2 = "";
-        MainWindow.Instance.Config.AllowOneCustomConfig = false;
 
-        var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togCustomConfigs");
-        if (tog != null) tog.IsChecked = false;
-        
-        MainWindow.Instance.RequestConfigSave();
-        NotifyCustomConfigsChanged(showSaveToast: false);
+    private void btnCustomConfigsSubmit_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        => SubmitCustomConfigs();
+
+    public void SetAllowOneCustomConfig(bool on)
+    {
+        var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
+        if (chk != null) chk.IsChecked = on;
     }
 
-    private void btnCustomConfigsSave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    public void SubmitCustomConfigsFromQuickSettings(string cfg1, string cfg2, bool allowOne)
     {
         var cb1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
         var cb2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
         var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
 
-        if (cb1 != null) MainWindow.Instance.Config.CustomConfig1 = cb1.Text ?? "";
-        if (cb2 != null) MainWindow.Instance.Config.CustomConfig2 = cb2.Text ?? "";
-        if (chk != null) MainWindow.Instance.Config.AllowOneCustomConfig = chk.IsChecked ?? false;
+        if (cb1 != null) cb1.Text = cfg1;
+        if (cb2 != null) cb2.Text = cfg2;
+        if (chk != null) chk.IsChecked = allowOne;
 
-        SyncCustomConfigsToSavedList();
+        SubmitCustomConfigs();
+
+        ShowQuickSettingsConfigs();
+    }
+
+    private void SetCustomConfigSlotText(int slot, string text)
+    {
+        var combo = this.FindControl<global::Avalonia.Controls.ComboBox>(slot == 2 ? "cbCustomConfig2" : "cbCustomConfig1");
+        if (combo != null) combo.Text = text;
+    }
+
+    public string ImportCustomConfig(int slot, string text)
+    {
+        SetCustomConfigSlotText(slot, text);
+
+        if (slot == 2) btnCustomConfigImport2_Click(this, new global::Avalonia.Interactivity.RoutedEventArgs());
+        else          btnCustomConfigImport1_Click(this, new global::Avalonia.Interactivity.RoutedEventArgs());
+
+        var combo = this.FindControl<global::Avalonia.Controls.ComboBox>(slot == 2 ? "cbCustomConfig2" : "cbCustomConfig1");
+        return combo?.Text ?? "";
+    }
+
+    public void PingCustomConfig(int slot, string text)
+    {
+        SetCustomConfigSlotText(slot, text);
+
+        if (slot == 2) btnCustomConfigsPing2_Click(this, new global::Avalonia.Interactivity.RoutedEventArgs());
+        else          btnCustomConfigsPing1_Click(this, new global::Avalonia.Interactivity.RoutedEventArgs());
+    }
+
+    public void SaveCustomConfig(int slot, string text)
+    {
+        SetCustomConfigSlotText(slot, text);
+
+        if (slot == 2) btnCustomConfigsSave2_Click(this, new global::Avalonia.Interactivity.RoutedEventArgs());
+        else          btnCustomConfigsSave1_Click(this, new global::Avalonia.Interactivity.RoutedEventArgs());
+    }
+
+    public void SubmitCustomConfigs()
+    {
+        var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
+
+        ResolveCustomConfigSlots();
+        ApplyCustomConfigTitles(true);
+
+        if (chk != null) MainWindow.Instance.Config.AllowOneCustomConfig = chk.IsChecked ?? false;
 
         bool hasConfig = !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1) ||
                          !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2);
@@ -470,6 +538,11 @@ namespace CrimsonX.Pages
     private bool _isPinging1 = false;
     private bool _isPinging2 = false;
 
+    private static string ReasonOf(CrimsonX.Services.ConfigTestResult res) =>
+        res != null && res.Reason.Length > 0
+            ? " " + CrimsonX.Localization.AppStrings.InvalidConfigReason + res.Reason
+            : "";
+
     private async void btnCustomConfigsPing1_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         try
@@ -480,24 +553,31 @@ namespace CrimsonX.Pages
             var btn = sender as global::Avalonia.Controls.Button;
             if (btn != null) btn.IsEnabled = false;
 
-            var cb1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
-            if (cb1 != null) MainWindow.Instance.Config.CustomConfig1 = cb1.Text ?? "";
+            ResolveCustomConfigSlots();
             MainWindow.Instance.RequestConfigSave();
 
             long ping1 = -1;
+            bool timedOut1 = false;
+            CrimsonX.Services.ConfigTestResult res1 = null;
             using var cts1 = new System.Threading.CancellationTokenSource(15000);
             var ct = cts1.Token;
 
             if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1))
             {
-                var r1 = await CrimsonX.Services.ConfigTester.TestConfigAsync(MainWindow.Instance.Config.CustomConfig1, MainWindow.Instance.Config, ct, false);
-                if (r1 != null && r1.Success) ping1 = r1.Ping;
+                res1 = await CrimsonX.Services.CustomConfigPinger.ProbeAsync(
+                    MainWindow.Instance.Config.CustomConfig1, MainWindow.Instance.Config, "", "", ct);
+
+                if (res1 != null && res1.Success) ping1 = res1.Ping;
+                else timedOut1 = res1 != null && res1.TimedOut;
             }
 
             if (btn != null) btn.IsEnabled = true;
 
-            string msg = ping1 != -1 ? $"Config 1: {ping1}ms" : CrimsonX.Localization.AppStrings.InvalidConfig;
-            MainWindow.Instance.ShowToast(msg, ping1 != -1);
+            bool measured1 = res1 != null && res1.Measured;
+            string msg = measured1 ? res1.Text("Config 1")
+                       : timedOut1 ? CrimsonX.Localization.AppStrings.CustomProxyNoResponse
+                       : CrimsonX.Localization.AppStrings.InvalidConfig + ReasonOf(res1);
+            MainWindow.Instance.ShowToast(msg, measured1 ? ToastKind.Success : ToastKind.Error);
             
             _isPinging1 = false;
         }
@@ -519,24 +599,31 @@ namespace CrimsonX.Pages
             var btn = sender as global::Avalonia.Controls.Button;
             if (btn != null) btn.IsEnabled = false;
 
-            var cb2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
-            if (cb2 != null) MainWindow.Instance.Config.CustomConfig2 = cb2.Text ?? "";
+            ResolveCustomConfigSlots();
             MainWindow.Instance.RequestConfigSave();
 
             long ping2 = -1;
+            bool timedOut2 = false;
+            CrimsonX.Services.ConfigTestResult res2 = null;
             using var cts2 = new System.Threading.CancellationTokenSource(15000);
             var ct = cts2.Token;
 
             if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2))
             {
-                var r2 = await CrimsonX.Services.ConfigTester.TestConfigAsync(MainWindow.Instance.Config.CustomConfig2, MainWindow.Instance.Config, ct, false);
-                if (r2 != null && r2.Success) ping2 = r2.Ping;
+                res2 = await CrimsonX.Services.CustomConfigPinger.ProbeAsync(
+                    MainWindow.Instance.Config.CustomConfig2, MainWindow.Instance.Config, "", "", ct);
+
+                if (res2 != null && res2.Success) ping2 = res2.Ping;
+                else timedOut2 = res2 != null && res2.TimedOut;
             }
 
             if (btn != null) btn.IsEnabled = true;
 
-            string msg = ping2 != -1 ? $"Config 2: {ping2}ms" : CrimsonX.Localization.AppStrings.InvalidConfig;
-            MainWindow.Instance.ShowToast(msg, ping2 != -1);
+            bool measured2 = res2 != null && res2.Measured;
+            string msg = measured2 ? res2.Text("Config 2")
+                       : timedOut2 ? CrimsonX.Localization.AppStrings.CustomProxyNoResponse
+                       : CrimsonX.Localization.AppStrings.InvalidConfig + ReasonOf(res2);
+            MainWindow.Instance.ShowToast(msg, measured2 ? ToastKind.Success : ToastKind.Error);
             
             _isPinging2 = false;
         }
@@ -546,13 +633,6 @@ namespace CrimsonX.Pages
             _isPinging2 = false;
             if (sender is global::Avalonia.Controls.Button b) b.IsEnabled = true;
         }
-    }
-
-        // ── UDP Scanner ──
-
-        private void btnUdpScannerOpen_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        ShowUdpScannerPage();
     }
 
         // ── Adapter Binding Panel ──
@@ -680,7 +760,7 @@ namespace CrimsonX.Pages
 
         if (string.IsNullOrWhiteSpace(user))
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastUsernameEmpty);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastUsernameEmpty, ToastKind.Error);
             return;
         }
 
@@ -703,7 +783,7 @@ namespace CrimsonX.Pages
         }
         else
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastLanAuthSaved, success: true);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastLanAuthSaved, kind: ToastKind.Success);
         }
     }
 
@@ -773,19 +853,9 @@ namespace CrimsonX.Pages
         if (cmb == null) return;
         
         cmb.Items.Clear();
-        var adapters = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
-        foreach (var adapter in adapters)
+        foreach (var item in AdapterItems())
         {
-            if (adapter.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up && 
-                adapter.NetworkInterfaceType != System.Net.NetworkInformation.NetworkInterfaceType.Loopback)
-            {
-                var properties = adapter.GetIPProperties();
-                var ipv4 = properties.UnicastAddresses.FirstOrDefault(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-                if (ipv4 != null && !string.IsNullOrWhiteSpace(ipv4.Address.ToString()))
-                {
-                    cmb.Items.Add($"{adapter.Name} - {ipv4.Address}");
-                }
-            }
+            cmb.Items.Add(item);
         }
         
         if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.SelectedAdapterName) && !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.SelectedAdapterIp))
@@ -799,7 +869,7 @@ namespace CrimsonX.Pages
             }
             else
             {
-                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNoLongerAvail);
+                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNoLongerAvail, ToastKind.Error);
                 MainWindow.Instance.Config.SelectedAdapterName = "";
                 MainWindow.Instance.Config.SelectedAdapterIp = "";
                 MainWindow.Instance.RequestConfigSave();
@@ -811,10 +881,391 @@ namespace CrimsonX.Pages
         {
             cmb.SelectedIndex = 0;
         }
+
+        PruneLbAdapterConfig();
+        RefreshLbAdapterCombos();
     }
 
 
     internal void ScanAdapters() => btnScanAdapters_Click(null, null);
+        // ── Load-Balanced Adapters ──
+
+        private const int LbAdapterMaxSlots = 4;
+        private const int LbAdapterMinSlots = 2;
+
+        internal const string DefaultAdapterPolicy = "roundrobin";
+
+        private static readonly string[] LbPolicyTags = { "leastload", "roundrobin", "leastping", "random" };
+
+        private global::Avalonia.Controls.ComboBox? LbCombo(int slot) =>
+            this.FindControl<global::Avalonia.Controls.ComboBox>("cmbLbAdapter" + slot);
+
+        private global::Avalonia.Controls.Grid? LbRow(int slot) =>
+            this.FindControl<global::Avalonia.Controls.Grid>("rowLbAdapter" + slot);
+
+        private int LbVisibleSlots()
+        {
+            int stored = MainWindow.Instance.Config.LoadBalanceAdapters?.Count ?? 0;
+            return Math.Max(LbAdapterMinSlots, Math.Min(LbAdapterMaxSlots, stored));
+        }
+
+        private string[] LbSlotValues()
+        {
+            var values = new string[LbAdapterMaxSlots];
+            for (int slot = 1; slot <= LbAdapterMaxSlots; slot++)
+                values[slot - 1] = LbCombo(slot)?.SelectedItem as string ?? "";
+            return values;
+        }
+
+        private static List<string> AdapterItems()
+        {
+            var items = new List<string>();
+
+            foreach (var adapter in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (adapter.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
+                if (adapter.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback) continue;
+
+                var ipv4 = adapter.GetIPProperties().UnicastAddresses
+                    .FirstOrDefault(a => a.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+
+                if (ipv4 != null && !string.IsNullOrWhiteSpace(ipv4.Address.ToString()))
+                    items.Add($"{adapter.Name} - {ipv4.Address}");
+            }
+
+            return items;
+        }
+
+        private void RefreshLbAdapterCombos()
+        {
+            bool wasInit = _isInitializingSettings;
+            _isInitializingSettings = true;
+            try
+            {
+                int visible = LbVisibleSlots();
+                var stored  = MainWindow.Instance.Config.LoadBalanceAdapters ?? new List<string>();
+                var all     = AdapterItems();
+
+                for (int slot = 1; slot <= LbAdapterMaxSlots; slot++)
+                {
+                    var cmb = LbCombo(slot);
+                    var row = LbRow(slot);
+                    if (cmb == null || row == null) continue;
+
+                    row.IsVisible = slot <= visible;
+                    if (slot > visible)
+                    {
+                        cmb.ItemsSource = null;
+                        continue;
+                    }
+
+                    string keep = slot <= stored.Count ? stored[slot - 1] ?? "" : "";
+
+                    var taken = new List<string>();
+                    for (int other = 1; other <= visible; other++)
+                    {
+                        if (other == slot) continue;
+                        string value = other <= stored.Count ? stored[other - 1] ?? "" : "";
+                        if (!string.IsNullOrWhiteSpace(value)) taken.Add(value);
+                    }
+
+                    var items = all.Where(a => !taken.Contains(a)).ToList();
+                    cmb.ItemsSource  = items;
+                    cmb.SelectedItem = items.Contains(keep) ? keep : null;
+                }
+
+                var add = this.FindControl<global::Avalonia.Controls.Button>("btnLbAddAdapter");
+                if (add != null) add.IsVisible = visible < LbAdapterMaxSlots;
+            }
+            finally
+            {
+                _isInitializingSettings = wasInit;
+            }
+        }
+
+        private void PruneLbAdapterConfig()
+        {
+            var list = MainWindow.Instance.Config.LoadBalanceAdapters;
+            if (list == null || list.Count == 0) return;
+
+            var available = AdapterItems();
+            bool changed  = false;
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (string.IsNullOrWhiteSpace(list[i]) || available.Contains(list[i])) continue;
+                list[i] = "";
+                changed = true;
+            }
+
+            if (changed) MainWindow.Instance.RequestConfigSave();
+        }
+
+        private void StoreLbSlot(int slot, string picked)
+        {
+            var cfg  = MainWindow.Instance.Config;
+            var list = cfg.LoadBalanceAdapters ??= new List<string>();
+
+            while (list.Count < LbVisibleSlots()) list.Add("");
+
+            if (slot < 1 || slot > list.Count) return;
+            if (list[slot - 1] == picked) return;
+
+            list[slot - 1] = picked;
+            MainWindow.Instance.RequestConfigSave();
+        }
+
+        private void btnLbScanAdapters_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e) => ScanAdapters();
+
+        private void btnLbAdapterAdd_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var cfg  = MainWindow.Instance.Config;
+            var list = cfg.LoadBalanceAdapters ??= new List<string>();
+
+            while (list.Count < LbVisibleSlots()) list.Add("");
+            if (list.Count >= LbAdapterMaxSlots) return;
+
+            list.Add("");
+            MainWindow.Instance.RequestConfigSave();
+
+            RefreshLbAdapterCombos();
+        }
+
+        private void btnLbAdapterRemove_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (sender is not global::Avalonia.Controls.Button btn || btn.Tag is not string slotText) return;
+            if (!int.TryParse(slotText, out int slot) || slot <= LbAdapterMinSlots) return;
+
+            var cfg  = MainWindow.Instance.Config;
+            var list = cfg.LoadBalanceAdapters ??= new List<string>();
+            if (slot > list.Count) return;
+
+            bool hadPick = !string.IsNullOrWhiteSpace(list[slot - 1]);
+
+            list.RemoveAt(slot - 1);
+            MainWindow.Instance.RequestConfigSave();
+
+            RefreshLbAdapterCombos();
+
+            if (hadPick && MainWindow.Instance.State.IsEngineRunning)
+                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+        }
+
+        private void cmbLbAdapter_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isInitializingSettings) return;
+            if (sender is not global::Avalonia.Controls.ComboBox cmb) return;
+
+            string name = cmb.Name ?? "";
+            if (!int.TryParse(name.Replace("cmbLbAdapter", ""), out int slot)) return;
+
+            string picked = cmb.SelectedItem as string ?? "";
+            StoreLbSlot(slot, picked);
+
+            RefreshLbAdapterCombos();
+
+            if (!string.IsNullOrWhiteSpace(picked) && MainWindow.Instance.State.IsEngineRunning)
+                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+        }
+
+        private void cmbLbPolicy_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isInitializingSettings) return;
+            if (sender is not global::Avalonia.Controls.ComboBox cmb) return;
+
+            int index = cmb.SelectedIndex;
+            if (index < 0 || index >= LbPolicyTags.Length) return;
+
+            string policy = LbPolicyTags[index];
+            if (MainWindow.Instance.Config.AdapterBalancePolicy == policy) return;
+
+            bool wasRunning = MainWindow.Instance.State.IsConnected || MainWindow.Instance.State.IsEngineRunning;
+
+            MainWindow.Instance.Config.AdapterBalancePolicy = policy;
+            MainWindow.Instance.SaveConfig();
+
+            if (wasRunning) MainWindow.Instance.SmartRestartXray();
+        }
+
+        private int AdapterPolicyIndex()
+        {
+            int index = Array.IndexOf(LbPolicyTags, MainWindow.Instance.Config.AdapterBalancePolicy ?? "");
+            return index >= 0 ? index : Math.Max(0, Array.IndexOf(LbPolicyTags, DefaultAdapterPolicy));
+        }
+
+        internal void RefreshCurrentLbPolicyLabel()
+        {
+            var lbl = this.FindControl<global::Avalonia.Controls.TextBlock>("lblCurrentLbPolicy");
+            if (lbl != null)
+                lbl.Text = CrimsonX.Localization.AppStrings.LoadBalancePolicyName(MainWindow.Instance.Config.XrayBalancePolicy);
+        }
+
+        private void ExpandLbPanel(bool open)
+        {
+            var pan       = this.FindControl<global::Avalonia.Controls.Border>("panLoadBalance");
+            var ico       = this.FindControl<global::Avalonia.Controls.PathIcon>("icoLoadBalanceExpander");
+            var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panLoadBalanceToggle");
+            var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnLoadBalanceToggle");
+            if (pan == null) return;
+
+            pan.MaxHeight = open ? 320 : 0;
+            pan.Opacity   = open ? 1 : 0;
+
+            if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(open ? 180 : 0);
+            if (panToggle != null) panToggle.CornerRadius = open ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+            if (btnToggle != null) btnToggle.CornerRadius = open ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+
+            if (open) RefreshLbAdapterCombos();
+        }
+
+        private void CollapseAdapterBindingPanel()
+        {
+            var pan = this.FindControl<global::Avalonia.Controls.Border>("panAdapterBinding");
+            var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoAdapterBindingExpander");
+            var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panAdapterBindingToggle");
+            var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnAdapterBindingToggle");
+
+            if (pan != null)
+            {
+                pan.MaxHeight = 0;
+                pan.Opacity   = 0;
+            }
+
+            if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(0);
+            if (panToggle != null) panToggle.CornerRadius = new global::Avalonia.CornerRadius(8);
+            if (btnToggle != null) btnToggle.CornerRadius = new global::Avalonia.CornerRadius(8);
+        }
+
+        private void btnLoadBalanceToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var src = e.Source as global::Avalonia.Controls.Control;
+            while (src != null)
+            {
+                if (src.Name == "togLoadBalance") return;
+                src = src.Parent as global::Avalonia.Controls.Control;
+            }
+
+            var pan = this.FindControl<global::Avalonia.Controls.Border>("panLoadBalance");
+            ExpandLbPanel(pan == null || pan.MaxHeight == 0);
+        }
+
+        private void togLoadBalance_IsCheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (_isInitializingSettings) return;
+
+            var tog = sender as global::Avalonia.Controls.ToggleSwitch;
+            if (tog == null) return;
+
+            var cfg = MainWindow.Instance.Config;
+
+            if (tog.IsChecked == true)
+            {
+                _lbResetByPage = false;
+
+                if (CrimsonX.Services.XrayConfigWriter.AdapterIps(cfg.LoadBalanceAdapters).Count < 2)
+                {
+                    _lbResetByPage = true;
+                    global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
+                    ExpandLbPanel(true);
+                    MainWindow.Instance.ShowToast(
+                        CrimsonX.Localization.AppStrings.ToastLoadBalanceNeedsTwoAdapters, ToastKind.Error);
+                    return;
+                }
+
+                if (cfg.EnableAdapterBinding)
+                {
+                    cfg.EnableAdapterBinding = false;
+                    var bindTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togAdapterBinding");
+                    if (bindTog != null) global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { bindTog.IsChecked = false; });
+                    CollapseAdapterBindingPanel();
+                }
+
+                if (!cfg.EnableLoadBalanceAdapters)
+                {
+                    cfg.EnableLoadBalanceAdapters = true;
+                    MainWindow.Instance.RequestConfigSave();
+                    if (MainWindow.Instance.State.IsEngineRunning)
+                        MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+                }
+
+            }
+            else
+            {
+                if (_lbResetByPage)
+                {
+                    _lbResetByPage = false;
+                    return;
+                }
+
+                if (cfg.EnableLoadBalanceAdapters)
+                {
+                    cfg.EnableLoadBalanceAdapters = false;
+                    MainWindow.Instance.RequestConfigSave();
+                    if (MainWindow.Instance.State.IsEngineRunning)
+                        MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+                }
+
+                ExpandLbPanel(false);
+            }
+        }
+
+        internal void SyncLbAdapterPanel()
+        {
+            var cfg = MainWindow.Instance.Config;
+
+            RefreshLbAdapterCombos();
+
+            var policy = this.FindControl<global::Avalonia.Controls.ComboBox>("cmbLbPolicy");
+            if (policy != null)
+            {
+                if (policy.ItemsSource == null)
+                    policy.ItemsSource = LbPolicyTags.Select(CrimsonX.Localization.AppStrings.LoadBalancePolicyName).ToList();
+
+                policy.SelectedIndex = AdapterPolicyIndex();
+            }
+
+            RefreshCurrentLbPolicyLabel();
+            ExpandLbPanel(false);
+        }
+
+        private void ApplyLoadBalanceLanguage()
+        {
+            bool wasInit = _isInitializingSettings;
+            _isInitializingSettings = true;
+            try
+            {
+                var title = this.FindControl<TextBlock>("lblLoadBalanceTitle");
+                CrimsonX.Localization.AppStrings.Apply(title, CrimsonX.Localization.AppStrings.LoadBalanceAdaptersTitle);
+                CrimsonX.Localization.AppStrings.ApplyToolTip(title, CrimsonX.Localization.AppStrings.TtLoadBalanceAdapters);
+
+                CrimsonX.Localization.AppStrings.Apply(this.FindControl<TextBlock>("lblLbPolicyTitle"), CrimsonX.Localization.AppStrings.LoadBalancePolicyTitle);
+                CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<Button>("btnLbAddAdapter"), CrimsonX.Localization.AppStrings.LoadBalanceAddAdapter);
+                CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<Button>("btnLbScanAdapters"), CrimsonX.Localization.AppStrings.OverlayScanAdapters);
+
+                for (int slot = 1; slot <= LbAdapterMaxSlots; slot++)
+                {
+                    CrimsonX.Localization.AppStrings.Apply(this.FindControl<TextBlock>("lblLbAdapter" + slot), CrimsonX.Localization.AppStrings.AdapterSlot(slot));
+                    CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnLbRemove" + slot), CrimsonX.Localization.AppStrings.TtLbRemoveAdapter);
+                }
+
+                var policy = this.FindControl<global::Avalonia.Controls.ComboBox>("cmbLbPolicy");
+                if (policy != null)
+                {
+                    policy.ItemsSource = LbPolicyTags.Select(CrimsonX.Localization.AppStrings.LoadBalancePolicyName).ToList();
+                    policy.SelectedIndex = AdapterPolicyIndex();
+                    CrimsonX.Localization.AppStrings.ApplyToolTip(policy, CrimsonX.Localization.AppStrings.TtAdapterBalancePolicy);
+                }
+
+                RefreshCurrentLbPolicyLabel();
+            }
+            finally
+            {
+                _isInitializingSettings = wasInit;
+            }
+        }
+
+
+
 
         // ── System DNS Save ──
 
@@ -829,12 +1280,12 @@ namespace CrimsonX.Pages
 
         if (!CrimsonX.Services.DnsService.IsValidIpv4(primary))
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsPrimary);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsPrimary, ToastKind.Error);
             return;
         }
         if (!string.IsNullOrWhiteSpace(secondary) && !CrimsonX.Services.DnsService.IsValidIpv4(secondary))
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsSecondary);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsSecondary, ToastKind.Error);
             return;
         }
 
@@ -850,6 +1301,228 @@ namespace CrimsonX.Pages
         if (MainWindow.Instance.State.IsEngineRunning)
             MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectDns);
     }
+
+        // ── Custom exit node: label, apply, validate, pool storage ──────────────────────────────
+
+        // ── Custom exit node: presentation (the shared ConfigBoxPresenter) ───────────────────
+
+        internal const string ExitNodeBoxKey = "exit-node";
+        internal const string CustomConfigSlot1Key = "custom-config-1";
+        internal const string CustomConfigSlot2Key = "custom-config-2";
+        internal const string SavedConfigImportKey = "saved-config-import";
+
+        internal static string SlotBoxKey(int slot) => slot == 2 ? CustomConfigSlot2Key : CustomConfigSlot1Key;
+
+        internal const string QuickConfigSlot1Key = "quick-custom-config-1";
+        internal const string QuickConfigSlot2Key = "quick-custom-config-2";
+
+        internal static string QuickSlotBoxKey(int slot) => slot == 2 ? QuickConfigSlot2Key : QuickConfigSlot1Key;
+
+        private ConfigBoxPresenter? _configBoxes;
+
+        internal ConfigBoxPresenter ConfigBoxes
+            => _configBoxes ??= new ConfigBoxPresenter(ReadConfigBoxRaw, WriteConfigBoxRaw, ConfigBoxTitle);
+
+        private static string ReadConfigBoxRaw(string key)
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null) return "";
+
+            return key switch
+            {
+                ExitNodeBoxKey       => cfg.V2rayChainJson ?? "",
+                CustomConfigSlot1Key => cfg.CustomConfig1 ?? "",
+                CustomConfigSlot2Key => cfg.CustomConfig2 ?? "",
+                QuickConfigSlot1Key  => cfg.CustomConfig1 ?? "",
+                QuickConfigSlot2Key  => cfg.CustomConfig2 ?? "",
+                _                    => ""
+            };
+        }
+
+        private static void WriteConfigBoxRaw(string key, string raw)
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null) return;
+
+            switch (key)
+            {
+                case ExitNodeBoxKey:       cfg.V2rayChainJson = raw; break;
+                case CustomConfigSlot1Key: cfg.CustomConfig1  = raw; break;
+                case CustomConfigSlot2Key: cfg.CustomConfig2  = raw; break;
+                case QuickConfigSlot1Key:  cfg.CustomConfig1  = raw; break;
+                case QuickConfigSlot2Key:  cfg.CustomConfig2  = raw; break;
+            }
+        }
+
+        internal static string ConfigBoxTitle(string raw)
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg != null)
+            {
+                string stored = CrimsonX.Services.AppCustomConfigStore.LabelFor(cfg, raw);
+                if (stored.Length > 0 && !string.Equals(stored, raw, StringComparison.Ordinal)) return stored;
+            }
+
+            return CrimsonX.Services.ConfigConverter.LabelFor(raw);
+        }
+
+        private void ShowExitNodeRaw(string raw) => ConfigBoxes.Show(ExitNodeBoxKey, raw);
+
+        private static void ApplyExitNodeChange() => MainWindow.Instance?.SmartRestartXray();
+
+        private void StoreExitNodeInPool(CrimsonX.Models.AppConfig cfg, string raw)
+        {
+            try
+            {
+                switch (CrimsonX.Services.AppCustomConfigStore.Store(cfg, raw, out string label))
+                {
+                    case CrimsonX.Services.CustomConfigSaveResult.Saved:
+                    case CrimsonX.Services.CustomConfigSaveResult.Updated:
+                        MainWindow.Instance?.ShowToast($"{CrimsonX.Localization.AppStrings.ToastCustomProxySaved}: {label}", ToastKind.Success);
+                        RefreshSavedConfigs();
+                        RefreshConfigCombos();
+                        break;
+
+                    case CrimsonX.Services.CustomConfigSaveResult.PoolFull:
+                        MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                CrimsonX.Services.SimpleLogger.Log(ex);
+            }
+        }
+
+        private static async Task<bool> ValidateTunnelExitNodeAsync(CrimsonX.Models.AppConfig cfg, CrimsonX.Services.TunnelParseResult tunnel)
+        {
+            if (!await CrimsonX.Services.TunnelCredentialResolver.ApplyAsync(tunnel))
+            {
+                MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelNeedsCredentials, ToastKind.Error);
+                return false;
+            }
+
+            if (!string.Equals(cfg.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase))
+                MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastExitNodeNeedsVpnMode, ToastKind.Error);
+
+            return true;
+        }
+
+        private async Task ApplyExitNodeRawAsync(string raw)
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null || string.IsNullOrWhiteSpace(raw)) return;
+
+            raw = raw.Trim();
+
+            if (CrimsonX.Services.TunnelConfigParser.TryParse(raw, out var tunnel) && tunnel.Success)
+            {
+                if (!await ValidateTunnelExitNodeAsync(cfg, tunnel))
+                {
+                    cfg.V2rayChainJson   = raw;
+                    cfg.EnableV2rayChain = false;
+
+                    var authTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
+                    if (authTog != null) authTog.IsChecked = false;
+
+                    ShowExitNodeRaw(raw);
+                    MainWindow.Instance?.RequestConfigSave();
+
+                    CrimsonX.Services.SimpleLogger.Log("[ExitNode] Saved without credentials; the exit node stays off until they are provided.");
+                    return;
+                }
+            }
+            else
+            {
+                bool singboxExit = CrimsonX.Services.ExitNodeChain.IsPlainTcpVless(raw);
+
+                var verdict = await CrimsonX.Services.ConfigIntake.AcceptAsync(
+                    raw, cfg,
+                    singboxExit ? CrimsonX.Services.ConfigTarget.Singbox : CrimsonX.Services.ConfigTarget.Xray,
+                    CrimsonX.Localization.AppStrings.PaneExitNode);
+
+                if (!verdict.Accepted)
+                {
+                    MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
+                    return;
+                }
+
+                if (verdict.Toast.Length > 0) MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
+
+                raw = verdict.Raw;
+
+                if (singboxExit)
+                    CrimsonX.Services.SimpleLogger.Log("[ExitNode] A plain-TCP vless exit node is carried by sing-box, not xray.");
+            }
+
+            cfg.V2rayChainJson   = raw;
+            cfg.EnableV2rayChain = true;
+
+            var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
+            if (tog != null) tog.IsChecked = true;
+
+            ShowExitNodeRaw(raw);
+            MainWindow.Instance?.RequestConfigSave();
+            ApplyExitNodeChange();
+        }
+
+        private void XrayExitNode_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isInitializingSettings || _suppressConfigComboSync || ConfigBoxes.Suppressed) return;
+            if (sender is not global::Avalonia.Controls.ComboBox cb || cb.SelectedIndex <= 0) return;
+
+            int index = cb.SelectedIndex - 1;
+            if (index >= _configComboEntries.Count) return;
+
+            _ = ApplyExitNodeRawAsync(_configComboEntries[index].Raw);
+        }
+
+        private async void btnXrayExitImport_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            string text = await PickConfigFileTextAsync();
+            if (text.Length > 0) await ApplyExitNodeRawAsync(text);
+        }
+
+        private bool _isPingingExitNode;
+
+        private async void btnXrayExitPing_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (_isPingingExitNode) return;
+
+            var cfg = MainWindow.Instance?.Config;
+            var btn = sender as global::Avalonia.Controls.Button;
+            string raw = (cfg?.V2rayChainJson ?? "").Trim();
+            if (cfg == null || raw.Length == 0) return;
+
+            _isPingingExitNode = true;
+            if (btn != null) btn.Content = "…";
+
+            try
+            {
+                string adapterName = cfg.EnableAdapterBinding ? cfg.SelectedAdapterName : "";
+                string adapterIp   = CrimsonX.Services.XrayConfigWriter.ProbeSendThrough(cfg);
+
+                var result = await CrimsonX.Services.CustomConfigPinger.ProbeAsync(
+                    raw, cfg, adapterName, adapterIp, CancellationToken.None);
+
+                if (btn != null)
+                {
+                    btn.Content = result.Success
+                        ? (result.Ping > 0 ? result.Ping + "ms" : "OK")
+                        : "FAIL";
+                    await Task.Delay(2200);
+                }
+            }
+            catch (Exception ex)
+            {
+                CrimsonX.Services.SimpleLogger.Log(ex);
+            }
+            finally
+            {
+                if (btn != null) btn.Content = CrimsonX.Localization.AppStrings.PingBtn;
+                _isPingingExitNode = false;
+            }
+        }
 
         // ── Custom Xray Exit Node Panel ──
 
@@ -884,17 +1557,16 @@ namespace CrimsonX.Pages
         var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnXrayExitNodeToggle");
         var pan = this.FindControl<global::Avalonia.Controls.Border>("panXrayExitNode");
         var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoXrayExitNodeExpander");
-        var txt = this.FindControl<global::Avalonia.Controls.TextBox>("txtXrayJson");
         var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
-        
-        if (pan != null && ico != null && txt != null && tog != null)
+
+        if (pan != null && ico != null && tog != null)
         {
             if (pan.MaxHeight == 0)
             {
-                txt.Text = MainWindow.Instance.Config.V2rayChainJson;
+                ShowExitNodeRaw(MainWindow.Instance.Config.V2rayChainJson);
                 tog.IsChecked = MainWindow.Instance.Config.EnableV2rayChain;
                 
-                pan.MaxHeight = 350;
+                pan.MaxHeight = 120;
                 pan.Opacity = 1;
                 
                 var transform = new global::Avalonia.Media.RotateTransform(180);
@@ -917,47 +1589,14 @@ namespace CrimsonX.Pages
         }
     }
 
-    private async void btnXrayImport_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        try
-        {
-            var topLevel = global::Avalonia.Controls.TopLevel.GetTopLevel(this);
-            if (topLevel == null) return;
-
-            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new global::Avalonia.Platform.Storage.FilePickerOpenOptions
-            {
-                Title = "Select Xray JSON File",
-                AllowMultiple = false,
-                FileTypeFilter = new[] { new global::Avalonia.Platform.Storage.FilePickerFileType("JSON Files") { Patterns = new[] { "*.json" } }, new global::Avalonia.Platform.Storage.FilePickerFileType("All Files") { Patterns = new[] { "*.*" } } }
-            });
-
-            if (files != null && files.Count > 0)
-            {
-                var file = files[0];
-                var path = file.Path.LocalPath;
-                if (System.IO.File.Exists(path))
-                {
-                    var txt = this.FindControl<global::Avalonia.Controls.TextBox>("txtXrayJson");
-                    if (txt != null)
-                        txt.Text = System.IO.File.ReadAllText(path);
-                }
-            }
-        }
-        catch
-        {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastFailedImport);
-        }
-    }
-
     private async void btnXraySave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var txt = this.FindControl<global::Avalonia.Controls.TextBox>("txtXrayJson");
         var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
-        
-        if (txt != null && tog != null)
+
+        if (MainWindow.Instance.Config != null && tog != null)
         {
-            var text = txt.Text ?? "";
-            bool enable = tog.IsChecked ?? false;
+            var text = (MainWindow.Instance.Config.V2rayChainJson ?? "").Trim();
+            bool enable = true;
             
             if (string.IsNullOrWhiteSpace(text))
             {
@@ -969,87 +1608,56 @@ namespace CrimsonX.Pages
                 return;
             }
             
-            try
+            if (CrimsonX.Services.TunnelConfigParser.TryParse(text, out var exitTunnel) && exitTunnel.Success)
             {
-                var parsed = Newtonsoft.Json.Linq.JObject.Parse(text);
-                Newtonsoft.Json.Linq.JToken? testNode = parsed["outbounds"] is Newtonsoft.Json.Linq.JArray arr ? arr.FirstOrDefault() : parsed;
-                if (testNode?["protocol"] == null)
-                    throw new Exception("Missing 'protocol' field.");
-                
-                var settings = testNode["settings"];
-                if (settings != null)
+                if (await ValidateTunnelExitNodeAsync(MainWindow.Instance.Config, exitTunnel))
                 {
-                    var flows = settings.SelectTokens("..flow").ToList();
-                    foreach (var flow in flows)
-                    {
-                        if (flow.ToString().Contains("vision"))
-                        {
-                            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.XtlsVisionNotSupported);
-                            return;
-                        }
-                    }
-                }
-                
-                string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString() + ".json");
-                try
-                {
-                    System.IO.File.WriteAllText(tempFile, text);
-                    
-                    string xrayExe = System.IO.Path.Combine(MainWindow.Instance.Config.BaseDir, "Data", "xray", "xray.exe");
-                    if (System.IO.File.Exists(xrayExe))
-                    {
-                        var psi = new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = xrayExe,
-                            Arguments = $"-test -config \"{tempFile}\"",
-                            RedirectStandardOutput = true,
-                            RedirectStandardError = true,
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        };
-                        
-                        using (var proc = System.Diagnostics.Process.Start(psi))
-                        {
-                            if (proc != null)
-                            {
-                                var outTask = proc.StandardOutput.ReadToEndAsync();
-                                var errTask = proc.StandardError.ReadToEndAsync();
-                                await proc.WaitForExitAsync();
-                                if (proc.ExitCode != 0)
-                                {
-                                    string err = await errTask;
-                                    string outStr = await outTask;
-                                    string msg = string.IsNullOrWhiteSpace(err) ? outStr : err;
-                                    var lines = msg.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                                    msg = string.Join(" ", lines.Where(l => !l.Contains("Xray, Penetrates Everything") && !l.Contains("unified platform")));
-                                    msg = msg.Trim();
-                                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastXrayRejected + msg.Substring(0, System.Math.Min(msg.Length, 150)));
-                                    return;
-                                }
-                            }
-                        }
-                    }
-                }
-                finally
-                {
-                    try { if (System.IO.File.Exists(tempFile)) System.IO.File.Delete(tempFile); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
+                    MainWindow.Instance.Config.V2rayChainJson   = text;
+                    MainWindow.Instance.Config.EnableV2rayChain = true;
+                    if (tog != null) tog.IsChecked = true;
+
+                    CrimsonX.Services.ConfigService.Save(MainWindow.Instance.Config, MainWindow.Instance.State, MainWindow.Instance.Config.CfgFile);
+
+                    StoreExitNodeInPool(MainWindow.Instance.Config, text);
+                    ShowExitNodeRaw(text);
                 }
 
-                MainWindow.Instance.Config.V2rayChainJson = text.Trim();
+                btnXrayCancel_Click(sender, e);
+                return;
+            }
+
+            try
+            {
+                if (!CrimsonX.Services.ConfigConverter.TryXrayOutbound(text, out _, out _, out string resolveError))
+                {
+                    MainWindow.Instance.ShowToast(resolveError.Length > 0 ? resolveError : CrimsonX.Localization.AppStrings.ToastConfigUnreadable, ToastKind.Error);
+                    return;
+                }
+
+                string xrayError = await CrimsonX.Services.XrayConfigValidator.CheckAsync(MainWindow.Instance.Config, text);
+                if (xrayError.Length > 0)
+                {
+                    string shortError = CrimsonX.Services.ConfigValidator.ShortReason(xrayError);
+                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastXrayRejected + shortError, ToastKind.Error);
+                    return;
+                }
+
+                MainWindow.Instance.Config.V2rayChainJson = text;
                 MainWindow.Instance.Config.EnableV2rayChain = true;
+                StoreExitNodeInPool(MainWindow.Instance.Config, text);
+                ShowExitNodeRaw(text);
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     tog.IsChecked = true;
                 });
                 
                 CrimsonX.Services.ConfigService.Save(MainWindow.Instance.Config, MainWindow.Instance.State, MainWindow.Instance.Config.CfgFile);
-                if (MainWindow.Instance.State.IsEngineRunning) MainWindow.Instance.SmartRestartXray();
                 
                 btnXrayCancel_Click(sender, e);
             }
             catch (Exception ex)
             {
                 CrimsonX.Services.SimpleLogger.Log(ex);
-                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidJson + " " + ex.Message);
+                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastXrayRejected + " " + ex.Message, ToastKind.Error);
             }
         }
     }
@@ -1068,6 +1676,12 @@ namespace CrimsonX.Pages
             MainWindow.Instance.Config.StartupTab = newVal;
             MainWindow.Instance.SaveConfig();
         }
+    }
+
+    public void SetAdBlockToggle(bool enabled)
+    {
+        var toggle = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("btnAdBlockTog");
+        if (toggle != null && toggle.IsChecked != enabled) toggle.IsChecked = enabled;
     }
 
     private async void SettingTog_CheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -1092,7 +1706,7 @@ namespace CrimsonX.Pages
                 } catch (System.Exception ex) {
                     MainWindow.Instance.Config.LaunchOnBoot = false;
                     tog.IsChecked = false;
-                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastTaskFailed + ex.Message);
+                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastTaskFailed + ex.Message, ToastKind.Error);
                 }
                 break;
             case "btnAutoTog":
@@ -1105,8 +1719,7 @@ namespace CrimsonX.Pages
                 MainWindow.Instance.Config.MinimizeToTray = val;
                 break;
             case "btnAdBlockTog":
-                MainWindow.Instance.Config.EnableAdBlock = val;
-                if (MainWindow.Instance.State.IsEngineRunning) MainWindow.Instance.SmartRestartXray();
+                MainWindow.Instance.SetAdBlock(val);
                 break;
             case "btnLanTog":
                 MainWindow.Instance.Config.AllowLanConnections = val;
@@ -1163,11 +1776,11 @@ namespace CrimsonX.Pages
             sc.WorkingDirectory = MainWindow.Instance.Config.BaseDir;
             sc.Save();
 
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastShortcutCreated, success: true);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastShortcutCreated, kind: ToastKind.Success);
         }
         catch
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastShortcutFailed);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastShortcutFailed, ToastKind.Error);
         }
     }
 
@@ -1181,11 +1794,11 @@ namespace CrimsonX.Pages
             if (System.IO.File.Exists(cachePath))
                 System.IO.File.Delete(cachePath);
 
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheCleared, success: true);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheCleared, kind: ToastKind.Success);
         }
         catch
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheClearFailed);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheClearFailed, ToastKind.Error);
         }
     }
 
@@ -1202,11 +1815,11 @@ namespace CrimsonX.Pages
                 }
             }
 
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheCleared, success: true);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheCleared, kind: ToastKind.Success);
         }
         catch
         {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheClearFailed);
+            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastCacheClearFailed, ToastKind.Error);
         }
     }
 
@@ -1221,6 +1834,15 @@ namespace CrimsonX.Pages
         {
             if (tog.IsChecked == true)
             {
+                if (MainWindow.Instance.Config.EnableLoadBalanceAdapters)
+                {
+                    MainWindow.Instance.Config.EnableLoadBalanceAdapters = false;
+                    var lbTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togLoadBalance");
+                    if (lbTog != null) global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { lbTog.IsChecked = false; });
+                    ExpandLbPanel(false);
+                    MainWindow.Instance.RequestConfigSave();
+                }
+
                 if (string.IsNullOrWhiteSpace(MainWindow.Instance.Config.SelectedAdapterIp))
                 {
                     global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
@@ -1368,13 +1990,13 @@ namespace CrimsonX.Pages
             {
                 if (!CrimsonX.Services.DnsService.IsValidIpv4(livePrimary))
                 {
-                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsPrimary);
+                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsPrimary, ToastKind.Error);
                     global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
                     return;
                 }
                 if (!string.IsNullOrWhiteSpace(liveSecondary) && !CrimsonX.Services.DnsService.IsValidIpv4(liveSecondary))
                 {
-                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsSecondary);
+                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastInvalidDnsSecondary, ToastKind.Error);
                     global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
                     return;
                 }
@@ -1451,22 +2073,6 @@ namespace CrimsonX.Pages
                     if (MainWindow.Instance.State.IsEngineRunning) MainWindow.Instance.SmartRestartXray();
                 }
             }
-        }
-    }
-
-    private void txtXrayJson_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
-    {
-        var txt = sender as global::Avalonia.Controls.TextBox;
-        if (txt == null || string.IsNullOrWhiteSpace(txt.Text)) return;
-
-        string text = txt.Text.Trim();
-        
-
-
-        if (CrimsonX.Services.XrayLinkParser.TryParseLink(text, out string json))
-        {
-            txt.Text = json;
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastLinkConverted, success: true);
         }
     }
 
@@ -1598,21 +2204,11 @@ namespace CrimsonX.Pages
     {
         if (sender is Button btn && btn.Tag is string policy)
         {
-            string displayName = policy switch
-            {
-                "leastload"  => "LEAST LOAD",
-                "roundrobin" => "ROUND ROBIN",
-                "leastping"  => "LEAST PING",
-                "random"     => "RANDOM",
-                _            => policy.ToUpperInvariant()
-            };
-
-            var lbl = this.FindControl<TextBlock>("lblCurrentLbPolicy");
-            if (lbl != null) lbl.Text = displayName;
-
             bool wasConnected = MainWindow.Instance.State.IsConnected || MainWindow.Instance.State.IsEngineRunning;
             MainWindow.Instance.Config.XrayBalancePolicy = policy;
             MainWindow.Instance.SaveConfig();
+            RefreshCurrentLbPolicyLabel();
+
 
             if (wasConnected)
                 MainWindow.Instance.SmartRestartXray();

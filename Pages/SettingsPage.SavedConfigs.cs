@@ -98,9 +98,13 @@ namespace CrimsonX.Pages
             set { _pingBrush = value; Raise(nameof(PingBrush)); }
         }
 
-        public void SetPing(long ping)
+        public void SetPing(long ping, bool isTcp = false)
         {
-            PingText = ping > 0 ? $"{ping} ms" : "-";
+            string number = isTcp
+                ? CrimsonX.Localization.AppStrings.TcpPingPrefix + ping + "ms"
+                : $"{ping} ms";
+
+            PingText = ping > 0 ? number : "-";
             PingBrush = ping <= 0 ? MutedBrush : ping <= 120 ? GoodBrush : ping <= 250 ? WeakBrush : BadBrush;
         }
 
@@ -114,24 +118,7 @@ namespace CrimsonX.Pages
         private bool _isSavedConfigPinging;
         private Control? _pressedSavedRow;
 
-        private void SyncCustomConfigsToSavedList()
-        {
-            var cfg = MainWindow.Instance?.Config;
-            if (cfg == null) return;
-
-            bool changed = false;
-            foreach (var raw in new[] { cfg.CustomConfig1, cfg.CustomConfig2 })
-            {
-                if (string.IsNullOrWhiteSpace(raw)) continue;
-
-                var result = AppCustomConfigStore.Store(cfg, raw.Trim(), out _);
-                if (result == CustomConfigSaveResult.Saved || result == CustomConfigSaveResult.Updated) changed = true;
-            }
-
-            if (changed) RefreshSavedConfigs();
-        }
-
-        private static readonly string[] ConfigComboNames = new[] { "cbCustomConfig1", "cbCustomConfig2" };
+        private static readonly string[] ConfigComboNames = new[] { "cbCustomConfig1", "cbCustomConfig2", "cbXrayExitNode" };
 
         private List<AppCustomConfigEntry> _configComboEntries = new();
         private bool _suppressConfigComboSync;
@@ -163,6 +150,11 @@ namespace CrimsonX.Pages
             {
                 _suppressConfigComboSync = wasSuppressed;
             }
+
+            AttachCustomConfigInput();
+            ApplyCustomConfigTitles();
+
+            ShowQuickSettingsConfigs();
         }
 
         private void CustomConfigSaved_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -171,37 +163,67 @@ namespace CrimsonX.Pages
             if (sender is not ComboBox cb || cb.SelectedIndex < 0) return;
 
             int index = cb.SelectedIndex;
+            var cfg = MainWindow.Instance?.Config;
 
             bool usable = true;
-            string text = "";
+            string raw = "";
+            string reason = "";
+            int slot = cb.Name != null && cb.Name.EndsWith("2", StringComparison.Ordinal) ? 2 : 1;
 
             if (index > 0 && index - 1 < _configComboEntries.Count)
             {
                 var entry = _configComboEntries[index - 1];
 
-                usable = XrayLinkParser.TryParseCustomConfig(entry.Raw, out var normalized)
-                         && normalized.Contains("\"protocol\"");
+                usable = ConfigConverter.TryAcceptFor(entry.Raw, ConfigTarget.Xray, out reason);
 
-                if (usable)
-                {
-                    text = XrayLinkParser.TryBuildShareLink(entry.Raw, out var link, entry.Label) && !string.IsNullOrWhiteSpace(link)
-                        ? link
-                        : entry.Raw;
-                }
+                if (usable) raw = entry.Raw.Trim();
             }
 
             _suppressConfigComboSync = true;
             try
             {
                 cb.SelectedIndex = -1;
-                if (usable) cb.Text = text;
+
+                if (usable)
+                {
+                    SetConfigRaw(cfg, slot, raw);
+                    cb.Text = AppCustomConfigStore.LabelFor(cfg, raw);
+                    MainWindow.Instance?.RequestConfigSave();
+                }
             }
             finally
             {
                 _suppressConfigComboSync = false;
             }
 
-            if (!usable) MainWindow.Instance?.ShowToast(AppStrings.ToastSavedConfigNotUsable);
+            if (!usable)
+            {
+                MainWindow.Instance?.ShowToast(AppStrings.ToastConfigNotForXray + reason, ToastKind.Error);
+                return;
+            }
+
+            _ = ValidateSlotAfterPickAsync(slot, raw);
+        }
+
+        private async Task ValidateSlotAfterPickAsync(int slot, string raw)
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null || raw.Length == 0) return;
+
+            // OpenVPN / WireGuard are dialed by sing-box
+            if (ConfigConverter.TryTunnel(raw, out _, out _)) return;
+
+            string xrayError = await XrayConfigValidator.CheckAsync(cfg, raw);
+            if (xrayError.Length == 0) return;
+
+            string shortError = ConfigValidator.ShortReason(xrayError);
+            MainWindow.Instance?.ShowToast(AppStrings.ToastXrayRejected + shortError, ToastKind.Error);
+
+            SetConfigRaw(cfg, slot, "");
+            var cb = this.FindControl<ComboBox>(ConfigComboName(slot));
+            if (cb != null) cb.Text = "";
+
+            ConfigBoxes.Show(QuickSlotBoxKey(slot), "");
         }
 
         internal void ApplySavedConfigsLanguage()
@@ -209,7 +231,17 @@ namespace CrimsonX.Pages
             AppStrings.Apply(this.FindControl<TextBlock>("lblSavedConfigsTitle"), AppStrings.SavedConfigsTitle);
             AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblSavedConfigsTitle"), AppStrings.TtSavedConfigs);
             AppStrings.ApplyToolTip(this.FindControl<Button>("btnSavedConfigAdd"), AppStrings.TtSavedConfigsAdd);
+            AppStrings.ApplyBtn(this.FindControl<Button>("btnSavedConfigAdd"), AppStrings.Save);
             AppStrings.Apply(this.FindControl<TextBlock>("lblSavedEmpty"), AppStrings.SavedConfigsEmpty);
+
+            var browse = this.FindControl<Button>("btnSavedConfigBrowse");
+            if (browse != null) AppStrings.ApplyToolTip(browse, AppStrings.ImportConfigTooltip);
+
+            foreach (var name in new[] { "btnCustomConfigImport1", "btnCustomConfigImport2" })
+            {
+                var add = this.FindControl<Button>(name);
+                if (add != null) AppStrings.ApplyToolTip(add, AppStrings.ImportConfigTooltip);
+            }
 
             var box = this.FindControl<TextBox>("txtSavedConfigImport");
             if (box != null) box.PlaceholderText = AppStrings.SavedConfigsImportPlaceholder;
@@ -286,6 +318,31 @@ namespace CrimsonX.Pages
             if (pan != null) SetSavedConfigsExpanded(pan.MaxHeight == 0);
         }
 
+        private void StoreSavedConfigRaw(string raw)
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null || string.IsNullOrWhiteSpace(raw)) return;
+
+            switch (AppCustomConfigStore.Store(cfg, raw.Trim(), out var label))
+            {
+                case CustomConfigSaveResult.Saved:
+                case CustomConfigSaveResult.Updated:
+                    MainWindow.Instance?.ShowToast($"{AppStrings.ToastCustomProxySaved}: {label}", ToastKind.Success);
+                    RefreshSavedConfigs();
+                    RefreshConfigCombos();
+                    break;
+
+                case CustomConfigSaveResult.PoolFull:
+                    MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
+                    RefreshSavedConfigs();
+                    break;
+
+                default:
+                    MainWindow.Instance?.ShowToast(AppStrings.ToastConfigUnreadable, ToastKind.Error);
+                    break;
+            }
+        }
+
         private void SavedConfigAdd_Click(object? sender, RoutedEventArgs e)
         {
             var box = this.FindControl<TextBox>("txtSavedConfigImport");
@@ -298,7 +355,7 @@ namespace CrimsonX.Pages
                 string raw = box?.Text?.Trim() ?? "";
                 if (raw.Length == 0)
                 {
-                    MainWindow.Instance?.ShowToast(AppStrings.CustomProxyEmpty);
+                    MainWindow.Instance?.ShowToast(AppStrings.CustomProxyEmpty, ToastKind.Error);
                     box?.Focus();
                     return;
                 }
@@ -307,17 +364,17 @@ namespace CrimsonX.Pages
                 {
                     case CustomConfigSaveResult.Saved:
                     case CustomConfigSaveResult.Updated:
-                        MainWindow.Instance?.ShowToast($"{AppStrings.ToastCustomProxySaved}: {label}", true);
+                        MainWindow.Instance?.ShowToast($"{AppStrings.ToastCustomProxySaved}: {label}", ToastKind.Success);
                         if (box != null) box.Text = "";
                         RefreshSavedConfigs();
                         break;
 
                     case CustomConfigSaveResult.PoolFull:
-                        MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyPoolFull);
+                        MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
                         break;
 
                     default:
-                        MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyInvalid);
+                        MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyInvalid, ToastKind.Error);
                         break;
                 }
 
@@ -345,22 +402,23 @@ namespace CrimsonX.Pages
             try
             {
                 using var cts = new CancellationTokenSource(15000);
-                var res = await SingboxConfigTester.TestAsync(item.Raw, cfg, cfg.UdpScanAdapterName, cfg.UdpScanAdapterIp, cts.Token);
+                var res = await CustomConfigPinger.ProbeAsync(item.Raw, cfg, cfg.UdpScanAdapterName, cfg.UdpScanAdapterIp, cts.Token);
 
-                long ping = res != null && res.Success ? res.Ping : -1;
-                bool timedOut = res != null && !res.Success && res.TimedOut;
+                bool measured = res != null && res.Measured;
+                long ping = measured ? res.Ping : -1;
+                bool timedOut = !measured && res != null && res.TimedOut;
 
-                item.SetPing(ping);
+                item.SetPing(ping, res != null && res.IsTcpPing);
 
-                string msg = ping != -1 ? $"{item.Label}: {ping}ms"
+                string msg = measured ? res.Text(item.Label)
                            : timedOut ? AppStrings.CustomProxyNoResponse
-                           : AppStrings.InvalidConfig;
-                MainWindow.Instance?.ShowToast(msg, ping != -1);
+                           : AppStrings.InvalidConfig + ReasonOf(res);
+                MainWindow.Instance?.ShowToast(msg, measured ? ToastKind.Success : ToastKind.Error);
             }
             catch (Exception ex)
             {
                 SimpleLogger.Log(ex);
-                MainWindow.Instance?.ShowToast(AppStrings.InvalidConfig);
+                MainWindow.Instance?.ShowToast(AppStrings.InvalidConfig, ToastKind.Error);
             }
             finally
             {
@@ -388,12 +446,13 @@ namespace CrimsonX.Pages
 
                 if (AppCustomConfigStore.Delete(cfg, item.Raw) > 0)
                 {
-                    MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyDeleted, true);
+                    ClearSlotsForDeletedConfig(item.Raw);
+                    MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyDeleted, ToastKind.Success);
                     RefreshSavedConfigs();
                 }
                 else
                 {
-                    MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyNotSaved);
+                    MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyNotSaved, ToastKind.Error);
                 }
             }
             catch (Exception ex)
@@ -504,6 +563,8 @@ namespace CrimsonX.Pages
                 AppCustomConfigStore.Save(entries);
 
                 item.Label = name;
+
+                RefreshConfigCombos();
             }
             catch (Exception ex)
             {
@@ -530,7 +591,7 @@ namespace CrimsonX.Pages
                 return;
             }
 
-            MainWindow.Instance?.ShowToast(AppStrings.ToastCopiedToClipboard, true);
+            MainWindow.Instance?.ShowToast(AppStrings.ToastCopiedToClipboard, ToastKind.Success);
         }
     }
 }

@@ -20,26 +20,21 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:behaviors="clr-namespace:CrimsonX.Behaviors"
              mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="600"
              x:Class="CrimsonX.Pages.AboutPage">
 
     <Grid>
-        <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden">
-        <ScrollViewer.OpacityMask>
-            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,18%">
-                <GradientStop Offset="0" Color="Transparent"/>
-                <GradientStop Offset="0.5" Color="#80FFFFFF"/>
-                <GradientStop Offset="1" Color="White"/>
-            </LinearGradientBrush>
-        </ScrollViewer.OpacityMask>
+        <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden"
+                      behaviors:ScrollScrimBehavior.IsEnabled="True">
             <Panel MinHeight="{Binding #Scroller.Bounds.Height}">
-                <Border Background="Transparent" BorderThickness="0" Padding="6,15,6,7" Margin="0,50,20,20" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                <Border x:Name="aboutContentCard" Background="Transparent" BorderThickness="0" Padding="6,5,6,7" Margin="0,0,10,20" HorizontalAlignment="Stretch" VerticalAlignment="Center">
                     <StackPanel Spacing="6">
                 
                 <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
                     <Grid ColumnDefinitions="Auto, *, Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
-                            <Image Source="avares://CrimsonX/Assets/CrimsonX-gray.png" Width="40" Height="40" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                            <Image Source="avares://CrimsonX/Assets/CrimsonX.ico" Width="40" Height="40" RenderOptions.BitmapInterpolationMode="HighQuality"/>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="CrimsonX" FontSize="20" FontWeight="Bold" Foreground="#E2E8F0"/>
                                 <TextBlock x:Name="lblAboutCreator" Text="Creator: @RichTitan" FontSize="12" FontWeight="SemiBold" Foreground="#8B949E" Margin="0,2,0,0"/>

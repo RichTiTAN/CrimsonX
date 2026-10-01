@@ -55,9 +55,7 @@ namespace CrimsonX.Controls
 
         private const int TipMaxRows = 6;
 
-        private readonly TextBlock _txtState = null!;
         private readonly TextBlock _txtIdle = null!;
-        private readonly TextBlock _txtSep1 = null!;
         private readonly TextBlock _txtActive = null!;
         private readonly TextBlock _txtActiveWord = null!;
         private readonly TextBlock _txtTimer = null!;
@@ -111,9 +109,7 @@ namespace CrimsonX.Controls
         {
             InitializeComponent();
 
-            _txtState      = this.FindControl<TextBlock>("txtState")!;
             _txtIdle       = this.FindControl<TextBlock>("txtIdle")!;
-            _txtSep1       = this.FindControl<TextBlock>("txtSep1")!;
             _txtActive     = this.FindControl<TextBlock>("txtActive")!;
             _txtActiveWord = this.FindControl<TextBlock>("txtActiveWord")!;
             _txtTimer      = this.FindControl<TextBlock>("txtTimer")!;
@@ -370,14 +366,12 @@ namespace CrimsonX.Controls
                 _ => AppStrings.StatusNotConnected
             };
 
-            _txtState.Text = stateText;
-            _txtIdle.Text  = stateText;
+            _txtIdle.Text = stateText;
 
             _txtActiveWord.Text = AppStrings.OverlayStatsActive;
             _txtMode.Text       = AppStrings.OverlayStatsProxyMode;
 
             var label = _persian ? PersianFont : FontFamily.Default;
-            _txtState.FontFamily      = label;
             _txtIdle.FontFamily       = label;
             _txtActiveWord.FontFamily = label;
             _txtMode.FontFamily       = label;
@@ -443,14 +437,10 @@ namespace CrimsonX.Controls
             bool connected   = _visualState == 2;
             bool showNumbers = connected;
 
-            bool showStateWord = !connected || !_compact;
-
             _panIdle.IsVisible  = !connected;
             _txtTimer.IsVisible = showNumbers;
 
             _dotState.IsVisible      = connected;
-            _txtState.IsVisible      = connected && showStateWord;
-            _txtSep1.IsVisible       = showNumbers && showStateWord;
             _txtActive.IsVisible     = showNumbers;
             _txtActiveWord.IsVisible = showNumbers;
 

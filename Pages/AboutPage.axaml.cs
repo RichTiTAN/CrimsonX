@@ -97,7 +97,7 @@ public partial class AboutPage : UserControl
             if (clipboard != null)
             {
                 await clipboard.SetTextAsync(address);
-                MainWindow.Instance.ShowToast(Localization.AppStrings.ToastAddressCopied, success: true);
+                MainWindow.Instance.ShowToast(Localization.AppStrings.ToastAddressCopied, kind: ToastKind.Success);
             }
         }
         }
@@ -118,6 +118,27 @@ public partial class AboutPage : UserControl
     {
         var btnCheckUpdate = this.FindControl<Button>("btnCheckUpdate");
         if (btnCheckUpdate != null) btnCheckUpdate.Content = status;
+    }
+
+    // ── The pinned readout bar ──
+
+    private Avalonia.Thickness? _aboutCardMargin;
+
+    internal void SetReadoutInset(double barHeight)
+    {
+        var card = this.FindControl<Border>("aboutContentCard");
+        if (card != null)
+        {
+            _aboutCardMargin ??= card.Margin;
+            var margin = _aboutCardMargin.Value;
+
+            card.Margin = barHeight > 0
+                ? new Avalonia.Thickness(margin.Left, margin.Top + barHeight, margin.Right, margin.Bottom)
+                : margin;
+        }
+
+        var scroller = this.FindControl<ScrollViewer>("Scroller");
+        if (scroller != null) CrimsonX.Behaviors.ScrollScrimBehavior.SetTopInset(scroller, barHeight > 0 ? barHeight : 0);
     }
 
     // ── Localized Text Refresh ──

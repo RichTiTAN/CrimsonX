@@ -48,6 +48,9 @@ namespace CrimsonX.Controls
         public void AddSample(bool ok, long ping)
         {
             _samples.Add((ok, ping));
+
+            while (_samples.Count > Slots) _samples.RemoveAt(0);
+
             InvalidateVisual();
         }
 

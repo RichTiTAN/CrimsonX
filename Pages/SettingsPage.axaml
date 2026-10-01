@@ -20,6 +20,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:behaviors="clr-namespace:CrimsonX.Behaviors"
              xmlns:pages="clr-namespace:CrimsonX.Pages"
              xmlns:loc="clr-namespace:CrimsonX.Localization"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
@@ -109,6 +110,19 @@
             <Setter Property="Height" Value="20"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
+        <Style Selector="Button.plusBtn PathIcon">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#A0AEC0"/>
+        </Style>
+        <Style Selector="Button.plusBtn:pointerover PathIcon">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="ComboBox.customProxy">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
         <Style Selector="ComboBox.customProxy /template/ TextBox">
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
@@ -152,21 +166,15 @@
     <Grid>
                             <Carousel x:Name="settingsCarousel" SelectedIndex="0">
                                 <Carousel.PageTransition>
-                                    <PageSlide Duration="0:0:0.3" Orientation="Horizontal"/>
+                                    <CrossFade Duration="0:0:0.25" FadeInEasing="CubicEaseOut" FadeOutEasing="CubicEaseIn"/>
                                 </Carousel.PageTransition>
 
-                            <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Margin="0,0,0,0" BringIntoViewOnFocusChange="False">
-        <ScrollViewer.OpacityMask>
-            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,18%">
-                <GradientStop Offset="0" Color="Transparent"/>
-                <GradientStop Offset="0.5" Color="#80FFFFFF"/>
-                <GradientStop Offset="1" Color="White"/>
-            </LinearGradientBrush>
-        </ScrollViewer.OpacityMask>
+                            <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto" Margin="0,0,0,0" BringIntoViewOnFocusChange="False"
+                                          behaviors:ScrollScrimBehavior.IsEnabled="True">
                                 <Panel MinHeight="{Binding #Scroller.Bounds.Height}">
-                                    <Border Background="Transparent" BorderThickness="0" Padding="6,8,6,7" Margin="0,50,20,20" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+                                    <Border Background="Transparent" BorderThickness="0" Padding="6,5,6,7" Margin="0,0,10,20" HorizontalAlignment="Stretch" VerticalAlignment="Top">
                                         <StackPanel Spacing="6">
-                                    <TextBlock x:Name="lblSectionStartup" Text="START-UP" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Center"/>
+                                    <TextBlock x:Name="lblSectionStartup" Text="START-UP" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Left"/>
                                     <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0">
                                         <Grid x:Name="panStartupTab" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -218,24 +226,12 @@
                                         </Border>
                                     </Grid>
                                     
-                                    <TextBlock x:Name="lblSectionConnection" Text="CONNECTION" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                                    <TextBlock x:Name="lblSectionConnection" Text="CONNECTION" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Left" Margin="0,12,0,0"/>
                                     <StackPanel Spacing="8">
                                         
-                                        <!-- UDP SCANNER (slides the scanner page in) -->
-                                        <Border x:Name="panUdpScanner" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0" Margin="0">
-                                            <Button x:Name="btnUdpScannerOpen" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnUdpScannerOpen_Click">
-                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
-                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                                        <PathIcon Data="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z" Width="14" Height="14" Foreground="#8B949E"/>
-                                                        <Border x:Name="panUdpScannerLabel" Background="Transparent" Padding="0">
-                                                            <TextBlock x:Name="lblUdpScanner" Classes="settingTitle" Text="UDP SCANNER" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
-                                                        </Border>
-                                                    </StackPanel>
-                                                    <PathIcon Grid.Column="2" Data="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"
-                                                              Width="14" Height="14" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                                </Grid>
-                                            </Button>
-                                        </Border>
+
+                                        <!-- The UDP SCANNER row used to sit here. It is a rail tile now, between
+                                             the blocker and Apps & Games. -->
 
                                         
 
@@ -271,10 +267,31 @@
                                                 <StackPanel Margin="15,15,15,15" Spacing="10">
                                                     <Grid ColumnDefinitions="*,10,*">
                                                           <!-- Config 1 -->
-                                                          <Grid Grid.Column="0" ColumnDefinitions="*,Auto" MinHeight="26">
-                                                              <ComboBox x:Name="cbCustomConfig1" Grid.Column="0" Classes="customProxy" IsEditable="True" SelectedIndex="-1" MinHeight="26" Height="26" PlaceholderText="Config 1 (vless://, etc.)" Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" Padding="8,5,28,3" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0" SelectionChanged="CustomConfigSaved_SelectionChanged"/>
-                                                              <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="55" MinHeight="26">
-                                                                  <Button x:Name="btnCustomConfigsPing1" Click="btnCustomConfigsPing1_Click" Content="{x:Static loc:AppStrings.PingBtn}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
+                                                          <Grid Grid.Column="0" ColumnDefinitions="*,Auto,Auto,Auto" MinHeight="26">
+                                                              <ComboBox x:Name="cbCustomConfig1" Grid.Column="0" Classes="customProxy" IsEditable="True" SelectedIndex="-1" MinHeight="26" Height="26" PlaceholderText="Config 1 — paste or + file" Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" Padding="8,5,4,3" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0" SelectionChanged="CustomConfigSaved_SelectionChanged"/>
+                                                              <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="26" MinHeight="26">
+                                                                  <Button x:Name="btnCustomConfigImport1" Classes="plusBtn" Click="btnCustomConfigImport1_Click" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0" ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}">
+                                                                      <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                                                                      <Button.Styles>
+                                                                          <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                              <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                              <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                          </Style>
+                                                                      </Button.Styles>
+                                                                  </Button>
+                                                              </Border>
+                                                              <Border Grid.Column="2" Background="#0A0C0F" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="46" MinHeight="26">
+                                                                  <Button x:Name="btnCustomConfigsPing1" Click="btnCustomConfigsPing1_Click" Content="{x:Static loc:AppStrings.PingBtn}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
+                                                                      <Button.Styles>
+                                                                          <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                              <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                              <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                          </Style>
+                                                                      </Button.Styles>
+                                                                  </Button>
+                                                              </Border>
+                                                              <Border Grid.Column="3" Background="#0A0C0F" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="46" MinHeight="26">
+                                                                  <Button x:Name="btnCustomConfigsSave1" Click="btnCustomConfigsSave1_Click" Content="{x:Static loc:AppStrings.Save}" ToolTip.Tip="{x:Static loc:AppStrings.SaveToPoolTooltip}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
                                                                       <Button.Styles>
                                                                           <Style Selector="Button:pointerover /template/ ContentPresenter">
                                                                               <Setter Property="Background" Value="#2AFFFFFF"/>
@@ -286,10 +303,31 @@
                                                           </Grid>
                                                           
                                                           <!-- Config 2 -->
-                                                          <Grid Grid.Column="2" ColumnDefinitions="*,Auto" MinHeight="26">
-                                                              <ComboBox x:Name="cbCustomConfig2" Grid.Column="0" Classes="customProxy" IsEditable="True" SelectedIndex="-1" MinHeight="26" Height="26" PlaceholderText="Config 2 (vmess://, etc.)" Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" Padding="8,5,28,3" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0" SelectionChanged="CustomConfigSaved_SelectionChanged"/>
-                                                              <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="55" MinHeight="26">
-                                                                  <Button x:Name="btnCustomConfigsPing2" Click="btnCustomConfigsPing2_Click" Content="{x:Static loc:AppStrings.PingBtn}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
+                                                          <Grid Grid.Column="2" ColumnDefinitions="*,Auto,Auto,Auto" MinHeight="26">
+                                                              <ComboBox x:Name="cbCustomConfig2" Grid.Column="0" Classes="customProxy" IsEditable="True" SelectedIndex="-1" MinHeight="26" Height="26" PlaceholderText="Config 2 — paste or + file" Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" Padding="8,5,4,3" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0" SelectionChanged="CustomConfigSaved_SelectionChanged"/>
+                                                              <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="26" MinHeight="26">
+                                                                  <Button x:Name="btnCustomConfigImport2" Classes="plusBtn" Click="btnCustomConfigImport2_Click" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0" ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}">
+                                                                      <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                                                                      <Button.Styles>
+                                                                          <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                              <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                              <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                          </Style>
+                                                                      </Button.Styles>
+                                                                  </Button>
+                                                              </Border>
+                                                              <Border Grid.Column="2" Background="#0A0C0F" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="46" MinHeight="26">
+                                                                  <Button x:Name="btnCustomConfigsPing2" Click="btnCustomConfigsPing2_Click" Content="{x:Static loc:AppStrings.PingBtn}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
+                                                                      <Button.Styles>
+                                                                          <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                              <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                              <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                          </Style>
+                                                                      </Button.Styles>
+                                                                  </Button>
+                                                              </Border>
+                                                              <Border Grid.Column="3" Background="#0A0C0F" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="46" MinHeight="26">
+                                                                  <Button x:Name="btnCustomConfigsSave2" Click="btnCustomConfigsSave2_Click" Content="{x:Static loc:AppStrings.Save}" ToolTip.Tip="{x:Static loc:AppStrings.SaveToPoolTooltip}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
                                                                       <Button.Styles>
                                                                           <Style Selector="Button:pointerover /template/ ContentPresenter">
                                                                               <Setter Property="Background" Value="#2AFFFFFF"/>
@@ -331,26 +369,15 @@
                                                             </CheckBox.Styles>
                                                             <TextBlock x:Name="lblAllowOneCustomConfig" Classes="smoothHighlight" Text="Allow connecting with one config" FontSize="14" FontWeight="SemiBold" ToolTip.Tip="{x:Static loc:AppStrings.OneConfigTooltip}" />
                                                         </CheckBox>
-                                                                                                                  <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="3" BorderBrush="#2D3748" BorderThickness="1" HorizontalAlignment="Right" VerticalAlignment="Center" Width="140" Height="26" Margin="0">
-                                                              <Grid ColumnDefinitions="*, 1, *">
-                                                                  <Button x:Name="btnCustomConfigsSave" Click="btnCustomConfigsSave_Click" Grid.Column="0" Content="SAVE" FontSize="10" FontWeight="Bold" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="3,0,0,3">
-                                                                      <Button.Styles>
-                                                                          <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                              <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                              <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                          </Style>
-                                                                      </Button.Styles>
-                                                                  </Button>
-                                                                  <Border Grid.Column="1" Background="#2D3748"/>
-                                                                  <Button x:Name="btnCustomConfigsClear" Click="btnCustomConfigsClear_Click" Grid.Column="2" Content="CLEAR" FontSize="10" FontWeight="Bold" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="0,3,3,0">
-                                                                      <Button.Styles>
-                                                                          <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                              <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
-                                                                              <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                          </Style>
-                                                                      </Button.Styles>
-                                                                  </Button>
-                                                              </Grid>
+                                                                                                                  <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="3" BorderBrush="#2D3748" BorderThickness="1" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Height="26" Margin="0">
+                                                              <Button x:Name="btnCustomConfigsSubmit" Click="btnCustomConfigsSubmit_Click" Content="{x:Static loc:AppStrings.Submit}" ToolTip.Tip="{x:Static loc:AppStrings.SubmitTooltip}" FontSize="10" FontWeight="Bold" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="3">
+                                                                  <Button.Styles>
+                                                                      <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                          <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                          <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                      </Style>
+                                                                  </Button.Styles>
+                                                              </Button>
                                                           </Border>
                                                     </Grid>
                                                 </StackPanel>
@@ -386,9 +413,18 @@
                                                     </Transitions>
                                                 </Border.Transitions>
                                                 <StackPanel Margin="15" Spacing="10">
-                                                    <Grid ColumnDefinitions="*, Auto">
+                                                    <Grid ColumnDefinitions="*, Auto, Auto">
                                                         <TextBox x:Name="txtSavedConfigImport" Grid.Column="0" MinHeight="28" Height="28" AcceptsReturn="False" PlaceholderText="vless:// / vmess:// / ..." Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" VerticalContentAlignment="Center" Margin="0"/>
-                                                        <Button x:Name="btnSavedConfigAdd" Grid.Column="1" Click="SavedConfigAdd_Click" Content="+" FontSize="14" FontWeight="Bold" Foreground="#A0AEC0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="34" MinWidth="0" Height="28" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Cursor="Hand" CornerRadius="0,4,4,0" Padding="0">
+                                                        <Button x:Name="btnSavedConfigBrowse" Grid.Column="1" Click="SavedConfigBrowse_Click" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="34" MinWidth="0" Height="28" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Cursor="Hand" CornerRadius="0" Padding="0" ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}">
+                                                            <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12"/>
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                        <Button x:Name="btnSavedConfigAdd" Grid.Column="2" Click="SavedConfigAdd_Click" Content="{x:Static loc:AppStrings.Save}" ToolTip.Tip="{x:Static loc:AppStrings.TtSavedConfigsAdd}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="60" MinWidth="0" Height="28" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Cursor="Hand" CornerRadius="0,4,4,0" Padding="0">
                                                             <Button.Styles>
                                                                 <Style Selector="Button:pointerover /template/ ContentPresenter">
                                                                     <Setter Property="Background" Value="#2AFFFFFF"/>
@@ -446,30 +482,33 @@
                                                     </Transitions>
                                                 </Border.Transitions>
                                                 <StackPanel Margin="15,15,15,15" Spacing="10">
-                                                    <TextBox x:Name="txtXrayJson" TextChanged="txtXrayJson_TextChanged" Height="120" AcceptsReturn="True" TextWrapping="Wrap" Background="#1A1C20"  BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4" VerticalAlignment="Stretch"/>
-                                                    
-                                                    <Grid ColumnDefinitions="Auto, *">
-                                                        <Button Grid.Column="0" x:Name="btnXrayImport" Click="btnXrayImport_Click" Content="IMPORT .JSON" Classes="optBtn" FontSize="10" FontWeight="Bold" Background="#1AFFFFFF" Padding="12,6" VerticalAlignment="Center"/>
-                                                        
-                                                        <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="3" BorderBrush="#2D3748" BorderThickness="1" HorizontalAlignment="Right" VerticalAlignment="Center" Width="140" Height="26" Margin="0">
-                                                            <Grid ColumnDefinitions="*, 1, *">
-                                                                <Button x:Name="btnXraySave" Click="btnXraySave_Click" Grid.Column="0" Content="SAVE" FontSize="10" FontWeight="Bold"  Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="3,0,0,3">
-                                                                    <Button.Styles>
-                                                                        <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                            <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                        </Style>
-                                                                    </Button.Styles>
-                                                            </Button>
-                                                            <Border Grid.Column="1" Background="#2D3748"/>
-                                                            <Button x:Name="btnXrayCancel" Click="btnXrayCancel_Click" Grid.Column="2" Content="CANCEL" FontSize="10" FontWeight="Bold"  Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="0,3,3,0">
-                                                                <Button.Styles>
-                                                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
-                                                                        <Setter Property="Background" Value="#2AFFFFFF"/>
-                                                                    </Style>
-                                                                </Button.Styles>
-                                                            </Button>
-                                                        </Grid>
-                                                    </Border>
+                                                    <Grid ColumnDefinitions="*, Auto, Auto, Auto">
+                                                        <ComboBox x:Name="cbXrayExitNode" Grid.Column="0" Classes="customProxy" IsEditable="True" SelectedIndex="-1" MinHeight="28" Height="28" PlaceholderText="{x:Static loc:AppStrings.ExitNodePlaceholder}" Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" Padding="8,5,4,3" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0" SelectionChanged="XrayExitNode_SelectionChanged"/>
+                                                        <Button x:Name="btnXrayExitImport" Grid.Column="1" Classes="plusBtn" Click="btnXrayExitImport_Click" Foreground="#A0AEC0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="34" MinWidth="0" Height="28" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Cursor="Hand" CornerRadius="0" Padding="0" ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}">
+                                                            <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12"/>
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                        <Button x:Name="btnXrayExitPing" Grid.Column="2" Click="btnXrayExitPing_Click" Content="{x:Static loc:AppStrings.PingBtn}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="50" MinWidth="0" Height="28" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Cursor="Hand" CornerRadius="0" Padding="0" ToolTip.Tip="{x:Static loc:AppStrings.PingBtn}">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                        <Button x:Name="btnXraySave" Grid.Column="3" Click="btnXraySave_Click" Content="{x:Static loc:AppStrings.Save}" ToolTip.Tip="{x:Static loc:AppStrings.SaveToPoolTooltip}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="56" MinWidth="0" Height="28" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Cursor="Hand" CornerRadius="0,4,4,0" Padding="0">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
                                                     </Grid>
                                                 </StackPanel>
                                             </Border>
@@ -520,6 +559,89 @@
                                                 </StackPanel>
                                             </Border>
                                         </StackPanel>
+                                        <StackPanel Spacing="0">
+                                            <!-- LOAD-BALANCE ADAPTERS: the same shape as BIND ADAPTER above, and the two clear
+                                                 each other, because they are two answers to the same question - how traffic
+                                                 leaves this machine. The entry nodes are spread over the chosen adapters in
+                                                 turn, so the load-balance policy below distributes new connections across
+                                                 them; a single connection still leaves through one adapter, which the
+                                                 section title's tooltip says outright. -->
+                                            <Border x:Name="panLoadBalanceToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                                <Button x:Name="btnLoadBalanceToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnLoadBalanceToggle_Click">
+                                                    <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="36">
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                            <PathIcon Data="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                            <TextBlock x:Name="lblLoadBalanceTitle" Classes="settingTitle" Text="LOAD-BALANCE ADAPTERS" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                        <ToggleSwitch Grid.Column="2" x:Name="togLoadBalance" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,10,0" IsCheckedChanged="togLoadBalance_IsCheckedChanged"/>
+                                                        <PathIcon x:Name="icoLoadBalanceExpander" Grid.Column="3" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center">
+                                                            <PathIcon.Transitions>
+                                                                <Transitions>
+                                                                    <DoubleTransition Property="RotateTransform.Angle" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                                                                </Transitions>
+                                                            </PathIcon.Transitions>
+                                                        </PathIcon>
+                                                    </Grid>
+                                                </Button>
+                                            </Border>
+                                            <Border x:Name="panLoadBalance" Background="#0A0B0E" BorderBrush="#2D3748" BorderThickness="1,0,1,1" CornerRadius="0,0,8,8" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                                                <Border.Transitions>
+                                                    <Transitions>
+                                                        <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                        <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                    </Transitions>
+                                                </Border.Transitions>
+                                                <StackPanel Margin="15,15,15,15" Spacing="10">
+                                                    <!-- The slots: the label sits on the left, its adapter on the right, and no
+                                                         adapter can be picked in two slots at once - each dropdown only offers
+                                                         what the other visible slots have not taken. The first two slots are
+                                                         the pair; the third and fourth are added with the button below and
+                                                         removed again with the X they carry. -->
+                                                    <Grid x:Name="rowLbAdapter1" ColumnDefinitions="Auto,*,Auto" MinHeight="26">
+                                                        <TextBlock x:Name="lblLbAdapter1" Text="ADAPTER 01" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                        <ComboBox Grid.Column="1" x:Name="cmbLbAdapter1" HorizontalAlignment="Stretch" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" PlaceholderText="Select an adapter..." SelectionChanged="cmbLbAdapter_SelectionChanged" Background="#1A1C20" Foreground="#E2E8F0" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"/>
+                                                    </Grid>
+                                                    <Grid x:Name="rowLbAdapter2" ColumnDefinitions="Auto,*,Auto" MinHeight="26">
+                                                        <TextBlock x:Name="lblLbAdapter2" Text="ADAPTER 02" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                        <ComboBox Grid.Column="1" x:Name="cmbLbAdapter2" HorizontalAlignment="Stretch" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" PlaceholderText="Select an adapter..." SelectionChanged="cmbLbAdapter_SelectionChanged" Background="#1A1C20" Foreground="#E2E8F0" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"/>
+                                                    </Grid>
+                                                    <Grid x:Name="rowLbAdapter3" ColumnDefinitions="Auto,*,Auto" MinHeight="26" IsVisible="False">
+                                                        <TextBlock x:Name="lblLbAdapter3" Text="ADAPTER 03" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                        <ComboBox Grid.Column="1" x:Name="cmbLbAdapter3" HorizontalAlignment="Stretch" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" PlaceholderText="Select an adapter..." SelectionChanged="cmbLbAdapter_SelectionChanged" Background="#1A1C20" Foreground="#E2E8F0" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"/>
+                                                        <Button Grid.Column="2" x:Name="btnLbRemove3" Tag="3" Content="&#x2715;" Click="btnLbAdapterRemove_Click" FontSize="10" Foreground="#A0AEC0" Background="Transparent" BorderThickness="0" MinWidth="0" MinHeight="0" Width="24" Padding="0" Margin="4,0,0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand"/>
+                                                    </Grid>
+                                                    <Grid x:Name="rowLbAdapter4" ColumnDefinitions="Auto,*,Auto" MinHeight="26" IsVisible="False">
+                                                        <TextBlock x:Name="lblLbAdapter4" Text="ADAPTER 04" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                        <ComboBox Grid.Column="1" x:Name="cmbLbAdapter4" HorizontalAlignment="Stretch" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" PlaceholderText="Select an adapter..." SelectionChanged="cmbLbAdapter_SelectionChanged" Background="#1A1C20" Foreground="#E2E8F0" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"/>
+                                                        <Button Grid.Column="2" x:Name="btnLbRemove4" Tag="4" Content="&#x2715;" Click="btnLbAdapterRemove_Click" FontSize="10" Foreground="#A0AEC0" Background="Transparent" BorderThickness="0" MinWidth="0" MinHeight="0" Width="24" Padding="0" Margin="4,0,0,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand"/>
+                                                    </Grid>
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <Button x:Name="btnLbAddAdapter" Content="+ ADD ADAPTER" Click="btnLbAdapterAdd_Click" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Padding="9,5" MinWidth="0" MinHeight="0" HorizontalAlignment="Left" Cursor="Hand">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                        <Button x:Name="btnLbScanAdapters" Content="SCAN ADAPTERS" Click="btnLbScanAdapters_Click" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Padding="9,5" MinWidth="0" MinHeight="0" HorizontalAlignment="Left" Cursor="Hand">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                    </StackPanel>
+                                                    <Border Height="1" Background="#2D3748" Margin="0,2,0,2"/>
+                                                    <Grid x:Name="rowLbPolicy" ColumnDefinitions="Auto,*" MinHeight="26">
+                                                        <TextBlock x:Name="lblLbPolicyTitle" Text="ADAPTER BALANCING POLICY" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                        <ComboBox Grid.Column="1" x:Name="cmbLbPolicy" HorizontalAlignment="Stretch" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" SelectionChanged="cmbLbPolicy_SelectionChanged" Background="#1A1C20" Foreground="#E2E8F0" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+
                                         <StackPanel Spacing="0">
                                             <Border x:Name="panDnsToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
                                                 <Button x:Name="btnDnsToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnDnsToggle_Click">
@@ -573,7 +695,7 @@
                                                                   <ComboBoxItem Content="https://doh.opendns.com/dns-query" />
                                                               </ComboBox>
                                                               <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="52" MinHeight="26">
-                                                                  <Button x:Name="btnDohSave" Click="btnDohSave_Click" Content="SAVE" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
+                                                                  <Button x:Name="btnDohSave" Click="btnDohSave_Click" Content="{x:Static loc:AppStrings.Save}" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
                                                                       <Button.Styles>
                                                                           <Style Selector="Button:pointerover /template/ ContentPresenter">
                                                                               <Setter Property="Background" Value="#2AFFFFFF"/>
@@ -599,7 +721,7 @@
                                                               <TextBox x:Name="txtSysDnsSecondary" Grid.Column="2" Background="#1A1C20"  BorderBrush="#2D3748" BorderThickness="1" CornerRadius="0" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" Padding="8,4,8,4" PlaceholderText="Secondary (1.0.0.1)"/>
                                                               <Border Grid.Column="3" Background="#2D3748" Width="1"/>
                                                               <Border Grid.Column="4" Background="#0A0C0F" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="52" MinHeight="26">
-                                                                  <Button x:Name="btnSysDnsSave" Click="btnSysDnsSave_Click" Content="SAVE" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
+                                                                  <Button x:Name="btnSysDnsSave" Click="btnSysDnsSave_Click" Content="{x:Static loc:AppStrings.Save}" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
                                                                       <Button.Styles>
                                                                           <Style Selector="Button:pointerover /template/ ContentPresenter">
                                                                               <Setter Property="Background" Value="#2AFFFFFF"/>
@@ -667,7 +789,7 @@
                                                         </Grid>
                                                         <Border Grid.Column="3" Background="#2D3748" Width="1"/>
                                                         <Border Grid.Column="4" Background="#0A0C0F" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="52" MinHeight="26">
-                                                            <Button x:Name="btnLanAuthSave" Click="btnLanAuthSave_Click" Content="SAVE" FontSize="10" FontWeight="Bold"  Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
+                                                            <Button x:Name="btnLanAuthSave" Click="btnLanAuthSave_Click" Content="{x:Static loc:AppStrings.Save}" FontSize="10" FontWeight="Bold"  Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0">
                                                                 <Button.Styles>
                                                                     <Style Selector="Button:pointerover /template/ ContentPresenter">
                                                                         <Setter Property="Background" Value="#2AFFFFFF"/>
@@ -682,32 +804,48 @@
                                         </StackPanel>
                                     </StackPanel>
 
-                                    <Grid ColumnDefinitions="*, *">
-                                        <Border Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
-                                            <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
-                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                                    <PathIcon Data="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" Width="14" Height="14" Foreground="#8B949E"/>
-                                                    <TextBlock x:Name="lblAdBlockerSetting" Classes="settingTitle" Text="AD AND TRACKER BLOCKER" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Drop requests to known ad and tracker domains before they leave your PC. Xray routes matching domains to a blackhole outbound. Only affects traffic going through the local proxyÃ¢â‚¬â€ not apps on split-tunnel bypass."/>
-                                                </StackPanel>
-                                                <ToggleSwitch x:Name="btnAdBlockTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
-                                            </Grid>
-                                        </Border>
-                                        <Border Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
-                                            <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
-                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                                    <PathIcon Data="M4 15h16v-2H4v2zm0 4h16v-2H4v2zm0-8h16V9H4v2zm0-6v2h16V5H4z" Width="14" Height="14" Foreground="#8B949E"/>
-                                                    <TextBlock x:Name="lblLbPolicy" Classes="settingTitle" Text="LOAD-BALANCE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Controls how Xray distributes connections across your proxy nodes."/>
-                                                </StackPanel>
-                                                <Button x:Name="btnLbPolicy" Grid.Column="2" Classes="optBtn" Click="BtnLbPolicy_Click" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1" CornerRadius="4" Width="113" MinHeight="26" Height="26" Padding="8,0" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand">
-                                                    <Grid ColumnDefinitions="*, Auto">
-                                                        <TextBlock x:Name="lblCurrentLbPolicy" Grid.Column="0" Text="ROUND ROBIN" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Left"/>
-                                                        <PathIcon Grid.Column="1" Data="M7 10l5 5 5-5z" Width="10" Height="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="3,0,0,0" HorizontalAlignment="Right"/>
-                                                    </Grid>
+                                    <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8">
+                                        <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                <PathIcon Data="M4 15h16v-2H4v2zm0 4h16v-2H4v2zm0-8h16V9H4v2zm0-6v2h16V5H4z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                <TextBlock x:Name="lblLbPolicy" Classes="settingTitle" Text="LOAD-BALANCE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Controls how Xray distributes connections across your proxy nodes."/>
+                                            </StackPanel>
+                                            <Button x:Name="btnLbPolicy" Grid.Column="2" Classes="optBtn" Click="BtnLbPolicy_Click" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1" CornerRadius="4" Width="113" MinHeight="26" Height="26" Padding="8,0" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand">
+                                                <Grid ColumnDefinitions="*, Auto">
+                                                    <TextBlock x:Name="lblCurrentLbPolicy" Grid.Column="0" Text="ROUND ROBIN" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                                    <PathIcon Grid.Column="1" Data="M7 10l5 5 5-5z" Width="10" Height="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="3,0,0,0" HorizontalAlignment="Right"/>
+                                                </Grid>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                    <!-- LEGACY CONNECTION MODES (moved here from the connect button box) -->
+                                    <Border x:Name="panLegacyModes" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0">
+                                        <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                <PathIcon Data="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                <TextBlock x:Name="lblLegacyModes" Classes="settingTitle" Text="LEGACY CONNECTION MODES" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <Grid Grid.Column="2" ColumnDefinitions="Auto, Auto, Auto, Auto, Auto" VerticalAlignment="Center">
+                                                <Button x:Name="btnSetProxyMode" Grid.Column="0" Classes="modeBtn activeMode" Tag="Proxy Mode" Background="Transparent" BorderThickness="0" CornerRadius="6" Padding="14,8,14,8" Margin="2,2,2,2" Cursor="Hand" Click="ConnectionMode_Click">
+                                                    <TextBlock x:Name="lblSetProxyMode" Classes="modeText" Text="PROXY MODE" FontSize="11" FontWeight="SemiBold"/>
+                                                </Button>
+
+                                                <Border Grid.Column="1" Width="1" Background="#2D3748" Margin="0,6,0,6"/>
+
+                                                <Button x:Name="btnSetVpnMode" Grid.Column="2" Classes="modeBtn" Tag="VPN Mode" Background="Transparent" BorderThickness="0" CornerRadius="6" Padding="14,8,14,8" Margin="2,2,2,2" Cursor="Hand" Click="ConnectionMode_Click">
+                                                    <TextBlock x:Name="lblSetVpnMode" Classes="modeText" Text="VPN MODE" FontSize="11" FontWeight="SemiBold"/>
+                                                </Button>
+
+                                                <Border Grid.Column="3" Width="1" Background="#2D3748" Margin="0,6,0,6"/>
+
+                                                <Button x:Name="btnSetClearProxy" Grid.Column="4" Classes="modeBtn" Tag="Clear Proxy" Background="Transparent" BorderThickness="0" CornerRadius="6" Padding="14,8,14,8" Margin="2,2,2,2" Cursor="Hand" Click="ConnectionMode_Click">
+                                                    <TextBlock x:Name="lblSetClearProxy" Classes="modeText" Text="CLEAR PROXY" FontSize="11" FontWeight="SemiBold"/>
                                                 </Button>
                                             </Grid>
-                                        </Border>
-                                    </Grid>
-                                    <TextBlock x:Name="lblSectionSystem" Text="SYSTEM" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock x:Name="lblSectionSystem" Text="SYSTEM" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Left" Margin="0,12,0,0"/>
                                     <StackPanel Spacing="8">
                                         <Grid ColumnDefinitions="*, *">
                                             <Border Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
@@ -801,7 +939,6 @@
                                 </Panel>
                             </ScrollViewer>
 
-                                <pages:UdpScannerPage x:Name="pageUdpScanner"/>
                             </Carousel>
 
                     <Popup x:Name="LanguagePopup" IsLightDismissEnabled="False">
@@ -835,6 +972,13 @@
                             </StackPanel>
                         </Border>
                     </Popup>
+
+        <!-- State carrier only - the blocker's row was removed from Settings, but its logic stays. The Home
+             quick-settings slot borrows this control by name (QuickSettingsPanel.GetOriginalToggle) in both
+             directions, and SettingTog_CheckedChanged routes it through MainWindow.SetAdBlock, so the name is
+             load-bearing and the control has to stay in the tree. It is invisible and cannot be hit-tested. -->
+        <ToggleSwitch x:Name="btnAdBlockTog" IsVisible="False" IsCheckedChanged="SettingTog_CheckedChanged"
+                      OnContent="{x:Null}" OffContent="{x:Null}"/>
 
     </Grid>
 </UserControl>

@@ -20,15 +20,54 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:loc="clr-namespace:CrimsonX.Localization"
              mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="200"
              x:Class="CrimsonX.Controls.QuickSettingsPanel">
+    <UserControl.Styles>
+        <!-- The same two setters the Settings tab gives its own config boxes -->
+        <Style Selector="ComboBox.customProxy">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+        <Style Selector="ComboBox.customProxy /template/ TextBox">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.plusBtn PathIcon">
+            <Setter Property="Foreground" Value="#A0AEC0"/>
+        </Style>
+        <Style Selector="Button.plusBtn:pointerover PathIcon">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <!-- ...and the hover glow each cell of that body carries in Settings -->
+        <Style Selector="Grid.cfgCells Button:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2AFFFFFF"/>
+            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+        </Style>
+        <!-- The two view tabs: a hover halo with room around the label, instead of Fluent's text-hugging one -->
+        <Style Selector="Button.qsTab">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="7,4"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.qsTab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+    </UserControl.Styles>
              
     <Panel>
         <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="6">
             <StackPanel Spacing="6">
                 <!-- Header -->
                 <Grid ColumnDefinitions="*, Auto">
-                    <TextBlock x:Name="lblQuickSettings" Grid.Column="0" Text="QUICK SETTINGS" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                        <Button x:Name="btnQSTabQuick" Classes="qsTab" Click="QSTab_Click">
+                            <TextBlock x:Name="lblQuickSettings" Text="QUICK SETTINGS" FontSize="10" FontWeight="Bold" Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center"/>
+                        </Button>
+                        <Button x:Name="btnQSTabCustom" Classes="qsTab" Click="QSTab_Click">
+                            <TextBlock x:Name="lblQSTabCustom" Text="CUSTOM CONFIGS" FontSize="10" FontWeight="Bold" Foreground="#718096" LetterSpacing="1" VerticalAlignment="Center"/>
+                        </Button>
+                    </StackPanel>
                     
                     <Panel Grid.Column="1" HorizontalAlignment="Right">
                         <!-- Default mode button -->
@@ -50,7 +89,7 @@
                         </Button>
 
                         <!-- Edit mode buttons -->
-                        <StackPanel x:Name="panEditButtons" Orientation="Horizontal" Spacing="6" Opacity="0" IsHitTestVisible="False">
+                        <StackPanel x:Name="panEditButtons" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right" Opacity="0" IsHitTestVisible="False">
                             <StackPanel.Transitions>
                                 <Transitions>
                                     <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
@@ -63,7 +102,7 @@
                                         <Setter Property="Background" Value="#3034D399"/>
                                     </Style>
                                 </Button.Styles>
-                                <TextBlock x:Name="lblSave" Text="SAVE" FontSize="10" FontWeight="Bold" Foreground="#34D399" LetterSpacing="1" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="lblSave" Text="{x:Static loc:AppStrings.Save}" FontSize="10" FontWeight="Bold" Foreground="#34D399" LetterSpacing="1" VerticalAlignment="Center"/>
                             </Button>
 
                             <Button x:Name="btnCancel" Click="btnCancel_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="8,4" CornerRadius="4" Width="60" HorizontalContentAlignment="Center">
@@ -75,11 +114,40 @@
                                 <TextBlock x:Name="lblCancel" Text="CANCEL" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
                             </Button>
                         </StackPanel>
+
+                        <!-- CUSTOM CONFIGS mode: the allow-single pill and SUBMIT, the same actions the Settings tab has -->
+                        <StackPanel x:Name="panCustomActions" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center" Opacity="0" IsHitTestVisible="False">
+                            <StackPanel.Transitions>
+                                <Transitions>
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                                </Transitions>
+                            </StackPanel.Transitions>
+
+                            <!-- ALLOW SINGLE CONFIG is a pill of its own: lit means on, a second click clears it -->
+                            <Button x:Name="btnQSAllowSingle" Classes="pillBtn" Click="btnQSAllowSingle_Click">
+                                <TextBlock x:Name="lblQSAllowSingle" Text="ALLOW SINGLE CONFIG" FontSize="9" FontWeight="Bold" LetterSpacing="0.5" VerticalAlignment="Center"/>
+                            </Button>
+
+                            <Button x:Name="btnQSSubmit" Click="btnQSSubmit_Click" Background="#2034D399" BorderThickness="0" Cursor="Hand" Padding="8,4" CornerRadius="4" Width="60" HorizontalContentAlignment="Center">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                        <Setter Property="Background" Value="#3034D399"/>
+                                    </Style>
+                                </Button.Styles>
+                                <TextBlock x:Name="lblQSSubmit" Text="SUBMIT" FontSize="10" FontWeight="Bold" Foreground="#34D399" LetterSpacing="1" VerticalAlignment="Center"/>
+                            </Button>
+                        </StackPanel>
                     </Panel>
                 </Grid>
 
-                <!-- Slots -->
-                <Grid ColumnDefinitions="*, 6, *" Margin="0,0,0,0">
+                <!-- The two views slide sideways between each other, the way the tab pages do -->
+                <Carousel x:Name="panQSCarousel" Focusable="False">
+                    <Carousel.PageTransition>
+                        <PageSlide Duration="0:0:0.25" Orientation="Horizontal"/>
+                    </Carousel.PageTransition>
+
+                        <!-- View 1: the quick settings slots -->
+                        <Grid x:Name="panQSViewQuick" ColumnDefinitions="*, 6, *" Margin="0,0,0,0">
                     
                     <!-- Slot 1 -->
                     <Border Grid.Column="0" BorderBrush="#2D3748" BorderThickness="1" Background="Transparent" CornerRadius="8" Padding="12,5.5">
@@ -92,7 +160,7 @@
                                 </Grid.Transitions>
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Grid.Column="0">
                                     <PathIcon x:Name="icoSlot1" Width="12" Height="12" Foreground="#8B949E"/>
-                                    <TextBlock x:Name="lblSlot1" Classes="settingTitle" ToolTip.Tip="Placeholder" Text="DIRECT UDP" FontSize="10" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="lblSlot1" Classes="settingTitle" ToolTip.Tip="Placeholder" Text="CUSTOM CONFIGS" FontSize="10" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 <Viewbox Grid.Column="1" Stretch="Uniform" Height="24" HorizontalAlignment="Right"><ToggleSwitch x:Name="togSlot1" OnContent="{x:Null}" OffContent="{x:Null}" IsCheckedChanged="TogSlot1_IsCheckedChanged"/></Viewbox>
                             </Grid>
@@ -133,7 +201,48 @@
                         </Panel>
                     </Border>
 
-                </Grid>
+                        </Grid>
+
+                        <!-- View 2: the same two config boxes the Settings tab has, as the panel's own rows:
+                             no frame and no fills, so it sits on the panel's surface the way the slots do -->
+                        <Grid x:Name="panQSViewCustom" Classes="cfgCells" Margin="0,5.5,0,5.5">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnDefinitions="*,10,*">
+                                    <!-- Config 1 -->
+                                    <Grid Grid.Column="0" ColumnDefinitions="*,Auto,Auto,Auto" MinHeight="26">
+                                        <ComboBox x:Name="cbQSCustomConfig1" Grid.Column="0" Classes="customProxy" IsEditable="True" SelectedIndex="-1" MinHeight="26" Height="26" PlaceholderText="Config 1 — paste or + file" Background="Transparent" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" Padding="8,5,4,3" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0"/>
+                                        <Border Grid.Column="1" Background="Transparent" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="26" MinHeight="26">
+                                            <Button x:Name="btnQSCfgImport1" Classes="plusBtn" Tag="1" Click="btnQSCfgImport_Click" ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
+                                                <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="9" Height="9"/>
+                                            </Button>
+                                        </Border>
+                                        <Border Grid.Column="2" Background="Transparent" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="46" MinHeight="26">
+                                            <Button x:Name="btnQSCfgPing1" Tag="1" Click="btnQSCfgPing_Click" Content="{x:Static loc:AppStrings.PingBtn}" ToolTip.Tip="{x:Static loc:AppStrings.TtSavedConfigsPing}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0"/>
+                                        </Border>
+                                        <Border Grid.Column="3" Background="Transparent" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="46" MinHeight="26">
+                                            <Button x:Name="btnQSCfgSave1" Tag="1" Click="btnQSCfgSave_Click" Content="{x:Static loc:AppStrings.Save}" ToolTip.Tip="{x:Static loc:AppStrings.SaveToPoolTooltip}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0"/>
+                                        </Border>
+                                    </Grid>
+                                    <!-- Config 2 -->
+                                    <Grid Grid.Column="2" ColumnDefinitions="*,Auto,Auto,Auto" MinHeight="26">
+                                        <ComboBox x:Name="cbQSCustomConfig2" Grid.Column="0" Classes="customProxy" IsEditable="True" SelectedIndex="-1" MinHeight="26" Height="26" PlaceholderText="Config 2 — paste or + file" Background="Transparent" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" Padding="8,5,4,3" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0"/>
+                                        <Border Grid.Column="1" Background="Transparent" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="26" MinHeight="26">
+                                            <Button x:Name="btnQSCfgImport2" Classes="plusBtn" Tag="2" Click="btnQSCfgImport_Click" ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
+                                                <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="9" Height="9"/>
+                                            </Button>
+                                        </Border>
+                                        <Border Grid.Column="2" Background="Transparent" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="46" MinHeight="26">
+                                            <Button x:Name="btnQSCfgPing2" Tag="2" Click="btnQSCfgPing_Click" Content="{x:Static loc:AppStrings.PingBtn}" ToolTip.Tip="{x:Static loc:AppStrings.TtSavedConfigsPing}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0"/>
+                                        </Border>
+                                        <Border Grid.Column="3" Background="Transparent" CornerRadius="0,4,4,0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="46" MinHeight="26">
+                                            <Button x:Name="btnQSCfgSave2" Tag="2" Click="btnQSCfgSave_Click" Content="{x:Static loc:AppStrings.Save}" ToolTip.Tip="{x:Static loc:AppStrings.SaveToPoolTooltip}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0,4,4,0" Padding="0"/>
+                                        </Border>
+                                    </Grid>
+
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+                </Carousel>
             </StackPanel>
         </Border>
 

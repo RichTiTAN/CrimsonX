@@ -108,7 +108,7 @@ namespace CrimsonX.Pages
     {
         private readonly List<UdpScanItem> _items = new List<UdpScanItem>();
         private readonly HashSet<string> _seen = new HashSet<string>();
-        private readonly CancellationTokenSource _lifetimeCts = new CancellationTokenSource();
+        private CancellationTokenSource _lifetimeCts = new CancellationTokenSource();
         private CancellationTokenSource? _scanCts;
         private CancellationTokenSource? _stabilityCts;
         private bool _isScanning;
@@ -120,13 +120,54 @@ namespace CrimsonX.Pages
         private const double EmptyDotsWidth = 14;
 
         private static MainWindow Main => MainWindow.Instance;
-        internal event EventHandler? BackRequested;
 
         public UdpScannerPage()
         {
             InitializeComponent();
             LoadOptions();
             ApplyLanguage();
+            HookReadoutInset();
+        }
+
+        private double _readoutInset;
+        private double _appliedInset = -1;
+        private Avalonia.Thickness? _udpContentPadding;
+        private bool _readoutInsetHooked;
+
+        internal void SetReadoutInset(double barHeight)
+        {
+            _readoutInset = barHeight > 0 ? barHeight : 0;
+            ApplyReadoutInset();
+        }
+
+        private void ApplyReadoutInset()
+        {
+            var content = this.FindControl<Border>("udpContent");
+            if (content == null) return;
+
+            bool overflowing = content.DesiredSize.Height - _appliedInset > Bounds.Height + 0.5;
+            double inset = overflowing ? _readoutInset : 0;
+
+            if (System.Math.Abs(inset - _appliedInset) < 0.5) return;
+            _appliedInset = inset;
+
+            if (_udpContentPadding.HasValue)
+            {
+                var padding = _udpContentPadding.Value;
+                content.Padding = new Avalonia.Thickness(padding.Left, padding.Top + inset, padding.Right, padding.Bottom);
+            }
+        }
+
+        private void HookReadoutInset()
+        {
+            if (_readoutInsetHooked) return;
+
+            var content = this.FindControl<Border>("udpContent");
+            if (content == null) return;
+
+            _udpContentPadding = content.Padding;
+            LayoutUpdated += (_, _) => ApplyReadoutInset();
+            _readoutInsetHooked = true;
         }
 
         // ── Options ──
@@ -183,10 +224,17 @@ namespace CrimsonX.Pages
             ApplyLanguage();
         }
 
-        private void Back_Click(object? sender, RoutedEventArgs e)
+        protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
         {
-            BackRequested?.Invoke(this, EventArgs.Empty);
+            base.OnAttachedToVisualTree(e);
+
+            if (_lifetimeCts.IsCancellationRequested)
+            {
+                try { _lifetimeCts.Dispose(); } catch (Exception ex) { SimpleLogger.Log(ex); }
+                _lifetimeCts = new CancellationTokenSource();
+            }
         }
+
         protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
         {
             try { _lifetimeCts.Cancel(); } catch (Exception ex) { SimpleLogger.Log(ex); }
@@ -204,36 +252,29 @@ namespace CrimsonX.Pages
             TextBlock? T(string name) => this.FindControl<TextBlock>(name);
             Button? B(string name) => this.FindControl<Button>(name);
 
-            FlowDirection = AppStrings.IsPersian ? Avalonia.Media.FlowDirection.RightToLeft : Avalonia.Media.FlowDirection.LeftToRight;
-
-            AppStrings.Apply(T("lblTitle"), AppStrings.UdpScannerTitle);
             RenderEmptyLabel();
             AppStrings.Apply(T("lblAmount"), AppStrings.UdpScannerAmount);
             AppStrings.Apply(T("lblConcurrency"), AppStrings.UdpScannerConcurrency);
             AppStrings.Apply(T("lblDiscard"), AppStrings.UdpScannerDiscard);
             AppStrings.Apply(T("lblAdapter"), AppStrings.UdpScannerAdapter);
-            AppStrings.Apply(T("lblGraphTitle"), AppStrings.UdpScannerGraphTitle);
+            AppStrings.Apply(T("lblGraphTitle"), AppStrings.UdpScannerStability);
             AppStrings.ApplyToolTip(T("lblAmount"), AppStrings.TtUdpScannerAmount);
             AppStrings.ApplyToolTip(T("lblConcurrency"), AppStrings.TtUdpScannerConcurrency);
             AppStrings.ApplyToolTip(T("lblDiscard"), AppStrings.TtUdpScannerDiscard);
             AppStrings.ApplyToolTip(T("lblAdapter"), AppStrings.TtUdpScannerAdapter);
             AppStrings.ApplyToolTip(B("btnStart"), AppStrings.TtUdpScanner);
-            AppStrings.ApplyToolTip(B("btnBackTop"), AppStrings.UdpScannerBack);
-            AppStrings.ApplyToolTip(B("btnBack"), AppStrings.UdpScannerBack);
 
             var cbiNoLimit = this.FindControl<ComboBoxItem>("cbiDiscardNone");
             if (cbiNoLimit != null) cbiNoLimit.Content = AppStrings.UdpScannerNoLimit;
 
             var cbiAdapterDefault = this.FindControl<ComboBoxItem>("cbiAdapterDefault");
-            if (cbiAdapterDefault != null) cbiAdapterDefault.Content = AppStrings.UdpScannerAdapterDefault;
+            if (cbiAdapterDefault != null) cbiAdapterDefault.Content = AppStrings.AdapterDefault;
 
             if (!_isStabilityRunning && !_hasStabilityResult)
                 UpdateGraphInfo(AppStrings.UdpScannerGraphIdle);
 
             if (B("btnStart") is Button startBtn)
                 AppStrings.ApplyBtn(startBtn, _isScanning ? AppStrings.UdpScannerStop : AppStrings.UdpScannerStart);
-
-            AppStrings.ApplyBtn(B("btnBack"), AppStrings.UdpScannerBack);
 
             if (!_isScanning && !_isStabilityRunning)
                 RefreshStatusText();
@@ -401,7 +442,7 @@ namespace CrimsonX.Pages
                 return;
             }
 
-            Main.ShowToast(AppStrings.ToastCopiedToClipboard, success: true);
+            Main.ShowToast(AppStrings.ToastCopiedToClipboard, kind: ToastKind.Success);
         }
 
         private void Save_Click(object? sender, RoutedEventArgs e)
@@ -423,15 +464,15 @@ namespace CrimsonX.Pages
             {
                 case CustomConfigSaveResult.Saved:
                 case CustomConfigSaveResult.Updated:
-                    Main.ShowToast($"{AppStrings.ToastCustomProxySaved}: {label}", success: true);
+                    Main.ShowToast($"{AppStrings.ToastCustomProxySaved}: {label}", kind: ToastKind.Success);
                     break;
 
                 case CustomConfigSaveResult.PoolFull:
-                    Main.ShowToast(AppStrings.ToastCustomProxyPoolFull);
+                    Main.ShowToast(AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
                     break;
 
                 default:
-                    Main.ShowToast(AppStrings.ToastCustomProxyInvalid);
+                    Main.ShowToast(AppStrings.ToastCustomProxyInvalid, ToastKind.Error);
                     break;
             }
         }

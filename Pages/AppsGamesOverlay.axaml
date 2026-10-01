@@ -21,6 +21,7 @@
              xmlns:local="clr-namespace:CrimsonX.Pages"
              xmlns:controls="clr-namespace:CrimsonX.Controls"
              xmlns:behaviors="clr-namespace:CrimsonX.Behaviors"
+             xmlns:loc="clr-namespace:CrimsonX.Localization"
              x:Class="CrimsonX.Pages.AppsGamesOverlay">
 
     <UserControl.Styles>
@@ -95,52 +96,6 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
 
-        <Style Selector="Border.floatBox">
-            <Setter Property="Background" Value="#FF000000"/>
-            <Setter Property="BorderBrush" Value="#2D3748"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="4"/>
-            <Setter Property="BoxShadow" Value="0 0 26 6 #E6000000"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Border.floatBox:pointerover">
-            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
-        </Style>
-
-        <Style Selector="Border.connectBox">
-            <Setter Property="Background" Value="#FF000000"/>
-            <Setter Property="BorderBrush" Value="#2D3748"/>
-            <Setter Property="BorderThickness" Value="2"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="BoxShadow" Value="0 0 26 6 #E6000000"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
-                </Transitions>
-            </Setter>
-        </Style>
-        <Style Selector="Border.connectBox:pointerover">
-            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
-        </Style>
-        <Style Selector="Border.connectBox.connected">
-            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSuccessBrush}"/>
-        </Style>
-        <Style Selector="Border.connectBox.connected:pointerover">
-            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSuccessPointerOverBrush}"/>
-        </Style>
-
-        <Style Selector="Border.shadowCarrier">
-            <Setter Property="Background" Value="#FF000000"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="BoxShadow" Value="0 0 26 6 #E6000000"/>
-            <Setter Property="IsHitTestVisible" Value="False"/>
-        </Style>
-
         <!-- ── Default-Rule Editor: section boxes, bars and joined fields ── -->
 
         <Style Selector="Border.editBox">
@@ -191,6 +146,7 @@
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#8B949E"/>
             <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="FlowDirection" Value="LeftToRight"/>
         </Style>
@@ -257,19 +213,29 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="FlowDirection" Value="LeftToRight"/>
         </Style>
+        <!-- While an add/edit panel is open, every rule card steps back so the panel is the only thing at full
+             strength. The panel is not a rule card, and the row being edited has its own card hidden behind the
+             panel, so dimming the whole list is exactly right. Keyed on the list, so a rebuilt list keeps the
+             state by itself. -->
+        <Style Selector="Border.ruleCard">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="ItemsControl.editing Border.ruleCard">
+            <Setter Property="Opacity" Value="0.3"/>
+        </Style>
+
     </UserControl.Styles>
 
-    <UserControl.Transitions>
-        <Transitions>
-            <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseInOut"/>
-        </Transitions>
-    </UserControl.Transitions>
 
-    
-        <Grid RowDefinitions="*" Margin="0,50,20,20" HorizontalAlignment="Center" MaxWidth="580" Width="580">
+        <Grid RowDefinitions="*" Margin="6,3,16,8">
                 <!-- Rules Box -->
                 <Panel>
-                <Border x:Name="panRulesBox" Background="#99141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="6,6,2,6">
+                <Border x:Name="panRulesBox" Background="#99141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="6,6,2,6" Margin="0,0,0,15">
                     <ScrollViewer x:Name="Scroller" BringIntoViewOnFocusChange="False"
                                   behaviors:SmoothScrollBehavior.Step="85">
                         <StackPanel Spacing="4" Margin="0,0,4,0">
@@ -293,7 +259,7 @@
 <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
 </Transitions>
 </Border.Transitions>
-<Border Classes="hoverBox" Background="Transparent"
+<Border Classes="hoverBox ruleCard" Background="Transparent"
 BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,0" IsVisible="{Binding !IsDefault}">
                                             <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto, Auto">
                                                 <Panel x:Name="DragHandle" Grid.Column="0" Tag="{Binding RuleId}" Width="16" Height="24" Margin="0,0,8,0" VerticalAlignment="Center" Background="Transparent" Cursor="SizeAll">
@@ -350,7 +316,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                         <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
                                                     </Transitions>
                                                 </Border.Transitions>
-                                                <Border Classes="hoverBox" Background="Transparent"
+                                                <Border Classes="hoverBox ruleCard" Background="Transparent"
                                                         BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,0"
                                                         IsVisible="{Binding IsDefault}">
                                                     <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto, Auto, Auto, Auto, Auto">
@@ -529,29 +495,29 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                         <TextBlock x:Name="lblCustomProxy" Classes="boxTitle" Text="CUSTOM PROXY"/>
                                                         <Grid ColumnDefinitions="Auto, *">
                                                             <Border Grid.Column="0" Classes="fieldLabel fieldLabelWide">
-                                                                <TextBlock x:Name="lblCustomProxyConfigRow" Text="CONFIG"/>
+                                                                <TextBlock x:Name="lblCustomProxyConfigRow" Text="CONFIG" HorizontalAlignment="Center" TextAlignment="Center"/>
                                                             </Border>
                                                             <ComboBox x:Name="cbCustomProxy" Grid.Column="1" Classes="customProxy fieldCombo" IsEditable="True"
-                                                                      SelectedIndex="-1" FontFamily="Consolas" FontSize="9" Padding="4,3,18,2"
+                                                                      SelectedIndex="-1" FontFamily="Consolas" FontSize="9" Padding="4,3,2,2"
                                                                       Background="#1A1C20"
-                                                                      PlaceholderText="vless:// / vmess:// / sing-box JSON"
+                                                                      PlaceholderText="vless:// / wireguard:// / .ovpn / sing-box JSON"
                                                                       ToolTip.Tip="Type or paste a config, or pick a previously saved one from the arrow. Set a protocol's routing to CUSTOM PROXY to use it."
                                                                       SelectionChanged="CustomProxySaved_SelectionChanged"/>
                                                         </Grid>
                                                         <Grid Height="26" ColumnDefinitions="*, *, *, 34">
                                                             <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4">
-                                                                <Button x:Name="btnCustomProxyPing" Classes="seg" Content="PING" Click="CustomProxyPing_Click"/>
+                                                                <Button x:Name="btnCustomProxyPing" Classes="seg" Content="{x:Static loc:AppStrings.PingBtn}" Click="CustomProxyPing_Click"/>
                                                             </Border>
                                                             <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
-                                                                <Button x:Name="btnCustomProxySave" Classes="seg" Content="SAVE" Click="CustomProxySave_Click"/>
+                                                                <Button x:Name="btnCustomProxySave" Classes="seg" Content="{x:Static loc:AppStrings.Save}" Click="CustomProxySave_Click"/>
                                                             </Border>
                                                             <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
                                                                 <Button x:Name="btnCustomProxyHint" Classes="seg" Content="HINT" Click="CustomProxyHint_Click"/>
                                                             </Border>
                                                             <Border Grid.Column="3" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0">
-                                                                <Button x:Name="btnCustomProxyDelete" Classes="seg" Click="CustomProxyDelete_Click"
-                                                                        ToolTip.Tip="Remove the config in the box from the saved list">
-                                                                    <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Width="12" Height="12" Foreground="#E53E3E"/>
+                                                                <Button x:Name="btnCustomProxyImport" Classes="seg" Click="CustomProxyImport_Click"
+                                                                        ToolTip.Tip="Add a config file (.ovpn / .conf / .json)">
+                                                                    <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12"/>
                                                                 </Button>
                                                             </Border>
                                                         </Grid>
@@ -566,7 +532,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                 <Border Grid.Column="0" Classes="editRow hoverBox">
                                                     <Grid ColumnDefinitions="Auto, *">
                                                         <Border Grid.Column="0" Classes="fieldLabel">
-                                                            <TextBlock x:Name="lblType" Text="TYPE"/>
+                                                            <TextBlock x:Name="lblType" Text="TYPE" HorizontalAlignment="Center" TextAlignment="Center"/>
                                                         </Border>
                                                         <ComboBox x:Name="cbAppType" Grid.Column="1" Classes="fieldCombo"/>
                                                     </Grid>
@@ -576,7 +542,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                 <Border Grid.Column="2" Classes="editRow hoverBox">
                                                     <Grid ColumnDefinitions="Auto, *">
                                                         <Border Grid.Column="0" Classes="fieldLabel fieldLabelWide">
-                                                            <TextBlock x:Name="lblConnectionRegion" Text="REGION"/>
+                                                            <TextBlock x:Name="lblConnectionRegion" Text="REGION" HorizontalAlignment="Center" TextAlignment="Center"/>
                                                         </Border>
                                                         <ComboBox x:Name="cbRegion" Grid.Column="1" Classes="fieldCombo"
                                                                   SelectionChanged="Region_SelectionChanged"/>
@@ -686,26 +652,26 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                                 <TextBlock x:Name="lblDefaultConfigRow" Text="CONFIG"/>
                                                             </Border>
                                                             <ComboBox x:Name="cbDefaultCustomProxy" Grid.Column="1" Classes="customProxy fieldCombo" IsEditable="True"
-                                                                      SelectedIndex="-1" FontFamily="Consolas" FontSize="9" Padding="4,3,18,2"
+                                                                      SelectedIndex="-1" FontFamily="Consolas" FontSize="9" Padding="4,3,2,2"
                                                                       Background="#1A1C20"
-                                                                      PlaceholderText="vless:// / vmess:// / sing-box JSON"
+                                                                      PlaceholderText="vless:// / wireguard:// / .ovpn / sing-box JSON"
                                                                       ToolTip.Tip="Type or paste a config, or pick a previously saved one from the arrow. Set a protocol's routing to CUSTOM PROXY to use it."
                                                                       SelectionChanged="CustomProxySaved_SelectionChanged"/>
                                                         </Grid>
                                                         <Grid Height="26" ColumnDefinitions="*, *, *, 34">
                                                             <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4">
-                                                                <Button x:Name="btnDefaultCustomProxyPing" Classes="seg" Content="PING" Click="CustomProxyPing_Click"/>
+                                                                <Button x:Name="btnDefaultCustomProxyPing" Classes="seg" Content="{x:Static loc:AppStrings.PingBtn}" Click="CustomProxyPing_Click"/>
                                                             </Border>
                                                             <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
-                                                                <Button x:Name="btnDefaultCustomProxySave" Classes="seg" Content="SAVE" Click="CustomProxySave_Click"/>
+                                                                <Button x:Name="btnDefaultCustomProxySave" Classes="seg" Content="{x:Static loc:AppStrings.Save}" Click="CustomProxySave_Click"/>
                                                             </Border>
                                                             <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
                                                                 <Button x:Name="btnDefaultHint" Classes="seg" Content="HINT" Click="CustomProxyHint_Click"/>
                                                             </Border>
                                                             <Border Grid.Column="3" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0">
-                                                                <Button x:Name="btnDefaultCustomProxyDelete" Classes="seg" Click="CustomProxyDelete_Click"
-                                                                        ToolTip.Tip="Remove the config in the box from the saved list">
-                                                                    <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Width="12" Height="12" Foreground="#E53E3E"/>
+                                                                <Button x:Name="btnDefaultCustomProxyImport" Classes="seg" Click="CustomProxyImport_Click"
+                                                                        ToolTip.Tip="Add a config file (.ovpn / .conf / .json)">
+                                                                    <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12"/>
                                                                 </Button>
                                                             </Border>
                                                         </Grid>
@@ -783,7 +749,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                 </Panel>
 
                 <StackPanel x:Name="panOverlayBottomBar" Orientation="Horizontal" Spacing="6"
-                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,13">
+                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,23">
                     <StackPanel.Transitions>
                         <Transitions>
                             <ThicknessTransition Property="Margin" Duration="0:0:0.28" Easing="CubicEaseOut"/>
@@ -817,6 +783,8 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                         </Border.RenderTransform>
                                     </Border>
                                 </Border>
+                                <Border x:Name="panConnectBreath" Classes="connectBreath" Margin="-2"/>
+
                                 <Border x:Name="panConnectBoxPress" Background="{DynamicResource ButtonBackgroundPressed}" Opacity="0"
                                         CornerRadius="5" IsHitTestVisible="False"
                                         HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>

@@ -37,22 +37,12 @@ namespace CrimsonX.Pages
         public string ExeName { get; set; } = "";
         public Avalonia.Media.Imaging.Bitmap? Icon { get; set; }
     }
-    public class ContinentItem
-    {
-        public string Tag { get; set; } = "";
-        public string DisplayName { get; set; } = "";
-        public bool IsExcluded { get; set; }
-        public bool IsNotExcluded => !IsExcluded;
-        public int OriginalOrder { get; set; }
-    }
-
     public partial class SplitTunnelPage : UserControl
     {
         public static SplitTunnelPage? Instance { get; private set; }
         internal static void ClearInstance() => Instance = null;
 
         public ObservableCollection<AppItem> AppItems { get; } = new();
-        public ObservableCollection<ContinentItem> Continents { get; } = new();
 
 
         private AppConfig _cfg => MainWindow.Instance.Config;
@@ -73,8 +63,60 @@ namespace CrimsonX.Pages
             var lstApps = this.FindControl<Avalonia.Controls.ItemsControl>("lstApps");
             if (lstApps != null) lstApps.ItemsSource = AppItems;
             _isInitializingSettings = false;
+            HookReadoutInset();
         }
 
+
+        private double _readoutInset;
+
+        private double _appliedInset = -1;
+
+        private Avalonia.Thickness? _splitContentPadding;
+
+        private bool _readoutInsetHooked;
+
+        internal void SetReadoutInset(double barHeight)
+        {
+            _readoutInset = barHeight > 0 ? barHeight : 0;
+            ApplyReadoutInset();
+        }
+
+        private void ApplyReadoutInset()
+        {
+            var scroller = this.FindControl<ScrollViewer>("Scroller");
+            var content  = this.FindControl<Border>("splitContent");
+            if (scroller == null || content == null) return;
+
+            double contentHeight = Math.Max(scroller.Extent.Height, content.DesiredSize.Height) - _appliedInset;
+            double spaceAbove = Math.Max(0, (scroller.Viewport.Height - contentHeight) / 2);
+            double inset = Math.Clamp(_readoutInset - spaceAbove, 0, _readoutInset);
+
+            CrimsonX.Behaviors.ScrollScrimBehavior.SetTopInset(scroller, _readoutInset);
+
+            if (Math.Abs(inset - _appliedInset) < 0.5) return;
+            _appliedInset = inset;
+
+            if (_splitContentPadding.HasValue)
+            {
+                var padding = _splitContentPadding.Value;
+                content.Padding = new Avalonia.Thickness(padding.Left, padding.Top + inset, padding.Right, padding.Bottom);
+            }
+        }
+
+        private void HookReadoutInset()
+        {
+            if (_readoutInsetHooked) return;
+
+            var scroller = this.FindControl<ScrollViewer>("Scroller");
+            var content  = this.FindControl<Border>("splitContent");
+            if (scroller == null || content == null) return;
+
+            _splitContentPadding = content.Padding;
+            scroller.ScrollChanged += (_, _) => ApplyReadoutInset();
+            scroller.SizeChanged += (_, _) => ApplyReadoutInset();
+            scroller.LayoutUpdated += (_, _) => ApplyReadoutInset();
+            _readoutInsetHooked = true;
+        }
 
     // ── Page Sync & Localization ──
 
@@ -86,51 +128,7 @@ namespace CrimsonX.Pages
                 var togDirectUDP = this.FindControl<ToggleSwitch>("togDirectUDP");
                 if (togDirectUDP != null) togDirectUDP.IsChecked = MainWindow.Instance.Config.EnableDirectUDP;
 
-            SanitizeExcludedContinents();
-
-            var togExcludeLocations = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togExcludeLocations");
-            if (togExcludeLocations != null)
-            {
-                int validCount = ValidExcludedCount();
-                bool excludeOn = validCount > 0 && validCount < KnownContinentNames.Length;
-                togExcludeLocations.IsChecked = excludeOn;
-                _cfg.EnableExcludedContinents = excludeOn;
-            }
-
-            var allContinents = new System.Collections.Generic.List<ContinentItem> {
-                new ContinentItem { Tag = "AS", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentAsia, OriginalOrder = 1 },
-                new ContinentItem { Tag = "EU", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentEurope, OriginalOrder = 2 },
-                new ContinentItem { Tag = "NA", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentNorthAmerica, OriginalOrder = 3 },
-                new ContinentItem { Tag = "SA", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentSouthAmerica, OriginalOrder = 4 },
-                new ContinentItem { Tag = "AF", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentAfrica, OriginalOrder = 5 },
-                new ContinentItem { Tag = "OC", DisplayName = CrimsonX.Localization.AppStrings.ExcludeContinentOceania, OriginalOrder = 6 }
-            };
-
-            Continents.Clear();
-
-            var cfgContinents = MainWindow.Instance.Config.ExcludedContinents ?? new System.Collections.Generic.List<string>();
-            foreach (var c in allContinents)
-            {
-                string full = ContinentFull(c.Tag);
-                c.IsExcluded = cfgContinents.Contains(full);
-                Continents.Add(c);
-            }
-
-            var sortedList = Continents.OrderByDescending(x => x.IsExcluded).ThenBy(x => x.OriginalOrder).ToList();
-            Continents.Clear();
-            foreach (var c in sortedList) Continents.Add(c);
-
-            var lstC = this.FindControl<global::Avalonia.Controls.ItemsControl>("lstContinents");
-            if (lstC != null) lstC.ItemsSource = Continents;
             UpdateSplitTunnelUI();
-
-
-            var lblExcludeLocations = this.FindControl<global::Avalonia.Controls.TextBlock>("lblExcludeLocations");
-            if (lblExcludeLocations != null) 
-            {
-                lblExcludeLocations.Text = CrimsonX.Localization.AppStrings.ExcludeLocationsTitle;
-                global::Avalonia.Controls.ToolTip.SetTip(lblExcludeLocations, CrimsonX.Localization.AppStrings.ExcludeLocationsTooltip);
-            }
             }
             finally
             {
@@ -140,13 +138,6 @@ namespace CrimsonX.Pages
 
         public void ApplyLanguage()
         {
-            var lblExcludeLocations = this.FindControl<TextBlock>("lblExcludeLocations");
-            if (lblExcludeLocations != null) 
-            {
-                lblExcludeLocations.Text = CrimsonX.Localization.AppStrings.ExcludeLocationsTitle;
-                global::Avalonia.Controls.ToolTip.SetTip(lblExcludeLocations, CrimsonX.Localization.AppStrings.ExcludeLocationsTooltip);
-            }
-            
             global::Avalonia.Threading.Dispatcher.UIThread.Post(() => SyncUI());
     
             TextBlock? F(string name) => this.FindControl<TextBlock>(name);
@@ -154,14 +145,26 @@ namespace CrimsonX.Pages
             
             bool fa = CrimsonX.Localization.AppStrings.IsPersian;
 
-            CrimsonX.Localization.AppStrings.Apply(F("lblSplitTunnelingHeader"), CrimsonX.Localization.AppStrings.NavSplitTunneling, forceLtr: true);
+            CrimsonX.Localization.AppStrings.Apply(F("lblSplitTunnelingHeader"), CrimsonX.Localization.AppStrings.NavSplitTunneling);
             CrimsonX.Localization.AppStrings.Apply(F("lblDomainsAndIps"), CrimsonX.Localization.AppStrings.DomainsAndIps);
             CrimsonX.Localization.AppStrings.Apply(F("lblApplications"), CrimsonX.Localization.AppStrings.Applications);
-            var lblSplitAppsWarning = this.FindControl<TextBlock>("lblSplitAppsWarning");
-            if (lblSplitAppsWarning != null) lblSplitAppsWarning.Text = CrimsonX.Localization.AppStrings.WarningCaseSensitive;
             CrimsonX.Localization.AppStrings.Apply(F("lblBlockedDomainsIps"), CrimsonX.Localization.AppStrings.BlockedDomains);
             CrimsonX.Localization.AppStrings.Apply(F("lblDirectUdpHeader"), CrimsonX.Localization.AppStrings.SplitTunnelDirectUDP);
             CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblDirectUdpHeader"), CrimsonX.Localization.AppStrings.SplitTunnelDirectUDPTooltip);
+            CrimsonX.Localization.AppStrings.Apply(F("lblDirectUdpAdapterTitle"), CrimsonX.Localization.AppStrings.UdpAdapterBinding);
+            CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<Button>("btnScanUdpAdapters"), CrimsonX.Localization.AppStrings.ScanAdapters);
+            var cmbUdpAdapters = this.FindControl<ComboBox>("cmbUdpAdapters");
+            if (cmbUdpAdapters != null)
+            {
+                cmbUdpAdapters.PlaceholderText = CrimsonX.Localization.AppStrings.AdapterDefault;
+                if (cmbUdpAdapters.Items.Count > 0)
+                {
+                    bool wasScanning = _isScanningUdpAdapters;
+                    _isScanningUdpAdapters = true;
+                    try { cmbUdpAdapters.Items[0] = CrimsonX.Localization.AppStrings.AdapterDefault; }
+                    finally { _isScanningUdpAdapters = wasScanning; }
+                }
+            }
             var btnSplitDisabled = this.FindControl<Button>("btnSplitDisabled");
             var btnSplitExclusive = this.FindControl<Button>("btnSplitExclusive");
             var btnSplitInclusive = this.FindControl<Button>("btnSplitInclusive");
@@ -238,7 +241,7 @@ namespace CrimsonX.Pages
         {
             base.OnAttachedToVisualTree(e);
             
-            AppStrings.Apply(this.FindControl<TextBlock>("lblSplitTunnelingHeader"), AppStrings.NavSplitTunneling, forceLtr: true);
+            AppStrings.Apply(this.FindControl<TextBlock>("lblSplitTunnelingHeader"), AppStrings.NavSplitTunneling);
             AppStrings.Apply(this.FindControl<TextBlock>("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDP);
             AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDPTooltip);
             var btnSplitDisabled = this.FindControl<Button>("btnSplitDisabled");
@@ -258,9 +261,6 @@ namespace CrimsonX.Pages
             AppStrings.ApplyBtn(this.FindControl<Button>("btnSaveBlock"), AppStrings.Save);
             AppStrings.ApplyBtn(this.FindControl<Button>("btnCancelBlock"), AppStrings.Cancel);
 
-            var lblSplitAppsWarning = this.FindControl<TextBlock>("lblSplitAppsWarning");
-            if (lblSplitAppsWarning != null) lblSplitAppsWarning.Text = CrimsonX.Localization.AppStrings.WarningCaseSensitive;
-            
             var togDirectUDP = this.FindControl<ToggleSwitch>("togDirectUDP");
 
             UpdateSplitTunnelUI();
@@ -731,7 +731,7 @@ namespace CrimsonX.Pages
             _isScanningUdpAdapters = true;
             try {
                 cmb.Items.Clear();
-                cmb.Items.Add("Default");
+                cmb.Items.Add(CrimsonX.Localization.AppStrings.AdapterDefault);
             var adapters = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
             foreach (var adapter in adapters)
             {
@@ -756,7 +756,7 @@ namespace CrimsonX.Pages
                 }
                 else
                 {
-                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNoLongerAvail);
+                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNoLongerAvail, ToastKind.Error);
                     _cfg.DirectUdpAdapterName = "";
                     _cfg.DirectUdpAdapterIp = "";
                     MainWindow.Instance.SaveConfig();
@@ -778,7 +778,7 @@ namespace CrimsonX.Pages
             var cmb = sender as ComboBox;
             if (cmb != null && cmb.SelectedItem is string selectedText)
             {
-                if (selectedText == "Default")
+                if (selectedText == CrimsonX.Localization.AppStrings.AdapterDefault)
                 {
                     if (!string.IsNullOrWhiteSpace(_cfg.DirectUdpAdapterName) || !string.IsNullOrWhiteSpace(_cfg.DirectUdpAdapterIp))
                     {
@@ -811,205 +811,5 @@ namespace CrimsonX.Pages
             }
         }
     
-private bool _isExcludeLocationsExpanded = false;
-
-        private static readonly string[] KnownContinentNames =
-        {
-            "Asia", "Europe", "North America", "South America", "Africa", "Oceania"
-        };
-
-        private int ValidExcludedCount()
-        {
-            var stored = _cfg.ExcludedContinents;
-            if (stored == null || stored.Count == 0) return 0;
-            int count = 0;
-            foreach (var name in KnownContinentNames)
-                if (stored.Contains(name)) count++;
-            return count;
-        }
-
-        private void SanitizeExcludedContinents()
-        {
-            var stored = _cfg.ExcludedContinents;
-            if (stored == null) { _cfg.ExcludedContinents = new System.Collections.Generic.List<string>(); return; }
-
-            bool changed = false;
-            var result = new System.Collections.Generic.List<string>();
-            var seen = new System.Collections.Generic.HashSet<string>();
-            foreach (var name in stored)
-            {
-                if (!KnownContinentNames.Contains(name)) { changed = true; continue; }
-                if (seen.Add(name)) result.Add(name);
-                else changed = true;
-            }
-
-            if (changed)
-            {
-                _cfg.ExcludedContinents = result;
-                MainWindow.Instance.RequestConfigSave();
-            }
-        }
-
-    // ── Exclude Locations (Continents) ──
-
-    private void btnExcludeLocationsToggle_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (e != null)
-        {
-            var src = e.Source as global::Avalonia.Controls.Control;
-            while (src != null)
-            {
-                if (src.Name == "togExcludeLocations") return;
-                src = src.Parent as global::Avalonia.Controls.Control;
-            }
-        }
-        
-        var pan = this.FindControl<global::Avalonia.Controls.Border>("panExcludeLocations");
-        var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoExcludeLocationsExpander");
-        if (pan == null || ico == null) return;
-        
-        _isExcludeLocationsExpanded = !_isExcludeLocationsExpanded;
-        pan.MaxHeight = _isExcludeLocationsExpanded ? 500 : 0;
-        pan.Opacity = _isExcludeLocationsExpanded ? 1 : 0;
-        
-        var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panExcludeLocationsToggle");
-        var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnExcludeLocationsToggle");
-        if (panToggle != null) panToggle.CornerRadius = _isExcludeLocationsExpanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
-        if (btnToggle != null) btnToggle.CornerRadius = _isExcludeLocationsExpanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
-        
-        if (ico.RenderTransform is global::Avalonia.Media.RotateTransform rt)
-        {
-            rt.Angle = _isExcludeLocationsExpanded ? 180 : 0;
-        }
-        else
-        {
-            ico.RenderTransform = new global::Avalonia.Media.RotateTransform { Angle = _isExcludeLocationsExpanded ? 180 : 0 };
-        }
-    }
-    
-    private void togExcludeLocations_IsCheckedChanged(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (_isInitializingSettings) return;
-        var tog = sender as global::Avalonia.Controls.ToggleSwitch;
-        if (tog == null || !tog.IsChecked.HasValue) return;
-        
-        var _cfg = MainWindow.Instance.Config;
-        
-        if (tog.IsChecked.Value)
-        {
-            if (ValidExcludedCount() == 0)
-            {
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    _isInitializingSettings = true;
-                    tog.IsChecked = false;
-                    _isInitializingSettings = false;
-                });
-                
-                if (!_isExcludeLocationsExpanded)
-                {
-                    btnExcludeLocationsToggle_Click(null, new Avalonia.Interactivity.RoutedEventArgs());
-                }
-                return;
-            }
-            else if (ValidExcludedCount() == KnownContinentNames.Length)
-            {
-                global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                    _isInitializingSettings = true;
-                    tog.IsChecked = false;
-                    _isInitializingSettings = false;
-                });
-                
-                MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastAllExcluded);
-                
-                if (!_isExcludeLocationsExpanded)
-                {
-                    btnExcludeLocationsToggle_Click(null, new Avalonia.Interactivity.RoutedEventArgs());
-                }
-                return;
-            }
-        }
-        
-        _cfg.EnableExcludedContinents = tog.IsChecked.Value;
-        MainWindow.Instance.RequestConfigSave();
-        if (MainWindow.Instance.State.IsEngineRunning)
-        {
-            MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
-        }
-    } 
-
-        
-        private string ContinentFull(string tag)
-        {
-            return tag switch {
-                "AS" => "Asia",
-                "EU" => "Europe",
-                "NA" => "North America",
-                "SA" => "South America",
-                "AF" => "Africa",
-                "OC" => "Oceania",
-                "AN" => "Antarctica",
-                _ => tag
-            };
-        }
-
-        private void Continent_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-        {
-            if (sender is global::Avalonia.Controls.Control c && c.DataContext is ContinentItem item)
-            {
-                Continents.Remove(item);
-                item.IsExcluded = !item.IsExcluded;
-                
-                var _cfg = MainWindow.Instance.Config;
-                if (_cfg.ExcludedContinents == null) _cfg.ExcludedContinents = new System.Collections.Generic.List<string>();
-                
-                string full = ContinentFull(item.Tag);
-                if (item.IsExcluded)
-                {
-                    if (!_cfg.ExcludedContinents.Contains(full))
-                        _cfg.ExcludedContinents.Add(full);
-                }
-                else
-                {
-                    _cfg.ExcludedContinents.Remove(full);
-                }
-                
-                SanitizeExcludedContinents();
-                
-                var sorted = Continents.ToList();
-                sorted.Add(item);
-                sorted = sorted.OrderByDescending(x => x.IsExcluded).ThenBy(x => x.OriginalOrder).ToList();
-                int index = sorted.IndexOf(item);
-                Continents.Insert(index, item);
-                
-                MainWindow.Instance.RequestConfigSave();
-                
-                if (MainWindow.Instance.State.IsEngineRunning)
-                {
-                    MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
-                }
-                
-                var togExcludeLocations = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togExcludeLocations");
-                if (togExcludeLocations != null)
-                {
-                    int excludedCount = ValidExcludedCount();
-                    bool shouldBeChecked = excludedCount > 0 && excludedCount < KnownContinentNames.Length;
-                    if (excludedCount == KnownContinentNames.Length)
-                    {
-                        MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastAllExcluded);
-                    }
-                    if (togExcludeLocations.IsChecked != shouldBeChecked)
-                    {
-                        global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
-                            _isInitializingSettings = true;
-                            togExcludeLocations.IsChecked = shouldBeChecked;
-                            _isInitializingSettings = false;
-                        });
-                        
-                        _cfg.EnableExcludedContinents = shouldBeChecked;
-                        MainWindow.Instance.RequestConfigSave();
-                    }
-                }
-            }
-        }
 }
 }
