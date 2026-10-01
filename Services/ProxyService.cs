@@ -31,7 +31,7 @@ namespace CrimsonX.Services
 
         public static void SetSystemProxy(bool enable)
         {
-            _ = Task.Run(() =>
+            CrimsonX.Services.BackgroundTask.Run("system proxy", () => Task.Run(() =>
             {
                 try
                 {
@@ -58,7 +58,7 @@ namespace CrimsonX.Services
 
                 try { RefreshProxy(); }
                 catch (Exception ex) { SimpleLogger.Log(ex); }
-            });
+            }));
         }
 
 

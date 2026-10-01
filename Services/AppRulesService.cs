@@ -28,6 +28,11 @@ namespace CrimsonX.Services
     {
         private static string RulesPath()
         {
+            return SecureJsonStore.PathFor("app_rules.bin");
+        }
+
+        private static string LegacyRulesPath()
+        {
             var baseDir = MainWindow.Instance?.GetAppPath("Data\\Apps") ?? "Data\\Apps";
             return Path.Combine(baseDir, "rules.json");
         }
@@ -52,11 +57,13 @@ namespace CrimsonX.Services
             try
             {
                 var path = RulesPath();
+                SecureJsonStore.AdoptPlaintextFile(LegacyRulesPath(), path);
+
                 if (CacheIsCurrent(path)) return Clone(_cached!);
                 if (!File.Exists(path)) return new List<AppGameRule>();
 
-                var json = File.ReadAllText(path);
-                var rules = JsonConvert.DeserializeObject<List<AppGameRule>>(json) ?? new List<AppGameRule>();
+                var rules = SecureJsonStore.Load<List<AppGameRule>>(path) ?? new List<AppGameRule>();
+                rules = rules.Where(r => r != null).ToList();
                 Remember(path, rules);
                 return rules;
             }
@@ -71,8 +78,7 @@ namespace CrimsonX.Services
             try
             {
                 var path = RulesPath();
-                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                File.WriteAllText(path, JsonConvert.SerializeObject(rules, Formatting.Indented));
+                SecureJsonStore.Save(path, rules);
                 Remember(path, rules);
             }
             catch { }

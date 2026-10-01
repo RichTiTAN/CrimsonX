@@ -17,6 +17,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -126,7 +127,7 @@ namespace CrimsonX.Services
             if (!EnableLogging) return;
             try
             {
-                string msg = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}\n\n";
+                string msg = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex}\n\n";
                 _logChannel.Writer.TryWrite(msg);
             }
             catch { }
@@ -141,6 +142,24 @@ namespace CrimsonX.Services
                 _logChannel.Writer.TryWrite(msg);
             }
             catch { }
+        }
+
+        private static readonly object _onceLock = new object();
+        private static readonly Dictionary<string, int> _onceCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        public static void LogOnce(string key, string message)
+        {
+            string line = message;
+
+            lock (_onceLock)
+            {
+                if (!LogDedupe.ShouldLog(key, _onceCounts, out bool summary, out int repeats)) return;
+
+                if (summary)
+                    line = $"{message} (this notice repeated {repeats} times; further repeats are suppressed)";
+            }
+
+            Log(line);
         }
     }
 }

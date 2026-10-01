@@ -16,25 +16,28 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+using System;
+
 namespace CrimsonX.Services
 {
-    public sealed class GeoTraceResult
+    public static class ConnectionModes
     {
-        public string Country       { get; init; } = "";
-        public string Continent     { get; init; } = "";
-        public string CountryCode   { get; init; } = "";
-        public string ContinentCode { get; init; } = "";
-        public string Ip            { get; init; } = "";
-        public long   PingMs        { get; init; }
-    }
+        public const string Vpn   = "VPN Mode";
+        public const string Proxy = "Proxy Mode";
+        public const string Clear = "Clear Proxy";
 
-    public sealed class StatsSnapshot
-    {
-        public string   SpeedUp      { get; init; } = "0 KB/s";
-        public string   SpeedDn      { get; init; } = "0 KB/s";
-        public long     DiffUpBytes  { get; init; }
-        public long     DiffDnBytes  { get; init; }
-        public double[] UpHistory    { get; init; } = System.Array.Empty<double>();
-        public double[] DnHistory    { get; init; } = System.Array.Empty<double>();
+        public static readonly string[] All = { Proxy, Vpn, Clear };
+
+        public static string Normalise(string? mode)
+        {
+            string value = (mode ?? "").Trim();
+
+            foreach (string known in All)
+            {
+                if (string.Equals(known, value, StringComparison.OrdinalIgnoreCase)) return known;
+            }
+
+            return Proxy;
+        }
     }
 }

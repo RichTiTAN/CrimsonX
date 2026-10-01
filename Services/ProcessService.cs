@@ -53,14 +53,19 @@ namespace CrimsonX.Services
                     string pName = Path.GetFileName(filePath);
                     process.ErrorDataReceived += (s, e) =>
                     {
-                        if (!string.IsNullOrWhiteSpace(e.Data) && (e.Data.IndexOf("FATAL", StringComparison.OrdinalIgnoreCase) >= 0 || e.Data.IndexOf("ERROR", StringComparison.OrdinalIgnoreCase) >= 0))
+                        if (!string.IsNullOrWhiteSpace(e.Data)
+                            && (e.Data.IndexOf("FATAL", StringComparison.OrdinalIgnoreCase) >= 0
+                             || e.Data.IndexOf("ERROR", StringComparison.OrdinalIgnoreCase) >= 0
+                             || e.Data.IndexOf("panic", StringComparison.OrdinalIgnoreCase) >= 0))
                         {
                             CrimsonX.Services.SimpleLogger.Log($"[{pName}] {e.Data}");
                         }
                     };
                     process.OutputDataReceived += (s, e) =>
                     {
-                        if (!string.IsNullOrWhiteSpace(e.Data) && e.Data.IndexOf("FATAL", StringComparison.OrdinalIgnoreCase) >= 0)
+                        if (!string.IsNullOrWhiteSpace(e.Data)
+                            && (e.Data.IndexOf("FATAL", StringComparison.OrdinalIgnoreCase) >= 0
+                             || e.Data.IndexOf("panic", StringComparison.OrdinalIgnoreCase) >= 0))
                         {
                             CrimsonX.Services.SimpleLogger.Log($"[{pName}] {e.Data}");
                         }

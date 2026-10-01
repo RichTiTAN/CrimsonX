@@ -42,7 +42,9 @@ namespace CrimsonX.Services
 
         Unparsable,
 
-        Rejected
+        Rejected,
+
+        NeedsCredentials
     }
 
     public static class SingboxConfigValidator
@@ -215,25 +217,76 @@ namespace CrimsonX.Services
             return !invalid.Contains(SingleProbeKey);
         }
 
-        public static CustomProxyCheckResult ValidateEditorConfig(string sbDir, string raw, string adapterName = "", string adapterIp = "")
+        public static bool CheckEndpoint(string sbDir, string endpointJson)
         {
-            string text = (raw ?? "").Trim();
-            if (text.Length == 0) return CustomProxyCheckResult.Missing;
+            if (string.IsNullOrWhiteSpace(endpointJson)) return false;
 
-            if (!SingboxLinkParser.TryParseLink(text, out var outboundJson, out _)) return CustomProxyCheckResult.Unparsable;
-
+            JObject endpoint;
             try
             {
-                var outbound = JObject.Parse(outboundJson);
-                var tagged   = SingboxLinkParser.WithTagAndDial(outbound, SingleProbeKey, adapterName, adapterIp);
-                if (!CheckOutbound(sbDir, tagged.ToString(Formatting.None))) return CustomProxyCheckResult.Rejected;
+                endpoint = JObject.Parse(endpointJson);
             }
             catch
             {
-                return CustomProxyCheckResult.Unparsable;
+                return false;
             }
 
-            return CustomProxyCheckResult.Ok;
+            SweepStaleProbeDirs();
+
+            string dir = Path.Combine(Path.GetTempPath(), "CrimsonX_sbcheck_" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(dir);
+                string probePath = Path.Combine(dir, "config.json");
+
+                if (endpoint["tag"] == null) endpoint["tag"] = "probe-endpoint";
+
+                var config = new JObject
+                {
+                    ["log"]       = new JObject { ["level"] = "fatal" },
+                    ["endpoints"] = new JArray { endpoint },
+                    ["outbounds"] = new JArray { new JObject { ["type"] = "direct", ["tag"] = "direct" } }
+                };
+
+                File.WriteAllText(probePath, config.ToString(Formatting.Indented));
+                return Check(sbDir, probePath);
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                try { if (Directory.Exists(dir)) Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        public static CustomProxyCheckResult ValidateEditorConfig(string sbDir, string raw, out string reason,
+            string adapterName = "", string adapterIp = "")
+        {
+            reason = "";
+
+            string text = (raw ?? "").Trim();
+            if (text.Length == 0)
+            {
+                reason = "the box is empty";
+                return CustomProxyCheckResult.Missing;
+            }
+
+            var verdict = ConfigValidator
+                .CheckAsync(text, null, ConfigTarget.Singbox, ConfigCheckLevel.Live, adapterName, adapterIp, sbDir)
+                .GetAwaiter()
+                .GetResult();
+
+            reason = verdict.Reason ?? "";
+            if (reason.Length == 0 && !verdict.Ok) reason = "sing-box refused this config";
+
+            if (verdict.NeedsCredentials) return CustomProxyCheckResult.NeedsCredentials;
+            if (verdict.Ok) return CustomProxyCheckResult.Ok;
+
+            if (verdict.Reason.Length > 0) SimpleLogger.Log($"[SingBox:check] {verdict.Reason}");
+
+            return verdict.Unreadable ? CustomProxyCheckResult.Unparsable : CustomProxyCheckResult.Rejected;
         }
     }
 }

@@ -29,20 +29,122 @@ namespace CrimsonX.Services
 {
     public static class SystemDnsService
     {
-        private const int ApplyBudgetMs   = 8000;
+        private const int ApplyBudgetMs   = 1000;
         private const int RestoreBudgetMs = 1500;
         private const int HealBudgetMs    = 6000;
 
         private static readonly SemaphoreSlim _gate = new SemaphoreSlim(1, 1);
 
-        private static readonly List<DnsState> _pending = new List<DnsState>();
+        private static readonly object _stateLock = new object();
 
         private static int _epoch;
 
-        private static readonly string BackupPath =
-            Path.Combine(AppContext.BaseDirectory, "Data", "dns_backup.json");
+        public static bool HasPendingRestore
+        {
+            get
+            {
+                var cfg = MainWindow.Instance?.Config;
+                if (cfg?.DnsRestore == null) return false;
 
-        public static bool HasPendingRestore => _pending.Count > 0;
+                lock (_stateLock) { return cfg.DnsRestore.Count > 0; }
+            }
+        }
+
+        private static List<DnsState> Pending()
+        {
+            var cfg = MainWindow.Instance?.Config;
+            var list = new List<DnsState>();
+            if (cfg?.DnsRestore == null) return list;
+
+            lock (_stateLock)
+            {
+                foreach (var entry in cfg.DnsRestore)
+                {
+                    if (entry == null || string.IsNullOrWhiteSpace(entry.Adapter)) continue;
+
+                    list.Add(new DnsState
+                    {
+                        AdapterName = entry.Adapter,
+                        WasDhcp     = entry.WasDhcp,
+                        Servers     = entry.Servers ?? Array.Empty<string>()
+                    });
+                }
+            }
+
+            return list;
+        }
+
+        private static void AddPending(DnsState state)
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null) return;
+
+            lock (_stateLock)
+            {
+                if (cfg.DnsRestore == null) cfg.DnsRestore = new List<DnsRestoreEntry>();
+                if (cfg.DnsRestore.Any(e => e != null && string.Equals(e.Adapter, state.AdapterName, StringComparison.OrdinalIgnoreCase))) return;
+
+                cfg.DnsRestore.Add(new DnsRestoreEntry
+                {
+                    Adapter = state.AdapterName,
+                    WasDhcp = state.WasDhcp,
+                    Servers = state.Servers ?? Array.Empty<string>()
+                });
+            }
+
+            SavePending();
+        }
+
+        private static void RemovePending(string adapterName)
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg?.DnsRestore == null) return;
+
+            lock (_stateLock)
+            {
+                cfg.DnsRestore.RemoveAll(e => e == null || string.Equals(e.Adapter, adapterName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            SavePending();
+        }
+
+        private static void SavePending()
+        {
+            try { MainWindow.Instance?.SaveConfig(); }
+            catch (Exception ex) { SimpleLogger.Log(ex); }
+        }
+
+        private static void AdoptLegacyBackup()
+        {
+            try
+            {
+                string legacy = Path.Combine(AppContext.BaseDirectory, "Data", "dns_backup.json");
+                if (!File.Exists(legacy)) return;
+
+                var array = JArray.Parse(File.ReadAllText(legacy));
+                foreach (var entry in array.OfType<JObject>())
+                {
+                    string adapterName = entry["adapter"]?.ToString() ?? "";
+                    if (string.IsNullOrWhiteSpace(adapterName)) continue;
+
+                    AddPending(new DnsState
+                    {
+                        AdapterName = adapterName,
+                        WasDhcp     = entry["dhcp"]?.ToObject<bool>() ?? false,
+                        Servers     = entry["servers"]?.ToObject<string[]>() ?? Array.Empty<string>()
+                    });
+
+                    SimpleLogger.Log($"[DnsService] moved the pending DNS backup for {adapterName} into the settings");
+                }
+
+                File.Delete(legacy);
+                SimpleLogger.Log("[DnsService] removed the old Data\\dns_backup.json");
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log(ex);
+            }
+        }
 
         // ── Apply system DNS at connect time ──
 
@@ -70,7 +172,7 @@ namespace CrimsonX.Services
                 {
                     try
                     {
-                        AdoptDiskBackup();
+                        AdoptLegacyBackup();
 
                         var nic = ResolveAdapter(cfg);
                         if (nic == null)
@@ -79,10 +181,9 @@ namespace CrimsonX.Services
                             return;
                         }
 
-                        if (!_pending.Any(s => string.Equals(s.AdapterName, nic.Name, StringComparison.OrdinalIgnoreCase)))
+                        if (!Pending().Any(s => string.Equals(s.AdapterName, nic.Name, StringComparison.OrdinalIgnoreCase)))
                         {
-                            _pending.Add(DnsService.CaptureState(nic));
-                            SavePending();
+                            AddPending(DnsService.CaptureState(nic));
                         }
 
                         bool ok = DnsService.SetDns(nic.Name, primary, secondary, ApplyBudgetMs, out string error);
@@ -120,14 +221,16 @@ namespace CrimsonX.Services
             await _gate.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (adoptDisk) AdoptDiskBackup();
-                if (_pending.Count == 0) return;
+                if (adoptDisk) AdoptLegacyBackup();
+
+                var pending = Pending();
+                if (pending.Count == 0) return;
 
                 await Task.Run(() =>
                 {
                     try
                     {
-                        foreach (var state in _pending.ToArray())
+                        foreach (var state in pending)
                         {
                             string wanted = state.WasDhcp
                                 ? "DHCP (automatic)"
@@ -135,8 +238,7 @@ namespace CrimsonX.Services
 
                             if (DnsService.RestoreState(state, budgetMs, out string error))
                             {
-                                _pending.Remove(state);
-                                SavePending();
+                                RemovePending(state.AdapterName);
                                 SimpleLogger.Log($"[DnsService] Restored DNS on {state.AdapterName} to {wanted}");
                             }
                             else
@@ -154,67 +256,6 @@ namespace CrimsonX.Services
             finally
             {
                 _gate.Release();
-            }
-        }
-
-        private static void SavePending()
-        {
-            try
-            {
-                if (_pending.Count == 0)
-                {
-                    if (File.Exists(BackupPath)) File.Delete(BackupPath);
-                    return;
-                }
-
-                var array = new JArray();
-                foreach (var state in _pending)
-                {
-                    array.Add(new JObject
-                    {
-                        ["adapter"] = state.AdapterName,
-                        ["dhcp"]    = state.WasDhcp,
-                        ["servers"] = new JArray(state.Servers)
-                    });
-                }
-
-                var dir = Path.GetDirectoryName(BackupPath);
-                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-
-                File.WriteAllText(BackupPath, array.ToString());
-            }
-            catch (Exception ex)
-            {
-                SimpleLogger.Log(ex);
-            }
-        }
-
-        private static void AdoptDiskBackup()
-        {
-            try
-            {
-                if (!File.Exists(BackupPath)) return;
-
-                var array = JArray.Parse(File.ReadAllText(BackupPath));
-                foreach (var entry in array.OfType<JObject>())
-                {
-                    string adapterName = entry["adapter"]?.ToString() ?? "";
-                    if (string.IsNullOrWhiteSpace(adapterName)) continue;
-                    if (_pending.Any(s => string.Equals(s.AdapterName, adapterName, StringComparison.OrdinalIgnoreCase))) continue;
-
-                    _pending.Add(new DnsState
-                    {
-                        AdapterName = adapterName,
-                        WasDhcp     = entry["dhcp"]?.ToObject<bool>() ?? false,
-                        Servers     = entry["servers"]?.ToObject<string[]>() ?? Array.Empty<string>()
-                    });
-
-                    SimpleLogger.Log($"[DnsService] adopted the pending DNS backup for {adapterName} from an earlier run");
-                }
-            }
-            catch (Exception ex)
-            {
-                SimpleLogger.Log(ex);
             }
         }
 

@@ -739,6 +739,17 @@ namespace CrimsonX.Services
             return outbound;
         }
 
+        private static void ApplyFinalMask(JObject stream, string fm)
+        {
+            if (stream == null || string.IsNullOrWhiteSpace(fm)) return;
+
+            var mask = FinalMask.Read(fm, out string warning);
+            if (warning.Length > 0)
+                SimpleLogger.LogOnce($"mask-json|{fm.Length}:{fm.GetHashCode()}", $"[FinalMask] {warning}");
+
+            if (mask != null) stream["finalmask"] = mask;
+        }
+
         private static void AddStreamSettings(JObject outbound, NameValueCollection query)
         {
             var stream = new JObject();
@@ -774,8 +785,8 @@ namespace CrimsonX.Services
                 string pqv = query["pqv"];
                 if (!string.IsNullOrEmpty(pqv)) tlsObj["mldsa65Verify"] = pqv;
 
-                bool allowInsecure = query["allowInsecure"] == "1" || query["insecure"] == "1" || query["allowInsecure"] == "true" || query["insecure"] == "true";
-                if (allowInsecure) tlsObj["allowInsecure"] = true;
+                bool insecurePeer = query["allowInsecure"] == "1" || query["insecure"] == "1" || query["allowInsecure"] == "true" || query["insecure"] == "true";
+                if (insecurePeer) tlsObj["insecure"] = true;
 
                 if (security == "reality")
                 {
@@ -787,17 +798,12 @@ namespace CrimsonX.Services
 
                     string spx = query["spx"];
                     if (!string.IsNullOrEmpty(spx)) tlsObj["spiderX"] = spx;
-
-                    string fm = query["fm"];
-                    if (!string.IsNullOrEmpty(fm))
-                    {
-                        try { stream["finalMask"] = JObject.Parse(fm); }
-                        catch { tlsObj["finalMask"] = fm; }
-                    }
                 }
 
                 stream[security + "Settings"] = tlsObj;
             }
+
+            ApplyFinalMask(stream, query["fm"]);
 
             if (net == "ws")
             {
@@ -968,13 +974,12 @@ namespace CrimsonX.Services
                 string alpn = tls?["alpn"] is JArray alpnArr && alpnArr.Count > 0
                     ? string.Join(",", alpnArr.Select(a => a.ToString()))
                     : "";
-                bool insecure = tls?["allowInsecure"]?.Value<bool>() == true;
+                bool insecure = tls?["insecure"]?.Value<bool>() == true || tls?["allowInsecure"]?.Value<bool>() == true;
                 string pbk = tls?["password"]?.ToString() ?? "";
                 if (pbk.Length == 0) pbk = tls?["publicKey"]?.ToString() ?? "";
                 string sid = tls?["shortId"]?.ToString() ?? "";
                 string spx = tls?["spiderX"]?.ToString() ?? "";
-                string fm = RawTokenString(stream?["finalMask"]);
-                if (fm.Length == 0) fm = RawTokenString(tls?["finalMask"]);
+                string fm = RawTokenString(FinalMask.FromStream(stream));
 
                 string path = "", host = "", serviceName = "", headerType = "", xhttpMode = "", xhttpExtra = "";
                 switch (network)

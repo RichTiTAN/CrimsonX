@@ -32,10 +32,30 @@ namespace CrimsonX.Services
             int nodeCount = 1;
             if (activeOutbounds != null && activeOutbounds.Count > 0) nodeCount = activeOutbounds.Count;
 
-            bool useCustomChain = config.EnableV2rayChain && !string.IsNullOrWhiteSpace(config.V2rayChainJson);
+            bool exitIsSingboxExit = ExitNodeChain.IsSingboxExit(config);
+
+            bool useCustomChain = config.EnableV2rayChain
+                && !string.IsNullOrWhiteSpace(config.V2rayChainJson)
+                && !exitIsSingboxExit;
+
+            bool singBoxOwnsLanPort = ExitNodeChain.ShouldChain(config);
             bool preferDirectDefault = config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE" && config.LastXrayMode != "VPN Mode";
 
-            string xrayBalancePolicy = GetXrayBalancePolicy(config.XrayBalancePolicy);
+            // ── the adapters the traffic is spread over ──────────────────────────────────────────────────
+            var adapterPicks = config.EnableLoadBalanceAdapters
+                ? AdapterIps(config.LoadBalanceAdapters)
+                : new System.Collections.Generic.List<string>();
+
+            var loadBalanceIps = adapterPicks.Count > 1
+                ? adapterPicks
+                : new System.Collections.Generic.List<string>();
+
+            string pinnedIp = adapterPicks.Count == 1
+                ? adapterPicks[0]
+                : (config.EnableAdapterBinding ? (config.SelectedAdapterIp ?? "").Trim() : "");
+
+            string xrayBalancePolicy = GetXrayBalancePolicy(
+                loadBalanceIps.Count > 0 ? config.AdapterBalancePolicy : config.XrayBalancePolicy);
             object strategy = GetXrayBalancerStrategy(xrayDir, xrayBalancePolicy);
 
             var rules = new List<object>
@@ -113,7 +133,7 @@ namespace CrimsonX.Services
 
             var inbounds = new object[]
             {
-                new { listen = config.AllowLanConnections ? "0.0.0.0" : "127.0.0.1", port = 10919, protocol = "mixed", tag = "mixed-in",
+                new { listen = config.AllowLanConnections && !singBoxOwnsLanPort ? "0.0.0.0" : "127.0.0.1", port = 10919, protocol = "mixed", tag = "mixed-in",
                       settings = mixedSettings,
                       sniffing = new { enabled = true, destOverride = new[] { "http", "tls", "quic", "fakedns" }, routeOnly = true } },
                 new { listen = "127.0.0.1", port = 10999, protocol = "dokodemo-door", tag = "api",
@@ -128,29 +148,28 @@ namespace CrimsonX.Services
             {
                 try
                 {
-                    var v2p = JObject.Parse(config.V2rayChainJson);
-                    JObject? v2ob;
-
-                    if (v2p["outbounds"] is JArray obArr)
-                    {
-                        v2ob = obArr.OfType<JObject>()
-                            .FirstOrDefault(o => o["protocol"]?.ToString() != "freedom" && o["protocol"]?.ToString() != "blackhole");
-                    }
-                    else
-                    {
-                        v2ob = v2p;
-                    }
+                    JObject? v2ob = ResolveExitNodeOutbound(config.V2rayChainJson);
 
                     if (v2ob != null)
                     {
-                        for (int i = 1; i <= nodeCount; i++)
+                        int chainCopies = loadBalanceIps.Count > 0 ? loadBalanceIps.Count : 1;
+
+                        for (int slot = 0; slot < nodeCount * chainCopies; slot++)
                         {
-                            string cloneTag = $"proxy-clone-{sessionSuffix}-{i}";
+                            int node = slot / chainCopies + 1;
+                            int copy = slot % chainCopies + 1;
+
+                            bool localEntry = activeOutbounds != null && node - 1 < activeOutbounds.Count
+                                && XrayLinkParser.IsLocalOutbound(activeOutbounds[node - 1]);
+                            if (localEntry && copy > 1) continue;
+
+                            string cloneTag = CloneTag(sessionSuffix, node, copy, chainCopies);
                             proxyCloneTags.Add(cloneTag);
 
                             var clone = (JObject)v2ob.DeepClone();
                             clone["tag"] = cloneTag;
-                            clone["proxySettings"] = JObject.FromObject(new { tag = $"proxy-node-{sessionSuffix}-{i}" });
+
+                            ChainThroughDialer(clone, NodeTag(sessionSuffix, node, copy, chainCopies));
 
                             outbounds.Add(clone);
                         }
@@ -169,19 +188,27 @@ namespace CrimsonX.Services
             var nodeOutboundTags = new List<string>();
             if (activeOutbounds != null && activeOutbounds.Count > 0)
             {
-                for (int i = 0; i < activeOutbounds.Count; i++)
+                int nodeCopies = loadBalanceIps.Count > 0 ? loadBalanceIps.Count : 1;
+
+                for (int slot = 0; slot < activeOutbounds.Count * nodeCopies; slot++)
                 {
-                    string tag = $"proxy-node-{sessionSuffix}-{i + 1}";
+                    int node = slot / nodeCopies;
+                    int copy = slot % nodeCopies + 1;
+
+                    var ob = (JObject)activeOutbounds[node].DeepClone();
+                    bool local = XrayLinkParser.IsLocalOutbound(ob);
+
+                    if (local && copy > 1) continue;
+
+                    string tag = NodeTag(sessionSuffix, node + 1, copy, nodeCopies);
                     nodeOutboundTags.Add(tag);
-                    var ob = (JObject)activeOutbounds[i].DeepClone();
                     ob["tag"] = tag;
                     
-                    if (config.EnableAdapterBinding && !string.IsNullOrWhiteSpace(config.SelectedAdapterIp))
+                    string sendThroughIp = loadBalanceIps.Count > 0 ? loadBalanceIps[copy - 1] : pinnedIp;
+
+                    if (sendThroughIp.Length > 0 && !local)
                     {
-                        if (!XrayLinkParser.IsLocalOutbound(ob))
-                        {
-                            ob["sendThrough"] = config.SelectedAdapterIp;
-                        }
+                        ob["sendThrough"] = sendThroughIp;
                     }
                     
                     outbounds.Add(ob);
@@ -396,11 +423,107 @@ namespace CrimsonX.Services
                 return false;
             }
         }
+
+        public static void ChainThroughDialer(JObject outbound, string dialerTag)
+        {
+            if (outbound == null || string.IsNullOrWhiteSpace(dialerTag)) return;
+
+            if (outbound["streamSettings"] is not JObject stream)
+            {
+                stream = new JObject();
+                outbound["streamSettings"] = stream;
+            }
+
+            if (stream["sockopt"] is not JObject sockopt)
+            {
+                sockopt = new JObject();
+                stream["sockopt"] = sockopt;
+            }
+
+            sockopt["dialerProxy"] = dialerTag.Trim();
+        }
+
+        private static JObject? ResolveExitNodeOutbound(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+
+            if (ExitNodeChain.IsPlainTcpVless(raw)) return null;
+
+            try
+            {
+                if (ConfigConverter.IsXrayOutbound(raw))
+                {
+                    var parsed = JObject.Parse(raw);
+
+                    if (parsed["outbounds"] is JArray arr)
+                    {
+                        return arr.OfType<JObject>()
+                            .FirstOrDefault(o => o["protocol"]?.ToString() != "freedom" && o["protocol"]?.ToString() != "blackhole");
+                    }
+
+                    return parsed;
+                }
+
+                if (TunnelConfigParser.LooksLikeTunnel(raw)) return null;
+
+                if (ConfigConverter.TryConvert(raw, out string converted, out _, out string error))
+                {
+                    CrimsonX.Services.SimpleLogger.Log("[ExitNode] Converted a sing-box exit config to an xray outbound.");
+                    return (JObject.Parse(converted)["outbounds"] as JArray)?.OfType<JObject>().FirstOrDefault();
+                }
+
+                CrimsonX.Services.SimpleLogger.Log($"[ExitNode] The custom exit node could not be used by xray: {error}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                CrimsonX.Services.SimpleLogger.Log(ex);
+                return null;
+            }
+        }
+
+        public static string NodeTag(string session, int node, int copy, int copies) =>
+            copies > 1 ? $"proxy-node-{session}-{node}-{copy}" : $"proxy-node-{session}-{node}";
+
+        public static string CloneTag(string session, int node, int copy, int copies) =>
+            copies > 1 ? $"proxy-clone-{session}-{node}-{copy}" : $"proxy-clone-{session}-{node}";
+
+        public static string ProbeSendThrough(AppConfig config)
+        {
+            if (config == null) return "";
+
+            if (config.EnableLoadBalanceAdapters)
+            {
+                var ips = AdapterIps(config.LoadBalanceAdapters);
+                if (ips.Count > 0) return ips[0];
+            }
+
+            return config.EnableAdapterBinding ? (config.SelectedAdapterIp ?? "").Trim() : "";
+        }
+
+        public static System.Collections.Generic.List<string> AdapterIps(System.Collections.Generic.IEnumerable<string>? adapters)
+        {
+            var ips = new System.Collections.Generic.List<string>();
+            if (adapters == null) return ips;
+
+            foreach (string item in adapters)
+            {
+                if (string.IsNullOrWhiteSpace(item)) continue;
+
+                int at = item.LastIndexOf(" - ", StringComparison.Ordinal);
+                string ip = (at >= 0 ? item.Substring(at + 3) : item).Trim();
+
+                if (ip.Length == 0 || ips.Contains(ip)) continue;
+                ips.Add(ip);
+            }
+
+            return ips;
+        }
     }
 
     public static class SingboxConfigWriter
     {
-        public static bool Write(AppConfig config, string sbDir)
+        public static bool Write(AppConfig config, string sbDir, bool skipExitNode = false)
         {
             var currentExe = Path.GetFileName(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "");
 
@@ -434,7 +557,22 @@ namespace CrimsonX.Services
                 }
             }
 
-            var appRules = AppRulesSingboxBuilder.Build(config);
+            // ── Exit node ────────────────────────────────────────────────────────────────────────
+            bool   exitChained  = false;
+            string exitError    = "";
+            ExitNodeChain.ExitNodePlane exitPlane = ExitNodeChain.ExitNodePlane.None;
+            JObject? exitObject = null;
+
+            if (!skipExitNode)
+                exitObject = ExitNodeChain.BuildExit(config, out exitPlane, out exitChained, out exitError);
+
+            if (exitChained) ExitNodeChain.AllocateProxyPort();
+
+            if (exitError.Length > 0) CrimsonX.Services.SimpleLogger.Log($"[ExitNode] {exitError}");
+
+            string proxyTag = exitChained ? ExitNodeChain.EndpointTag : ExitNodeChain.TransportTag;
+
+            var appRules = AppRulesSingboxBuilder.Build(config, null, proxyTag);
             string configPath = Path.Combine(sbDir, "config.json");
 
             object BuildSbConfig(AppRulesSingboxResult rules)
@@ -452,11 +590,18 @@ namespace CrimsonX.Services
 
                 sbRules.Add(new { protocol = "quic", action = "reject", method = "default" });
                 sbRules.Add(new { domain_keyword = new[] { AppSecrets.WorkerDomainKeyword }, action = "route", outbound = "direct" });
+
+                if (exitChained)
+                {
+                    sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, ip_is_private = true, action = "route", outbound = "direct" });
+                    sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, action = "route", outbound = proxyTag });
+                }
+
                 sbRules.Add(new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" });
 
                 if (userApps.Count > 0)
                 {
-                    string targetOutbound = config.SplitTunnelMode == "INCLUSIVE" ? "proxy" : "direct";
+                    string targetOutbound = config.SplitTunnelMode == "INCLUSIVE" ? proxyTag : "direct";
                     sbRules.Add(new { process_name = userApps.ToArray(), action = "route", outbound = targetOutbound });
                 }
 
@@ -582,7 +727,7 @@ namespace CrimsonX.Services
                     {
                         rules = sbRules.ToArray(),
                         rule_set = rules.RuleSets.ToArray(),
-                        final = config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE" ? "direct" : "proxy",
+                        final = config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE" ? "direct" : proxyTag,
                         default_domain_resolver = new { server = "dns_direct" },
                         auto_detect_interface = true,
                         find_process = true
@@ -597,7 +742,13 @@ namespace CrimsonX.Services
                     }
                 };
 
-                return sbConfig;
+                if (!exitChained) return sbConfig;
+
+                var document = JObject.FromObject(sbConfig);
+                ExitNodeChain.PlaceInto(document, exitObject!, exitPlane);
+                ExitNodeChain.AddProxyInbound(document, config);
+
+                return document;
             }
 
             try
@@ -616,7 +767,7 @@ namespace CrimsonX.Services
 
                         CrimsonX.Services.SimpleLogger.Log(
                             $"[SingBox] Dropped {invalidKeys.Count} invalid custom proxy outbound(s).");
-                        MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastCustomProxyDropped);
+                        MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastCustomProxyDropped, ToastKind.Error);
 
                         if (safeRules.CustomProxies.Count > 0 && !SingboxConfigValidator.Check(sbDir, configPath))
                         {

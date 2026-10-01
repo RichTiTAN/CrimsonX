@@ -16,25 +16,30 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+using System.Net;
+using System.Net.Sockets;
+
 namespace CrimsonX.Services
 {
-    public sealed class GeoTraceResult
+    public static class IpDisplay
     {
-        public string Country       { get; init; } = "";
-        public string Continent     { get; init; } = "";
-        public string CountryCode   { get; init; } = "";
-        public string ContinentCode { get; init; } = "";
-        public string Ip            { get; init; } = "";
-        public long   PingMs        { get; init; }
-    }
+        private const int TileBudget = 20;
 
-    public sealed class StatsSnapshot
-    {
-        public string   SpeedUp      { get; init; } = "0 KB/s";
-        public string   SpeedDn      { get; init; } = "0 KB/s";
-        public long     DiffUpBytes  { get; init; }
-        public long     DiffDnBytes  { get; init; }
-        public double[] UpHistory    { get; init; } = System.Array.Empty<double>();
-        public double[] DnHistory    { get; init; } = System.Array.Empty<double>();
+        public static bool IsIpv6(string? ip)
+            => !string.IsNullOrWhiteSpace(ip)
+               && ip.Contains(':')
+               && IPAddress.TryParse(ip.Trim(), out var parsed)
+               && parsed.AddressFamily == AddressFamily.InterNetworkV6;
+
+        public static string ForTile(string? ip)
+        {
+            string text = (ip ?? "").Trim();
+            if (text.Length <= TileBudget || !IsIpv6(text)) return text;
+
+            string[] groups = text.Split(':');
+            if (groups.Length < 4) return text;
+
+            return $"{groups[0]}:{groups[1]}:{groups[2]}…:{groups[groups.Length - 1]}";
+        }
     }
 }

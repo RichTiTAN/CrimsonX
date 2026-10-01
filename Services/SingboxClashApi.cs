@@ -129,6 +129,62 @@ namespace CrimsonX.Services
         internal List<RuleProcessTraffic> Processes { get; set; } = new();
     }
 
+    public sealed class EndpointConnectionBytes
+    {
+        public string Id { get; set; } = "";
+        public long DownloadBytes { get; set; }
+        public long UploadBytes { get; set; }
+    }
+
+    public sealed class EndpointChainSnapshot
+    {
+        public bool HasChains { get; set; }
+        public long SessionDownloadBytes { get; set; }
+        public long SessionUploadBytes { get; set; }
+        public List<EndpointConnectionBytes> Connections { get; set; } = new();
+
+        public static EndpointChainSnapshot Parse(string json, string chainTag)
+        {
+            var snapshot = new EndpointChainSnapshot();
+
+            JObject root;
+            try { root = JObject.Parse(json); }
+            catch (Exception ex) { SimpleLogger.Log(ex); return snapshot; }
+
+            snapshot.SessionDownloadBytes = root.Value<long?>("downloadTotal") ?? 0;
+            snapshot.SessionUploadBytes   = root.Value<long?>("uploadTotal") ?? 0;
+
+            if (root["connections"] is not JArray connections) return snapshot;
+
+            foreach (var item in connections)
+            {
+                if (item["chains"] is not JArray chains) continue;
+
+                snapshot.HasChains = true;
+
+                bool ridesChain = false;
+                foreach (var tag in chains)
+                {
+                    if (!string.Equals(tag?.ToString(), chainTag, StringComparison.Ordinal)) continue;
+
+                    ridesChain = true;
+                    break;
+                }
+
+                if (!ridesChain) continue;
+
+                snapshot.Connections.Add(new EndpointConnectionBytes
+                {
+                    Id            = item["id"]?.ToString() ?? "",
+                    DownloadBytes = item.Value<long?>("download") ?? 0,
+                    UploadBytes   = item.Value<long?>("upload")   ?? 0
+                });
+            }
+
+            return snapshot;
+        }
+    }
+
     internal sealed class SingboxConnectionsClient : IDisposable
     {
         private readonly HttpClient _http;
@@ -217,6 +273,29 @@ namespace CrimsonX.Services
                 .ToList();
 
             return snapshot;
+        }
+
+        internal async Task<EndpointChainSnapshot?> GetChainAsync(string chainTag, CancellationToken token)
+        {
+            if (!SingboxClashApi.IsConfigured || string.IsNullOrWhiteSpace(chainTag)) return null;
+
+            try
+            {
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Get, "http://" + SingboxClashApi.Controller + "/connections");
+                request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + SingboxClashApi.Secret);
+
+                using var cts    = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
+
+                using var response = await _http.SendAsync(request, linked.Token).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode) return null;
+
+                string body = await response.Content.ReadAsStringAsync(linked.Token).ConfigureAwait(false);
+                return EndpointChainSnapshot.Parse(body, chainTag);
+            }
+            catch (OperationCanceledException) { return null; }
+            catch (Exception ex) { SimpleLogger.Log(ex); return null; }
         }
 
         internal static string ProcessKey(string? processPath)

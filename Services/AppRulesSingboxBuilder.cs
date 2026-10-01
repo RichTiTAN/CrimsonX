@@ -55,7 +55,7 @@ namespace CrimsonX.Services
             ["Oceania"]       = "oceania",
         };
 
-        public static AppRulesSingboxResult Build(AppConfig config, ISet<string> skipCustomKeys = null)
+        public static AppRulesSingboxResult Build(AppConfig config, ISet<string> skipCustomKeys = null, string proxyTag = "proxy")
         {
             var result = new AppRulesSingboxResult();
 
@@ -110,8 +110,8 @@ namespace CrimsonX.Services
                     });
                 }
 
-                string tcpOutbound = ResolveOutbound(rule, rule.TcpRouting, rule.TcpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys);
-                string udpOutbound = ResolveOutbound(rule, rule.UdpRouting, rule.UdpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys);
+                string tcpOutbound = ResolveOutbound(rule, rule.TcpRouting, rule.TcpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys, proxyTag);
+                string udpOutbound = ResolveOutbound(rule, rule.UdpRouting, rule.UdpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys, proxyTag);
 
                 result.RouteRules.Add(new
                 {
@@ -185,19 +185,19 @@ namespace CrimsonX.Services
 
         private static string ResolveOutbound(AppGameRule rule, string routing, string adapter,
             Dictionary<string, string> adapterTags, Dictionary<string, string> adapterIps, ref int adapterIndex,
-            AppRulesSingboxResult result, ISet<string> skipCustomKeys)
+            AppRulesSingboxResult result, ISet<string> skipCustomKeys, string proxyTag)
         {
             if (IsCustomRouting(routing))
             {
                 string customTag = ResolveCustomOutbound(rule, adapter, adapterIps, result, skipCustomKeys);
-                return customTag.Length > 0 ? customTag : "proxy";
+                return customTag.Length > 0 ? customTag : proxyTag;
             }
 
             bool direct = string.Equals(routing, "Direct", StringComparison.OrdinalIgnoreCase);
             bool customAdapter = !string.IsNullOrWhiteSpace(adapter)
                 && !string.Equals(adapter, "Default", StringComparison.OrdinalIgnoreCase);
 
-            if (!direct) return "proxy";
+            if (!direct) return proxyTag;
 
             if (customAdapter)
             {
@@ -236,13 +236,53 @@ namespace CrimsonX.Services
             string raw = rule?.CustomProxyRaw ?? "";
             if (string.IsNullOrWhiteSpace(raw)) return "";
 
-            string key = SingboxLinkParser.KeyOf(raw, adapter);
+            string key = CustomProxyKey(raw, adapter);
             if (skipCustomKeys != null && skipCustomKeys.Contains(key)) return "";
             if (result.CustomTags.TryGetValue(key, out var existing)) return existing;
 
-            if (!SingboxLinkParser.TryParseLink(raw, out var outboundJson, out var label)) return "";
-
             JObject outbound;
+
+            if (TunnelConfigParser.TryParse(raw, out var tunnel))
+            {
+                if (tunnel == null || !tunnel.Success)
+                {
+                    SimpleLogger.Log($"[AppRules] Tunnel custom proxy rejected: {tunnel?.Error}");
+                    return "";
+                }
+
+                int? tunnelPort = RuleTunnelPort(key, adapter, adapterIps);
+                if (tunnelPort == null)
+                {
+                    SimpleLogger.Log($"[AppRules] Tunnel '{tunnel.Label}' is not running; that rule keeps the default outbound.");
+                    return "";
+                }
+
+                string tunnelTag = "custom-" + result.CustomProxies.Count;
+                outbound = TunnelEngine.BuildSingboxSocksOutbound(tunnelPort.Value);
+                outbound["tag"] = tunnelTag;
+
+                result.Outbounds.Add(outbound);
+                result.CustomProxies.Add(new CustomOutboundProbe { Key = key, OutboundJson = outbound.ToString(Formatting.None) });
+                result.CustomTags[key] = tunnelTag;
+                result.CustomLabels[tunnelTag] = tunnel.Label;
+
+                result.DnsServers.Add(new
+                {
+                    tag    = "dns-" + tunnelTag,
+                    type   = "https",
+                    server = "dns.google",
+                    path   = "/dns-query",
+                    detour = tunnelTag
+                });
+
+                return tunnelTag;
+            }
+
+            if (!ConfigConverter.TrySingboxOutbound(raw, out string outboundJson, out string label, out _))
+            {
+                return "";
+            }
+
             try { outbound = JObject.Parse(outboundJson); }
             catch { return ""; }
 
@@ -266,6 +306,100 @@ namespace CrimsonX.Services
             });
 
             return tag;
+        }
+
+        // ── Tunnel (OpenVPN / WireGuard) custom proxies ─────────────────────────────────────
+
+        public static string CustomProxyKey(string raw, string adapter)
+            => ConfigConverter.KeyFor(raw, adapter);
+
+        public static string LabelOf(string raw)
+            => ConfigConverter.LabelFor(raw);
+
+        public static List<TunnelTarget> CollectTunnelTargets(AppConfig config)
+        {
+            var targets = new List<TunnelTarget>();
+            if (config == null || !config.EnableAppRules) return targets;
+
+            List<AppGameRule> rules;
+            try { rules = AppRulesService.Load(); }
+            catch { return targets; }
+            if (rules == null) return targets;
+
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var adapterIps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var rule in rules)
+            {
+                if (rule == null || !rule.IsEnabled) continue;
+                if ((rule.ProcessNames == null || rule.ProcessNames.Count == 0) && string.IsNullOrWhiteSpace(rule.ExeName)) continue;
+
+                string raw = rule.CustomProxyRaw ?? "";
+                if (raw.Length == 0) continue;
+
+                if (IsCustomRouting(rule.TcpRouting)) AddTunnelTarget(targets, seen, adapterIps, raw, rule.TcpAdapter);
+                if (IsCustomRouting(rule.UdpRouting)) AddTunnelTarget(targets, seen, adapterIps, raw, rule.UdpAdapter);
+            }
+
+            return targets;
+        }
+
+        private static void AddTunnelTarget(List<TunnelTarget> targets, HashSet<string> seen,
+            Dictionary<string, string> adapterIps, string raw, string adapter)
+        {
+            if (!TunnelConfigParser.TryParse(raw, out var tunnel) || tunnel == null || !tunnel.Success) return;
+
+            string name = string.IsNullOrWhiteSpace(adapter) ? "Default" : adapter.Trim();
+            string key = TunnelConfigParser.KeyOf(raw, name);
+            if (!seen.Add(key)) return;
+
+            if (!TunnelCredentialResolver.ApplyStored(tunnel))
+            {
+                SimpleLogger.Log($"[AppRules] '{tunnel.Label}' needs a username and password; that rule keeps the default outbound.");
+                return;
+            }
+
+            targets.Add(new TunnelTarget
+            {
+                Key = key,
+                Parsed = tunnel,
+                Tag = "tunnel-" + targets.Count,
+                AdapterName = name,
+                AdapterIp = CachedAdapterIp(adapterIps, name)
+            });
+        }
+
+        private static int? RuleTunnelPort(string key, string adapter, Dictionary<string, string> adapterIps)
+        {
+            string adapterIp = CachedAdapterIp(adapterIps, adapter);
+
+            if (TunnelEngine.GroupServes(TunnelEngine.GroupCustom, key, adapter, adapterIp))
+                return TunnelEngine.PortFor(TunnelEngine.GroupCustom, key);
+
+            return TunnelEngine.PortFor(TunnelEngine.GroupRules, key);
+        }
+
+        public static bool EnsureRuleTunnels(AppConfig config, out string error)
+        {
+            error = "";
+
+            var targets = CollectTunnelTargets(config);
+            if (targets.Count == 0)
+            {
+                TunnelEngine.Stop(TunnelEngine.GroupRules);
+                return true;
+            }
+
+            if (targets.All(t => TunnelEngine.GroupServes(TunnelEngine.GroupCustom, t.Key, t.AdapterName, t.AdapterIp)))
+            {
+                TunnelEngine.Stop(TunnelEngine.GroupRules);
+                SimpleLogger.Log($"[AppRules] {targets.Count} app-rule tunnel(s) reuse the custom-config engine.");
+                return true;
+            }
+
+            bool ok = TunnelEngine.EnsureTargetsStarted(config, TunnelEngine.GroupRules, targets, "", "", out error);
+            if (!ok) SimpleLogger.Log($"[AppRules] The app-rule tunnel group could not be started: {error}");
+            return ok;
         }
 
         internal static List<string> BuildProcessNames(IEnumerable<string> processNames)

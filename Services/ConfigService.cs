@@ -24,6 +24,8 @@ namespace CrimsonX.Services
 {
     public static class ConfigService
     {
+        private static readonly object SaveLock = new object();
+
         public static void Save(AppConfig config, AppState state, string cfgFile)
         {
             var data = new
@@ -48,7 +50,6 @@ namespace CrimsonX.Services
                 LanAuthUsername = config.LanAuthUsername,
                 LanAuthPassword = config.LanAuthPassword,
                 Language = config.Language,
-                IsLogsOpen = state.IsLogsOpen,
                 DebugMode = config.DebugMode,
                 ThemeColor = config.ThemeColor,
                 WindowTop = config.WindowTop,
@@ -68,6 +69,7 @@ namespace CrimsonX.Services
                 SelectedAdapterName = config.SelectedAdapterName,
                 QuickSetting1 = config.QuickSetting1,
                 QuickSetting2 = config.QuickSetting2,
+                LastAppVersion = config.LastAppVersion,
                 SelectedAdapterIp = config.SelectedAdapterIp,
                 EnableUpstreamDoh = config.EnableUpstreamDoh,
                 UpstreamDohUrl = config.UpstreamDohUrl,
@@ -77,6 +79,11 @@ namespace CrimsonX.Services
 
                 MinimizeToTray = config.MinimizeToTray,
                 XrayBalancePolicy = config.XrayBalancePolicy,
+                AdapterBalancePolicy = config.AdapterBalancePolicy,
+
+                EnableLoadBalanceAdapters = config.EnableLoadBalanceAdapters,
+                LoadBalanceAdapters = new System.Collections.Generic.List<string>(config.LoadBalanceAdapters ?? new()),
+
                 EnableExcludedContinents = config.EnableExcludedContinents,
                 ExcludedContinents = config.ExcludedContinents,
 
@@ -85,6 +92,9 @@ namespace CrimsonX.Services
                 UdpScanDiscardMs = config.UdpScanDiscardMs,
                 UdpScanAdapterName = config.UdpScanAdapterName,
                 UdpScanAdapterIp = config.UdpScanAdapterIp,
+                DnsRestore = config.DnsRestore,
+
+                PinTopBar = config.PinTopBar,
             };
 
             try
@@ -92,24 +102,33 @@ namespace CrimsonX.Services
                 var dir = Path.GetDirectoryName(cfgFile);
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
-                
+
                 string json = JsonConvert.SerializeObject(data, Formatting.None);
-                if (cfgFile.EndsWith(".bin"))
+
+                lock (SaveLock)
                 {
-                    using (var fs = new FileStream(cfgFile, FileMode.Create, FileAccess.Write))
-                    using (var bw = new BinaryWriter(fs))
-                    {
-                        bw.Write(json);
-                    }
-                }
-                else
-                {
-                    File.WriteAllText(cfgFile, json);
+                    WriteSettings(cfgFile, json);
                 }
             }
             catch (Exception ex)
             {
                 SimpleLogger.Log(ex);
+            }
+        }
+
+        private static void WriteSettings(string cfgFile, string json)
+        {
+            if (cfgFile.EndsWith(".bin"))
+            {
+                using (var fs = new FileStream(cfgFile, FileMode.Create, FileAccess.Write))
+                using (var bw = new BinaryWriter(fs))
+                {
+                    bw.Write(json);
+                }
+            }
+            else
+            {
+                File.WriteAllText(cfgFile, json);
             }
         }
 
@@ -147,7 +166,11 @@ namespace CrimsonX.Services
                 json = File.ReadAllText(oldJsonPath);
             }
 
-            if (string.IsNullOrEmpty(json)) return;
+            if (string.IsNullOrEmpty(json))
+            {
+                config.LastAppVersion = UpdateService.AppVersion;
+                return;
+            }
 
             try
             {
@@ -159,15 +182,25 @@ namespace CrimsonX.Services
                 if (jobj["XrayBalancePolicy"] == null && jobj["HaProxyBalancePolicy"] != null)
                     config.XrayBalancePolicy = jobj.Value<string>("HaProxyBalancePolicy") ?? config.XrayBalancePolicy;
 
-                if (jobj["IsLogsOpen"] != null)
-                    state.IsLogsOpen = jobj.Value<bool>("IsLogsOpen");
-
-
             }
             catch (Exception ex)
             {
                 SimpleLogger.Log(ex);
             }
+
+            if (string.IsNullOrWhiteSpace(config.LastAppVersion)) Migrate(config, state, cfgFile);
+            else config.LastAppVersion = UpdateService.AppVersion;
+        }
+
+        private static void Migrate(AppConfig config, AppState state, string cfgFile)
+        {
+            config.QuickSetting1  = "CUSTOM CONFIGS";
+            config.LastAppVersion = UpdateService.AppVersion;
+
+            Save(config, state, cfgFile);
+
+            SimpleLogger.Log(
+                $"[Config] Profile carried over to the current settings (v{UpdateService.AppVersion}): Quick Settings slot 1 is CUSTOM CONFIGS now.");
         }
     }
 }

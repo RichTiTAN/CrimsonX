@@ -31,10 +31,46 @@ using CrimsonX.Models;
 
 namespace CrimsonX.Services
 {
+    public enum ConfigPingKind
+    {
+        None,
+
+        Ok,
+
+        Slow,
+
+        Rejected,
+
+        TimedOut
+    }
+
     public class ConfigTestResult
     {
         public bool Success { get; set; }
         public bool TimedOut { get; set; }
+
+        public ConfigPingKind Kind { get; set; } = ConfigPingKind.None;
+
+        public string Reason { get; set; } = "";
+
+        public string EngineLog { get; set; } = "";
+
+        public bool IsTcpPing { get; set; }
+
+        public bool Measured => Success || Kind == ConfigPingKind.Slow;
+
+        public string Text(string label)
+        {
+            if (Ping <= 0) return "";
+
+            string number = IsTcpPing
+                ? CrimsonX.Localization.AppStrings.TcpPingPrefix + Ping + "ms"
+                : Ping + "ms";
+
+            if (Kind == ConfigPingKind.Slow) number += CrimsonX.Localization.AppStrings.PingSlowSuffix;
+
+            return string.IsNullOrEmpty(label) ? number : $"{label}: {number}";
+        }
 
         public bool UdpOk { get; set; }
         public long Ping { get; set; }
@@ -119,6 +155,7 @@ namespace CrimsonX.Services
             "https://ipwho.is/",
             "http://ip-api.com/json/?fields=status,country,countryCode,continentCode"
         };
+        private const long MaxAcceptedPingMs = 1500;
         private const int StabilityDurationMs = 10000;
         private const int StabilityIntervalMs = 500;
         private const int StabilitySessionAttempts = 2;
@@ -172,13 +209,79 @@ namespace CrimsonX.Services
                              $"{(speed.Stable ? "" : " - unstable")}");
         }
 
+        private static (string Name, string Ip) TestAdapter(AppConfig cfg)
+        {
+            if (cfg.EnableAdapterBinding)
+                return (cfg.SelectedAdapterName ?? "", (cfg.SelectedAdapterIp ?? "").Trim());
+
+            string ip = XrayConfigWriter.ProbeSendThrough(cfg);
+
+            foreach (string item in cfg.LoadBalanceAdapters ?? new List<string>())
+            {
+                if (string.IsNullOrWhiteSpace(item)) continue;
+
+                int at = item.LastIndexOf(" - ", StringComparison.Ordinal);
+                if (at > 0 && string.Equals(item[(at + 3)..].Trim(), ip, StringComparison.Ordinal))
+                    return (item[..at].Trim(), ip);
+            }
+
+            return ("", ip);
+        }
+
         public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false, bool isActiveWatchdog = false)
         {
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr = string.Empty;
 
-            if (!XrayLinkParser.TryParseCustomConfig(link, out outboundJsonStr))
+            var adapter = TestAdapter(cfg);
+            string testAdapterName = adapter.Name;
+            string testAdapterIp   = adapter.Ip;
+
+            if (TunnelConfigParser.TryParse(link, out var openVpn) && TunnelTcpProbe.IsOpenVpn(openVpn))
+            {
+                var tcp = await Task.Run(() => TunnelTcpProbe.Probe(openVpn, testAdapterIp, TunnelTcpProbe.DefaultTimeoutMs));
+                string route = TunnelTcpProbe.RouteText(testAdapterIp);
+
+                if (tcp.Ok)
+                {
+                    return new ConfigTestResult
+                    {
+                        Link = link, Success = true, Ping = tcp.Ms,
+                        Kind = ConfigPingKind.Ok, IsTcpPing = true
+                    };
+                }
+
+                return new ConfigTestResult
+                {
+                    Link = link, Success = false, TimedOut = tcp.TimedOut,
+                    Kind = tcp.TimedOut ? ConfigPingKind.TimedOut : ConfigPingKind.Rejected,
+                    Reason = tcp.Error, IsTcpPing = true
+                };
+            }
+
+            IDisposable tunnelLease = null;
+            var tunnelPrep = await TunnelEngine.PrepareTestAsync(link, cfg, testAdapterName, testAdapterIp);
+
+            if (tunnelPrep.State == TunnelTestState.Failed)
+            {
+                try { tunnelPrep.Lease?.Dispose(); } catch { }
+
+                res.Kind = ConfigPingKind.Rejected;
+                res.Reason = "the tunnel behind this config could not be prepared";
                 return res;
+            }
+
+            if (tunnelPrep.State == TunnelTestState.Ready)
+            {
+                outboundJsonStr = tunnelPrep.OutboundJson;
+                tunnelLease = tunnelPrep.Lease;
+            }
+            else if (!XrayLinkParser.TryParseCustomConfig(link, out outboundJsonStr))
+            {
+                res.Kind = ConfigPingKind.Rejected;
+                res.Reason = "this config could not be read as an xray outbound";
+                return res;
+            }
 
             res.OutboundJson = outboundJsonStr;
 
@@ -188,6 +291,9 @@ namespace CrimsonX.Services
             string cfgPath = Path.Combine(cfg.XrayDir, $"test_{tempId}.json");
 
             Process testProc = null;
+
+            var engineLog = new System.Text.StringBuilder();
+
             try
             {
                 var outboundJson = JObject.Parse(outboundJsonStr);
@@ -195,15 +301,17 @@ namespace CrimsonX.Services
                 {
                     var outb = (JObject)arr[0];
                     outb["tag"] = "proxy";
-                    if (cfg.EnableAdapterBinding && !string.IsNullOrWhiteSpace(cfg.SelectedAdapterIp) && !XrayLinkParser.IsLocalOutbound(outb))
+
+                    string sendThroughIp = XrayConfigWriter.ProbeSendThrough(cfg);
+                    if (sendThroughIp.Length > 0 && !XrayLinkParser.IsLocalOutbound(outb))
                     {
-                        outb["sendThrough"] = cfg.SelectedAdapterIp;
+                        outb["sendThrough"] = sendThroughIp;
                     }
                 }
 
                 var fullConfig = new JObject
                 {
-                    ["log"] = new JObject { ["loglevel"] = "none" },
+                    ["log"] = new JObject { ["loglevel"] = "error" },
                     ["inbounds"] = new JArray
                     {
                         new JObject
@@ -249,16 +357,27 @@ namespace CrimsonX.Services
                 testProc.StartInfo.UseShellExecute = false;
                 testProc.StartInfo.CreateNoWindow = true;
                 
+                testProc.StartInfo.RedirectStandardError = true;
+                testProc.StartInfo.RedirectStandardOutput = true;
+                testProc.ErrorDataReceived  += (s, ev) => { if (!string.IsNullOrWhiteSpace(ev.Data)) engineLog.AppendLine(ev.Data); };
+                testProc.OutputDataReceived += (s, ev) => { if (!string.IsNullOrWhiteSpace(ev.Data)) engineLog.AppendLine(ev.Data); };
                 await Task.Run(() => {
                     testProc.Start();
+                    testProc.BeginErrorReadLine();
+                    testProc.BeginOutputReadLine();
                 });
                 
                 JobManager.AddProcess(testProc);
 
                 await Task.Delay(300, ct);
-
                 if (testProc.HasExited)
+                {
+                    res.Kind = ConfigPingKind.Rejected;
+                    res.Reason = "the engine refused this config";
+                    res.EngineLog = Tail(engineLog);
                     return res;
+                }
+
 
                 var handler = new HttpClientHandler
                 {
@@ -282,21 +401,23 @@ namespace CrimsonX.Services
                     
                     if (!resp.IsSuccessStatusCode && resp.StatusCode != HttpStatusCode.NoContent && resp.StatusCode != HttpStatusCode.Found)
                     {
-                        throw new Exception("Bad status");
+                        throw new Exception("the tunnel answered HTTP " + (int)resp.StatusCode);
                     }
                     sw.Stop();
                     long ping = sw.ElapsedMilliseconds;
                     totalPing += ping;
 
-                    if (!isWatchdog && ping > 1200)
+                    if (!isWatchdog && ping > MaxAcceptedPingMs)
                     {
                         res.Success = false;
+                        res.Kind = ConfigPingKind.Slow;
                         res.Ping = ping;
                         return res;
                     }
                 }
 
                 res.Success = true;
+                res.Kind = ConfigPingKind.Ok;
                 res.Ping = totalPing / targetsToTest.Length;
 
                 res.UdpOk = await TestUdpAsync(udpPort, ct);
@@ -329,9 +450,20 @@ namespace CrimsonX.Services
                     catch { } 
                 }
             }
-            catch
+            catch (OperationCanceledException)
             {
                 res.Success = false;
+                res.TimedOut = true;
+                res.Kind = ConfigPingKind.TimedOut;
+                res.Reason = "the probe ran out of time";
+            }
+            catch (Exception ex)
+            {
+                res.Success = false;
+                res.TimedOut = ex is HttpRequestException;
+                res.Kind = res.TimedOut ? ConfigPingKind.TimedOut : ConfigPingKind.Rejected;
+                res.Reason = res.TimedOut ? "nothing answered through the tunnel" : ex.Message;
+                res.EngineLog = Tail(engineLog);
             }
             finally
             {
@@ -343,6 +475,7 @@ namespace CrimsonX.Services
                     });
                 }
                 try { if (File.Exists(cfgPath)) File.Delete(cfgPath); } catch { }
+                try { tunnelLease?.Dispose(); } catch { }
             }
 
             return res;
@@ -364,9 +497,11 @@ namespace CrimsonX.Services
                 {
                     var outb = (JObject)arr[0];
                     outb["tag"] = "proxy";
-                    if (cfg.EnableAdapterBinding && !string.IsNullOrWhiteSpace(cfg.SelectedAdapterIp) && !XrayLinkParser.IsLocalOutbound(outb))
+
+                    string sendThroughIp = XrayConfigWriter.ProbeSendThrough(cfg);
+                    if (sendThroughIp.Length > 0 && !XrayLinkParser.IsLocalOutbound(outb))
                     {
-                        outb["sendThrough"] = cfg.SelectedAdapterIp;
+                        outb["sendThrough"] = sendThroughIp;
                     }
                 }
 
@@ -619,6 +754,18 @@ namespace CrimsonX.Services
             var (ok, _) = await ProbeUdpAsync(udpPort, ct);
             return ok;
         }
+        private static string Tail(System.Text.StringBuilder log, int max = 400)
+        {
+            string text = (log?.ToString() ?? "").Trim();
+            return text.Length <= max ? text : text[^max..];
+        }
+
+        private static string LinkLabel(string link)
+        {
+            string text = (link ?? "").Replace("\r", " ").Replace("\n", " ").Trim();
+            return text.Length <= 60 ? text : text[..60] + "...";
+        }
+
         private static async Task<(bool Ok, long RttMs)> ProbeUdpAsync(int udpPort, CancellationToken ct, int timeoutMs = TimeoutMs, UdpClient? client = null, bool requireNtpReply = false)
         {
             UdpClient udp = client;
@@ -733,7 +880,7 @@ namespace CrimsonX.Services
 
                     string adapterIp = !string.IsNullOrWhiteSpace(sendThroughIp)
                         ? sendThroughIp!
-                        : (cfg.EnableAdapterBinding ? cfg.SelectedAdapterIp : "");
+                        : XrayConfigWriter.ProbeSendThrough(cfg);
 
                     if (!string.IsNullOrWhiteSpace(adapterIp))
                     {
@@ -840,8 +987,28 @@ namespace CrimsonX.Services
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr;
 
-            if (!XrayLinkParser.TryParseCustomConfig(link, out outboundJsonStr))
+            var adapter = TestAdapter(cfg);
+            string testAdapterName = adapter.Name;
+            string testAdapterIp   = adapter.Ip;
+
+            IDisposable tunnelLease = null;
+            var tunnelPrep = await TunnelEngine.PrepareTestAsync(link, cfg, testAdapterName, testAdapterIp);
+
+            if (tunnelPrep.State == TunnelTestState.Failed)
+            {
+                try { tunnelPrep.Lease?.Dispose(); } catch { }
                 return res;
+            }
+
+            if (tunnelPrep.State == TunnelTestState.Ready)
+            {
+                outboundJsonStr = tunnelPrep.OutboundJson;
+                tunnelLease = tunnelPrep.Lease;
+            }
+            else if (!XrayLinkParser.TryParseCustomConfig(link, out outboundJsonStr))
+            {
+                return res;
+            }
 
             res.OutboundJson = outboundJsonStr;
 
@@ -903,6 +1070,7 @@ namespace CrimsonX.Services
             finally
             {
                 session?.Dispose();
+                try { tunnelLease?.Dispose(); } catch { }
             }
         }
         public static async Task<UdpStabilityResult> TestUdpStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, int durationMs = StabilityDurationMs, int intervalMs = StabilityIntervalMs, Action<bool, long>? onSample = null, string? sendThroughIp = null)
@@ -989,7 +1157,7 @@ namespace CrimsonX.Services
 
                     sw.Stop();
                     long ping = sw.ElapsedMilliseconds;
-                    if (ping > 1200) return 0;
+                    if (ping > MaxAcceptedPingMs) return 0;
 
                     totalPing += ping;
                 }

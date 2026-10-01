@@ -29,15 +29,37 @@ namespace CrimsonX.Services
 {
     public sealed class NetworkDiagnosticsService : IDisposable
     {
-        private readonly HttpClient _geoPingClient = new HttpClient(
-            new HttpClientHandler
-            {
-                Proxy    = new System.Net.WebProxy("http://127.0.0.1:10919"),
-                UseProxy = true
-            })
+        private HttpClient? _geoPingClient;
+        private string _geoClientKey = "";
+
+        private HttpClient GeoClient()
         {
-            Timeout = TimeSpan.FromSeconds(30)
-        };
+            var cfg = MainWindow.Instance?.Config;
+            int port = ExitNodeChain.ActivePort;
+
+            bool auth = cfg != null
+                && cfg.AllowLanConnections
+                && cfg.EnableLanAuth
+                && !string.IsNullOrWhiteSpace(cfg.LanAuthUsername)
+                && !string.IsNullOrWhiteSpace(cfg.LanAuthPassword);
+
+            string key = port + "|" + (auth ? cfg!.LanAuthUsername + ":" + cfg.LanAuthPassword : "");
+
+            if (_geoPingClient != null && _geoClientKey == key) return _geoPingClient;
+
+            try { _geoPingClient?.Dispose(); } catch { }
+
+            var proxy = new System.Net.WebProxy("http://127.0.0.1:" + port);
+            if (auth) proxy.Credentials = new System.Net.NetworkCredential(cfg!.LanAuthUsername, cfg.LanAuthPassword);
+
+            _geoPingClient = new HttpClient(new HttpClientHandler { Proxy = proxy, UseProxy = true })
+            {
+                Timeout = TimeSpan.FromSeconds(30)
+            };
+            _geoClientKey = key;
+
+            return _geoPingClient;
+        }
 
         private readonly HttpClient _grpcClient = new HttpClient(new HttpClientHandler())
         {
@@ -52,6 +74,8 @@ namespace CrimsonX.Services
 
         private CancellationTokenSource? _statsCts;
         private int _isFetching = 0; 
+        public const int HistorySamples = 14;
+
         private readonly Queue<double> _upHistory = new();
         private readonly Queue<double> _dnHistory = new();
         private double _upSum;
@@ -59,6 +83,12 @@ namespace CrimsonX.Services
         private long   _lastUpBytes;
         private long   _lastDnBytes;
         private DateTime _lastPollTime = DateTime.MinValue;
+
+        private readonly Dictionary<string, long> _endpointUpSeen = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, long> _endpointDnSeen = new(StringComparer.Ordinal);
+        private long _endpointUpTotal;
+        private long _endpointDnTotal;
+        private SingboxConnectionsClient? _chainClient;
 
         private static readonly Dictionary<string, string> ContinentNames = new()
         {
@@ -85,11 +115,11 @@ namespace CrimsonX.Services
             var token = _geoCts.Token;
             var sw    = Stopwatch.StartNew();
 
-            _ = Task.Run(async () =>
+            CrimsonX.Services.BackgroundTask.Run("geo trace", async () =>
             {
                 try
                 {
-                    var json = await _geoPingClient
+                    var json = await GeoClient()
                         .GetStringAsync("https://get.geojs.io/v1/ip/geo.json", token)
                         .ConfigureAwait(false);
                     sw.Stop();
@@ -99,8 +129,13 @@ namespace CrimsonX.Services
                     var continentCode = data["continent_code"]?.ToString() ?? "";
                     var countryCode   = data["country_code"]?.ToString()   ?? "";
                     var country       = data["country"]?.ToString()        ?? "";
+                    var ip            = data["ip"]?.ToString()             ?? "";
                     ContinentNames.TryGetValue(continentCode, out var continent);
                     continent ??= continentCode;
+
+                    SimpleLogger.Log(
+                        $"[Geo] traced through 127.0.0.1:{ExitNodeChain.ActivePort} -> {country} ({countryCode}) in {sw.ElapsedMilliseconds} ms" +
+                        (ExitNodeChain.ChainActive ? " - that is the exit node's location" : ""));
 
                     GeoTraceCompleted?.Invoke(new GeoTraceResult
                     {
@@ -108,16 +143,18 @@ namespace CrimsonX.Services
                         Continent     = continent,
                         CountryCode   = countryCode,
                         ContinentCode = continentCode,
+                        Ip            = ip,
                         PingMs        = sw.ElapsedMilliseconds
                     });
                 }
                 catch (Exception ex)
                 {
                     if (token != _geoCts?.Token) return; 
+                    if (CrimsonX.Services.BackgroundTask.IsTeardownAbort(ex)) return;   // cancelled: nothing to report
                     SimpleLogger.Log(ex);
                     GeoTraceCompleted?.Invoke(new GeoTraceResult());
                 }
-            }, token);
+            });
         }
 
         public void StopGeoTrace()
@@ -136,7 +173,7 @@ namespace CrimsonX.Services
             _statsCts = new CancellationTokenSource();
             var token = _statsCts.Token;
 
-            _ = Task.Run(async () =>
+            CrimsonX.Services.BackgroundTask.Run("stats polling", async () =>
             {
                 while (!token.IsCancellationRequested)
                 {
@@ -148,7 +185,7 @@ namespace CrimsonX.Services
 
                     try { await PollStatsTick(token).ConfigureAwait(false); } catch { }
                 }
-            }, token);
+            });
         }
 
 
@@ -163,6 +200,11 @@ namespace CrimsonX.Services
             _upSum = 0; _dnSum = 0;
             _lastUpBytes = 0; _lastDnBytes = 0;
             _lastPollTime = DateTime.MinValue;
+
+            _endpointUpSeen.Clear();
+            _endpointDnSeen.Clear();
+            _endpointUpTotal = 0;
+            _endpointDnTotal = 0;
         }
 
         // Private polling implementation 
@@ -172,30 +214,43 @@ namespace CrimsonX.Services
             if (Interlocked.CompareExchange(ref _isFetching, 1, 0) != 0) return;
             try
             {
-                using var request = new HttpRequestMessage(
-                    HttpMethod.Post,
-                    "http://127.0.0.1:10999/xray.app.stats.command.StatsService/QueryStats")
+                var endpoint = await ReadExitEndpointTotalsAsync(token).ConfigureAwait(false);
+
+                long curUp;
+                long curDn;
+
+                if (endpoint.HasValue)
                 {
-                    Version       = new Version(2, 0),
-                    VersionPolicy = HttpVersionPolicy.RequestVersionExact
-                };
-                request.Content = new ByteArrayContent(GrpcQueryBody);
-                request.Content.Headers.ContentType =
-                    new System.Net.Http.Headers.MediaTypeHeaderValue("application/grpc");
-                request.Headers.Add("TE", "trailers");
+                    curUp = endpoint.Value.Up;
+                    curDn = endpoint.Value.Dn;
+                }
+                else
+                {
+                    using var request = new HttpRequestMessage(
+                        HttpMethod.Post,
+                        "http://127.0.0.1:10999/xray.app.stats.command.StatsService/QueryStats")
+                    {
+                        Version       = new Version(2, 0),
+                        VersionPolicy = HttpVersionPolicy.RequestVersionExact
+                    };
+                    request.Content = new ByteArrayContent(GrpcQueryBody);
+                    request.Content.Headers.ContentType =
+                        new System.Net.Http.Headers.MediaTypeHeaderValue("application/grpc");
+                    request.Headers.Add("TE", "trailers");
 
-                using var cts      = new CancellationTokenSource(TimeSpan.FromSeconds(1.5));
-                using var combined = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
-                using var response = await _grpcClient.SendAsync(request, combined.Token)
-                    .ConfigureAwait(false);
-                var bytes = await response.Content.ReadAsByteArrayAsync(combined.Token)
-                    .ConfigureAwait(false);
+                    using var cts      = new CancellationTokenSource(TimeSpan.FromSeconds(1.5));
+                    using var combined = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
+                    using var response = await _grpcClient.SendAsync(request, combined.Token)
+                        .ConfigureAwait(false);
+                    var bytes = await response.Content.ReadAsByteArrayAsync(combined.Token)
+                        .ConfigureAwait(false);
 
-                long upVal = 0, dnVal = 0;
-                ParseGrpcStatsBytes(bytes, ref upVal, ref dnVal);
+                    long upVal = 0, dnVal = 0;
+                    ParseGrpcStatsBytes(bytes, ref upVal, ref dnVal);
 
-                long curUp = upVal;
-                long curDn = dnVal;
+                    curUp = upVal;
+                    curDn = dnVal;
+                }
 
                 if (curUp > 0 && _lastUpBytes > 0)
                 {
@@ -209,11 +264,11 @@ namespace CrimsonX.Services
 
                     _upSum += diffUp;
                     _upHistory.Enqueue(diffUp);
-                    if (_upHistory.Count > 40) _upSum -= _upHistory.Dequeue();
+                    if (_upHistory.Count > HistorySamples) _upSum -= _upHistory.Dequeue();
 
                     _dnSum += diffDn;
                     _dnHistory.Enqueue(diffDn);
-                    if (_dnHistory.Count > 40) _dnSum -= _dnHistory.Dequeue();
+                    if (_dnHistory.Count > HistorySamples) _dnSum -= _dnHistory.Dequeue();
 
                     double spdUpRaw = diffUp / elapsed;
                     double spdDnRaw = diffDn / elapsed;
@@ -235,6 +290,47 @@ namespace CrimsonX.Services
             }
             catch (Exception ex) { SimpleLogger.Log(ex); }
             finally { Interlocked.Exchange(ref _isFetching, 0); }
+        }
+
+        private async Task<(long Up, long Dn)?> ReadExitEndpointTotalsAsync(CancellationToken token)
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null) return null;
+            if (!ExitNodeChain.ChainActive || !ExitNodeChain.IsTunnelExit(cfg)) return null;
+            if (!SingboxClashApi.IsConfigured) return null;
+
+            _chainClient ??= new SingboxConnectionsClient();
+
+            var snapshot = await _chainClient.GetChainAsync(ExitNodeChain.EndpointTag, token)
+                .ConfigureAwait(false);
+            if (snapshot == null) return null;
+
+            if (!snapshot.HasChains)
+                return (snapshot.SessionUploadBytes, snapshot.SessionDownloadBytes);
+
+            var live = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var connection in snapshot.Connections)
+            {
+                live.Add(connection.Id);
+
+                long seenUp = _endpointUpSeen.TryGetValue(connection.Id, out long prevUp) ? prevUp : 0;
+                long seenDn = _endpointDnSeen.TryGetValue(connection.Id, out long prevDn) ? prevDn : 0;
+
+                _endpointUpTotal += Math.Max(0, connection.UploadBytes   - seenUp);
+                _endpointDnTotal += Math.Max(0, connection.DownloadBytes - seenDn);
+
+                _endpointUpSeen[connection.Id] = Math.Max(seenUp, connection.UploadBytes);
+                _endpointDnSeen[connection.Id] = Math.Max(seenDn, connection.DownloadBytes);
+            }
+
+            foreach (var id in _endpointUpSeen.Keys.Where(k => !live.Contains(k)).ToList())
+            {
+                _endpointUpSeen.Remove(id);
+                _endpointDnSeen.Remove(id);
+            }
+
+            return (_endpointUpTotal, _endpointDnTotal);
         }
 
         // Protobuf varint decoder
@@ -328,7 +424,8 @@ namespace CrimsonX.Services
 
             StopGeoTrace();
             StopStatsPolling();
-            _geoPingClient.Dispose();
+            _chainClient?.Dispose();
+            _geoPingClient?.Dispose();
             _grpcClient.Dispose();
         }
     }

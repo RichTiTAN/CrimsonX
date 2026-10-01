@@ -51,6 +51,11 @@ namespace CrimsonX.Services
 
         private static string StorePath()
         {
+            return SecureJsonStore.PathFor("app_custom_configs.bin");
+        }
+
+        private static string LegacyStorePath()
+        {
             var baseDir = MainWindow.Instance?.GetAppPath("Data\\Apps") ?? "Data\\Apps";
             return Path.Combine(baseDir, "custom_configs.json");
         }
@@ -65,6 +70,7 @@ namespace CrimsonX.Services
         private static List<AppCustomConfigEntry> LoadCore(AppConfig cfg)
         {
             var path = StorePath();
+            SecureJsonStore.AdoptPlaintextFile(LegacyStorePath(), path);
 
             if (!File.Exists(path))
             {
@@ -80,7 +86,10 @@ namespace CrimsonX.Services
                 if (_cache != null && info.LastWriteTimeUtc == _cacheStampUtc && info.Length == _cacheLength)
                     return Clone(_cache);
 
-                var json = File.ReadAllText(path);
+                var json = ConfigCache.LoadString(path);
+                if (string.IsNullOrEmpty(json))
+                    throw new InvalidDataException($"The encrypted config pool at {Path.GetFileName(path)} could not be read.");
+
                 var list = JsonConvert.DeserializeObject<List<AppCustomConfigEntry>>(json) ?? new List<AppCustomConfigEntry>();
 
                 var loaded = list.Where(e => e != null && !string.IsNullOrWhiteSpace(e.Raw))
@@ -114,10 +123,8 @@ namespace CrimsonX.Services
             try
             {
                 var path = StorePath();
-                var dir = Path.GetDirectoryName(path);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                if (!SecureJsonStore.Save(path, entries)) throw new IOException($"Could not write {Path.GetFileName(path)}");
 
-                File.WriteAllText(path, JsonConvert.SerializeObject(entries, Formatting.Indented));
                 RefreshCache(entries, path);
             }
             catch (Exception ex)
@@ -127,13 +134,35 @@ namespace CrimsonX.Services
             }
         }
 
+        public static bool CanStore(string raw)
+            => !string.IsNullOrWhiteSpace(raw)
+               && TunnelConfigParser.TryParse(raw.Trim(), out var tunnel) && tunnel.Success;
+
         public static CustomConfigSaveResult Store(AppConfig cfg, string raw, out string label)
         {
             label = "";
             if (string.IsNullOrWhiteSpace(raw)) return CustomConfigSaveResult.Invalid;
 
             raw = raw.Trim();
-            if (!SingboxLinkParser.TryParseLink(raw, out _, out label))
+
+            bool usable = TunnelConfigParser.TryParse(raw, out var tunnel) && tunnel.Success;
+            if (usable)
+            {
+                label = tunnel.Label;
+            }
+            else
+            {
+                usable = SingboxLinkParser.TryParseLink(raw, out _, out label);
+            }
+
+            if (!usable && ConfigConverter.IsXrayOutbound(raw) && XrayLinkParser.TryParseCustomConfig(raw, out string xrayDoc))
+            {
+                string server = XrayLinkParser.ExtractServerAddress(xrayDoc);
+                label  = server.Length > 0 ? "xray · " + server : "xray";
+                usable = true;
+            }
+
+            if (!usable)
             {
                 label = "";
                 return CustomConfigSaveResult.Invalid;
@@ -142,9 +171,9 @@ namespace CrimsonX.Services
             lock (_lock)
             {
                 var entries = LoadCore(cfg);
-                string key = SingboxLinkParser.Normalize(raw);
+                string key = NormalizeKey(raw);
 
-                var existing = entries.FirstOrDefault(e => SingboxLinkParser.Normalize(e.Raw) == key);
+                var existing = entries.FirstOrDefault(e => NormalizeKey(e.Raw) == key);
                 if (existing != null)
                 {
                     existing.Raw   = raw;
@@ -169,13 +198,46 @@ namespace CrimsonX.Services
             lock (_lock)
             {
                 var entries = LoadCore(cfg);
-                string key = SingboxLinkParser.Normalize(raw.Trim());
+                string key = NormalizeKey(raw.Trim());
 
-                int removed = entries.RemoveAll(e => SingboxLinkParser.Normalize(e.Raw) == key);
+                int removed = entries.RemoveAll(e => NormalizeKey(e.Raw) == key);
                 if (removed > 0) SaveCore(entries);
 
                 return removed;
             }
+        }
+
+        public static bool SameConfig(string first, string second)
+            => !string.IsNullOrWhiteSpace(first) && !string.IsNullOrWhiteSpace(second)
+            && NormalizeKey(first.Trim()) == NormalizeKey(second.Trim());
+
+        private static string NormalizeKey(string raw)
+        {
+            return ConfigConverter.KeyFor(raw, "");
+        }
+
+        public static string LabelFor(AppConfig cfg, string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "";
+
+            string trimmed = raw.Trim();
+            try
+            {
+                var entries = Load(cfg);
+                string key = NormalizeKey(trimmed);
+
+                var existing = entries.FirstOrDefault(e => e != null && !string.IsNullOrWhiteSpace(e.Raw) && NormalizeKey(e.Raw) == key);
+                if (existing != null && !string.IsNullOrWhiteSpace(existing.Label)) return existing.Label;
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log(ex);
+            }
+
+            string label = ConfigConverter.LabelFor(trimmed);
+            if (label.Length > 0) return label;
+
+            return trimmed.Length <= 40 ? trimmed : trimmed.Substring(0, 40) + "…";
         }
         public static List<string> DisplayOptions(IReadOnlyList<AppCustomConfigEntry> entries)
         {
@@ -265,8 +327,15 @@ namespace CrimsonX.Services
             foreach (var candidate in new[] { cfg.CustomConfig1, cfg.CustomConfig2 })
             {
                 if (string.IsNullOrWhiteSpace(candidate)) continue;
-                if (!SingboxLinkParser.TryParseLink(candidate.Trim(), out _, out var label)) continue;
-                if (list.Any(e => SingboxLinkParser.Normalize(e.Raw) == SingboxLinkParser.Normalize(candidate))) continue;
+
+                string label;
+                if (!SingboxLinkParser.TryParseLink(candidate.Trim(), out _, out label))
+                {
+                    if (!TunnelConfigParser.TryParse(candidate.Trim(), out var tunnel) || !tunnel.Success) continue;
+                    label = tunnel.Label;
+                }
+
+                if (list.Any(e => NormalizeKey(e.Raw) == NormalizeKey(candidate))) continue;
 
                 list.Add(new AppCustomConfigEntry { Raw = candidate.Trim(), Label = label, SavedUtc = DateTime.UtcNow });
             }

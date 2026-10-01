@@ -303,6 +303,22 @@ namespace CrimsonX.Services
                 if (fp.Length > 0 || p.Get("utls") == "1") tls["utls"] = BuildUtls(p);
             }
 
+            string fm = FirstNonEmpty(p.Get("fm"), p.Get("finalmask"));
+            if (fm.Length > 0)
+            {
+                var mask = FinalMask.Read(fm, out string maskWarning);
+                if (maskWarning.Length > 0) SimpleLogger.Log($"[FinalMask] {maskWarning}");
+
+                if (FinalMask.HasTcpFragment(mask))
+                {
+                    tls["fragment"] = true;
+
+                    SimpleLogger.LogOnce(
+                        $"mask-singbox|{p.Host}|{fm.Length}:{fm.GetHashCode()}",
+                        "[FinalMask] sing-box cannot carry the packet rules of the mask; plain TLS fragmentation was kept.");
+                }
+            }
+
             return tls;
         }
 

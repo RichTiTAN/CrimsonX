@@ -39,14 +39,74 @@ namespace CrimsonX.Services
         public static async Task<ConfigTestResult> TestAsync(string raw, AppConfig cfg, string adapterName, string adapterIp, CancellationToken ct)
         {
             var res = new ConfigTestResult { Link = raw };
-            if (!SingboxLinkParser.TryParseLink(raw, out var outboundJson, out _)) return res;
-            res.OutboundJson = outboundJson;
+            if (string.IsNullOrWhiteSpace(raw)) { res.Kind = ConfigPingKind.Rejected; res.Reason = "no config to probe"; return res; }
 
             string sbDir = cfg?.SbDir ?? "";
-            if (sbDir.Length == 0) return res;
+            if (sbDir.Length == 0) { res.Kind = ConfigPingKind.Rejected; res.Reason = "sing-box's folder is not set"; return res; }
 
             CleanupStaleProbeDirs(sbDir);
 
+            if (TunnelConfigParser.TryParse(raw, out var openVpn) && TunnelTcpProbe.IsOpenVpn(openVpn))
+            {
+                var tcp = await Task.Run(() => TunnelTcpProbe.Probe(openVpn, adapterIp, TunnelTcpProbe.DefaultTimeoutMs));
+                string route = TunnelTcpProbe.RouteText(adapterIp);
+                bool tunnelActive = XrayPipelineManager.ActiveOutbounds.Count > 0;
+
+                if (tcp.Ok)
+                {
+                    return new ConfigTestResult
+                    {
+                        Link = raw, Success = true, Ping = tcp.Ms,
+                        Kind = ConfigPingKind.Ok, IsTcpPing = true
+                    };
+                }
+
+                string hint = tunnelActive ? " (a session is up, so the probe may be captured by the active tunnel)" : "";
+                return new ConfigTestResult
+                {
+                    Link = raw, Success = false, TimedOut = tcp.TimedOut,
+                    Kind = tcp.TimedOut ? ConfigPingKind.TimedOut : ConfigPingKind.Rejected,
+                    Reason = tcp.Error, IsTcpPing = true
+                };
+            }
+
+            if (!SingboxLinkParser.TryParseLink(raw, out string outboundJson, out _))
+            {
+                res.Kind = ConfigPingKind.Rejected;
+                res.Reason = "this link could not be read as a sing-box outbound";
+                return res;
+            }
+
+            res.OutboundJson = outboundJson;
+
+            return await RunOutboundProbeAsync(outboundJson, raw, sbDir, adapterName, adapterIp, ct).ConfigureAwait(false);
+        }
+
+        public static async Task<ConfigTestResult> TestOutboundAsync(string singboxOutboundJson, AppConfig cfg, string adapterName, string adapterIp, CancellationToken ct)
+        {
+            var res = new ConfigTestResult { Link = singboxOutboundJson };
+            if (string.IsNullOrWhiteSpace(singboxOutboundJson))
+            {
+                res.Kind = ConfigPingKind.Rejected;
+                res.Reason = "no outbound to probe";
+                return res;
+            }
+
+            string sbDir = cfg?.SbDir ?? "";
+            if (sbDir.Length == 0)
+            {
+                res.Kind = ConfigPingKind.Rejected;
+                res.Reason = "sing-box's folder is not set";
+                return res;
+            }
+
+            CleanupStaleProbeDirs(sbDir);
+            return await RunOutboundProbeAsync(singboxOutboundJson, singboxOutboundJson, sbDir, adapterName, adapterIp, ct).ConfigureAwait(false);
+        }
+
+        private static async Task<ConfigTestResult> RunOutboundProbeAsync(string outboundJson, string link, string sbDir, string adapterName, string adapterIp, CancellationToken ct)
+        {
+            var res = new ConfigTestResult { Link = link, OutboundJson = outboundJson };
             string tempDir = Path.Combine(sbDir, "probe_" + Guid.NewGuid().ToString("N"));
             string cfgPath = Path.Combine(tempDir, "config.json");
             int port = GetFreePort();
@@ -94,21 +154,41 @@ namespace CrimsonX.Services
 
                 proc = ProcessService.StartProcessDirect(
                     exe, $"run -D \"{tempDir}\" -c \"{cfgPath}\"", tempDir);
-                if (proc == null) return res;
+                if (proc == null)
+                {
+                    res.Kind = ConfigPingKind.Rejected;
+                    res.Reason = "the sing-box probe could not be started";
+                    return res;
+                }
 
                 await Task.Delay(StartupDelayMs, ct);
-                if (proc.HasExited) return res;
+                if (proc.HasExited)
+                {
+                    res.Kind = ConfigPingKind.Rejected;
+                    res.Reason = "sing-box refused this config (its ERROR lines are in the log)";
+                    return res;
+                }
 
                 res.Success = await PingAsync(port, res, ct);
+                if (!res.Success)
+                {
+                    res.Kind = res.TimedOut ? ConfigPingKind.TimedOut : ConfigPingKind.Rejected;
+                    if (res.Reason.Length == 0)
+                        res.Reason = res.TimedOut ? "nothing answered in time" : "the probe got no usable answer";
+                }
             }
             catch (OperationCanceledException)
             {
                 res.Success = false;
                 res.TimedOut = true;
+                res.Kind = ConfigPingKind.TimedOut;
+                res.Reason = "the probe ran out of time";
             }
-            catch
+            catch (Exception ex)
             {
                 res.Success = false;
+                res.Kind = ConfigPingKind.Rejected;
+                res.Reason = ex.Message;
             }
             finally
             {
@@ -175,11 +255,16 @@ namespace CrimsonX.Services
                 total += sw.ElapsedMilliseconds;
                 count++;
 
-                if (sw.ElapsedMilliseconds > SlowTargetMs) break;
+                if (sw.ElapsedMilliseconds > SlowTargetMs)
+                {
+                    res.Kind = ConfigPingKind.Slow;
+                    break;
+                }
             }
 
             if (count == 0) return false;
 
+            if (res.Kind != ConfigPingKind.Slow) res.Kind = ConfigPingKind.Ok;
             res.Ping = total / count;
             return true;
         }

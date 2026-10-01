@@ -99,7 +99,10 @@ namespace CrimsonX.Services
                 if (_initialized) return;
 
                 if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+                {
+                    _initialized = true;
                     return;
+                }
 
                 _jobHandle = CreateJobObject(IntPtr.Zero, null!);
 
@@ -113,13 +116,21 @@ namespace CrimsonX.Services
 
                 var length = Marshal.SizeOf(typeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION));
                 IntPtr extendedInfoPtr = Marshal.AllocHGlobal(length);
-                Marshal.StructureToPtr(info, extendedInfoPtr, false);
-
-                if (!SetInformationJobObject(_jobHandle, JobObjectInfoType.ExtendedLimitInformation, extendedInfoPtr, (uint)length))
+                try
                 {
+                    Marshal.StructureToPtr(info, extendedInfoPtr, false);
+
+                    if (!SetInformationJobObject(_jobHandle, JobObjectInfoType.ExtendedLimitInformation, extendedInfoPtr, (uint)length))
+                    {
+                        SimpleLogger.Log($"[JobManager] SetInformationJobObject failed (win32 error {Marshal.GetLastWin32Error()}); "
+                                       + "children will have to be killed by pid instead.");
+                    }
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(extendedInfoPtr);
                 }
 
-                Marshal.FreeHGlobal(extendedInfoPtr);
                 _initialized = true;
             }
         }

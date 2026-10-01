@@ -30,7 +30,7 @@ namespace CrimsonX.Services
 {
     public static class UpdateService
     {
-        public const string AppVersion = "2.4.1";
+        public const string AppVersion = "3.0.0";
         
         private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         private static readonly HttpClient _dlClient = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
@@ -54,7 +54,7 @@ namespace CrimsonX.Services
             return (null, null);
         }
 
-        public static async Task DownloadAndInstallUpdateAsync(string remoteVersion, string baseDir, Action<string> progressCallback, CancellationToken token)
+        public static async Task DownloadAndInstallUpdateAsync(string remoteVersion, string baseDir, Action<string> progressCallback, CancellationToken token, Action<int>? percentCallback = null)
         {
             var zipUrl = "https://github.com/RichTiTAN/CrimsonX/releases/latest/download/CrimsonX.zip";
             var zipPath = Path.Combine(baseDir, "update_temp.zip");
@@ -75,6 +75,7 @@ namespace CrimsonX.Services
                 if (total > 0 && existingLen == total)
                 {
                     Dispatcher.UIThread.Post(() => progressCallback($"UPDATE ALREADY DOWNLOADED... EXTRACTING"));
+                    Dispatcher.UIThread.Post(() => percentCallback?.Invoke(100));
                 }
                 else
                 {
@@ -89,6 +90,7 @@ namespace CrimsonX.Services
                         existingLen = 0;
                         if (File.Exists(zipPath)) File.Delete(zipPath);
                         Dispatcher.UIThread.Post(() => progressCallback($"DOWNLOADING UPDATE... 0% (CLICK TO CANCEL)"));
+                        Dispatcher.UIThread.Post(() => percentCallback?.Invoke(0));
                     }
 
                     using var dlResponse = await _dlClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
@@ -121,6 +123,7 @@ namespace CrimsonX.Services
                             {
                                 lastPct = pct;
                                 Dispatcher.UIThread.Post(() => progressCallback($"DOWNLOADING UPDATE... {pct}% (CLICK TO CANCEL)"));
+                                Dispatcher.UIThread.Post(() => percentCallback?.Invoke(pct));
                             }
                         }
                     }
@@ -129,6 +132,7 @@ namespace CrimsonX.Services
 
                 if (Directory.Exists(extPath)) Directory.Delete(extPath, true);
                 Dispatcher.UIThread.Post(() => progressCallback("EXTRACTING UPDATE..."));
+                Dispatcher.UIThread.Post(() => percentCallback?.Invoke(100));
                 
                 try
                 {

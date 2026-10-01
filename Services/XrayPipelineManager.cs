@@ -38,24 +38,14 @@ namespace CrimsonX.Services
             {
                 ActiveOutbounds = new List<string>(outbounds);
 
-                var jOutbounds = new List<JObject>();
-                foreach (var outbStr in outbounds)
-                {
-                    try
-                    {
-                        var jOut = JObject.Parse(outbStr);
-                        if (jOut["outbounds"] is JArray arr && arr.Count > 0)
-                        {
-                            jOutbounds.Add((JObject)arr[0]);
-                        }
-                    }
-                    catch { }
-                }
+                var jOutbounds = ParseOutbounds(outbounds, "StartXray");
 
                 if (!XrayConfigWriter.Write(config, xrayDir, jOutbounds))
                 {
                     return false;
                 }
+
+                ApplyFinalMaskFallback(config, xrayDir, jOutbounds);
 
                 if (_xrayProcess != null)
                 {
@@ -101,6 +91,56 @@ namespace CrimsonX.Services
             }
         }
 
+        private static void ApplyFinalMaskFallback(AppConfig config, string xrayDir, List<JObject> outbounds)
+        {
+            try
+            {
+                bool hasMask = false;
+                foreach (var outbound in outbounds)
+                {
+                    if (FinalMask.FromStream(outbound) == null) continue;
+
+                    hasMask = true;
+                    break;
+                }
+
+                if (!hasMask) return;
+
+                string configPath = Path.Combine(xrayDir, "config.json");
+                string error = XrayConfigValidator.TestFile(xrayDir, configPath);
+                if (error.Length == 0) return;
+
+                if (!FinalMask.LooksLikeMaskFailure(error))
+                {
+                    CrimsonX.Services.SimpleLogger.Log($"[FinalMask] xray refused this session for another reason: {error}");
+                    return;
+                }
+
+                bool removed = false;
+                foreach (var outbound in outbounds) removed |= FinalMask.Strip(outbound);
+
+                if (!removed || !XrayConfigWriter.Write(config, xrayDir, outbounds)) return;
+
+                string retry = XrayConfigValidator.TestFile(xrayDir, configPath);
+
+                if (retry.Length == 0)
+                {
+                    CrimsonX.Services.SimpleLogger.Log($"[FinalMask] xray refused a final mask of this session, so it was dropped: {error}");
+
+                    UiEventBus.Instance.PublishToast(
+                        CrimsonX.Localization.AppStrings.ToastFinalMaskDropped + ConfigValidator.ShortReason(error));
+                }
+                else
+                {
+                    CrimsonX.Services.SimpleLogger.Log($"[FinalMask] the session is still invalid without its mask: {retry}");
+                }
+            }
+            catch (Exception ex)
+            {
+                CrimsonX.Services.SimpleLogger.Log(ex);
+            }
+        }
+
         public static async Task<bool> SwapOutboundsAsync(List<string> newOutbounds, AppConfig config, string xrayDir, bool forceRestart = false)
         {
             return await Task.Run(() =>
@@ -110,18 +150,7 @@ namespace CrimsonX.Services
                     int oldOutboundsCount = ActiveOutbounds.Count;
                     ActiveOutbounds = new List<string>(newOutbounds);
 
-                    var jOutbounds = new List<JObject>();
-                    foreach (var outbStr in newOutbounds)
-                    {
-                        try
-                        {
-                            var jOut = JObject.Parse(outbStr);
-                            if (jOut["outbounds"] is JArray arr && arr.Count > 0)
-                                jOutbounds.Add((JObject)arr[0]);
-                        }
-                        catch { }
-                    }
-
+                    var jOutbounds = ParseOutbounds(newOutbounds, "SwapOutboundsAsync");
                     var nodesToRemove = new List<string>();
                     var clonesToRemove = new List<string>();
                     string configJsonPath = Path.Combine(xrayDir, "config.json");
@@ -259,6 +288,47 @@ namespace CrimsonX.Services
                 }
                 ActiveOutbounds.Clear();
             }
+        }
+
+        private static List<JObject> ParseOutbounds(List<string> entries, string caller)
+        {
+            var result = new List<JObject>();
+            int requested = 0;
+
+            foreach (var outbStr in entries ?? new List<string>())
+            {
+                requested++;
+                try
+                {
+                    var jOut = JObject.Parse(outbStr);
+                    if (jOut["outbounds"] is JArray arr && arr.Count > 0)
+                    {
+                        result.Add((JObject)arr[0]);
+                    }
+                    else
+                    {
+                        CrimsonX.Services.SimpleLogger.Log($"[Xray] {caller}: outbound entry skipped (it has no \"outbounds\" array): {Preview(outbStr)}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    CrimsonX.Services.SimpleLogger.Log($"[Xray] {caller}: outbound entry skipped ({ex.GetType().Name}): {Preview(outbStr)}");
+                }
+            }
+
+            CrimsonX.Services.SimpleLogger.Log($"[Xray] {caller}: outbounds requested={requested} accepted={result.Count}");
+            if (requested > 0 && result.Count == 0)
+                CrimsonX.Services.SimpleLogger.Log($"[Xray] {caller}: no usable outbound was handed to xray.");
+
+            return result;
+        }
+
+        private static string Preview(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return "(empty)";
+
+            string flat = text.Replace("\r", " ").Replace("\n", " ").Trim();
+            return flat.Length <= 90 ? flat : flat.Substring(0, 90) + "…";
         }
     }
 }
