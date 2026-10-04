@@ -30,7 +30,6 @@ public partial class MainWindow : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-
         if (!disposing) return;
 
         // ── DispatcherTimers 
@@ -39,14 +38,11 @@ public partial class MainWindow : IDisposable
         StopTimer(ref _toastTimer);
         StopTimer(ref _logClearTimer);
         StopTimer(ref _autoBootTimer);
-
         StopTimer(ref _fillAnimTimer);
         StopTimer(ref _colorTimer);
         StopTimer(ref _uiStallTimer);
         StopTimer(ref _graphAnimTimer);
-
         CancelAndDispose(ref _updateCts);
-
         CancelAndDispose(ref _pipelineCts);
 
         // ── Tray widget window 
@@ -55,9 +51,7 @@ public partial class MainWindow : IDisposable
 
         // ── Services 
         _session.Dispose();
-
         _netDiag.Dispose();
-
         DisposeTrayIcon();
 
         // ── Release page/control singletons 

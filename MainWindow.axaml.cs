@@ -53,12 +53,6 @@ public partial class MainWindow : Window
     private DispatcherTimer? _autoBootTimer; 
     internal string _pollMode = "Proxy Mode";
 
-
-
-
-
-
-
     internal Models.AppState GetState() => _state;
     internal void SwitchToVpnMode()
     {
@@ -75,40 +69,27 @@ public partial class MainWindow : Window
         return $"⬇ {down} | ⬆ {up}\nTotal: {total}";
     }
 
-
-
     public MainWindow()
     {
         Instance = this;
-
         _cfg   = new AppConfig();
         _state = new AppState();
-
         _cfg.BaseDir = AppContext.BaseDirectory.TrimEnd(
             System.IO.Path.DirectorySeparatorChar,
             System.IO.Path.AltDirectorySeparatorChar);
         _cfg.CfgFile = System.IO.Path.Combine(_cfg.BaseDir, @"Data\multiplexer_settings.bin");
         _cfg.XrayDir = System.IO.Path.Combine(_cfg.BaseDir, @"Data\Xray");
         _cfg.SbDir   = System.IO.Path.Combine(_cfg.BaseDir, @"Data\sing_box");
-
         ConfigService.Load(_cfg, _state, _cfg.CfgFile);
         CrimsonX.Services.SimpleLogger.EnableLogging = _cfg.DebugMode;
         CrimsonX.Services.SimpleLogger.Log($"[Startup] CrimsonX v{Services.UpdateService.AppVersion} — Mode={_cfg.LastXrayMode}");
-
         CrimsonX.Services.BackgroundTask.Run("engine report", () => CrimsonX.Services.EngineReport.AnnounceAsync(_cfg));
-
         CrimsonX.Services.GeneratedArtifacts.RunStartupCleanup();
-
         CrimsonX.Services.SecureJsonStore.MigrateLegacyStores();
-
         CrimsonX.Services.BackgroundTask.Run("dns heal", () => CrimsonX.Services.SystemDnsService.HealFromDiskAsync());
-
-
         InitializeComponent();
-
         var startupNav = this.FindControl<CrimsonX.Controls.NavigationBar>("navBar");
         startupNav?.SetAdBlockerState(_cfg.EnableAdBlock);
-
         if (_cfg.StartupTab == "AppsGames")
         {
             var navBar = this.FindControl<CrimsonX.Controls.NavigationBar>("navBar");
@@ -117,39 +98,26 @@ public partial class MainWindow : Window
                 navBar.SelectTab("AppsGames");
             }
         }
-
-
         DataContext = this;
-
         this.Deactivated += (s, e) => { CloseAllOverlays(); CrimsonX.Controls.AnimatedBackground.Instance?.SetFocusState(false); };
         this.Activated += (s, e) => CrimsonX.Controls.AnimatedBackground.Instance?.SetFocusState(true);
-
-        
         var lblVer = this.FindControl<global::Avalonia.Controls.TextBlock>("lblVersion");
         if (lblVer != null) lblVer.Text = Services.UpdateService.AppVersion;
-
         ApplyTheme(_cfg.ThemeColor);
         _pollMode = _cfg.LastXrayMode ?? "Proxy Mode";
-
         ApplyLoadedSettings();
-
         InitTrayIcon();
         InitNetDiag();
         InitLogClearTimer();
-
-        
-
         if (!double.IsNaN(_cfg.WindowLeft) && !double.IsNaN(_cfg.WindowTop))
         {
             WindowStartupLocation = global::Avalonia.Controls.WindowStartupLocation.Manual;
             Position = new global::Avalonia.PixelPoint((int)_cfg.WindowLeft, (int)_cfg.WindowTop);
         }
-
         if (_cfg.StartMinimized)
         {
             WindowState = global::Avalonia.Controls.WindowState.Minimized;
         }
-
         bool isFirstOpen = true;
         this.Opened += (s, e) =>
         {
@@ -167,11 +135,9 @@ public partial class MainWindow : Window
             }
             isFirstOpen = false;
         };
-
         if (_cfg.AutoStart && !_state.IsFirstLaunch)
         {
             bool fired = false;
-
             void FireAutoConnect()
             {
                 if (fired) return;
@@ -183,27 +149,20 @@ public partial class MainWindow : Window
                         () => BeginAutoConnect(),
                         DispatcherPriority.Background);
             }
-
             void OnFirstLayout(object? s, EventArgs e)
             {
                 LayoutUpdated -= OnFirstLayout;
                 DispatcherTimer.RunOnce(FireAutoConnect, TimeSpan.FromMilliseconds(250));
             }
-
             LayoutUpdated += OnFirstLayout;
-
             _autoBootTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2500) };
             _autoBootTimer.Tick += (s, ev) => FireAutoConnect();
             _autoBootTimer.Start();
         }
-
-
         CrimsonX.Services.BackgroundTask.Run("update check", () => CheckUpdateSilentAsync());
     }
 
-
     // ── Overlay & Popup Dismissal ──
-
 
     public void SetLightDismissLayer(bool visible)
     {
@@ -227,8 +186,6 @@ public partial class MainWindow : Window
     {
         CloseAllOverlays();
     }
-
-
 
     // ── Social Links & Wallet Copy ──
 
@@ -288,31 +245,24 @@ public partial class MainWindow : Window
     {
         var badge = this.FindControl<global::Avalonia.Controls.StackPanel>("panTitleUpdate");
         if (badge == null) return;
-
         badge.IsVisible = state != TitleUpdateState.Hidden;
-
         var stripTitle = this.FindControl<global::Avalonia.Controls.TextBlock>("lblTabTitle");
         if (stripTitle != null)
         {
             bool badgeUp = state != TitleUpdateState.Hidden;
-
             global::Avalonia.Controls.Grid.SetColumnSpan(stripTitle, badgeUp ? 1 : 3);
             stripTitle.HorizontalAlignment = badgeUp
                 ? global::Avalonia.Layout.HorizontalAlignment.Left
                 : global::Avalonia.Layout.HorizontalAlignment.Center;
             stripTitle.Margin = badgeUp ? new global::Avalonia.Thickness(72, 0, 0, 0) : new global::Avalonia.Thickness(0);
         }
-
         if (!badge.IsVisible) return;
-
         var title  = this.FindControl<global::Avalonia.Controls.Button>("btnTitleUpdate");
         var dot    = this.FindControl<global::Avalonia.Controls.Shapes.Ellipse>("dotTitleUpdate");
         var ring   = this.FindControl<CrimsonX.Controls.ProgressRing>("ringTitleUpdate");
         var label  = this.FindControl<global::Avalonia.Controls.TextBlock>("lblTitleUpdate");
         var cancel = this.FindControl<global::Avalonia.Controls.Button>("btnTitleUpdateCancel");
-
         bool downloading = state == TitleUpdateState.Downloading;
-
         if (title != null && (state == TitleUpdateState.Available) != title.Classes.Contains("graphHover"))
         {
             if (state == TitleUpdateState.Available)
@@ -326,20 +276,17 @@ public partial class MainWindow : Window
                 title.Cursor = global::Avalonia.Input.Cursor.Default;
             }
         }
-
         if (dot != null)
         {
             dot.IsVisible = !downloading;
             dot.Fill = new global::Avalonia.Media.SolidColorBrush(global::Avalonia.Media.Color.Parse(
                 state == TitleUpdateState.Extracting ? "#ED8936" : "#F56565"));
         }
-
         if (ring != null)
         {
             ring.IsVisible = downloading;
             ring.Value = Math.Clamp(percent / 100.0, 0, 1);
         }
-
         if (label != null)
         {
             label.Text = state switch
@@ -349,7 +296,6 @@ public partial class MainWindow : Window
                 _                            => CrimsonX.Localization.AppStrings.UpdateBadgeAvailable
             };
         }
-
         if (cancel != null) cancel.IsVisible = state != TitleUpdateState.Available;
     }
 
@@ -364,7 +310,6 @@ public partial class MainWindow : Window
                 _remoteMinUpdateVersion = remoteMin ?? "0.0.0";
                 var btnTitleUpdate = this.FindControl<global::Avalonia.Controls.Button>("btnTitleUpdate");
                 if (btnTitleUpdate != null) btnTitleUpdate.IsVisible = true;
-                
                 string msg = CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable;
                 SetUpdateUIStatus(msg);
                 SetTitleUpdateBadge(TitleUpdateState.Available);
@@ -385,14 +330,10 @@ public partial class MainWindow : Window
             _updateCts = null;
             return;
         }
-
         if (string.IsNullOrEmpty(_remoteUpdateVersion) || _remoteUpdateVersion == "0.0.0") return;
-
         _updateCts = new System.Threading.CancellationTokenSource();
         var token = _updateCts.Token;
-
         SetTitleUpdateBadge(TitleUpdateState.Downloading, 0);
-
         try
         {
             await Services.UpdateService.DownloadAndInstallUpdateAsync(_remoteUpdateVersion, _cfg.BaseDir, (status) =>
@@ -402,7 +343,6 @@ public partial class MainWindow : Window
             {
                 SetTitleUpdateBadge(pct >= 100 ? TitleUpdateState.Extracting : TitleUpdateState.Downloading, pct);
             });
-
             ProxyService.SetSystemProxy(false);
             StopAllEngines(true);
             System.Environment.Exit(0);
@@ -417,7 +357,6 @@ public partial class MainWindow : Window
             {
                 ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateDownloadTimeout, ToastKind.Error);
             }
-
             SetUpdateUIStatus(CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable);
             SetTitleUpdateBadge(TitleUpdateState.Available);
         }
@@ -437,11 +376,9 @@ public partial class MainWindow : Window
     private void BtnTitleUpdateCancel_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_updateCts == null) return;
-
         _updateCts.Cancel();
         _updateCts.Dispose();
         _updateCts = null;
-
         SetTitleUpdateBadge(TitleUpdateState.Available);
     }
 
@@ -450,11 +387,9 @@ public partial class MainWindow : Window
         try
         {
         if (_updateCts != null) return;
-
         bool isManual = Version.Parse(Services.UpdateService.AppVersion) < Version.Parse(_remoteMinUpdateVersion);
         var dialog = new Dialogs.UpdateDialog(isManual: isManual, _remoteUpdateVersion);
         var result = await dialog.ShowDialog<string>(this);
-        
         if (result == "Primary")
         {
             if (isManual)
@@ -477,17 +412,14 @@ public partial class MainWindow : Window
     {
         try
         {
-
         if (_updateCts != null)
         {
             _updateCts.Cancel();
             _updateCts.Dispose();
             _updateCts = null;
-
             SetTitleUpdateBadge(TitleUpdateState.Available);
             return;
         }
-
         if (!string.IsNullOrEmpty(_remoteUpdateVersion) && _remoteUpdateVersion != "0.0.0")
         {
             bool isManual = Version.TryParse(Services.UpdateService.AppVersion, out var localVer)
@@ -495,7 +427,6 @@ public partial class MainWindow : Window
                          && localVer < remoteMinVer;
             var dialog = new Dialogs.UpdateDialog(isManual: isManual, _remoteUpdateVersion);
             var result = await dialog.ShowDialog<string>(this);
-            
             if (result == "Primary")
             {
                 if (isManual)
@@ -509,11 +440,9 @@ public partial class MainWindow : Window
             }
             return;
         }
-
         Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.UpdateChecking);
         _updateCts = new System.Threading.CancellationTokenSource();
         var token = _updateCts.Token;
-
         try
         {
             var (remoteVer, remoteMin) = await Services.UpdateService.CheckForUpdatesAsync(token);
@@ -527,36 +456,28 @@ public partial class MainWindow : Window
                 _updateCts = null;
                 return;
             }
-
             if (Version.TryParse(Services.UpdateService.AppVersion, out var localVer2)
              && Version.TryParse(remoteMin ?? "0.0.0", out var remoteMinVer2)
              && localVer2 < remoteMinVer2)
             {
                 Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.UpdateManualTitle);
-                
                 var dialog = new Dialogs.UpdateDialog(isManual: true, remoteVer);
                 var result = await dialog.ShowDialog<string>(this);
-                
                 if (result == "Primary" || result == "Secondary")
                 {
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/RichTiTAN/CrimsonX/releases") { UseShellExecute = true })?.Dispose();
                 }
-                
                 _updateCts?.Dispose();
                 _updateCts = null;
                 return;
             }
-
             _remoteUpdateVersion = remoteVer;
             SetUpdateUIStatus(CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable);
             SetTitleUpdateBadge(TitleUpdateState.Available);
-
             _updateCts?.Dispose();
             _updateCts = null;
-
             var dialog2 = new Dialogs.UpdateDialog(isManual: false, remoteVer);
             var result2 = await dialog2.ShowDialog<string>(this);
-            
             if (result2 == "Primary")
             {
                 CrimsonX.Services.BackgroundTask.Run("update download", () => StartUpdateDownloadAsync());
@@ -600,19 +521,14 @@ public partial class MainWindow : Window
         }
     }
 
-
-
     // ── Localization ──
 
     public void ApplyLanguage()
     {
         AppStrings.SetLanguage(_cfg.Language);
         bool fa = AppStrings.IsPersian;
-        
         panMainInteraction.FlowDirection = global::Avalonia.Media.FlowDirection.LeftToRight;
-            
         panMainInteraction.Margin = new global::Avalonia.Thickness(62, 0, 0, 0);
-
         this.FindControl<CrimsonX.Controls.NavigationBar>("navBar")?.ApplyLanguage();
         ApplyTitleBarName(_previousNav);
         CrimsonX.Pages.SettingsPage.Instance?.ApplyLanguage();
@@ -622,9 +538,7 @@ public partial class MainWindow : Window
         this.FindControl<CrimsonX.Controls.QuickSettingsPanel>("quickSettings")?.ApplyLanguage();
         CrimsonX.Pages.SplitTunnelPage.Instance?.ApplyLanguage();
         this.FindControl<global::CrimsonX.Pages.AppsGamesOverlay>("overlayAppsGames")?.ApplyLanguage();
-
         TextBlock? F(string name) => this.FindControl<TextBlock>(name);
-
         var panTimerContent = this.FindControl<StackPanel>("panTimerContent");
         if (panTimerContent != null)
         {
@@ -632,7 +546,6 @@ public partial class MainWindow : Window
                 ? global::Avalonia.Media.FlowDirection.RightToLeft 
                 : global::Avalonia.Media.FlowDirection.LeftToRight;
         }
-
         AppStrings.Apply(F("lblConnectedTo"),   AppStrings.ConnectedTo);
         var lblD = F("lblDisconnected");
         if (lblD != null) lblD.Text = "00:00:00";
@@ -649,9 +562,7 @@ public partial class MainWindow : Window
         AppStrings.Apply(F("lblTotalLabel"),    AppStrings.TotalLabel);
         AppStrings.Apply(F("lblDownloadLabel"), AppStrings.DownloadLabel);
         AppStrings.Apply(F("lblUploadLabel"),   AppStrings.UploadLabel);
-
         UpdateStatusText();
-
         var btnConn = this.FindControl<Button>("btnConnect");
         if (btnConn != null)
         {
@@ -667,30 +578,20 @@ public partial class MainWindow : Window
                     : global::Avalonia.Media.FlowDirection.LeftToRight;
             }
         }
-
-
         AppStrings.ApplyToolTip(this.FindControl<Button>("btnRefreshPing"), AppStrings.TtPingRefresh);
-
         AppStrings.ApplyToolTip(this.FindControl<Button>("btnPinTopBar"), AppStrings.PinTopBar);
         ApplyTopBarPin(_previousNav);
-
         HookStatTileResize();
-
         Pages.AboutPage.Instance?.UpdateLocalization();
         Pages.ThemesPage.Instance?.UpdateLocalization();
-
-
         if (_trayWidget != null)
             _trayWidget.ApplyLanguage(fa);
-            
         UpdateLanPortUI();
         UpdateLocalPortUI();
         ApplyModeUI(_cfg.LastXrayMode);
-
         var txtConnectBtn = F("txtConnectBtn");
         var txtConnectedBtn = F("txtConnectedBtn");
         bool settled = _state.IsConnected && !_state.IsReconnecting;
-
         if (settled)
         {
             if (txtConnectedBtn != null) txtConnectedBtn.Text = AppStrings.StatusConnected;
@@ -706,8 +607,6 @@ public partial class MainWindow : Window
         }
     }
 
-
-
     // ── Operating Mode Switching ──
 
     internal async Task SetConnectionModeAsync(string newMode)
@@ -715,26 +614,20 @@ public partial class MainWindow : Window
         try
         {
         newMode = CrimsonX.Services.ConnectionModes.Normalise(newMode);
-
         if (_isModeHotSwapping) return;
-
         string oldMode = CrimsonX.Services.ConnectionModes.Normalise(_cfg.LastXrayMode);
         if (oldMode == newMode) return;
-
         bool live = _state.IsEngineRunning || _state.IsConnected;
         if (live && newMode == CrimsonX.Services.ConnectionModes.Vpn && IsVpnAdapterInUse())
         {
             ShowToast(CrimsonX.Localization.AppStrings.ToastVpnInUse, ToastKind.Error);
             return;
         }
-
         _cfg.LastXrayMode = newMode;
         _pollMode = newMode;
         ApplyModeUI(newMode);
         RequestConfigSave();
-
         if (!live) return;
-
         _isModeHotSwapping = true;
         try
         {
@@ -758,37 +651,24 @@ public partial class MainWindow : Window
         }
     }
 
-
     // ── Apply Settings & Mode UI ──
 
     private void ApplyLoadedSettings()
     {
-
-
         _isInitializingSettings = true;
-
         _isInitializingSettings = false;
-
         ApplyModeUI(_pollMode);
-
         UpdateLanPortUI();
-        
-
         ApplyLanguage();
         CrimsonX.Pages.SettingsPage.Instance?.SyncUI();
         CrimsonX.Pages.SplitTunnelPage.Instance?.SyncUI();
-
     }
 
     private void ApplyModeUI(string mode)
     {
         CrimsonX.Pages.SettingsPage.Instance?.ApplyConnectionModeUI(mode);
-
         CrimsonX.Pages.SplitTunnelPage.Instance?.UpdateSplitTunnelUI();
     }
-
-
-
 
     // ── Custom Window Title Bar ──
 
@@ -797,8 +677,6 @@ public partial class MainWindow : Window
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             BeginMoveDrag(e);
     }
-
-
 
     private void Minimize_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -821,20 +699,17 @@ public partial class MainWindow : Window
     protected override void OnClosing(global::Avalonia.Controls.WindowClosingEventArgs e)
     {
         base.OnClosing(e);
-
         if (this.WindowState == global::Avalonia.Controls.WindowState.Normal)
         {
             _cfg.WindowLeft = this.Position.X;
             _cfg.WindowTop = this.Position.Y;
             ConfigService.Save(_cfg, _state, _cfg.CfgFile);
         }
-
         if (_closeDeferred)
         {
             Dispose();
             return;
         }
-
         if (CrimsonX.Services.SystemDnsService.HasPendingRestore
             && e.CloseReason != global::Avalonia.Controls.WindowCloseReason.OSShutdown)
         {
@@ -844,9 +719,7 @@ public partial class MainWindow : Window
             CrimsonX.Services.BackgroundTask.Run("close", () => FinishCloseAsync());
             return;
         }
-
         StopAllEngines(isClosing: true);
-
         Dispose();
     }
 
@@ -861,11 +734,8 @@ public partial class MainWindow : Window
         {
             CrimsonX.Services.SimpleLogger.Log(ex);
         }
-
         try { Close(); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
     }
-
-    
 
     private System.Collections.Generic.Dictionary<global::Avalonia.Media.SolidColorBrush, (global::Avalonia.Media.Color Start, global::Avalonia.Media.Color End, System.DateTime StartTime)> _colorAnimations = new();
     private global::Avalonia.Threading.DispatcherTimer? _colorTimer;
@@ -877,9 +747,7 @@ public partial class MainWindow : Window
         if (global::Avalonia.Application.Current?.Resources.TryGetValue(key, out var res) == true && res is global::Avalonia.Media.SolidColorBrush brush)
         {
             if (brush.Color == color) return;
-            
             _colorAnimations[brush] = (brush.Color, color, System.DateTime.UtcNow);
-            
             if (_colorTimer == null)
             {
                 _colorTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = System.TimeSpan.FromMilliseconds(16) };
@@ -981,7 +849,6 @@ public partial class MainWindow : Window
             default:
                 break; 
         }
-
         if (global::Avalonia.Application.Current != null)
         {
             global::Avalonia.Application.Current.Resources["ThemeGlow"] = glow;
@@ -1006,30 +873,22 @@ public partial class MainWindow : Window
             SetAnimatableBrush("SliderTrackValueFillPointerOver", accentHover.Color);
             SetAnimatableBrush("SliderTrackValueFillPressed", accentPressed.Color);
         }
-
         if (_state != null && _state.IsEngineRunning)
         {
             var txtConnectBtn = this.FindControl<global::Avalonia.Controls.TextBlock>("txtConnectBtn");
             if (txtConnectBtn != null && txtConnectBtn.Text == CrimsonX.Localization.AppStrings.StatusConnected) 
                 txtConnectBtn.Foreground = new global::Avalonia.Media.SolidColorBrush(glow);
         }
-
         if (this.Resources.ContainsKey($"Theme{themeName}Brush"))
         {
             this.Resources["ThemeCurrentBrush"] = this.Resources[$"Theme{themeName}Brush"];
         }
-
         this.FindControl<CrimsonX.Controls.NavigationBar>("navBar")?.ApplyTheme();
     }
 
-    
-
-
-    
         public void UpdateGlobalAnimations()
     {
         bool glowsAllowed = !_cfg.PauseGlows && !_cfg.DisableGlows;
-        
         if (glowsAllowed)
         {
             if (!this.Classes.Contains("anim-glows")) this.Classes.Add("anim-glows");
@@ -1038,7 +897,6 @@ public partial class MainWindow : Window
         {
             this.Classes.Remove("anim-glows");
         }
-
         CrimsonX.Controls.AnimatedBackground.Instance?.ApplySettings(
             _cfg.PauseGlows, 
             _cfg.DisableGlows
@@ -1052,12 +910,9 @@ public partial class MainWindow : Window
     public void SetAdBlock(bool enabled)
     {
         if (_cfg.EnableAdBlock == enabled) return;
-
         _cfg.EnableAdBlock = enabled;
-
         CrimsonX.Pages.SettingsPage.Instance?.SetAdBlockToggle(enabled);
         this.FindControl<CrimsonX.Controls.NavigationBar>("navBar")?.SetAdBlockerState(enabled);
-
         if (_state.IsEngineRunning) SmartRestartXray();
         RequestConfigSave();
     }
@@ -1085,14 +940,11 @@ public partial class MainWindow : Window
     private void NavBar_NavChanged(object? sender, string viewName)
     {
         using var _busy = CrimsonX.Services.UiBusy.Scope("nav " + viewName);
-
         _previousNav = viewName;
         ApplyTitleBarName(viewName);
-
         ApplyTopBarPin(viewName);
         var carousel = this.FindControl<global::Avalonia.Controls.Carousel>("MainCarousel");
         if (carousel == null) return;
-
         if (viewName == "Themes")
         {
             if (!this.Classes.Contains("themes-active")) this.Classes.Add("themes-active");
@@ -1101,7 +953,6 @@ public partial class MainWindow : Window
         {
             this.Classes.Remove("themes-active");
         }
-
         switch (viewName)
         {
             case "Home":
@@ -1121,15 +972,12 @@ public partial class MainWindow : Window
             case "About": carousel.SelectedIndex = 4; break;
             case "AppsGames": carousel.SelectedIndex = 5; break;
         }
-
         CrimsonX.Controls.AnimatedBackground.Instance?.SetHomeTabActive(carousel.SelectedIndex == 0);
-
         var panTabDarken = this.FindControl<global::Avalonia.Controls.Border>("panTabDarken");
         if (panTabDarken != null)
         {
             panTabDarken.Opacity = carousel.SelectedIndex >= 1 ? 1 : 0;
         }
-        
         if (viewName == "AppsGames")
         {
             var page = this.FindControl<global::CrimsonX.Pages.AppsGamesOverlay>("overlayAppsGames");
@@ -1142,5 +990,4 @@ if (viewName == "SplitTunneling")
     if (page != null) page.SyncUI();
 }
     }
-
 }

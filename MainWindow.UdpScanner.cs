@@ -31,7 +31,6 @@ namespace CrimsonX
         internal async Task<List<string>> FetchScanConfigsAsync(int index, CancellationToken ct)
         {
             List<string> configs;
-
             if (index < 0)
             {
                 configs = CrimsonX.Services.ConfigCache.LoadCache(GetAppPath(@"Data\cache\cache.bin"));
@@ -41,9 +40,7 @@ namespace CrimsonX
             {
                 configs = await FetchConfigsFromWorker(index, ct);
             }
-
             if (configs == null) return new List<string>();
-
             if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig1, out string c1Json))
             {
                 configs.RemoveAll(c => c == c1Json || c.Contains(c1Json));
@@ -52,7 +49,6 @@ namespace CrimsonX
             {
                 configs.RemoveAll(c => c == c2Json || c.Contains(c2Json));
             }
-
             return configs;
         }
 

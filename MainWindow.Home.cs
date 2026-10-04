@@ -45,10 +45,8 @@ public partial class MainWindow
         if (panTimerContent != null) panTimerContent.IsVisible = true;
         var lblDisconnected = this.FindControl<TextBlock>("lblDisconnected");
         if (lblDisconnected != null) lblDisconnected.IsVisible = false;
-
         _session.Start();
     }
-
 
     private global::Avalonia.Threading.DispatcherTimer? _logClearTimer;
     private int _isReadingLogs = 0; 
@@ -61,7 +59,6 @@ public partial class MainWindow
     private void StartUiStallWatch()
     {
         if (_uiStallTimer != null) return;
-
         _uiStallLast = DateTime.UtcNow;
         _uiStallTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _uiStallTimer.Tick += (s, e) =>
@@ -69,14 +66,11 @@ public partial class MainWindow
             var now = DateTime.UtcNow;
             int gap = (int)(now - _uiStallLast).TotalMilliseconds;
             _uiStallLast = now;
-
             if (gap < 400) return;
             if (!(MainWindow.Instance?.Config?.DebugMode ?? false)) return;
-
             string busy = CrimsonX.Services.UiBusy.Current;
             CrimsonX.Services.SimpleLogger.Log($"[UI] the interface thread was blocked for {gap} ms while: {(busy.Length > 0 ? busy : "nothing claimed")} (gc {GC.CollectionCount(0)}/{GC.CollectionCount(1)}/{GC.CollectionCount(2)}, working set {Environment.WorkingSet / (1024 * 1024)} MB)");
         };
-
         _uiStallTimer.Start();
     }
 
@@ -115,7 +109,6 @@ public partial class MainWindow
         }
     }
 
-
     // Network diagnostics event subscriptions 
 
     // Geo Ping & Network Diagnostics
@@ -124,16 +117,13 @@ public partial class MainWindow
     {
         _netDiag.GeoTraceCompleted += OnGeoTraceCompleted;
         _netDiag.StatsUpdated      += OnStatsUpdated;
-
         CrimsonX.Services.UiEventBus.Instance.ToastRequested += evt =>
             Dispatcher.UIThread.Post(() => ShowToast(evt.Message, evt.Success ? ToastKind.Success : ToastKind.Error));
-
         CrimsonX.Services.UiEventBus.Instance.ConnectionProgress += percent =>
         {
             _statusTargetPercent = percent;
             UpdateStatusText();
         };
-
         _session.ElapsedTimeUpdated += elapsed =>
             Dispatcher.UIThread.Post(() =>
             {
@@ -146,18 +136,14 @@ public partial class MainWindow
     private void StartGeoPing()
     {
         _state.IsGeoTracing = true;
-
         var lblCountry = this.FindControl<TextBlock>("lblCountryName");
         var lblPing    = this.FindControl<TextBlock>("lblPing");
         if (lblCountry != null) lblCountry.Text = CrimsonX.Localization.AppStrings.GeoTracing;
         if (lblPing    != null) lblPing.Text    = "0 ms";
-
         var lblPublicIp = this.FindControl<TextBlock>("lblPublicIp");
         if (lblPublicIp != null) lblPublicIp.Text = CrimsonX.Localization.AppStrings.GeoTracing;
-
         _exitIpFull = "";
         SetPublicIpTip("");
-
         _netDiag.StartGeoTrace();
     }
 
@@ -167,7 +153,6 @@ public partial class MainWindow
     {
         var tile = this.FindControl<global::Avalonia.Controls.Button>("btnCopyPublicIp");
         if (tile == null) return;
-
         if (fullIp.Length == 0) tile.ClearValue(global::Avalonia.Controls.ToolTip.TipProperty);
         else                    global::Avalonia.Controls.ToolTip.SetTip(tile, fullIp);
     }
@@ -178,33 +163,27 @@ public partial class MainWindow
         {
             _state.IsGeoTracing = false;
             if (!_state.IsConnected) return;
-
             var lblCountry = this.FindControl<TextBlock>("lblCountryName");
             var lblPing    = this.FindControl<TextBlock>("lblPing");
             var lblPublicIp = this.FindControl<TextBlock>("lblPublicIp");
-
             bool isFa    = CrimsonX.Localization.AppStrings.IsPersian;
             string country = result.Country;
             if (isFa)
             {
                 country = CrimsonX.Localization.GeoTranslation.GetCountryFa(result.CountryCode, country);
             }
-
             string displayName = string.IsNullOrWhiteSpace(country)
                 ? (result.PingMs == 0
                     ? CrimsonX.Localization.AppStrings.GeoTimeout
                     : CrimsonX.Localization.AppStrings.StatusDisconnected)
                 : country;
-
             if (lblCountry != null) lblCountry.Text = displayName;
             if (lblPing    != null) lblPing.Text    = result.PingMs > 0 ? $"{result.PingMs}ms" : "0 ms";
-
             string ipText = string.IsNullOrWhiteSpace(result.Ip)
                 ? (result.PingMs == 0
                     ? CrimsonX.Localization.AppStrings.GeoTimeout
                     : CrimsonX.Localization.AppStrings.StatusDisconnected)
                 : result.Ip;
-
             _exitIpFull = System.Net.IPAddress.TryParse(ipText, out _) ? ipText : "";
             if (lblPublicIp != null) lblPublicIp.Text = CrimsonX.Services.IpDisplay.ForTile(ipText);
             SetPublicIpTip(_exitIpFull);
@@ -223,31 +202,25 @@ public partial class MainWindow
     {
         _statusValue ??= this.FindControl<global::Avalonia.Controls.TextBlock>("lblStatusValue");
         if (_statusValue == null) return;
-
         var phase = CrimsonX.Services.ConnectPhaseUi.Status(_state.IsConnected, _state.IsEngineRunning, _state.IsReconnecting);
-
         if (phase != _statusPhase)
         {
             _statusPhase = phase;
-
             if (phase == CrimsonX.Services.StatusKind.ComingUp)
             {
                 _statusShownPercent = 0;
                 _statusValue.Text = "0%";
             }
         }
-
         switch (phase)
         {
             case CrimsonX.Services.StatusKind.ComingUp:
                 StartStatusTimer();
                 break;
-
             case CrimsonX.Services.StatusKind.Connected:
                 StopStatusTimer();
                 _statusValue.Text = CrimsonX.Localization.AppStrings.StatusConnectedWord;
                 break;
-
             default:
                 StopStatusTimer();
                 _statusValue.Text = CrimsonX.Localization.AppStrings.StatusOffline;
@@ -262,7 +235,6 @@ public partial class MainWindow
             _statusTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(40) };
             _statusTimer.Tick += (s, e) => TickStatusText();
         }
-
         if (!_statusTimer.IsEnabled) _statusTimer.Start();
     }
 
@@ -274,13 +246,9 @@ public partial class MainWindow
     private void TickStatusText()
     {
         if (_statusValue == null) return;
-
         double target = System.Math.Clamp(_statusTargetPercent, 0, 100);
-
         _statusShownPercent = CrimsonX.Services.ConnectPhaseUi.Approach(_statusShownPercent, target);
-
         _statusValue.Text = ((int)System.Math.Round(_statusShownPercent)) + "%";
-
         if (_statusPhase != CrimsonX.Services.StatusKind.ComingUp || System.Math.Abs(_statusShownPercent - target) < 0.5)
             StopStatusTimer();
     }
@@ -292,7 +260,6 @@ public partial class MainWindow
         UpdateLanPortUI();
         _logClearTimer?.Stop();
         _logClearTimer?.Start();
-
         StartUiStallWatch();
         _netDiag.StartStatsPolling(() => _state.IsConnected);
     }
@@ -300,13 +267,11 @@ public partial class MainWindow
     private void OnStatsUpdated(CrimsonX.Services.StatsSnapshot snap)
     {
         _state.SessionDataBytes += snap.DiffUpBytes + snap.DiffDnBytes;
-
         string tot = _state.SessionDataBytes >= 1_073_741_824
             ? $"{Math.Round(_state.SessionDataBytes / 1_073_741_824.0, 2)} GB"
             : _state.SessionDataBytes >= 1_048_576
                 ? $"{(long)(_state.SessionDataBytes / 1_048_576.0)} MB"
                 : $"{(long)(_state.SessionDataBytes / 1024.0)} KB";
-
         Dispatcher.UIThread.Post(() =>
         {
             if (lblTotalData      != null) lblTotalData.Text      = tot;
@@ -315,8 +280,6 @@ public partial class MainWindow
             DrawGraph(snap.UpHistory, snap.DnHistory);
         });
     }
-
-
 
     private global::Avalonia.Controls.Shapes.Path? _graphDownload;
     private global::Avalonia.Controls.Shapes.Path? _graphUpload;
@@ -344,28 +307,22 @@ public partial class MainWindow
         var graphUpload       = _graphUpload;
         var graphDownloadFill = _graphDownloadFill;
         var graphUploadFill   = _graphUploadFill;
-
         if (graphUpload == null || graphDownload == null || graphUploadFill == null || graphDownloadFill == null) return;
-
         const double width         = 51;
         const double height        = 30;
         const double topPadding    = 3;
         const double bottomPadding = 2;
         int count = Math.Min(upHistory.Length, dnHistory.Length);
         if (count < 2) return;
-
         double step   = width / (NetworkDiagnosticsService.HistorySamples - 1);
         double maxUp  = upHistory.Length > 0 ? upHistory.Max() : 0;
         double maxDn  = dnHistory.Length > 0 ? dnHistory.Max() : 0;
         if (maxUp < 1024) maxUp = 1024;
         if (maxDn < 1024) maxDn = 1024;
-
         _ptsUpCache.Clear();
         _ptsDnCache.Clear();
-
         int    startIdx    = NetworkDiagnosticsService.HistorySamples - count;
         double drawHeight  = height - topPadding - bottomPadding;
-
         for (int i = 0; i < count; i++)
         {
             double x   = (startIdx + i) * step;
@@ -374,15 +331,12 @@ public partial class MainWindow
             _ptsUpCache.Add(new global::Avalonia.Point(x, yUp));
             _ptsDnCache.Add(new global::Avalonia.Point(x, yDn));
         }
-
         graphUpload.Data       = GenerateSmoothSpline(_ptsUpCache, false, width, height);
         graphDownload.Data     = GenerateSmoothSpline(_ptsDnCache, false, width, height);
         graphUploadFill.Data   = GenerateSmoothSpline(_ptsUpCache, true,  width, height);
         graphDownloadFill.Data = GenerateSmoothSpline(_ptsDnCache, true,  width, height);
-
         _graphUpTransform = (graphUpload.Parent   as global::Avalonia.Controls.Canvas)?.RenderTransform as global::Avalonia.Media.TranslateTransform;
         _graphDnTransform = (graphDownload.Parent as global::Avalonia.Controls.Canvas)?.RenderTransform as global::Avalonia.Media.TranslateTransform;
-
         if (_graphUpTransform != null || _graphDnTransform != null)
         {
             if (_graphAnimTimer == null)
@@ -393,14 +347,11 @@ public partial class MainWindow
                     double elapsed = (DateTime.UtcNow - _graphAnimStartTime).TotalMilliseconds;
                     bool   finished = elapsed >= 1000;
                     double x        = finished ? -_graphAnimStep : -_graphAnimStep * (elapsed / 1000.0);
-
                     if (_graphUpTransform != null) _graphUpTransform.X = x;
                     if (_graphDnTransform != null) _graphDnTransform.X = x;
-
                     if (finished) _graphAnimTimer.Stop();
                 };
             }
-
             _graphAnimStartTime = DateTime.UtcNow;
             _graphAnimStep      = step;
             if (_graphUpTransform != null) _graphUpTransform.X = 0;
@@ -409,20 +360,16 @@ public partial class MainWindow
         }
     }
 
-
     internal void SetSparklinesVisible(bool show)
     {
         var dn = this.FindControl<global::Avalonia.Controls.Button>("cellSparkDn");
         var up = this.FindControl<global::Avalonia.Controls.Button>("cellSparkUp");
         if (dn == null || up == null) return;
-
         _sparkHideTimer?.Stop();
-
         if (show)
         {
             dn.IsVisible = true;
             up.IsVisible = true;
-
             double width = this.FindControl<global::Avalonia.Controls.Canvas>("graphDnCanvas")?.Width ?? 51;
             global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
@@ -431,10 +378,8 @@ public partial class MainWindow
             });
             return;
         }
-
         dn.Width = 0;
         up.Width = 0;
-
         _sparkHideTimer ??= new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(320) };
         _sparkHideTimer.Tick -= OnSparkHideTick;
         _sparkHideTimer.Tick += OnSparkHideTick;
@@ -444,14 +389,11 @@ public partial class MainWindow
     private void OnSparkHideTick(object? sender, EventArgs e)
     {
         _sparkHideTimer?.Stop();
-
         if (_state.IsConnected) return;
-
         var dn = this.FindControl<global::Avalonia.Controls.Button>("cellSparkDn");
         var up = this.FindControl<global::Avalonia.Controls.Button>("cellSparkUp");
         if (dn != null) dn.IsVisible = false;
         if (up != null) up.IsVisible = false;
-
     }
 
     // ── The two readout tiles an invisible ghost holds open ──
@@ -461,7 +403,6 @@ public partial class MainWindow
     internal void SetReadoutTilesGrown(bool grown)
     {
         using var _busy = CrimsonX.Services.UiBusy.Scope("readout fold");
-
         GrowReadoutGhost("lblStatusGhost", grown);
         GrowReadoutGhost("lblUploadGhost", grown);
     }
@@ -470,13 +411,11 @@ public partial class MainWindow
     {
         var ghost = this.FindControl<global::Avalonia.Controls.TextBlock>(name);
         if (ghost == null) return;
-
         if (!grown)
         {
             ghost.Width = 0;
             return;
         }
-
         if (!_readoutGhostWidth.TryGetValue(name, out double width))
         {
             ghost.Width = double.NaN;
@@ -485,7 +424,6 @@ public partial class MainWindow
             if (width <= 0) return;
             _readoutGhostWidth[name] = width;
         }
-
         global::Avalonia.Threading.Dispatcher.UIThread.Post(() => ghost.Width = width);
     }
 
@@ -498,19 +436,14 @@ public partial class MainWindow
     internal void ApplyTopBarPin(string viewName)
     {
         using var _busy = CrimsonX.Services.UiBusy.Scope("readout bar pin");
-
         var bar = this.FindControl<global::Avalonia.Controls.StackPanel>("panReadouts");
         if (bar == null) return;
-
         HookReadoutResize(bar);
-
         bool pinned = _cfg?.PinTopBar ?? false;
         string host = pinned && viewName is "SplitTunneling" or "Themes" or "UdpScanner" or "About"
             ? ReadoutHostTabs
             : "";
-
         MoveReadoutBar(bar, host.Length > 0 ? ReadoutHost(host) : null);
-
         ApplyAboutReadoutInset(pinned && viewName == "About");
         ApplySplitReadoutInset(pinned && viewName == "SplitTunneling");
         ApplyUdpReadoutInset(pinned && viewName == "UdpScanner");
@@ -521,9 +454,7 @@ public partial class MainWindow
     {
         target ??= this.FindControl<global::Avalonia.Controls.Grid>("viewHome");
         if (target == null || ReferenceEquals(bar.Parent, target)) return;
-
         if (bar.Parent is global::Avalonia.Controls.Panel parent) parent.Children.Remove(bar);
-
         global::Avalonia.Controls.Grid.SetRow(bar, 0);
         target.Children.Add(bar);
     }
@@ -535,7 +466,6 @@ public partial class MainWindow
     {
         var bar = this.FindControl<global::Avalonia.Controls.StackPanel>("panReadouts");
         if (bar == null) return 0;
-
         double height = bar.Bounds.Height > 0 ? bar.Bounds.Height : bar.DesiredSize.Height;
         return height > 0 ? height + bar.Margin.Top : 0;
     }
@@ -559,7 +489,6 @@ public partial class MainWindow
     private void ReapplyReadoutInset()
     {
         bool pinned = _cfg?.PinTopBar ?? false;
-
         if (_previousNav == "About") ApplyAboutReadoutInset(pinned);
         if (_previousNav == "SplitTunneling") ApplySplitReadoutInset(pinned);
         if (_previousNav == "UdpScanner") ApplyUdpReadoutInset(pinned);
@@ -568,7 +497,6 @@ public partial class MainWindow
     private void PaintTopBarPin()
     {
         bool pinned = _cfg?.PinTopBar ?? false;
-
         var on  = this.FindControl<global::Avalonia.Controls.PathIcon>("icoPinTopBarOn");
         var off = this.FindControl<global::Avalonia.Controls.PathIcon>("icoPinTopBarOff");
         if (on != null) on.IsVisible = pinned;
@@ -578,7 +506,6 @@ public partial class MainWindow
     private void HookReadoutResize(global::Avalonia.Controls.StackPanel bar)
     {
         if (_readoutResizeHooked) return;
-
         bar.SizeChanged += (_, _) => ReapplyReadoutInset();
         bar.AttachedToVisualTree += (_, _) => ReapplyReadoutInset();
         _readoutResizeHooked = true;
@@ -587,7 +514,6 @@ public partial class MainWindow
     private void PinTopBar_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_cfg == null) return;
-
         _cfg.PinTopBar = !_cfg.PinTopBar;
         RequestConfigSave();
         ApplyTopBarPin(_previousNav);
@@ -621,13 +547,11 @@ public partial class MainWindow
         if (!_statResizeHooked)
         {
             _statResizeHooked = true;
-
             HookStatTile("panStatLocation", "lblLocationLabel", "lblCountryName");
             HookStatTile("panStatIp", "lblPublicIpLabel", "lblPublicIp");
             HookStatTile("panStatLocalPort", "lblLocalPortLabel", "lblLocalIp");
             HookStatTile("panStatLanPort", "lblLanPortLabel", "lblLanIp");
         }
-
         RefreshStatWidths();
     }
 
@@ -635,34 +559,28 @@ public partial class MainWindow
     {
         var box = this.FindControl<global::Avalonia.Controls.Border>(boxName);
         if (box?.Child is not global::Avalonia.Controls.Button tile) return;
-
         var entry = new StatTile(tile, new global::Avalonia.Controls.TextBlock
         {
             TextWrapping = global::Avalonia.Media.TextWrapping.NoWrap,
             TextTrimming = global::Avalonia.Media.TextTrimming.None
         });
-
         foreach (string name in labelNames)
         {
             var text = this.FindControl<global::Avalonia.Controls.TextBlock>(name);
             if (text == null) continue;
-
             entry.Labels.Add(text);
             text.PropertyChanged += (_, e) =>
             {
                 if (e.Property != global::Avalonia.Controls.TextBlock.TextProperty) return;
-
                 SmoothStatWidth(entry);
             };
         }
-
         if (entry.Labels.Count > 0) _statTiles.Add(entry);
     }
 
     private void RefreshStatWidths()
     {
         using var _busy = CrimsonX.Services.UiBusy.Scope("stat tiles resize");
-
         foreach (var tile in _statTiles) SmoothStatWidth(tile);
     }
 
@@ -681,15 +599,11 @@ public partial class MainWindow
             measurer.Measure(new global::Avalonia.Size(double.PositiveInfinity, double.PositiveInfinity));
             if (measurer.DesiredSize.Width > widest) widest = measurer.DesiredSize.Width;
         }
-
         double target = Math.Ceiling(widest) + 1
                       + tile.Tile.Padding.Left + tile.Tile.Padding.Right
                       + tile.Tile.BorderThickness.Left + tile.Tile.BorderThickness.Right;
-
         if (target <= 1 || Math.Abs(tile.LastTarget - target) < 0.5) return;
-
         tile.LastTarget = target;
-
         if (double.IsNaN(tile.Tile.Width))
         {
             var transitions = tile.Tile.Transitions;
@@ -698,7 +612,6 @@ public partial class MainWindow
             tile.Tile.Transitions = transitions;
             return;
         }
-
         global::Avalonia.Threading.Dispatcher.UIThread.Post(() => tile.Tile.Width = target);
     }
 
@@ -708,7 +621,6 @@ public partial class MainWindow
         using (var ctx = geom.Open())
         {
             if (points.Count == 0) return geom;
-            
             if (isFill)
             {
                 ctx.BeginFigure(new global::Avalonia.Point(points[0].X, height), true);
@@ -718,21 +630,17 @@ public partial class MainWindow
             {
                 ctx.BeginFigure(points[0], false);
             }
-
             for (int i = 1; i < points.Count; i++)
             {
                 var p0 = i >= 2 ? points[i - 2] : points[i - 1];
                 var p1 = points[i - 1];
                 var p2 = points[i];
                 var p3 = i + 1 < points.Count ? points[i + 1] : points[i];
-
                 double t = 0.25;
                 var cp1 = new global::Avalonia.Point(p1.X + (p2.X - p0.X) * t, p1.Y + (p2.Y - p0.Y) * t);
                 var cp2 = new global::Avalonia.Point(p2.X - (p3.X - p1.X) * t, p2.Y - (p3.Y - p1.Y) * t);
-
                 ctx.CubicBezierTo(cp1, cp2, p2);
             }
-
             if (isFill)
             {
                 ctx.LineTo(new global::Avalonia.Point(points[points.Count - 1].X, height));

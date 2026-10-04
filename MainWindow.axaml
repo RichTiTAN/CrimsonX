@@ -225,7 +225,6 @@
             <Setter Property="Opacity" Value="1"/>
         </Style>
 
-
         <Style Selector="TextBlock.settingTitle">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#8B949E"/>
@@ -300,10 +299,6 @@
         </Style>
     
         <!-- Global Controlled Glow Animations -->
-        
-
-        
-
         
 </Window.Styles>
 
@@ -393,7 +388,7 @@
                                           <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                               <Button Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" CornerRadius="4">
                                                   <StackPanel>
-                                                      <TextBlock x:Name="lblStatusLabel" Text="STATUS:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                      <TextBlock x:Name="lblStatusLabel" Text="STATUS" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
                                                       <!-- laid out, never painted: it holds the tile at CONNECTED's width -->
                                                       <Panel>
                                                           <TextBlock x:Name="lblStatusValue" Text="Offline" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
@@ -403,7 +398,7 @@
                                               </Button>
                                               <Button Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" CornerRadius="4">
                                                   <StackPanel>
-                                                      <TextBlock x:Name="lblSessionLabel" Text="SESSION:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                      <TextBlock x:Name="lblSessionLabel" Text="SESSION" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
                                                       <Panel>
                                                           <TextBlock x:Name="lblDisconnected" Text="00:00:00" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                                           <StackPanel x:Name="panTimerContent" Orientation="Vertical" IsVisible="False" Spacing="1">
@@ -416,13 +411,13 @@
                                               <!-- PING: click re-traces, the way it did in the stats card -->
                                               <Button x:Name="btnRefreshPing" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" CornerRadius="4" Click="RefreshPing_Click">
                                                   <StackPanel>
-                                                      <TextBlock x:Name="lblPingLabel" Text="PING:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                      <TextBlock x:Name="lblPingLabel" Text="PING" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
                                                       <TextBlock x:Name="lblPing" Text="0 ms" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                                   </StackPanel>
                                               </Button>
                                               <Button Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" CornerRadius="4">
                                                   <StackPanel>
-                                                      <TextBlock x:Name="lblDownloadLabel" Text="DOWNLOAD:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                      <TextBlock x:Name="lblDownloadLabel" Text="DOWNLOAD" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
                                                       <TextBlock x:Name="lblDownloadSpeed" Text="0 KB/s" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                                   </StackPanel>
                                               </Button>
@@ -452,8 +447,8 @@
                                                   <StackPanel>
                                                       <!-- laid out, never painted: it gives the upload tile the download tile's width -->
                                                       <Panel>
-                                                          <TextBlock x:Name="lblUploadLabel" Text="UPLOAD:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
-                                                          <TextBlock x:Name="lblUploadGhost" Classes="readoutGhost" Text="DOWNLOAD:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3" Width="0" Opacity="0" IsHitTestVisible="False"/>
+                                                          <TextBlock x:Name="lblUploadLabel" Text="UPLOAD" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                          <TextBlock x:Name="lblUploadGhost" Classes="readoutGhost" Text="DOWNLOAD" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3" Width="0" Opacity="0" IsHitTestVisible="False"/>
                                                       </Panel>
                                                       <TextBlock x:Name="lblUploadSpeed" Text="0 KB/s" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                                   </StackPanel>
@@ -480,7 +475,7 @@
                                               </Button>
                                               <Button Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" CornerRadius="4">
                                                   <StackPanel>
-                                                      <TextBlock x:Name="lblTotalLabel" Text="TOTAL:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                      <TextBlock x:Name="lblTotalLabel" Text="TOTAL" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
                                                       <TextBlock x:Name="lblTotalData" Text="0 MB" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                                   </StackPanel>
                                               </Button>
@@ -547,7 +542,6 @@
 
                                   </StackPanel>
 
-
                             <Border x:Name="panMainConfig" Grid.Row="2" Background="Transparent" BorderThickness="0" CornerRadius="12" Padding="6" Margin="0,0,0,10" HorizontalAlignment="Stretch">
                                 <StackPanel Spacing="10">
                                       <!-- The stats box takes the whole line above Quick Settings, so it is exactly as
@@ -561,7 +555,7 @@
                                           <!-- LOCATION (click re-traces) -->
                                           <Button x:Name="btnRefreshLocation" Click="RefreshPing_Click" Classes="graphHover statTile" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" HorizontalContentAlignment="Left" CornerRadius="4">
                                               <StackPanel>
-                                                  <TextBlock x:Name="lblLocationLabel" Text="LOCATION:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                  <TextBlock x:Name="lblLocationLabel" Text="LOCATION" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
                                                   <TextBlock x:Name="lblCountryName" Text="Disconnected" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                               </StackPanel>
                                           </Button>
@@ -570,7 +564,7 @@
                                           <!-- IP ADDRESS (the exit address the geo trace reports; click copies it) -->
                                           <Button x:Name="btnCopyPublicIp" Click="PublicIp_Click" Classes="graphHover statTile" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" HorizontalContentAlignment="Left" CornerRadius="4">
                                               <StackPanel>
-                                                  <TextBlock x:Name="lblPublicIpLabel" Text="IP ADDRESS:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                  <TextBlock x:Name="lblPublicIpLabel" Text="IP ADDRESS" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
                                                   <TextBlock x:Name="lblPublicIp" Text="Disconnected" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                               </StackPanel>
                                           </Button>
@@ -579,7 +573,7 @@
                                           <!-- LOCAL PORT (click copies it) -->
                                           <Button x:Name="btnCopyLocalPort" Click="LocalPort_Click" Classes="graphHover statTile" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" HorizontalContentAlignment="Left" CornerRadius="4">
                                               <StackPanel>
-                                                  <TextBlock x:Name="lblLocalPortLabel" Text="LOCAL PORT:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                  <TextBlock x:Name="lblLocalPortLabel" Text="LOCAL PORT" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
                                                   <TextBlock x:Name="lblLocalIp" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                               </StackPanel>
                                           </Button>
@@ -588,7 +582,7 @@
                                           <!-- LAN PORT (click copies it) -->
                                           <Button x:Name="btnCopyLanPort" Click="LanPort_Click" Classes="graphHover statTile" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" HorizontalContentAlignment="Left" CornerRadius="4">
                                               <StackPanel>
-                                                  <TextBlock x:Name="lblLanPortLabel" Text="LAN PORT:" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                  <TextBlock x:Name="lblLanPortLabel" Text="LAN PORT" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
                                                   <TextBlock x:Name="lblLanIp" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                               </StackPanel>
                                           </Button>
@@ -635,13 +629,9 @@
                         <StackPanel x:Name="panReadoutHostTabs" VerticalAlignment="Top" ZIndex="10" Margin="0,0,10,0"/>
                     </Grid>
 
-
                     <Border x:Name="LightDismissOverlay" Grid.ColumnSpan="2" Background="#01000000" IsVisible="False" PointerPressed="LightDismissOverlay_PointerPressed" ZIndex="200"/>
 
-                    
                 </Grid>
-
-                
 
                 <!-- The docked sidebar: 1px inside the shell's left, top and bottom edges so its own background
                      can never cover the shell's outline, spanning past the title bar so its top tile stays
@@ -686,41 +676,6 @@
 
             </Grid>
 
-
         </Grid>
     </Border>
 </Window>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

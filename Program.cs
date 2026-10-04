@@ -30,12 +30,10 @@ class Program
     {
         const string appName = "CrimsonX_SingleInstanceMutex";
         _mutex = new System.Threading.Mutex(true, appName, out bool createdNew);
-
         if (!createdNew)
         {
             return;
         }
-
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             CrimsonX.Services.SimpleLogger.Log(e.ExceptionObject?.ToString() ?? "Unknown");
         TaskScheduler.UnobservedTaskException += (s, e) =>
@@ -43,7 +41,6 @@ class Program
                 CrimsonX.Services.BackgroundTask.Report("unobserved task", e.Exception);
                 e.SetObserved();
             };
-
         try
         {
             BuildAvaloniaApp()

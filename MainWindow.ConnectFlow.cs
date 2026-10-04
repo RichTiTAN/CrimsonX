@@ -45,7 +45,6 @@ namespace CrimsonX
         private bool IsConfigAllowed(ConfigTestResult r)
         {
             if (BlockedCountries.Contains(r.CountryCode)) return false;
-
             bool checkContinents = _cfg.EnableExcludedContinents && _cfg.ExcludedContinents != null && _cfg.ExcludedContinents.Count > 0;
             return !(checkContinents && _cfg.ExcludedContinents!.Contains(r.Continent));
         }
@@ -61,18 +60,14 @@ namespace CrimsonX
                 _pipelineCts = new CancellationTokenSource();
             }
             var ct = _pipelineCts.Token;
-
             await Task.Yield();
-
             _seenLogs.Clear();
             _lastEngineChangeUtc = DateTime.UtcNow;
             _state.IsEngineRunning = true;
             _state.AbortBoot = false;
             _state.IsConnected = false;
             _backgroundSeedSourceIndex = 0;
-
             CrimsonX.Services.SimpleLogger.Log($"[Connect] Starting connection sequence in {_cfg.LastXrayMode}...");
-
             Dispatcher.UIThread.Post(() =>
             {
                 if (txtConnectBtn != null)
@@ -82,24 +77,19 @@ namespace CrimsonX
                 }
                 SetConnectButtonProgress(5);
             });
-
             await UpdateLanIpAsync();
             await CrimsonX.Services.SystemDnsService.ApplyAsync(_cfg);
             ProxyService.SetSystemProxy(false);
-
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log"));
-
             bool customConfigApplied = false;
             List<string> customTopConfigs = new List<string>();
             var customTunnels = new List<CrimsonX.Services.TunnelParseResult>();
             _customOutboundJsons.Clear();
-
             if (_cfg.EnableCustomConfigs)
             {
                 void ApplyCustomSlot(string? raw)
                 {
                     if (string.IsNullOrWhiteSpace(raw)) return;
-
                     if (CrimsonX.Services.TunnelConfigParser.TryParse(raw, out var tunnel))
                     {
                         if (tunnel == null || !tunnel.Success)
@@ -109,32 +99,25 @@ namespace CrimsonX
                             Dispatcher.UIThread.Post(() => ShowToast(reason));
                             return;
                         }
-
                         customTunnels.Add(tunnel);
                         return;
                     }
-
                     if (CrimsonX.Services.ConfigConverter.TryXrayOutbound(raw, out string xrayDoc, out string configLabel, out _))
                     {
                         customTopConfigs.Add(xrayDoc);
                         _customOutboundJsons.Add(xrayDoc);
-
                         CrimsonX.Services.SimpleLogger.Log($"[Connect] Custom config '{configLabel}' is dialed by xray.");
                         return;
                     }
-
                     string preview = raw.Length <= 40 ? raw : raw.Substring(0, 40) + "…";
                     CrimsonX.Services.SimpleLogger.Log($"[Connect] Custom config could not be read: \"{preview.Replace("\r", " ").Replace("\n", " ")}\"");
                     Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastConfigUnreadable, ToastKind.Error));
                 }
-
                 ApplyCustomSlot(_cfg.CustomConfig1);
                 ApplyCustomSlot(_cfg.CustomConfig2);
-
                 if (customTunnels.Count > 0)
                 {
                     Dispatcher.UIThread.Post(() => SetConnectButtonProgress(40));
-
                     var readyTunnels = new List<CrimsonX.Services.TunnelParseResult>();
                     foreach (var tunnel in customTunnels)
                     {
@@ -143,11 +126,9 @@ namespace CrimsonX
                             readyTunnels.Add(tunnel);
                             continue;
                         }
-
                         CrimsonX.Services.SimpleLogger.Log($"[Connect] '{tunnel.Label}' skipped: no credentials were provided.");
                         Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelNeedsCredentials, ToastKind.Error));
                     }
-
                     if (readyTunnels.Count > 0)
                     {
                         string adapterName = "";
@@ -157,11 +138,9 @@ namespace CrimsonX
                             adapterName = _cfg.SelectedAdapterName ?? "";
                             adapterIp   = _cfg.SelectedAdapterIp ?? "";
                         }
-
                         string tunnelError = "";
                         bool tunnelStarted = await Task.Run(() => CrimsonX.Services.TunnelEngine.EnsureStarted(
                             _cfg, CrimsonX.Services.TunnelEngine.GroupCustom, readyTunnels, adapterName, adapterIp, out tunnelError));
-
                         if (tunnelStarted)
                         {
                             foreach (var tunnel in readyTunnels)
@@ -174,16 +153,12 @@ namespace CrimsonX
                                     Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelFailed, ToastKind.Error));
                                     continue;
                                 }
-
                                 string socksJson = CrimsonX.Services.TunnelEngine.BuildXraySocksOutbound(port.Value)
                                     .ToString(Newtonsoft.Json.Formatting.None);
-
                                 customTopConfigs.Add(socksJson);
                                 _customOutboundJsons.Add(socksJson);
-
                                 CrimsonX.Services.SimpleLogger.Log($"[Connect] Tunnel '{tunnel.Label}' is dialed by xray as a socks outbound on 127.0.0.1:{port.Value}.");
                             }
-
                             await AwaitTunnelEstablishedAsync(readyTunnels, adapterName, ct);
                         }
                         else
@@ -193,11 +168,9 @@ namespace CrimsonX
                         }
                     }
                 }
-
                 if (customTopConfigs.Count > 0)
                 {
                     Dispatcher.UIThread.Post(() => SetConnectButtonProgress(50));
-
                     if (_cfg.AllowOneCustomConfig || customTopConfigs.Count >= 2)
                     {
                         customConfigApplied = true;
@@ -210,12 +183,10 @@ namespace CrimsonX
                     }
                 }
             }
-
             if (_cfg.EnableAppRules && string.Equals(_cfg.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase))
             {
                 string rulesError = "";
                 bool rulesStarted = await Task.Run(() => CrimsonX.Services.AppRulesSingboxBuilder.EnsureRuleTunnels(_cfg, out rulesError));
-
                 if (!rulesStarted)
                 {
                     CrimsonX.Services.SimpleLogger.Log($"[Connect] App-rule tunnel group failed: {rulesError}");
@@ -226,24 +197,19 @@ namespace CrimsonX
             {
                 CrimsonX.Services.TunnelEngine.Stop(CrimsonX.Services.TunnelEngine.GroupRules);
             }
-
             CrimsonX.Services.SimpleLogger.Log(
                 $"[Tunnel] engines: custom({CrimsonX.Services.TunnelEngine.Describe(CrimsonX.Services.TunnelEngine.GroupCustom)}) " +
                 $"rules({CrimsonX.Services.TunnelEngine.Describe(CrimsonX.Services.TunnelEngine.GroupRules)})");
-
             ct.ThrowIfCancellationRequested();
-            
             if (customConfigApplied)
             {
                 if (!await Task.Run(() => XrayPipelineManager.StartXray(customTopConfigs, _cfg, _cfg.XrayDir)))
                 {
                     throw new Exception("Xray process failed to start.");
                 }
-
                 if (_cfg.LastXrayMode == "VPN Mode")
                 {
                     await PrepareExitNodeCredentialsAsync();
-
                     var sbPid = await StartSingBoxAsync(ct);
                     if (sbPid == null) throw new Exception("Singbox failed to start");
                     _sbPid = sbPid;
@@ -252,34 +218,31 @@ namespace CrimsonX
                 {
                     ProxyService.SetSystemProxy(_cfg.LastXrayMode == "Proxy Mode");
                 }
-
                 _state.IsConnected = true;
                 _state.SessionStartTime = DateTime.Now;
                 CrimsonX.Services.SimpleLogger.Log("[Connect] Connected successfully with Custom Configs.");
                 StartGeoPing();
-
                 Dispatcher.UIThread.Post(() => {
                     SetConnectButtonProgress(100);
                     UpdateLocalPortUI();
                     UpdateLanPortUI();
                 });
-
                 StartSessionClock();
                 StartStatsPolling();
                 CrimsonX.Services.BackgroundTask.Run("connect testing", () => StartBackgroundTestingLoop(ct));
                 CrimsonX.Services.BackgroundTask.Run("connect refresh", () => StartRefreshTimer(ct));
                 return;
             }
-
             int sourceIndex = -1;
             int connectSourceIndex = -1;
             List<ConfigTestResult> passedConfigs = new List<ConfigTestResult>();
-
             while (sourceIndex < WorkerSourceCount)
             {
                 ct.ThrowIfCancellationRequested();
                 Dispatcher.UIThread.Post(() => SetConnectButtonProgress(10 + (Math.Max(0, sourceIndex) * 5)));
-
+                CrimsonX.Services.SimpleLogger.Log(sourceIndex == -1
+                    ? "[Connect] Source -1: the locally saved working configs."
+                    : $"[Connect] Source {sourceIndex}: fetching from the worker sources.");
                 List<string> configs;
                 if (sourceIndex == -1)
                 {
@@ -290,7 +253,6 @@ namespace CrimsonX
                 {
                     configs = await FetchConfigsFromWorker(sourceIndex, ct);
                 }
-                
                 if (configs != null)
                 {
                     if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig1, out string c1Json))
@@ -302,7 +264,6 @@ namespace CrimsonX
                         configs.RemoveAll(c => c == c2Json || c.Contains(c2Json));
                     }
                 }
-                
                 if (configs == null || configs.Count == 0)
                 {
                     if (passedConfigs.Count >= 2)
@@ -313,10 +274,8 @@ namespace CrimsonX
                     sourceIndex++;
                     continue;
                 }
-
                 Dispatcher.UIThread.Post(() => SetConnectButtonProgress(25));
                 _untestedConfigs = new ConcurrentQueue<string>(ShuffledDistinct(configs));
-                
                 var seenSubnets = new HashSet<string>();
                 var duplicates = new List<ConfigTestResult>();
                 var testingTasks = new List<Task<ConfigTestResult>>();
@@ -324,12 +283,10 @@ namespace CrimsonX
                 {
                     ct.ThrowIfCancellationRequested();
                     testingTasks.Add(ConfigTester.TestConfigAsync(cfg, _cfg, ct, fetchGeo: true));
-                    
                     if (testingTasks.Count >= 5 || _untestedConfigs.IsEmpty)
                     {
                         var results = await Task.WhenAll(testingTasks);
                         testingTasks.Clear();
-
                         foreach (var r in results)
                         {
                             if (r.Success && r.UdpOk)
@@ -338,7 +295,6 @@ namespace CrimsonX
                                 {
                                     continue;
                                 }
-
                                 string addr = XrayLinkParser.ExtractServerAddress(r.OutboundJson);
                                 string subnet = XrayLinkParser.GetSubnetOrDomain(addr);
                                 if (!string.IsNullOrEmpty(subnet) && !seenSubnets.Contains(subnet))
@@ -356,17 +312,14 @@ namespace CrimsonX
                                 }
                             }
                         }
-
                         Dispatcher.UIThread.Post(() => {
                             int prog = 25 + (passedConfigs.Count * 5);
                             if (prog > 85) prog = 85;
                             SetConnectButtonProgress(prog);
                         });
-
                         if (passedConfigs.Count >= 5) break;
                     }
                 }
-
                 if (passedConfigs.Count < 5)
                 {
                     foreach (var dup in duplicates)
@@ -375,7 +328,6 @@ namespace CrimsonX
                         passedConfigs.Add(dup);
                     }
                 }
-
                 if (passedConfigs.Count >= (sourceIndex == -1 ? 5 : 2))
                 {
                     connectSourceIndex = sourceIndex;
@@ -383,16 +335,13 @@ namespace CrimsonX
                 }
                 sourceIndex++;
             }
-
             if (passedConfigs.Count < 2)
             {
                 throw new Exception("Failed to find enough working configs across all sources.");
             }
-
+            CrimsonX.Services.SimpleLogger.Log($"[Connect] Using configs from source {connectSourceIndex} ({passedConfigs.Count} passed).");
             _backgroundSeedSourceIndex = connectSourceIndex + 1;
-
             Dispatcher.UIThread.Post(() => SetConnectButtonProgress(90));
-
             var speedTasks = passedConfigs.Select(async cfgTest =>
             {
                 ct.ThrowIfCancellationRequested();
@@ -400,31 +349,24 @@ namespace CrimsonX
                 ConfigTester.ApplySpeedResult(cfgTest, speed);
                 return cfgTest;
             }).ToList();
-
             var speedTestedConfigsList = await Task.WhenAll(speedTasks);
-
             var finalConfigs = ConfigTester.RankForConnection(speedTestedConfigsList);
             var workingJson = finalConfigs.Select(x => x.OutboundJson).ToList();
             var topConfigs = workingJson.Take(2).ToList();
-            
             lock (_reservePool)
             {
                 _reservePool.Clear();
                 _reservePool.AddRange(workingJson.Skip(2));
             }
-
             var cleanWorkingJson = workingJson.Where(c => !_customOutboundJsons.Contains(c)).ToList();
             CrimsonX.Services.ConfigCache.SaveCache(GetAppPath(@"Data\cache\cache.bin"), cleanWorkingJson);
-
             if (!await Task.Run(() => XrayPipelineManager.StartXray(topConfigs, _cfg, _cfg.XrayDir)))
             {
                 throw new Exception("Xray process failed to start.");
             }
-
             if (_cfg.LastXrayMode == "VPN Mode")
             {
                 await PrepareExitNodeCredentialsAsync();
-
                 var sbPid = await StartSingBoxAsync(ct);
                 if (sbPid == null) throw new Exception("Singbox failed to start");
                 _sbPid = sbPid;
@@ -433,18 +375,15 @@ namespace CrimsonX
             {
                 ProxyService.SetSystemProxy(_cfg.LastXrayMode == "Proxy Mode");
             }
-
             _state.IsConnected = true;
             _state.SessionStartTime = DateTime.Now;
             CrimsonX.Services.SimpleLogger.Log("[Connect] Connected successfully with Dynamic Configs.");
             StartGeoPing();
-
             Dispatcher.UIThread.Post(() => {
                 SetConnectButtonProgress(100);
                 UpdateLocalPortUI();
                 UpdateLanPortUI();
             });
-
             StartSessionClock();
             StartStatsPolling();
             CrimsonX.Services.BackgroundTask.Run("connect testing", () => StartBackgroundTestingLoop(ct));
@@ -466,7 +405,6 @@ namespace CrimsonX
                     configs = configs.Where(c => !CrimsonX.Services.XrayLinkParser.IsGrpcOutbound(c)).ToList();
                 }
                 if (configs == null || configs.Count == 0) { si++; continue; }
-
                 if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig1, out string c1Json))
                 {
                     configs.RemoveAll(c => c == c1Json || c.Contains(c1Json));
@@ -476,7 +414,6 @@ namespace CrimsonX
                     configs.RemoveAll(c => c == c2Json || c.Contains(c2Json));
                 }
                 if (configs.Count == 0) { si++; continue; }
-
                 var q = new System.Collections.Concurrent.ConcurrentQueue<string>(configs);
                 var tasks = new List<Task<CrimsonX.Services.ConfigTestResult>>();
                 while (passedScraped.Count < 4 && q.TryDequeue(out string cfg))
@@ -491,7 +428,6 @@ namespace CrimsonX
                             if (r.Success && r.UdpOk)
                             {
                                 if (!IsConfigAllowed(r)) continue;
-
                                 if (passedScraped.Count < 4) passedScraped.Add(r);
                             }
                         }
@@ -499,18 +435,14 @@ namespace CrimsonX
                 }
                 si++;
             }
-
             if (passedScraped.Count == 0) return null;
-
             Dispatcher.UIThread.Post(() => SetConnectButtonProgress(60));
-
             var customSpeedTasks = passedScraped.Select(async r =>
             {
                 var speed = await CrimsonX.Services.ConfigTester.TestSpeedStabilityAsync(r.OutboundJson, _cfg, ct);
                 CrimsonX.Services.ConfigTester.ApplySpeedResult(r, speed);
                 return r;
             }).ToList();
-
             var speedResults = await Task.WhenAll(customSpeedTasks);
             var fastest = CrimsonX.Services.ConfigTester.RankForConnection(speedResults).FirstOrDefault();
             return fastest?.OutboundJson;
@@ -519,13 +451,11 @@ namespace CrimsonX
         private static List<string> ShuffledDistinct(IEnumerable<string> items)
         {
             var list = items.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.Ordinal).ToList();
-
             for (int i = list.Count - 1; i > 0; i--)
             {
                 int j = Random.Shared.Next(i + 1);
                 (list[i], list[j]) = (list[j], list[i]);
             }
-
             return list;
         }
 
@@ -558,10 +488,8 @@ namespace CrimsonX
                     {
                         CrimsonX.Services.SimpleLogger.Log($"[Fetch] API worker#{wi}/api/{index} error: {ex.Message}");
                     }
-
                     string shaPath = GetAppPath($@"Data\cache\worker_sha_{index}.bin");
                     string dataPath = GetAppPath($@"Data\cache\worker_data_{index}.bin");
-
                     if (!string.IsNullOrEmpty(newSha) && File.Exists(shaPath) && File.Exists(dataPath))
                     {
                         string? oldSha = CrimsonX.Services.ConfigCache.LoadString(shaPath);
@@ -575,11 +503,9 @@ namespace CrimsonX
                             }
                         }
                     }
-
                     string url = $"{worker}/{index}";
                     using var req = new HttpRequestMessage(HttpMethod.Get, url);
                     req.Headers.UserAgent.ParseAdd("CrimsonX-App/1.0");
-                    
                     using var resp = await _workerClient.SendAsync(req, ct);
                     if (resp.IsSuccessStatusCode)
                     {
@@ -613,7 +539,6 @@ namespace CrimsonX
             try
             {
                 int sourceIndex = _backgroundSeedSourceIndex;
-
                 while (!ct.IsCancellationRequested && _state.IsConnected)
                 {
                     if (_cfg.DisableBackgroundChecks)
@@ -621,7 +546,6 @@ namespace CrimsonX
                         await Task.Delay(5000, ct);
                         continue;
                     }
-
                     if (_untestedConfigs.IsEmpty && sourceIndex < WorkerSourceCount)
                     {
                         try
@@ -635,7 +559,6 @@ namespace CrimsonX
                         catch { }
                         sourceIndex++;
                     }
-
                     if (_untestedConfigs.TryDequeue(out string cfg))
                     {
                         var res = await ConfigTester.TestConfigAsync(cfg, _cfg, ct, fetchGeo: true);
@@ -646,7 +569,6 @@ namespace CrimsonX
                                 if (!_reservePool.Contains(res.OutboundJson))
                                 {
                                     _reservePool.Add(res.OutboundJson);
-
                                     var allWorking = new List<string>(XrayPipelineManager.ActiveOutbounds);
                                     allWorking.AddRange(_reservePool);
                                     var cleanWorking = allWorking.Where(c => !_customOutboundJsons.Contains(c)).ToList();
@@ -664,7 +586,6 @@ namespace CrimsonX
             }
             catch { }
         }
-
 
     // ── Periodic Refresh & Seamless Swap ──
 
@@ -685,12 +606,9 @@ namespace CrimsonX
         private async Task PrepareExitNodeCredentialsAsync()
         {
             if (!CrimsonX.Services.ExitNodeChain.ShouldChain(_cfg)) return;
-
             if (!CrimsonX.Services.TunnelConfigParser.TryParse(_cfg.V2rayChainJson, out var tunnel) || tunnel?.Endpoint == null)
                 return;
-
             if (await CrimsonX.Services.TunnelCredentialResolver.ApplyAsync(tunnel)) return;
-
             CrimsonX.Services.SimpleLogger.Log("[ExitNode] No OpenVPN credentials were provided; the exit node is skipped.");
             Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelNeedsCredentials, ToastKind.Error));
         }
@@ -698,63 +616,52 @@ namespace CrimsonX
         private async Task<bool> AwaitExitNodeEstablishedAsync(global::System.Diagnostics.Process? singBox, CancellationToken ct, int timeoutSeconds = ExitNodeTimeoutSeconds)
         {
             if (!CrimsonX.Services.ExitNodeChain.ShouldChain(_cfg)) return true;
-
             bool auth = _cfg.AllowLanConnections
                 && _cfg.EnableLanAuth
                 && !string.IsNullOrWhiteSpace(_cfg.LanAuthUsername)
                 && !string.IsNullOrWhiteSpace(_cfg.LanAuthPassword);
-
             var started   = DateTime.UtcNow;
             var lastToast = started;
             bool loggedFailure = false;
-
             while (!ct.IsCancellationRequested)
             {
                 var probe = await CrimsonX.Services.TunnelHopProbe.ProbeAsync(
                     CrimsonX.Services.ExitNodeChain.ProxyPort, 4000, ct,
                     auth ? _cfg.LanAuthUsername : "", auth ? _cfg.LanAuthPassword : "");
-
                 if (probe.Ok)
                 {
                     CrimsonX.Services.SimpleLogger.Log(
                         $"[ExitNode] established after {(int)(DateTime.UtcNow - started).TotalMilliseconds} ms (hop reply in {probe.Ms} ms)");
                     return true;
                 }
-
                 if (!loggedFailure)
                 {
                     loggedFailure = true;
                     CrimsonX.Services.SimpleLogger.Log($"[ExitNode] the first probe through the chain failed: {probe.Error}");
                 }
-
                 if (ct.IsCancellationRequested)
                 {
                     CrimsonX.Services.SimpleLogger.Log("[ExitNode] the connect was cancelled while the exit node was starting.");
                     return false;
                 }
-
                 if (singBox != null && HasExited(singBox))
                 {
                     CrimsonX.Services.SimpleLogger.Log(
                         $"[ExitNode] the sing-box instance exited (code {ExitCodeOf(singBox)}) while the exit node was chained - a disconnect or a newer connect may have replaced it; see the [sing-box.exe] lines above.");
                     return false;
                 }
-
                 if ((DateTime.UtcNow - started).TotalSeconds >= timeoutSeconds)
                 {
                     CrimsonX.Services.SimpleLogger.Log($"[ExitNode] the exit node did not come up: {probe.Error}");
                     return false;
                 }
-
                 if ((DateTime.UtcNow - lastToast).TotalSeconds >= 15)
                 {
                     lastToast = DateTime.UtcNow;
                     Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastStillConnecting));
                 }
-
                 try { await Task.Delay(750, ct); } catch { break; }
             }
-
             return false;
         }
 
@@ -764,44 +671,33 @@ namespace CrimsonX
         private async Task AwaitTunnelEstablishedAsync(List<CrimsonX.Services.TunnelParseResult> tunnels, string adapterName, CancellationToken ct)
     {
         var pending = new List<CrimsonX.Services.TunnelParseResult>();
-
         foreach (var tunnel in tunnels)
         {
             int? port = CrimsonX.Services.TunnelEngine.PortFor(CrimsonX.Services.TunnelEngine.GroupCustom,
                 CrimsonX.Services.TunnelConfigParser.KeyOf(tunnel.Raw, adapterName));
-
             if (port != null) pending.Add(tunnel);
         }
-
         if (pending.Count == 0) return;
-
         var started = DateTime.UtcNow;
         var lastToast = started;
-
         while (pending.Count > 0 && !ct.IsCancellationRequested)
         {
             foreach (var tunnel in pending.ToList())
             {
                 int? port = CrimsonX.Services.TunnelEngine.PortFor(CrimsonX.Services.TunnelEngine.GroupCustom,
                     CrimsonX.Services.TunnelConfigParser.KeyOf(tunnel.Raw, adapterName));
-
                 if (port == null) continue;
-
                 var probe = await CrimsonX.Services.TunnelHopProbe.ProbeAsync(port.Value, 4000, ct);
                 if (!probe.Ok) continue;
-
                 CrimsonX.Services.SimpleLogger.Log($"[Tunnel] established '{tunnel.Label}' via 127.0.0.1:{port.Value} after {(int)(DateTime.UtcNow - started).TotalMilliseconds} ms (hop reply in {probe.Ms} ms)");
                 pending.Remove(tunnel);
             }
-
             if (pending.Count == 0) break;
-
             if ((DateTime.UtcNow - lastToast).TotalSeconds >= 15)
             {
                 lastToast = DateTime.UtcNow;
                 Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastStillConnecting));
             }
-
             try { await Task.Delay(750, ct); }
             catch { break; }
         }
@@ -813,22 +709,17 @@ namespace CrimsonX
             {
                 string[] lastShas = new string[WorkerSourceCount];
                 string[] workers = CrimsonX.Services.AppSecrets.WorkerUrls;
-
                 while (!ct.IsCancellationRequested && _state.IsConnected)
                 {
                     await Task.Delay(TimeSpan.FromHours(1), ct);
-                    
                     if (_cfg.DisableRefreshTimer) continue;
-
                     bool apiSuccess = false;
-
                     try
                     {
                         for (int i = 0; i < WorkerSourceCount; i++)
                         {
                             ct.ThrowIfCancellationRequested();
                             string newSha = null;
-                            
                             for (int wi = 0; wi < workers.Length; wi++)
                             {
                                 string workerUrl = workers[wi];
@@ -852,7 +743,6 @@ namespace CrimsonX
                                     CrimsonX.Services.SimpleLogger.Log($"[RefreshTimer] SHA check failed for worker#{wi}/api/{i}: {ex.Message}");
                                 }
                             }
-
                             if (newSha != null && newSha != lastShas[i])
                             {
                                 lastShas[i] = newSha;
@@ -865,13 +755,11 @@ namespace CrimsonX
                     {
                         CrimsonX.Services.SimpleLogger.Log($"[RefreshTimer] API fetch loop error: {ex.Message}");
                     }
-
                     if (!apiSuccess)
                     {
                         CrimsonX.Services.SimpleLogger.Log("[RefreshTimer] All workers failed to respond. Skipping active config watchdog test.");
                         continue;
                     }
-
                     try
                     {
                         CrimsonX.Services.SimpleLogger.Log("[RefreshTimer] Starting watchdog ping test for active configs...");
@@ -880,9 +768,7 @@ namespace CrimsonX
                         {
                             ct.ThrowIfCancellationRequested();
                             var res = await ConfigTester.TestConfigAsync(cfgStr, _cfg, ct, isWatchdog: true, fetchGeo: true, isActiveWatchdog: true);
-                            
                             bool isBlocked = !IsConfigAllowed(res);
-
                             if (!res.Success || !res.UdpOk || isBlocked)
                             {
                                 if (_customOutboundJsons.Contains(cfgStr))
@@ -897,47 +783,37 @@ namespace CrimsonX
                             }
                             return cfgStr;
                         });
-
                         var activeResults = await Task.WhenAll(activeTasks);
                         var workingActive = activeResults.Where(x => x != null).ToList();
-
                         int needed = Math.Max(2 - workingActive.Count, 0);
                         if (_cfg.AllowOneCustomConfig && _customOutboundJsons.Count > 0)
                             needed = 0;
                         CrimsonX.Services.SimpleLogger.Log($"[RefreshTimer] Watchdog finished. {workingActive.Count} passed. Replacements needed: {needed}");
-                        
                         if (needed > 0)
                         {
                             CrimsonX.Services.SimpleLogger.Log($"[RefreshTimer] Initiating 5-by-5 batch test to find {needed} replacements...");
                             int targetPassedCount = (needed == 1) ? 4 : 5;
                             var candidatesToTest = new List<string>();
-
                             lock (_reservePool)
                             {
                                 foreach (var c in _reservePool.Where(x => !workingActive.Contains(x)))
                                     candidatesToTest.Add(c);
                             }
-
                             while (_untestedConfigs.TryDequeue(out string c))
                             {
                                 candidatesToTest.Add(c);
                             }
-
                             var configsToTest = new Queue<string>(ShuffledDistinct(candidatesToTest));
-
                             var passedConfigs = new List<ConfigTestResult>();
                             var testingTasks = new List<Task<ConfigTestResult>>();
-
                             while (passedConfigs.Count < targetPassedCount && configsToTest.TryDequeue(out string cfg))
                             {
                                 ct.ThrowIfCancellationRequested();
                                 testingTasks.Add(ConfigTester.TestConfigAsync(cfg, _cfg, ct, isWatchdog: true, fetchGeo: true));
-                                
                                 if (testingTasks.Count >= 5 || configsToTest.Count == 0)
                                 {
                                     var results = await Task.WhenAll(testingTasks);
                                     testingTasks.Clear();
-                                    
                                     foreach (var r in results)
                                     {
                                         if (r.Success && r.UdpOk)
@@ -958,12 +834,10 @@ namespace CrimsonX
                                     if (passedConfigs.Count >= targetPassedCount) break;
                                 }
                             }
-
                             while (configsToTest.TryDequeue(out string c))
                             {
                                 _untestedConfigs.Enqueue(c);
                             }
-
                             if (passedConfigs.Count > 0)
                             {
                                 var speedTasks = passedConfigs.Select(async cfgTest =>
@@ -973,15 +847,11 @@ namespace CrimsonX
                                     ConfigTester.ApplySpeedResult(cfgTest, speed);
                                     return cfgTest;
                                 });
-
                                 var speedTestedConfigs = ConfigTester.RankForConnection(await Task.WhenAll(speedTasks));
                                 var replacements = speedTestedConfigs.Take(needed).Select(x => x.OutboundJson).ToList();
-                                
                                 var finalNewOutbounds = new List<string>(workingActive);
                                 finalNewOutbounds.AddRange(replacements);
-
                                 await XrayPipelineManager.SwapOutboundsAsync(finalNewOutbounds, _cfg, _cfg.XrayDir);
-
                                 lock (_reservePool)
                                 {
                                     foreach (var unused in speedTestedConfigs.Skip(needed))
