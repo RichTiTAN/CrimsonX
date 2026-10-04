@@ -44,36 +44,28 @@ namespace CrimsonX.Services
             string user = "", string password = "")
         {
             var result = new TResult();
-
             if (port <= 0)
             {
                 result.Error = "no socks port";
                 return result;
             }
-
             using var client = new TcpClient();
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeoutMs);
-
             try
             {
                 await client.ConnectAsync(System.Net.IPAddress.Loopback, port, cts.Token).ConfigureAwait(false);
-
                 var stream = client.GetStream();
                 stream.ReadTimeout = timeoutMs;
                 stream.WriteTimeout = timeoutMs;
-
                 bool auth = !string.IsNullOrEmpty(user);
-
                 await stream.WriteAsync(auth ? new byte[] { 0x05, 0x02, 0x00, 0x02 } : new byte[] { 0x05, 0x01, 0x00 }, cts.Token).ConfigureAwait(false);
-
                 var greeting = await ReadAsync(stream, 2, cts.Token).ConfigureAwait(false);
                 if (greeting == null || greeting[0] != 0x05)
                 {
                     result.Error = "the socks inbound did not answer the handshake";
                     return result;
                 }
-
                 if (greeting[1] == 0x02)
                 {
                     if (!auth)
@@ -81,7 +73,6 @@ namespace CrimsonX.Services
                         result.Error = "the socks inbound asks for a username and password";
                         return result;
                     }
-
                     var userBytes = Encoding.UTF8.GetBytes(user);
                     var passBytes = Encoding.UTF8.GetBytes(password ?? "");
                     var authPacket = new byte[3 + userBytes.Length + passBytes.Length];
@@ -90,9 +81,7 @@ namespace CrimsonX.Services
                     Buffer.BlockCopy(userBytes, 0, authPacket, 2, userBytes.Length);
                     authPacket[2 + userBytes.Length] = (byte)passBytes.Length;
                     Buffer.BlockCopy(passBytes, 0, authPacket, 3 + userBytes.Length, passBytes.Length);
-
                     await stream.WriteAsync(authPacket, cts.Token).ConfigureAwait(false);
-
                     var authReply = await ReadAsync(stream, 2, cts.Token).ConfigureAwait(false);
                     if (authReply == null || authReply.Length < 2 || authReply[1] != 0x00)
                     {
@@ -105,16 +94,13 @@ namespace CrimsonX.Services
                     result.Error = "the socks inbound did not accept a no-auth handshake";
                     return result;
                 }
-
                 var connect = new byte[]
                 {
                     0x05, 0x01, 0x00, 0x01,
                     0x01, 0x01, 0x01, 0x01,
                     (byte)(80 >> 8), (byte)(80 & 0xFF)
                 };
-
                 await stream.WriteAsync(connect, cts.Token).ConfigureAwait(false);
-
                 var reply = await ReadAsync(stream, 10, cts.Token).ConfigureAwait(false);
                 if (reply == null || reply.Length < 2 || reply[1] != 0x00)
                 {
@@ -123,20 +109,15 @@ namespace CrimsonX.Services
                         : $"the tunnel refused the connect (socks reply 0x{reply[1]:x2})";
                     return result;
                 }
-
                 var watch = System.Diagnostics.Stopwatch.StartNew();
-
                 await stream.WriteAsync(HttpRequest, cts.Token).ConfigureAwait(false);
-
                 var first = await ReadAsync(stream, 1, cts.Token).ConfigureAwait(false);
                 watch.Stop();
-
                 if (first == null || first.Length == 0)
                 {
                     result.Error = "the tunnel accepted the connect but no data came back";
                     return result;
                 }
-
                 result.Ok = true;
                 result.Ms = watch.ElapsedMilliseconds;
                 return result;
@@ -158,7 +139,6 @@ namespace CrimsonX.Services
             var buffer = new byte[Math.Max(count, 64)];
             int read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false);
             if (read <= 0) return null;
-
             var slice = new byte[read];
             Array.Copy(buffer, slice, read);
             return slice;

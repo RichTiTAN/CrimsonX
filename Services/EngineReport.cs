@@ -41,7 +41,6 @@ namespace CrimsonX.Services
         public static async Task AnnounceAsync(AppConfig cfg)
         {
             if (cfg == null) return;
-
             XrayVersion    = await AnnounceAsync("xray", Path.Combine(cfg.XrayDir ?? "", "xray.exe")).ConfigureAwait(false);
             SingboxVersion = await AnnounceAsync("sing-box", Path.Combine(cfg.SbDir ?? "", "sing-box.exe")).ConfigureAwait(false);
         }
@@ -51,11 +50,9 @@ namespace CrimsonX.Services
         public static Version? ParseVersion(string? output)
         {
             if (string.IsNullOrWhiteSpace(output)) return null;
-
             var match = NamedVersion.Match(output);
             if (!match.Success) match = AnyVersion.Match(output);
             if (!match.Success) return null;
-
             return Version.TryParse(
                 $"{match.Groups[1].Value}.{match.Groups[2].Value}.{match.Groups[3].Value}", out var version)
                 ? version
@@ -69,15 +66,12 @@ namespace CrimsonX.Services
                 SimpleLogger.Log($"[Engine] {name}: not found at {exePath}");
                 return null;
             }
-
             var version = ParseVersion(await RunVersionAsync(exePath).ConfigureAwait(false));
-
             if (version == null)
             {
                 SimpleLogger.Log($"[Engine] {name}: version unknown — {exePath}");
                 return null;
             }
-
             SimpleLogger.Log($"[Engine] {name} {version} — {exePath}");
             return version;
         }
@@ -96,13 +90,10 @@ namespace CrimsonX.Services
                     CreateNoWindow         = true,
                     WorkingDirectory       = Path.GetDirectoryName(exePath) ?? ""
                 };
-
                 using var process = Process.Start(psi);
                 if (process == null) return "";
-
                 var outTask = process.StandardOutput.ReadToEndAsync();
                 var errTask = process.StandardError.ReadToEndAsync();
-
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 try
                 {
@@ -113,7 +104,6 @@ namespace CrimsonX.Services
                     try { process.Kill(true); } catch { }
                     return "";
                 }
-
                 return (await outTask.ConfigureAwait(false)) + " " + (await errTask.ConfigureAwait(false));
             }
             catch (Exception ex)

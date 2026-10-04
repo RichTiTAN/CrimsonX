@@ -35,11 +35,8 @@ namespace CrimsonX.Dialogs
             FlowDirection = AS.IsPersian
                 ? Avalonia.Media.FlowDirection.RightToLeft
                 : Avalonia.Media.FlowDirection.LeftToRight;
-
             TextBlock? F(string name) => this.FindControl<TextBlock>(name);
-
             Title = AS.CustomProxyHintTitle;
-
             AS.Apply(F("lblStep1Tag"),  AS.CustomProxyHintStep1Tag, forceLtr: true);
             AS.Apply(F("lblStep1Text"), AS.CustomProxyHintStep1);
             AS.Apply(F("lblStep2Tag"),  AS.CustomProxyHintStep2Tag, forceLtr: true);

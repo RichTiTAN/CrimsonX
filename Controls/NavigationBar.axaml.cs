@@ -55,7 +55,6 @@ public partial class NavigationBar : UserControl
     public NavigationBar()
     {
         InitializeComponent();
-
         var lstLocations = this.FindControl<ItemsControl>("lstLocations");
         if (lstLocations != null) lstLocations.ItemsSource = LocationOptions;
     }
@@ -72,7 +71,6 @@ public partial class NavigationBar : UserControl
         SetTip("btnNavAppsGames", CrimsonX.Localization.AppStrings.NavAppsGames);
         SetTip("btnNavSettings", CrimsonX.Localization.AppStrings.NavSettings);
         SetTip("btnNavAdBlock", CrimsonX.Localization.AppStrings.AdBlocker);
-
         var locationsTitle = this.FindControl<TextBlock>("lblLocationsTitle");
         if (locationsTitle != null) locationsTitle.Text = CrimsonX.Localization.AppStrings.LocationsTitle;
         SetTip("btnLocationsClose", CrimsonX.Localization.AppStrings.LocationsClose);
@@ -92,9 +90,7 @@ public partial class NavigationBar : UserControl
         if (sender is ToggleButton tile)
         {
             ShowAdBlockerIcon(tile.IsChecked == true);
-
             if (_syncingAdBlocker) return;
-
             AdBlockerToggled?.Invoke(this, tile.IsChecked == true);
         }
     }
@@ -103,11 +99,8 @@ public partial class NavigationBar : UserControl
     {
         var tile = this.FindControl<ToggleButton>("btnNavAdBlock");
         if (tile == null) return;
-
         ShowAdBlockerIcon(enabled);
-
         if (tile.IsChecked == enabled) return;
-
         _syncingAdBlocker = true;
         try
         {
@@ -135,9 +128,7 @@ public partial class NavigationBar : UserControl
     {
         var icon = this.FindControl<PathIcon>("themeNavIcon");
         if (icon == null) return;
-
         var brush = ThemesIconBrush(_themesTabOpen);
-
         if (brush == null) icon.ClearValue(PathIcon.ForegroundProperty);
         else               icon.Foreground = brush;
     }
@@ -159,7 +150,6 @@ public partial class NavigationBar : UserControl
         var excluded = new List<string>();
         foreach (var name in ContinentNames)
             if (!keep.Contains(name)) excluded.Add(name);
-
         return excluded;
     }
 
@@ -178,13 +168,10 @@ public partial class NavigationBar : UserControl
         var cfg = MainWindow.Instance?.Config;
         var excluded = cfg?.ExcludedContinents ?? new List<string>();
         int excludedCount = ContinentNames.Count(name => excluded.Contains(name));
-
         if (cfg != null && cfg.EnableExcludedContinents && (excludedCount == 0 || excludedCount >= ContinentNames.Length))
             cfg.EnableExcludedContinents = false;
-
         bool filtering = cfg != null && cfg.EnableExcludedContinents
                          && excludedCount > 0 && excludedCount < ContinentNames.Length;
-
         LocationOptions.Clear();
         LocationOptions.Add(new LocationOption
         {
@@ -192,7 +179,6 @@ public partial class NavigationBar : UserControl
             DisplayName = CrimsonX.Localization.AppStrings.FilterAll,
             IsSelected = !filtering,
         });
-
         foreach (var (fullName, displayName) in ContinentOptions())
         {
             LocationOptions.Add(new LocationOption
@@ -209,20 +195,15 @@ public partial class NavigationBar : UserControl
         var tile = sender as ToggleButton;
         var popup = this.FindControl<Popup>("LocationsPopup");
         if (tile == null || popup == null) return;
-
         if (tile.IsChecked == true)
         {
             CrimsonX.Pages.SettingsPage.Instance?.ClosePopups();
             QuickSettingsPanel.Instance?.ClosePopups();
-
             RefreshLocationOptions();
             popup.PlacementTarget = tile;
-
             if (popup.Child is Border card) card.Classes.Remove("popupOpen");
-
             popup.IsOpen = true;
             ShowLightDismissLayer(visible: true);
-
             await Task.Delay(10);
             if (popup.IsOpen && popup.Child is Border opened) opened.Classes.Add("popupOpen");
         }
@@ -244,13 +225,11 @@ public partial class NavigationBar : UserControl
     {
         var popup = this.FindControl<Popup>("LocationsPopup");
         if (popup == null || !popup.IsOpen) return;
-
         if (popup.Child is Border card)
         {
             card.Classes.Remove("popupOpen");
             await Task.Delay(200);
         }
-
         popup.IsOpen = false;
         ShowLightDismissLayer(visible: false);
     }
@@ -262,29 +241,22 @@ public partial class NavigationBar : UserControl
     private void LocationOption_Click(object? sender, RoutedEventArgs e)
     {
         if (sender is not Control control || control.DataContext is not LocationOption option) return;
-
         var window = MainWindow.Instance;
         var cfg = window?.Config;
         if (cfg == null) return;
-
         var selected = LocationOptions.Where(o => o.IsSelected && o.Tag != AllTag).Select(o => o.Tag).ToList();
-
         if (option.Tag == AllTag) selected.Clear();
         else if (!selected.Remove(option.Tag)) selected.Add(option.Tag);
-
         bool allowEverything = selected.Count == 0;
         cfg.EnableExcludedContinents = !allowEverything;
         cfg.ExcludedContinents = allowEverything ? new List<string>() : ExcludedContinentsFor(selected);
-
         RefreshLocationOptions();
-
         window!.RequestConfigSave();
         if (window.State.IsEngineRunning)
             window.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
     }
 
     // Nav Selection
-
 
     public void SelectTab(string tag)
     {
@@ -310,9 +282,7 @@ public partial class NavigationBar : UserControl
             {
                 _themesTabOpen = rb.Tag is "Themes";
                 ShowThemeIcon();
-
                 ClosePopups();
-
                 if (rb.Tag is string tag)
                 {
                     NavChanged?.Invoke(this, tag);
@@ -320,5 +290,4 @@ public partial class NavigationBar : UserControl
             }
         }
     }
-
 }

@@ -85,7 +85,6 @@ namespace CrimsonX.Services
                 int candidate = Random.Shared.Next(19090, 19290);
                 if (IsPortFree(candidate)) return candidate;
             }
-
             return 19091;
         }
 
@@ -146,33 +145,24 @@ namespace CrimsonX.Services
         public static EndpointChainSnapshot Parse(string json, string chainTag)
         {
             var snapshot = new EndpointChainSnapshot();
-
             JObject root;
             try { root = JObject.Parse(json); }
             catch (Exception ex) { SimpleLogger.Log(ex); return snapshot; }
-
             snapshot.SessionDownloadBytes = root.Value<long?>("downloadTotal") ?? 0;
             snapshot.SessionUploadBytes   = root.Value<long?>("uploadTotal") ?? 0;
-
             if (root["connections"] is not JArray connections) return snapshot;
-
             foreach (var item in connections)
             {
                 if (item["chains"] is not JArray chains) continue;
-
                 snapshot.HasChains = true;
-
                 bool ridesChain = false;
                 foreach (var tag in chains)
                 {
                     if (!string.Equals(tag?.ToString(), chainTag, StringComparison.Ordinal)) continue;
-
                     ridesChain = true;
                     break;
                 }
-
                 if (!ridesChain) continue;
-
                 snapshot.Connections.Add(new EndpointConnectionBytes
                 {
                     Id            = item["id"]?.ToString() ?? "",
@@ -180,7 +170,6 @@ namespace CrimsonX.Services
                     UploadBytes   = item.Value<long?>("upload")   ?? 0
                 });
             }
-
             return snapshot;
         }
     }
@@ -200,19 +189,15 @@ namespace CrimsonX.Services
         internal async Task<RuleConnectionsSnapshot?> GetAsync(ISet<string> ruleProcessNames, CancellationToken token)
         {
             if (!SingboxClashApi.IsConfigured) return null;
-
             try
             {
                 using var request = new HttpRequestMessage(
                     HttpMethod.Get, "http://" + SingboxClashApi.Controller + "/connections");
                 request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + SingboxClashApi.Secret);
-
                 using var cts    = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
-
                 using var response = await _http.SendAsync(request, linked.Token).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode) return null;
-
                 string body = await response.Content.ReadAsStringAsync(linked.Token).ConfigureAwait(false);
                 return Parse(body, ruleProcessNames);
             }
@@ -226,7 +211,6 @@ namespace CrimsonX.Services
             {
                 Available = ruleProcessNames.Count > 0
             };
-
             JObject root;
             try { root = JObject.Parse(json); }
             catch (Exception ex)
@@ -235,62 +219,49 @@ namespace CrimsonX.Services
                 snapshot.Available = false;
                 return snapshot;
             }
-
             snapshot.SessionDownloadBytes = root.Value<long?>("downloadTotal") ?? 0;
             snapshot.SessionUploadBytes   = root.Value<long?>("uploadTotal") ?? 0;
-
             if (root["connections"] is not JArray connections) return snapshot;
-
             var buckets = new Dictionary<string, RuleProcessTraffic>(StringComparer.OrdinalIgnoreCase);
-
             foreach (var item in connections)
             {
                 string exe = ProcessKey(item["metadata"]?["processPath"]?.ToString());
                 if (exe.Length == 0) continue;
                 if (!ruleProcessNames.Contains(exe)) continue;
-
                 if (!buckets.TryGetValue(exe, out var bucket))
                 {
                     bucket = new RuleProcessTraffic { ProcessName = exe };
                     buckets[exe] = bucket;
                 }
-
                 bucket.ActiveConnections++;
                 bucket.DownloadBytes += item.Value<long?>("download") ?? 0;
                 bucket.UploadBytes   += item.Value<long?>("upload") ?? 0;
             }
-
             foreach (var bucket in buckets.Values)
             {
                 snapshot.ActiveConnections += bucket.ActiveConnections;
                 snapshot.DownloadBytes     += bucket.DownloadBytes;
                 snapshot.UploadBytes       += bucket.UploadBytes;
             }
-
             snapshot.Processes = buckets.Values
                 .OrderByDescending(p => p.DownloadBytes + p.UploadBytes)
                 .ThenByDescending(p => p.ActiveConnections)
                 .ToList();
-
             return snapshot;
         }
 
         internal async Task<EndpointChainSnapshot?> GetChainAsync(string chainTag, CancellationToken token)
         {
             if (!SingboxClashApi.IsConfigured || string.IsNullOrWhiteSpace(chainTag)) return null;
-
             try
             {
                 using var request = new HttpRequestMessage(
                     HttpMethod.Get, "http://" + SingboxClashApi.Controller + "/connections");
                 request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + SingboxClashApi.Secret);
-
                 using var cts    = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
-
                 using var response = await _http.SendAsync(request, linked.Token).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode) return null;
-
                 string body = await response.Content.ReadAsStringAsync(linked.Token).ConfigureAwait(false);
                 return EndpointChainSnapshot.Parse(body, chainTag);
             }
@@ -301,13 +272,11 @@ namespace CrimsonX.Services
         internal static string ProcessKey(string? processPath)
         {
             if (string.IsNullOrWhiteSpace(processPath)) return "";
-
             string name = processPath.Trim();
             int slash = name.LastIndexOfAny(new[] { '\\', '/' });
             if (slash >= 0) name = name.Substring(slash + 1);
             if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 name = name.Substring(0, name.Length - 4);
-
             return name.ToLowerInvariant();
         }
 

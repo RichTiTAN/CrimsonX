@@ -62,7 +62,7 @@ namespace CrimsonX.Controls
         private List<string> _availableSettings = new List<string>
         {
             "DIRECT UDP", "XRAY EXIT-NODE", "BIND ADAPTER", "DOH", 
-            "SYSTEM DNS", "AD BLOCKER", "LAN CONNECTIONS", 
+            "SYSTEM DNS", "LAN CONNECTIONS", 
             "LAUNCH ON START-UP", "AUTO-CONNECT", "START MINIMIZED", 
             "MINIMIZE TO TRAY", "CUSTOM CONFIGS", 
             "DISABLE BACKGROUND CHECK", "DISABLE SEAMLESS SWAP"
@@ -164,7 +164,6 @@ namespace CrimsonX.Controls
                 "DISABLE SEAMLESS SWAP" => "M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z",
                 _ => ""
             };
-            
             if (string.IsNullOrEmpty(pathData)) return null;
             return Avalonia.Media.StreamGeometry.Parse(pathData);
         }
@@ -180,35 +179,27 @@ namespace CrimsonX.Controls
             CrimsonX.Localization.AppStrings.Apply(F("lblQSSubmit"),      CrimsonX.Localization.AppStrings.Submit);
             CrimsonX.Localization.AppStrings.Apply(F("lblQSAllowSingle"), CrimsonX.Localization.AppStrings.AllowSingleConfig);
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnQSAllowSingle"), CrimsonX.Localization.AppStrings.OneConfigTooltip);
-
             SyncCustomConfigsView();
             UpdateHeaderActions();
-            
             _panPopupSlot1Items.Children.Clear();
             _panPopupSlot2Items.Children.Clear();
             PopulatePopupItems(_panPopupSlot1Items, 1);
             PopulatePopupItems(_panPopupSlot2Items, 2);
-            
             CrimsonX.Localization.AppStrings.Apply(F("lblSlot1"), GetLocalizedSettingName(_pendingSlot1));
             CrimsonX.Localization.AppStrings.Apply(F("lblSlot2"), GetLocalizedSettingName(_pendingSlot2));
-            
             _lblSlot1.Text = GetLocalizedSettingName(_pendingSlot1);
             _lblSlot2.Text = GetLocalizedSettingName(_pendingSlot2);
-            
             _icoSlot1.Data = GetIconData(_pendingSlot1);
             _icoSlot2.Data = GetIconData(_pendingSlot2);
             global::Avalonia.Controls.ToolTip.SetTip(_lblSlot1, GetTooltipText(_pendingSlot1));
             global::Avalonia.Controls.ToolTip.SetTip(_lblSlot2, GetTooltipText(_pendingSlot2));
         }
 
-
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
-
             _btnCustomize = this.FindControl<Button>("btnCustomize")!;
             _panEditButtons = this.FindControl<StackPanel>("panEditButtons")!;
-
             _btnTabQuick = this.FindControl<Button>("btnQSTabQuick");
             _btnTabCustom = this.FindControl<Button>("btnQSTabCustom");
             _lblTabQuick = this.FindControl<TextBlock>("lblQuickSettings");
@@ -217,36 +208,26 @@ namespace CrimsonX.Controls
             _panCustomActions = this.FindControl<StackPanel>("panCustomActions");
             _cbCfg1 = this.FindControl<ComboBox>("cbQSCustomConfig1");
             _cbCfg2 = this.FindControl<ComboBox>("cbQSCustomConfig2");
-
             Pages.SettingsPage.Instance?.AttachQuickSettingsConfigBoxes(_cbCfg1, _cbCfg2);
             _btnAllowSingle = this.FindControl<Button>("btnQSAllowSingle");
-            
             _btnSlot1 = this.FindControl<Button>("btnSlot1")!;
             _btnSlot2 = this.FindControl<Button>("btnSlot2")!;
-            
             _lblSlot1 = this.FindControl<TextBlock>("lblSlot1")!;
             _lblSlot2 = this.FindControl<TextBlock>("lblSlot2")!;
-            
             _icoSlot1 = this.FindControl<PathIcon>("icoSlot1")!;
             _icoSlot2 = this.FindControl<PathIcon>("icoSlot2")!;
-            
             _togSlot1 = this.FindControl<ToggleSwitch>("togSlot1")!;
             _togSlot2 = this.FindControl<ToggleSwitch>("togSlot2")!;
-            
             _panSlot1Content = this.FindControl<Grid>("panSlot1Content")!;
             _panSlot2Content = this.FindControl<Grid>("panSlot2Content")!;
-            
             _iconArrow1 = this.FindControl<PathIcon>("iconArrow1")!;
             _iconArrow2 = this.FindControl<PathIcon>("iconArrow2")!;
-
             _popupSlot1 = this.FindControl<Popup>("PopupSlot1")!;
             _popupSlot2 = this.FindControl<Popup>("PopupSlot2")!;
             _panPopupSlot1Items = this.FindControl<StackPanel>("panPopupSlot1Items")!;
             _panPopupSlot2Items = this.FindControl<StackPanel>("panPopupSlot2Items")!;
-
             PopulatePopupItems(_panPopupSlot1Items, 1);
             PopulatePopupItems(_panPopupSlot2Items, 2);
-
             this.AttachedToVisualTree += (s, e) =>
             {
                 RefreshUI();
@@ -268,15 +249,13 @@ namespace CrimsonX.Controls
             var categories = new Dictionary<string, List<string>>
             {
                 { "START-UP", new List<string> { "LAUNCH ON START-UP", "AUTO-CONNECT", "START MINIMIZED", "MINIMIZE TO TRAY" } },
-                { "SPLIT TUNNELING", new List<string> { "DIRECT UDP", "AD BLOCKER" } },
+                { "SPLIT TUNNELING", new List<string> { "DIRECT UDP" } },
                 { "SYSTEM", new List<string> { "DISABLE BACKGROUND CHECK", "DISABLE SEAMLESS SWAP" } },
                 { "CONNECTION", new List<string> { "XRAY EXIT-NODE", "BIND ADAPTER", "DOH", "SYSTEM DNS", "LAN CONNECTIONS", "CUSTOM CONFIGS" } }
             };
-
             foreach (var category in categories)
             {
                 var headerText = CrimsonX.Localization.AppStrings.IsPersian ? GetPersianCategoryName(category.Key) : category.Key;
-                
                 var header = new TextBlock
                 {
                     Text = headerText,
@@ -287,7 +266,6 @@ namespace CrimsonX.Controls
                     LetterSpacing = 1
                 };
                 container.Children.Add(header);
-
                 foreach (var setting in category.Value)
                 {
                     var btn = new Button
@@ -301,7 +279,6 @@ namespace CrimsonX.Controls
                         Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
                         CornerRadius = new CornerRadius(4)
                     };
-
                     var txt = new TextBlock
                     {
                         Text = GetLocalizedSettingName(setting),
@@ -311,15 +288,11 @@ namespace CrimsonX.Controls
                         FontWeight = Avalonia.Media.FontWeight.SemiBold,
                         HorizontalAlignment = HorizontalAlignment.Left
                     };
-
                     var stp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
                     var icon = new PathIcon { Data = GetIconData(setting), Width = 12, Height = 12, Foreground = Brush.Parse("#8B949E"), VerticalAlignment = VerticalAlignment.Center };
-                    
                     stp.Children.Add(icon);
                     stp.Children.Add(txt);
-
                     btn.Content = stp;
-
                     btn.Click += (sender, e) => 
                     {
                         if (slotNumber == 1)
@@ -338,7 +311,6 @@ namespace CrimsonX.Controls
                         }
                         _ = ClosePopupAnimatedAsync();
                     };
-
                     container.Children.Add(btn);
                 }
             }
@@ -363,25 +335,20 @@ namespace CrimsonX.Controls
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
-
             _pendingSlot1 = EffectiveSlotName(cfg.QuickSetting1, "CUSTOM CONFIGS");
             _pendingSlot2 = EffectiveSlotName(cfg.QuickSetting2, "AUTO-CONNECT");
-
             if (cfg.QuickSetting1 != _pendingSlot1 || cfg.QuickSetting2 != _pendingSlot2)
             {
                 cfg.QuickSetting1 = _pendingSlot1;
                 cfg.QuickSetting2 = _pendingSlot2;
                 MainWindow.Instance!.RequestConfigSave();
             }
-
             _lblSlot1.Text = GetLocalizedSettingName(_pendingSlot1);
             _lblSlot2.Text = GetLocalizedSettingName(_pendingSlot2);
-            
             _icoSlot1.Data = GetIconData(_pendingSlot1);
             _icoSlot2.Data = GetIconData(_pendingSlot2);
             global::Avalonia.Controls.ToolTip.SetTip(_lblSlot1, GetTooltipText(_pendingSlot1));
             global::Avalonia.Controls.ToolTip.SetTip(_lblSlot2, GetTooltipText(_pendingSlot2));
-
             RefreshTogglesState();
         }
 
@@ -389,15 +356,11 @@ namespace CrimsonX.Controls
         {
             if (_isUpdating) return;
             if (MainWindow.Instance?.Config == null) return;
-
             _isUpdating = true;
-            
             var orig1 = GetOriginalToggle(MainWindow.Instance.Config.QuickSetting1);
             if (orig1 != null) _togSlot1.IsChecked = orig1.IsChecked;
-
             var orig2 = GetOriginalToggle(MainWindow.Instance.Config.QuickSetting2);
             if (orig2 != null) _togSlot2.IsChecked = orig2.IsChecked;
-
             _isUpdating = false;
         }
 
@@ -405,7 +368,6 @@ namespace CrimsonX.Controls
         {
             if (MainWindow.Instance == null) return null;
             if (Pages.SettingsPage.Instance == null) return null;
-
             switch (name)
             {
                 case "DIRECT UDP": return Pages.SplitTunnelPage.Instance?.FindControl<ToggleSwitch>("togDirectUDP");
@@ -433,16 +395,13 @@ namespace CrimsonX.Controls
         public void SyncCustomConfigsView()
         {
             if (_syncingCustomView) return;
-
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
-
             _syncingCustomView = true;
             try
             {
                 Pages.SettingsPage.Instance?.AttachQuickSettingsConfigBoxes(_cbCfg1, _cbCfg2);
                 Pages.SettingsPage.Instance?.ShowQuickSettingsConfigs();
-
                 SetAllowSinglePill(cfg.AllowOneCustomConfig);
             }
             finally { _syncingCustomView = false; }
@@ -454,11 +413,8 @@ namespace CrimsonX.Controls
         private void ShowCustomView(bool custom)
         {
             _customView = custom;
-
             if (custom) SyncCustomConfigsView();
-
             if (_panCarousel != null) _panCarousel.SelectedIndex = custom ? 1 : 0;
-
             UpdateHeaderActions();
         }
 
@@ -466,7 +422,6 @@ namespace CrimsonX.Controls
         {
             bool editing = _editMode && !_customView;
             bool plain   = !_editMode && !_customView;
-
             if (_btnCustomize != null)
             {
                 _btnCustomize.Opacity = plain ? 1 : 0;
@@ -482,7 +437,6 @@ namespace CrimsonX.Controls
                 _panCustomActions.Opacity = _customView ? 1 : 0;
                 _panCustomActions.IsHitTestVisible = _customView;
             }
-
             if (_lblTabQuick != null)
                 _lblTabQuick.Foreground = global::Avalonia.Media.Brush.Parse(_customView ? "#718096" : "#E2E8F0");
             if (_lblTabCustom != null)
@@ -493,9 +447,7 @@ namespace CrimsonX.Controls
         {
             Pages.SettingsPage.Instance?.SubmitCustomConfigsFromQuickSettings(
                 _cbCfg1?.Text ?? "", _cbCfg2?.Text ?? "", _allowSingle);
-
             RefreshTogglesState();
-
             ShowCustomView(false);
         }
 
@@ -508,13 +460,10 @@ namespace CrimsonX.Controls
         private void SetAllowSinglePill(bool on)
         {
             _allowSingle = on;
-
             if (_btnAllowSingle == null) return;
-
             _btnAllowSingle.Classes.Remove("on");
             if (on) _btnAllowSingle.Classes.Add("on");
         }
-
 
         private static int SlotOf(object? sender)
             => (sender as global::Avalonia.Controls.Control)?.Tag?.ToString() == "2" ? 2 : 1;
@@ -524,7 +473,6 @@ namespace CrimsonX.Controls
         private void btnQSCfgImport_Click(object? sender, RoutedEventArgs e)
         {
             int slot = SlotOf(sender);
-
             Pages.SettingsPage.Instance?.ImportCustomConfig(slot, TextOf(slot));
             Pages.SettingsPage.Instance?.ShowQuickSettingsConfigs();
         }
@@ -547,13 +495,10 @@ namespace CrimsonX.Controls
         {
             _editMode = editMode;
             UpdateHeaderActions();
-
             _panSlot1Content.Opacity = editMode ? 0.2 : 1.0;
             _panSlot2Content.Opacity = editMode ? 0.2 : 1.0;
-
             _iconArrow1.Opacity = editMode ? 1.0 : 0.0;
             _iconArrow2.Opacity = editMode ? 1.0 : 0.0;
-
             _btnSlot1.IsHitTestVisible = editMode;
             _btnSlot2.IsHitTestVisible = editMode;
         }
@@ -583,7 +528,6 @@ namespace CrimsonX.Controls
                 MainWindow.Instance.Config.QuickSetting2 = _pendingSlot2;
                 MainWindow.Instance.RequestConfigSave();
             }
-
             RefreshUI();
             SetEditMode(false);
             ClosePopups();
@@ -597,14 +541,11 @@ namespace CrimsonX.Controls
             {
             ClosePopups();
             _popupSlot1.PlacementTarget = _iconArrow1;
-            _popupSlot1.Placement = PlacementMode.Center;
             _popupSlot1.HorizontalOffset = 0;
             _popupSlot1.VerticalOffset = 0;
             _popupSlot1.IsOpen = true;
-
             var ldo = MainWindow.Instance?.FindControl<Border>("LightDismissOverlay");
             if (ldo != null) ldo.IsVisible = true;
-
             await System.Threading.Tasks.Task.Delay(10);
             if (_popupSlot1.Child is Border popBorder) popBorder.Classes.Add("popupOpen");
             }
@@ -620,14 +561,11 @@ namespace CrimsonX.Controls
             {
             ClosePopups();
             _popupSlot2.PlacementTarget = _iconArrow2;
-            _popupSlot2.Placement = PlacementMode.Center;
             _popupSlot2.HorizontalOffset = 0;
             _popupSlot2.VerticalOffset = 0;
             _popupSlot2.IsOpen = true;
-
             var ldo = MainWindow.Instance?.FindControl<Border>("LightDismissOverlay");
             if (ldo != null) ldo.IsVisible = true;
-
             await System.Threading.Tasks.Task.Delay(10);
             if (_popupSlot2.Child is Border popBorder) popBorder.Classes.Add("popupOpen");
             }
@@ -648,7 +586,6 @@ namespace CrimsonX.Controls
                 }
                 _popupSlot1.IsOpen = false;
             }
-
             if (_popupSlot2 != null && _popupSlot2.IsOpen)
             {
                 if (_popupSlot2.Child is Border popBorder)
@@ -658,7 +595,6 @@ namespace CrimsonX.Controls
                 }
                 _popupSlot2.IsOpen = false;
             }
-
             var ldo = MainWindow.Instance?.FindControl<Border>("LightDismissOverlay");
             if (ldo != null) ldo.IsVisible = false;
         }
@@ -677,7 +613,6 @@ namespace CrimsonX.Controls
             var orig = GetOriginalToggle(MainWindow.Instance.Config.QuickSetting1);
             if (orig != null && _togSlot1.IsChecked.HasValue)
                 orig.IsChecked = _togSlot1.IsChecked.Value;
-
             if (_togSlot1.IsChecked == true && orig != null && orig.IsChecked != true)
             {
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -697,5 +632,3 @@ namespace CrimsonX.Controls
         }
     }
 }
-
-

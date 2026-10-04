@@ -82,7 +82,6 @@ namespace CrimsonX.Behaviors
         public static double InsetFraction(double viewportHeight, double insetPixels)
         {
             if (viewportHeight <= 0 || insetPixels <= 0) return 0;
-
             double cap = Math.Max(0, 1 - (BandFraction * 2) - 0.01);
             double fraction = insetPixels / viewportHeight;
             return fraction > cap ? cap : fraction;
@@ -95,20 +94,16 @@ namespace CrimsonX.Behaviors
                 StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
                 EndPoint = new RelativePoint(0, 1, RelativeUnit.Relative)
             };
-
             double edge = BandFraction;
             double mid = BandFraction * BandMidFraction;
             double start = topBand && insetFraction > 0 ? insetFraction : 0;
-
             brush.GradientStops.Add(new GradientStop(topBand ? Colors.Transparent : Colors.White, 0));
             if (start > 0) brush.GradientStops.Add(new GradientStop(Colors.Transparent, start));
             brush.GradientStops.Add(new GradientStop(topBand ? BandMidColour : Colors.White, start + mid));
             brush.GradientStops.Add(new GradientStop(Colors.White, start + edge));
-
             brush.GradientStops.Add(new GradientStop(Colors.White, 1 - edge));
             brush.GradientStops.Add(new GradientStop(BandMidColour, 1 - mid));
             brush.GradientStops.Add(new GradientStop(Colors.Transparent, 1));
-
             return brush;
         }
     }

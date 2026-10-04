@@ -58,19 +58,15 @@ namespace CrimsonX.Services
         {
             string text = (raw ?? "").Trim();
             var result = new ConfigIntakeResult { Raw = text };
-
             if (text.Length == 0)
             {
                 result.Unreadable = true;
                 result.Reason = "empty config";
                 return result;
             }
-
             string key = $"{target}|{level}|{paneName}|{adapterName}|{ConfigConverter.KeyFor(text, adapterIp)}";
             if (Cache.TryGetValue(key, out var cached)) return cached;
-
             var verdict = await ConfigValidator.CheckAsync(text, cfg, target, level, adapterName, adapterIp).ConfigureAwait(false);
-
             result.Accepted         = verdict.Ok;
             result.Unreadable       = verdict.Unreadable;
             result.NeedsCredentials = verdict.NeedsCredentials;
@@ -78,15 +74,12 @@ namespace CrimsonX.Services
             result.Label            = verdict.Label.Length > 0 ? verdict.Label : ConfigConverter.LabelFor(text);
             result.EngineJson       = verdict.EngineJson;
             result.Reason           = verdict.Reason;
-
             result.MaskNote = verdict.MaskNote;
             if (verdict.WithoutMask.Length > 0) result.Raw = verdict.WithoutMask;
-
             if (!result.Accepted)
             {
                 if (result.Reason.Length > 0)
                     SimpleLogger.Log($"[Intake] {paneName}: {result.Reason}");
-
                 result.Toast = result.NeedsCredentials
                     ? AppStrings.ToastTunnelNeedsCredentials
                     : AppStrings.ToastNotSupportedPrefix + paneName;
@@ -96,7 +89,6 @@ namespace CrimsonX.Services
                 SimpleLogger.Log($"[Intake] {paneName}: the final mask was refused by xray: {result.MaskNote}");
                 result.Toast = AppStrings.ToastFinalMaskDropped + ConfigValidator.ShortReason(result.MaskNote);
             }
-
             Remember(key, result);
             return result;
         }

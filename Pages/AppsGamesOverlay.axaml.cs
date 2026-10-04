@@ -114,7 +114,6 @@ public class AppRuleViewModel
         RegionIndex  = AppsGamesOverlay.RegionIndexFor(rule.Region);
         CountryItems = AppsGamesOverlay.CountryDisplayOptions();
         RegionItems  = AppsGamesOverlay.RegionDisplayOptions();
-
         IconBitmap = RuleIcon(rule);
         HasIcon    = IconBitmap != null;
     }
@@ -122,7 +121,6 @@ public class AppRuleViewModel
     internal static Bitmap? RuleIcon(AppGameRule rule)
     {
         if (rule == null) return null;
-
         if (!string.IsNullOrEmpty(rule.IconAsset))
         {
             if (!DefaultIconCache.TryGetValue(rule.IconAsset, out var bmp))
@@ -134,10 +132,8 @@ public class AppRuleViewModel
             }
             return bmp;
         }
-
         if (!string.IsNullOrEmpty(rule.IconBase64))
             return CustomIcon(rule.IconBase64);
-
         return null;
     }
 
@@ -145,7 +141,6 @@ public class AppRuleViewModel
     {
         if (string.IsNullOrEmpty(base64)) return null;
         if (CustomIconCache.TryGetValue(base64, out var cached)) return cached;
-
         Bitmap? bmp;
         try
         {
@@ -154,7 +149,6 @@ public class AppRuleViewModel
             bmp = new Bitmap(ms);
         }
         catch { bmp = null; }
-
         CustomIconCache[base64] = bmp;
         CustomIconOrder.Enqueue(base64);
         TrimIconCache(CustomIconCache, CustomIconOrder, CustomIconCacheLimit);
@@ -185,8 +179,6 @@ public class AppRuleViewModel
 
 public partial class AppsGamesOverlay : UserControl
 {
-    
-
     private List<AppGameRule> _rules = new();
     private string _currentFilter = "ALL";
     private string _searchText = "";
@@ -246,7 +238,6 @@ public partial class AppsGamesOverlay : UserControl
         bool persian = AS.IsPersian;
         if (_countryDisplayOptions != null && _regionDisplayOptions != null && _displayOptionsPersian == persian)
             return;
-
         _displayOptionsPersian = persian;
         _countryDisplayOptions = new[]
         {
@@ -325,18 +316,14 @@ public partial class AppsGamesOverlay : UserControl
         InitializeComponent();
         ApplyLanguage();
         _isReady = true;
-
         ApplyMasterRulesVisual();
         UpdateOverlayConnectUI();
-
         _connectUiTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
         _connectUiTimer.Tick += (s, e) => { if (IsVisible) UpdateOverlayConnectUI(); };
         _connectUiTimer.Start();
-
         this.AttachedToVisualTree += (s, e) =>
         {
             CrimsonX.Services.UiEventBus.Instance.ConnectionProgress += OnConnectionProgress;
-
             UpdateOverlayConnectUI();
             _connectUiTimer?.Start();
         };
@@ -345,7 +332,6 @@ public partial class AppsGamesOverlay : UserControl
             CrimsonX.Services.UiEventBus.Instance.ConnectionProgress -= OnConnectionProgress;
             StopOverlayActivity();
         };
-
         if (this.FindControl<ScrollViewer>("Scroller") is { } scroller)
             scroller.ScrollChanged += OnScrollerScrollChanged;
     }
@@ -353,7 +339,6 @@ public partial class AppsGamesOverlay : UserControl
     private void StopOverlayActivity()
     {
         _connectUiTimer?.Stop();
-
         _overlayFillTimer?.Stop();
         _overlayFillTimer = null;
         _overlayFillTarget = -1;
@@ -361,10 +346,8 @@ public partial class AppsGamesOverlay : UserControl
         _overlayFillBorder = null;
         _overlayBreathBorder = null;
         _overlayFillScale = null;
-
         _dragHelper?.Detach();
         _dragHelper = null;
-
         _searchDebounceTimer?.Stop();
     }
 
@@ -381,11 +364,9 @@ public partial class AppsGamesOverlay : UserControl
     public void LoadRules()
     {
         using var _busy = CrimsonX.Services.UiBusy.Scope("apps & games rules");
-
         _rules = AppRulesService.Load();
         EnsureDefaultRules();
         _hasPendingRuleChanges = false;
-
         if (RulesSignature(_rules) != _renderedSignature || FilterKey() != _renderedFilterKey)
             RefreshList(stream: true);
         CloseEditor(); 
@@ -395,21 +376,17 @@ public partial class AppsGamesOverlay : UserControl
         UpdateOverlayConnectUI();
     }
 
-
     // ── Rules List & Adapters UI ──
 
     private void RefreshList(bool stream = false)
     {
         using var _busy = CrimsonX.Services.UiBusy.Scope("apps & games list");
-
         var lst = this.FindControl<ItemsControl>("lstRules");
         if (lst == null) return;
-        
         var filtered = _rules.AsEnumerable();
         if (_currentFilter == "GAMES") filtered = filtered.Where(r => r.AppType == "Game");
         else if (_currentFilter == "LAUNCHERS") filtered = filtered.Where(r => r.AppType == "Launcher");
         else if (_currentFilter == "OTHER") filtered = filtered.Where(r => r.AppType == "Other");
-
         if (!string.IsNullOrWhiteSpace(_searchText))
         {
             string st = _searchText.Trim();
@@ -417,24 +394,18 @@ public partial class AppsGamesOverlay : UserControl
                 (r.ExeName ?? "").Contains(st, StringComparison.OrdinalIgnoreCase)
                 || (r.DisplayName ?? "").Contains(st, StringComparison.OrdinalIgnoreCase));
         }
-
         var viewModels = filtered.Select(r => new AppRuleViewModel(r)).ToList();
-
         if (!ReferenceEquals(lst.ItemsSource, _ruleRows)) lst.ItemsSource = _ruleRows;
-
         _renderedSignature = RulesSignature(_rules);
         _renderedFilterKey = FilterKey();
-
         int generation = ++_ruleStreamGeneration;
         _ruleRows.Clear();
-
         if (!stream)
         {
             foreach (var viewModel in viewModels) _ruleRows.Add(viewModel);
             PostEditorRehosts();
             return;
         }
-
         for (int from = AppendRuleBatch(viewModels, 0); from < viewModels.Count; from += RuleRowBatchSize)
         {
             int start = from;
@@ -448,9 +419,7 @@ public partial class AppsGamesOverlay : UserControl
     {
         int to = System.Math.Min(from + RuleRowBatchSize, viewModels.Count);
         for (int i = from; i < to; i++) _ruleRows.Add(viewModels[i]);
-
         if (to >= viewModels.Count) PostEditorRehosts();
-
         return to;
     }
 
@@ -458,7 +427,6 @@ public partial class AppsGamesOverlay : UserControl
     {
         if (!string.IsNullOrEmpty(_editingRuleId) && !_isClosing)
             Avalonia.Threading.Dispatcher.UIThread.Post(RehostRuleEditor, Avalonia.Threading.DispatcherPriority.Loaded);
-
         if (!string.IsNullOrEmpty(_editingDefaultRuleId) && !_isClosingDefaultEditor)
             Avalonia.Threading.Dispatcher.UIThread.Post(RehostDefaultRuleEditor, Avalonia.Threading.DispatcherPriority.Loaded);
     }
@@ -467,7 +435,6 @@ public partial class AppsGamesOverlay : UserControl
     {
         var hash = new HashCode();
         hash.Add(rules.Count);
-
         foreach (var rule in rules)
         {
             hash.Add(rule.Id);
@@ -489,7 +456,6 @@ public partial class AppsGamesOverlay : UserControl
             hash.Add(rule.ProcessNames.Count);
             hash.Add(rule.Domains.Count);
         }
-
         return hash.ToHashCode();
     }
 
@@ -498,39 +464,28 @@ public partial class AppsGamesOverlay : UserControl
     private void RehostDefaultRuleEditor()
     {
         if (string.IsNullOrEmpty(_editingDefaultRuleId) || _isClosingDefaultEditor) return;
-
         var panDefaultEditor = this.FindControl<Border>("panDefaultEditor");
         var lst              = this.FindControl<ItemsControl>("lstRules");
         if (panDefaultEditor == null || lst == null) return;
-
         if (panDefaultEditor.Opacity <= 0) return;
-
         if (panDefaultEditor.Parent is Visual currentHost
             && Avalonia.VisualTree.VisualExtensions.GetVisualAncestors(currentHost).Contains(lst)) return;
-
         var viewModels = (lst.ItemsSource as IEnumerable<AppRuleViewModel>)?.ToList();
         if (viewModels == null) return;
-
         int index = viewModels.FindIndex(v => v.RuleId == _editingDefaultRuleId);
         if (index < 0) return;
-
         var row = lst.ContainerFromIndex(index);
         if (row == null) return;
-
         var targetHost = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(row)
             .OfType<ContentControl>().FirstOrDefault(c => c.Name == "EditContainer");
         if (targetHost == null) return;
-
         if (panDefaultEditor.Parent is Panel oldPanel) oldPanel.Children.Remove(panDefaultEditor);
         else if (panDefaultEditor.Parent is ContentControl oldHost) { oldHost.Content = null; oldHost.IsVisible = false; }
-
         targetHost.IsVisible = true;
         targetHost.Content = panDefaultEditor;
-
         var parentStack = targetHost.Parent as StackPanel;
         _hiddenDefaultRuleView = parentStack?.Children.OfType<Avalonia.Controls.Border>().FirstOrDefault(b => b.Name == "panDefaultRuleWrapper");
         if (_hiddenDefaultRuleView != null) { SetTransitionSpeed(_hiddenDefaultRuleView, 0); _hiddenDefaultRuleView.MaxHeight = 0; _hiddenDefaultRuleView.Opacity = 0; }
-
         panDefaultEditor.MaxHeight = 800;
         panDefaultEditor.Opacity = 1;
     }
@@ -538,37 +493,27 @@ public partial class AppsGamesOverlay : UserControl
     private void RehostRuleEditor()
     {
         if (string.IsNullOrEmpty(_editingRuleId) || _isClosing) return;
-
         var panEditor = this.FindControl<Border>("panEditor");
         var lst       = this.FindControl<ItemsControl>("lstRules");
         if (panEditor == null || lst == null) return;
-
         if (panEditor.Opacity <= 0) return;
-
         if (panEditor.Parent is Visual currentHost
             && Avalonia.VisualTree.VisualExtensions.GetVisualAncestors(currentHost).Contains(lst)) return;
-
         var viewModels = (lst.ItemsSource as IEnumerable<AppRuleViewModel>)?.ToList();
         if (viewModels == null) return;
-
         int index = viewModels.FindIndex(v => v.RuleId == _editingRuleId);
         if (index < 0) return;   
-
         var row = lst.ContainerFromIndex(index);
         if (row == null) return;
-
         var targetHost = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(row)
             .OfType<ContentControl>().FirstOrDefault(c => c.Name == "EditContainer");
         if (targetHost == null) return;
-
         if (panEditor.Parent is Panel oldPanel) oldPanel.Children.Remove(panEditor);
         else if (panEditor.Parent is ContentControl oldHost) { oldHost.Content = null; oldHost.IsVisible = false; }
-
         targetHost.IsVisible = true;
         targetHost.Content = panEditor;
         panEditor.MaxHeight = 800;
         panEditor.Opacity = 1;
-
         var parentStack = targetHost.Parent as StackPanel;
         _hiddenRuleView = parentStack?.Children.OfType<Border>().FirstOrDefault(b => b.Name == "panRuleWrapper");
         if (_hiddenRuleView != null)
@@ -597,14 +542,12 @@ public partial class AppsGamesOverlay : UserControl
         string text = tb?.Text ?? "";
         if (text == _searchText) return;
         _searchText = text;
-
         if (text.Length == 0)
         {
             _searchDebounceTimer?.Stop();
             RefreshList();
             return;
         }
-
         if (_searchDebounceTimer == null)
         {
             _searchDebounceTimer = new global::Avalonia.Threading.DispatcherTimer
@@ -613,7 +556,6 @@ public partial class AppsGamesOverlay : UserControl
             };
             _searchDebounceTimer.Tick += (s, e) => { _searchDebounceTimer?.Stop(); RefreshList(); };
         }
-
         _searchDebounceTimer.Stop();
         _searchDebounceTimer.Start();
     }
@@ -631,8 +573,6 @@ public partial class AppsGamesOverlay : UserControl
         }
     }
 
-    
-
     // INLINE EDITOR LOGIC
 
     private void PopulateAdapters()
@@ -640,30 +580,25 @@ public partial class AppsGamesOverlay : UserControl
         var items = new List<string> { CrimsonX.Localization.AppStrings.AdapterDefault };
         _adapterNames.Clear();
         _adapterNames.Add("Default");
-
         try
         {
             foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
             {
                 if (nic.OperationalStatus != OperationalStatus.Up) continue;
                 if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-
                 var ipv4 = nic.GetIPProperties().UnicastAddresses
                     .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork);
                 if (ipv4 == null || string.IsNullOrWhiteSpace(ipv4.Address.ToString())) continue;
-
                 string display = $"{nic.Name} - {ipv4.Address}";
                 items.Add(display);
                 _adapterNames.Add(nic.Name);
             }
         }
         catch { }
-
         var cbTcp = this.FindControl<ComboBox>("cbTcpAdapter");
         var cbUdp = this.FindControl<ComboBox>("cbUdpAdapter");
         if (cbTcp != null) { cbTcp.ItemsSource = items; cbTcp.SelectedIndex = 0; }
         if (cbUdp != null) { cbUdp.ItemsSource = items; cbUdp.SelectedIndex = 0; }
-
         var cbDefTcp = this.FindControl<ComboBox>("cbDefaultTcpAdapter");
         var cbDefUdp = this.FindControl<ComboBox>("cbDefaultUdpAdapter");
         if (cbDefTcp != null) { cbDefTcp.ItemsSource = items; cbDefTcp.SelectedIndex = 0; }
@@ -676,9 +611,7 @@ public partial class AppsGamesOverlay : UserControl
     {
         var panEditor = this.FindControl<Border>("panEditor");
         if (panEditor == null) return;
-
         if (panEditor.Opacity > 0 && string.IsNullOrEmpty(_editingRuleId)) return;
-
         OpenEditor(null, null);
     }
 
@@ -707,30 +640,22 @@ public partial class AppsGamesOverlay : UserControl
 var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddToggleWrapper");
         var panEditor    = this.FindControl<Avalonia.Controls.Border>("panEditor");
         var btnSubmit    = this.FindControl<Avalonia.Controls.Button>("btnSubmit");
-
         CloseDefaultEditor(true);
-
         if (panEditor == null) return;
-        
         if (panEditor.Opacity > 0 || _isClosing)
         {
             CloseEditor(true);
         }
         _editorVersion++;
         _isClosing = false;
-
         if (_defaultEditorParent == null)
             _defaultEditorParent = panEditor.Parent as Avalonia.Controls.Panel;
-
         if (panEditor.Parent is Avalonia.Controls.Panel p) p.Children.Remove(panEditor);
         else if (panEditor.Parent is Avalonia.Controls.ContentControl c) { c.Content = null; c.IsVisible = false; }
-
         if (targetContainer != null)
         {
             targetContainer.IsVisible = true;
             targetContainer.Content = panEditor;
-            
-            
             var parentStack = targetContainer.Parent as Avalonia.Controls.StackPanel;
             _hiddenRuleView = parentStack?.Children.OfType<Avalonia.Controls.Border>().FirstOrDefault(b => b.Name == "panRuleWrapper");
             if (_hiddenRuleView != null) { SetTransitionSpeed(_hiddenRuleView, 0); _hiddenRuleView.MaxHeight = 0; _hiddenRuleView.Opacity = 0; }
@@ -740,16 +665,13 @@ var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddTogg
             _defaultEditorParent?.Children.Add(panEditor);
             if (panAddToggleWrapper != null) { SetTransitionSpeed(panAddToggleWrapper, 0.3); panAddToggleWrapper.MaxHeight = 0; panAddToggleWrapper.Opacity = 0; }
         }
-
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
           {
               panEditor.MaxHeight = 800;
               panEditor.Opacity = 1;
           });
-
         if (ruleToEdit == null)
             _ = RevealEditorAsync(panAddToggleWrapper, panEditor);
-
         if (ruleToEdit == null)
         {
             _editingRuleId = "";
@@ -764,7 +686,6 @@ var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddTogg
             if (btnSubmit != null) btnSubmit.Content = CrimsonX.Localization.AppStrings.Update;
             PreFill(ruleToEdit);
         }
-
         SetRulesDimmed(true);
     }
 
@@ -772,21 +693,17 @@ var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddTogg
     {
         var scroller = this.FindControl<ScrollViewer>("Scroller");
         if (scroller == null || scroller.Content is not Avalonia.Visual content || addToggleWrapper == null) return;
-
         await System.Threading.Tasks.Task.Delay(16);
         if (editor.Opacity <= 0) return;
-
         var m = Avalonia.VisualExtensions.TransformToVisual(addToggleWrapper, content);
         if (!m.HasValue) return;
         double target = Math.Max(0, m.Value.Transform(new Avalonia.Point(0, 0)).Y);
-
         double start = scroller.Offset.Y;
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         timer.Tick += (_, _) =>
         {
             if (editor.Opacity <= 0) { timer.Stop(); return; }
-
             double t = Math.Min(1.0, sw.Elapsed.TotalMilliseconds / 300.0);
             double eased = 1.0 - Math.Pow(1.0 - t, 3.0);
             double maxOffset = Math.Max(0, scroller.Extent.Height - scroller.Viewport.Height);
@@ -804,12 +721,9 @@ try
 var panAddToggle = this.FindControl<Avalonia.Controls.Border>("panAddToggle");
 var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddToggleWrapper");
 var panEditor    = this.FindControl<Avalonia.Controls.Border>("panEditor");
-
 if (panEditor == null) return;
-
 _isClosing = true;
 int editorVersion = ++_editorVersion;
-
 if (panAddToggleWrapper != null) { 
     SetTransitionSpeed(panAddToggleWrapper, 0.3);
     panAddToggleWrapper.IsVisible = true; 
@@ -822,34 +736,26 @@ if (_hiddenRuleView != null) {
     _hiddenRuleView.MaxHeight = 800; 
     _hiddenRuleView.Opacity = 1; 
 }
-
 if (!instant)
 {
 panEditor.MaxHeight = 0;
 panEditor.Opacity = 0;
-
 SetRulesDimmed(false);
 await System.Threading.Tasks.Task.Delay(300);
 }
-
 if (editorVersion != _editorVersion || !_isClosing) return; 
-
 if (_defaultEditorParent != null)
 {
 if (panEditor.Parent is Avalonia.Controls.Panel p) p.Children.Remove(panEditor);
 else if (panEditor.Parent is Avalonia.Controls.ContentControl c) { c.Content = null; c.IsVisible = false; }
-
 _defaultEditorParent.Children.Add(panEditor);
 }
-
 if (instant)
 {
 panEditor.MaxHeight = 0;
 panEditor.Opacity = 0;
 }
-
 _editingRuleId = null;
-
 if (_hiddenRuleView != null) { _hiddenRuleView = null; }
 _isClosing = false;
 SetRulesDimmed(false);
@@ -864,14 +770,12 @@ catch (Exception ex)
     {
         var list = this.FindControl<ItemsControl>("lstRules");
         if (list == null) return;
-
         if (dimmed) list.Classes.Add("editing");
         else list.Classes.Remove("editing");
     }
 
     private void CloseEditor() => CloseEditor(false);
 
-    
         private void SetTransitionSpeed(Avalonia.Controls.Border? b, double seconds)
         {
             if (b == null || b.Transitions == null) return;
@@ -888,9 +792,7 @@ catch (Exception ex)
     {
         _displayName  = "";
         _renamingName = false;
-
         SetComboIndex("cbAppType", 0);
-
         SetComboIndex("cbTcpRouting", 0);
         SetComboIndex("cbUdpRouting", 2);
         SetComboIndex("cbTcpAdapter", 0);
@@ -905,25 +807,19 @@ catch (Exception ex)
     private void PreFill(AppGameRule rule)
     {
         SetComboIndex("cbAppType", AppTypeIndex(rule.AppType));
-
         _exeName    = rule.ExeName;
         _iconBase64 = rule.IconBase64;
         _displayName  = rule.DisplayName ?? "";
         _renamingName = false;
         UpdateIconDisplay();
-
         SetComboIndex("cbTcpRouting", RoutingIndex(rule.TcpRouting));
         SetComboIndex("cbUdpRouting", RoutingIndex(rule.UdpRouting));
-
         SetRegionIndex(AppsGamesOverlay.RegionIndexFor(rule.Region));
-
         SetAdapterByName("cbTcpAdapter", rule.TcpAdapter);
         SetAdapterByName("cbUdpAdapter", rule.UdpAdapter);
-
         RefreshCustomProxyPool("cbCustomProxy");
         AttachCustomProxyPaste();
         ShowCustomProxyInBox("cbCustomProxy", rule.CustomProxyRaw);
-
         UpdateCustomAdapterAvailability();
     }
 
@@ -944,21 +840,17 @@ catch (Exception ex)
     private void UpdateCustomAdapterAvailability()
     {
         if (!_isReady) return;
-
         var cbTcpR = this.FindControl<ComboBox>("cbTcpRouting");
         var cbUdpR = this.FindControl<ComboBox>("cbUdpRouting");
         var cbTcpA = this.FindControl<ComboBox>("cbTcpAdapter");
         var cbUdpA = this.FindControl<ComboBox>("cbUdpAdapter");
-
         bool tcpProxy = cbTcpR == null || AppsGamesOverlay.IsProxyRouting(AppsGamesOverlay.RoutingName(cbTcpR.SelectedIndex));
         bool udpProxy = cbUdpR == null || AppsGamesOverlay.IsProxyRouting(AppsGamesOverlay.RoutingName(cbUdpR.SelectedIndex));
-
         if (cbTcpA != null)
         {
             if (tcpProxy) cbTcpA.SelectedIndex = 0; 
             cbTcpA.IsEnabled = !tcpProxy;
         }
-
         if (cbUdpA != null)
         {
             if (udpProxy) cbUdpA.SelectedIndex = 0; 
@@ -986,10 +878,8 @@ catch (Exception ex)
     private void Region_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (!_isReady || _suppressRegionToast) return;
-
         var cbRegion = sender as ComboBox ?? this.FindControl<ComboBox>("cbRegion");
         if (cbRegion == null || cbRegion.SelectedIndex <= 0) return;
-
         MainWindow.Instance?.ShowToast(AS.ConnectionRegionWarning);
     }
 
@@ -1010,14 +900,12 @@ catch (Exception ex)
     {
         string visible = this.FindControl<ComboBox>(comboName)?.Text?.Trim() ?? "";
         if (visible.Length == 0) return "";
-
         if (_customProxyRawByCombo.TryGetValue(comboName, out string raw) && raw.Length > 0)
         {
             string label = CrimsonX.Services.AppRulesSingboxBuilder.LabelOf(raw);
             if (string.Equals(visible, raw, StringComparison.Ordinal) || string.Equals(visible, label, StringComparison.Ordinal))
                 return raw;
         }
-
         return visible;
     }
 
@@ -1049,37 +937,28 @@ catch (Exception ex)
     {
         var verdict = await CrimsonX.Services.ConfigIntake.AcceptAsync(
             text, _cfg, CrimsonX.Services.ConfigTarget.Singbox, AS.TabAppsGames);
-
         if (!verdict.Accepted)
         {
             _customProxyRawByCombo.Remove(comboName);
-
             var box = this.FindControl<ComboBox>(comboName);
             if (box != null) box.Text = text;
-
             MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
             return;
         }
-
         if (verdict.Toast.Length > 0) MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
-
         ShowCustomProxyInBox(comboName, verdict.Raw);
     }
 
     private void AttachCustomProxyPaste()
     {
         if (_customProxyPasteAttached) return;
-
         var cb = this.FindControl<ComboBox>("cbCustomProxy");
         var def = this.FindControl<ComboBox>("cbDefaultCustomProxy");
         if (cb == null || def == null) return;
-
         ConfigBoxes.Attach("cbCustomProxy", cb);
         ConfigBoxes.Attach("cbDefaultCustomProxy", def);
-
         ConfigBoxes.AttachPaste("cbCustomProxy", text => ShowPastedProxyAsync("cbCustomProxy", text));
         ConfigBoxes.AttachPaste("cbDefaultCustomProxy", text => ShowPastedProxyAsync("cbDefaultCustomProxy", text));
-
         _customProxyPasteAttached = true;
     }
 
@@ -1088,11 +967,9 @@ catch (Exception ex)
         var boxes = CustomProxyControls();
         string tcp = AdapterNameFromCombo(boxes.TcpAdapter);
         string udp = AdapterNameFromCombo(boxes.UdpAdapter);
-
         string name = !string.Equals(tcp, "Default", StringComparison.OrdinalIgnoreCase) ? tcp
                     : !string.Equals(udp, "Default", StringComparison.OrdinalIgnoreCase) ? udp
                     : "Default";
-
         return (name, AdapterIpFor(name));
     }
 
@@ -1106,7 +983,6 @@ catch (Exception ex)
     {
         if (string.IsNullOrWhiteSpace(adapterName) || string.Equals(adapterName, "Default", StringComparison.OrdinalIgnoreCase))
             return "";
-
         try
         {
             var nic = NetworkInterface.GetAllNetworkInterfaces()
@@ -1126,11 +1002,8 @@ catch (Exception ex)
     {
         var cb = this.FindControl<ComboBox>(comboName);
         if (cb == null) return;
-
         string text = cb.Text ?? "";
-
         var entries = AppCustomConfigStore.Load(_cfg);
-
         bool wasSuppressed = _suppressCustomPoolSync;
         _suppressCustomPoolSync = true;
         try
@@ -1149,7 +1022,6 @@ catch (Exception ex)
     private async void CustomProxyPing_Click(object? sender, RoutedEventArgs e)
     {
         if (_isCustomPinging) return;
-
         var btn = sender as Button;
         try
         {
@@ -1159,20 +1031,15 @@ catch (Exception ex)
                 MainWindow.Instance?.ShowToast(AS.CustomProxyEmpty, ToastKind.Error);
                 return;
             }
-
             _isCustomPinging = true;
             string original = btn?.Content?.ToString() ?? AS.PingBtn;
             if (btn != null) { btn.Content = AS.ValidatingConfig; btn.IsEnabled = false; }
-
             var (adapter, adapterIp) = ActiveCustomProxyAdapter();
-
             using var cts = new System.Threading.CancellationTokenSource(15000);
             var res = await CrimsonX.Services.CustomConfigPinger.ProbeAsync(raw, _cfg, adapter, adapterIp, cts.Token);
             bool measured = res != null && res.Measured;
             bool timedOut = !measured && res != null && res.TimedOut;
-
             if (btn != null) { btn.Content = original; btn.IsEnabled = true; }
-
             string label = CrimsonX.Services.AppRulesSingboxBuilder.LabelOf(raw);
             string msg = measured ? res.Text(label)
                        : timedOut ? AS.CustomProxyNoResponse
@@ -1201,7 +1068,6 @@ catch (Exception ex)
                 MainWindow.Instance?.ShowToast(AS.CustomProxyEmpty, ToastKind.Error);
                 return;
             }
-
             var result = AppCustomConfigStore.Store(_cfg, raw, out var label);
             switch (result)
             {
@@ -1210,11 +1076,9 @@ catch (Exception ex)
                     MainWindow.Instance?.ShowToast($"{AS.ToastCustomProxySaved}: {label}", ToastKind.Success);
                     RefreshCustomProxyPool(CustomProxyControls().Combo);
                     break;
-
                 case CustomConfigSaveResult.PoolFull:
                     MainWindow.Instance?.ShowToast(AS.ToastCustomProxyPoolFull, ToastKind.Error);
                     break;
-
                 default:
                     MainWindow.Instance?.ShowToast(AS.ToastCustomProxyInvalid, ToastKind.Error);
                     break;
@@ -1231,7 +1095,6 @@ catch (Exception ex)
         {
             var page = CrimsonX.Pages.SettingsPage.Instance;
             if (page == null) return;
-
             string text = await page.PickConfigFileTextAsync();
             if (text.Length > 0) await ShowPastedProxyAsync(CustomProxyControls().Combo, text);
         }
@@ -1267,38 +1130,29 @@ catch (Exception ex)
         bool tcpCustom = AppsGamesOverlay.IsCustomRouting(AppsGamesOverlay.RoutingName(tcpRouting?.SelectedIndex ?? 0));
         bool udpCustom = AppsGamesOverlay.IsCustomRouting(AppsGamesOverlay.RoutingName(udpRouting?.SelectedIndex ?? 0));
         if (!tcpCustom && !udpCustom) return true;
-
         if (_isValidatingCustomProxy) return false;
         _isValidatingCustomProxy = true;
-
         var submit = this.FindControl<Button>(string.IsNullOrEmpty(_editingDefaultRuleId) ? "btnDefaultSubmit" : "btnSubmit");
         string submitLabel = submit?.Content?.ToString() ?? AS.Submit;
         if (submit != null) { submit.Content = AS.ValidatingConfig; submit.IsEnabled = false; }
-
         try
         {
             var cb = this.FindControl<ComboBox>(comboName);
-
             var (adapter, adapterIp) = ActiveCustomProxyAdapter();
             string sbDir = _cfg?.SbDir ?? "";
             string raw = ActiveCustomProxyText(comboName);
-
             string reason = "";
             var result = await Task.Run(() => SingboxConfigValidator.ValidateEditorConfig(sbDir, raw, out reason, adapter, adapterIp));
-
             switch (result)
             {
                 case CustomProxyCheckResult.Ok:
                     return true;
-
                 case CustomProxyCheckResult.Missing:
                     MainWindow.Instance?.ShowToast(AS.CustomProxyRequired, ToastKind.Error);
                     break;
-
                 case CustomProxyCheckResult.Unparsable:
                     RefuseCustomProxy(AS.ToastCustomProxyInvalid, reason);
                     break;
-
                 case CustomProxyCheckResult.NeedsCredentials:
                 {
                     bool stored = false;
@@ -1306,29 +1160,24 @@ catch (Exception ex)
                     {
                         stored = await CrimsonX.Services.TunnelCredentialResolver.ApplyAsync(tunnel);
                     }
-
                     if (!stored)
                     {
                         MainWindow.Instance?.ShowToast(AS.ToastTunnelNeedsCredentials, ToastKind.Error);
                         FocusConfigBox(cb);
                         return false;
                     }
-
                     var retry = await Task.Run(() => SingboxConfigValidator.ValidateEditorConfig(sbDir, raw, out reason, adapter, adapterIp));
                     if (retry == CustomProxyCheckResult.Ok) return true;
-
                     RefuseCustomProxy(retry == CustomProxyCheckResult.Rejected
                         ? AS.ToastCustomProxyRejected
                         : AS.ToastCustomProxyInvalid, reason);
                     FocusConfigBox(cb);
                     return false;
                 }
-
                 default:
                     RefuseCustomProxy(AS.ToastCustomProxyRejected, reason);
                     break;
             }
-
             FocusConfigBox(cb);
             return false;
         }
@@ -1342,10 +1191,8 @@ catch (Exception ex)
     private void RefuseCustomProxy(string headline, string reason)
     {
         string note = CrimsonX.Services.ConfigValidator.ShortReason(reason ?? "");
-
         MainWindow.Instance?.ShowToast(
             note.Length > 0 ? $"{headline} {AS.InvalidConfigReason}{note}" : headline, ToastKind.Error);
-
         if (_cfg?.DebugMode ?? false)
             CrimsonX.Services.SimpleLogger.Log($"[AppsGames] custom proxy refused: {reason}");
     }
@@ -1353,11 +1200,9 @@ catch (Exception ex)
     private static void FocusConfigBox(ComboBox? cb)
     {
         if (cb == null) return;
-
         var inner = Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(cb)
             .OfType<TextBox>()
             .FirstOrDefault();
-
         if (inner != null)
         {
             inner.Focus();
@@ -1373,11 +1218,9 @@ catch (Exception ex)
         if (!_isReady || _suppressCustomPoolSync) return;
         if (sender is not ComboBox cb) return;
         if (cb.SelectedIndex < 0) return;
-
         string boxName = ReferenceEquals(cb, this.FindControl<ComboBox>("cbCustomProxy"))
             ? "cbCustomProxy"
             : "cbDefaultCustomProxy";
-
         string raw = "";
         if (cb.SelectedIndex > 0)
         {
@@ -1385,7 +1228,6 @@ catch (Exception ex)
             if (!_customProxyEntries.TryGetValue(boxName, out var listed) || index >= listed.Count) return;
             raw = listed[index].Raw;
         }
-
         ShowCustomProxyInBox(boxName, raw);
     }
 
@@ -1396,12 +1238,9 @@ catch (Exception ex)
         var iconPanel     = this.FindControl<Panel>("panAppIcon");
         var lblExeName    = this.FindControl<TextBlock>("lblExeName");
         var lblHeader     = this.FindControl<TextBlock>("lblEditorHeader");
-
         bool hasExe  = !string.IsNullOrWhiteSpace(_exeName);
         bool hasIcon = hasExe && !string.IsNullOrEmpty(_iconBase64);
-
         if (iconPanel != null) iconPanel.IsVisible = hasExe;
-
         if (imgIcon != null)
         {
             imgIcon.IsVisible = hasIcon;
@@ -1416,36 +1255,29 @@ catch (Exception ex)
             }
         }
         if (iconHolder != null) iconHolder.IsVisible = hasExe && !hasIcon;
-
         if (lblExeName != null)
         {
             lblExeName.Text      = DisplayLabel();
             lblExeName.IsVisible = hasExe && !_renamingName;
         }
-
         var nameBox = this.FindControl<TextBox>("txtDisplayName");
         if (nameBox != null) nameBox.IsVisible = hasExe && _renamingName;
-
         if (lblHeader != null) lblHeader.IsVisible = !hasExe;
     }
 
     private string DisplayLabel()
         => string.IsNullOrWhiteSpace(_displayName) ? _exeName : _displayName;
 
-
     private void NameLabel_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_exeName)) return;
         if (sender is not Control source || !e.GetCurrentPoint(source).Properties.IsLeftButtonPressed) return;
-
         var box = this.FindControl<TextBox>("txtDisplayName");
         if (box == null) return;
-
         box.Text      = DisplayLabel();
         _renamingName = true;
         UpdateIconDisplay();
         e.Handled = true;
-
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             box.Focus();
@@ -1474,10 +1306,8 @@ catch (Exception ex)
     {
         if (!_renamingName) return;
         _renamingName = false;
-
         string typed = (this.FindControl<TextBox>("txtDisplayName")?.Text ?? "").Trim();
         _displayName = string.Equals(typed, _exeName, StringComparison.OrdinalIgnoreCase) ? "" : typed;
-
         UpdateIconDisplay();
     }
 
@@ -1487,7 +1317,6 @@ catch (Exception ex)
         {
         var mainWindow = MainWindow.Instance;
         if (mainWindow == null) return;
-
         var options = new Avalonia.Platform.Storage.FilePickerOpenOptions
         {
             Title = "Select Executable",
@@ -1498,19 +1327,14 @@ catch (Exception ex)
                 new Avalonia.Platform.Storage.FilePickerFileType("All Files")   { Patterns = new[] { "*.*"   } }
             }
         };
-
         var result = await mainWindow.StorageProvider.OpenFilePickerAsync(options);
         if (result == null || result.Count == 0) return;
-
         var file      = result[0];
         var localPath = file.Path.LocalPath;
-
         if (!string.Equals(file.Name, _exeName, StringComparison.OrdinalIgnoreCase))
             _displayName = "";
-
         _renamingName = false;
         _exeName      = file.Name;
-
         _iconBase64 = "";
         if (!string.IsNullOrWhiteSpace(localPath))
         {
@@ -1527,7 +1351,6 @@ catch (Exception ex)
             }
             catch { }
         }
-
         UpdateIconDisplay();
         }
         catch (Exception ex)
@@ -1539,26 +1362,20 @@ catch (Exception ex)
     private async void BtnSubmit_Click(object? sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_exeName)) return;
-
         CommitDisplayNameRename();
-
         var cbTcpR = this.FindControl<ComboBox>("cbTcpRouting");
         var cbUdpR = this.FindControl<ComboBox>("cbUdpRouting");
         var cbTcpA = this.FindControl<ComboBox>("cbTcpAdapter");
         var cbUdpA = this.FindControl<ComboBox>("cbUdpAdapter");
         var cbAppType = this.FindControl<ComboBox>("cbAppType");
-
         string appType = AppTypeName(cbAppType?.SelectedIndex ?? 0);
-
         string GetRouting(ComboBox? cb) => AppsGamesOverlay.RoutingName(cb?.SelectedIndex ?? 0);
         string GetAdapter(ComboBox? cb)
         {
             int i = cb?.SelectedIndex ?? 0;
             return i < _adapterNames.Count ? _adapterNames[i] : "Default";
         }
-
         if (!await ValidateCustomProxyBeforeSubmitAsync("cbCustomProxy", cbTcpR, cbUdpR)) return;
-
         AppGameRule rule;
         if (!string.IsNullOrEmpty(_editingRuleId))
         {
@@ -1572,9 +1389,7 @@ catch (Exception ex)
         }
         rule.AppType    = appType;
         rule.ExeName    = _exeName;
-
         rule.DisplayName = _displayName ?? "";
-
         if (string.IsNullOrEmpty(rule.DefaultKey))
         {
             rule.ProcessNames = new List<string> { _exeName };
@@ -1587,7 +1402,6 @@ catch (Exception ex)
         {
             rule.ProcessNames.Add(_exeName);
         }
-
         rule.IconBase64 = _iconBase64;
         var cbRegion = this.FindControl<ComboBox>("cbRegion");
         rule.Region = RegionForIndex(cbRegion?.SelectedIndex ?? 0);
@@ -1595,11 +1409,9 @@ catch (Exception ex)
         rule.UdpRouting = GetRouting(cbUdpR);
         rule.TcpAdapter = GetAdapter(cbTcpA);
         rule.UdpAdapter = GetAdapter(cbUdpA);
-
         var cbCustomProxy = this.FindControl<ComboBox>("cbCustomProxy");
         if (cbCustomProxy != null) cbCustomProxy.Text = cbCustomProxy.Text?.Trim() ?? "";
         ApplyCustomProxyToRule(rule, "cbCustomProxy");
-
         SaveRules(rule.IsEnabled);
         RefreshList();
         CloseEditor();
@@ -1620,17 +1432,13 @@ catch (Exception ex)
         {
             var rule = _rules.FirstOrDefault(r => r.Id == ruleId);
             if (rule == null || string.IsNullOrEmpty(rule.Country)) return;
-
             string country = cb.SelectedIndex switch { 1 => "IRAN", 2 => "UAE", _ => "EVERYWHERE" };
             if (rule.Country == country) return;
-
             rule.Country = country;
             rule.TcpRouting = country == "UAE" ? "Direct" : "Proxy";
             rule.UdpRouting = country == "IRAN" ? "Direct" : "Proxy";
-
             if (rule.TcpRouting == "Proxy") rule.TcpAdapter = "Default";
             if (rule.UdpRouting == "Proxy") rule.UdpAdapter = "Default";
-
             SaveRules();
             RefreshList();
         }
@@ -1642,10 +1450,8 @@ catch (Exception ex)
         {
             var rule = _rules.FirstOrDefault(r => r.Id == ruleId);
             if (rule == null || string.IsNullOrEmpty(rule.Region)) return;
-
             string region = RegionForIndex(cb.SelectedIndex);
             if (rule.Region == region) return;
-
             rule.Region = region;
             SaveRules();
             RefreshList();
@@ -1672,7 +1478,6 @@ catch (Exception ex)
         if (rule == null) return;
         if (string.Equals(rule.TcpRouting, mode, StringComparison.OrdinalIgnoreCase)
             && string.Equals(rule.UdpRouting, mode, StringComparison.OrdinalIgnoreCase)) return;
-
         rule.TcpRouting = mode;
         rule.UdpRouting = mode;
         if (string.Equals(mode, "Proxy", StringComparison.OrdinalIgnoreCase))
@@ -1690,7 +1495,6 @@ catch (Exception ex)
         {
             var rule = _rules.FirstOrDefault(r => r.Id == ruleId);
             if (rule == null) return;
-
             var stackPanel = Avalonia.VisualTree.VisualExtensions.GetVisualAncestors(btn)
                 .OfType<Avalonia.Controls.StackPanel>()
                 .FirstOrDefault(sp => sp.Children.OfType<Avalonia.Controls.ContentControl>().Any(c => c.Name == "EditContainer"));
@@ -1738,22 +1542,18 @@ catch (Exception ex)
     {
         bool tcpProxy = AppsGamesOverlay.IsProxyRouting(rule.TcpRouting);
         bool udpProxy = AppsGamesOverlay.IsProxyRouting(rule.UdpRouting);
-
         SetAdapterByName("cbDefaultTcpAdapter", tcpProxy ? "Default" : rule.TcpAdapter);
         var cbTcpA = this.FindControl<ComboBox>("cbDefaultTcpAdapter");
         if (cbTcpA != null) cbTcpA.IsEnabled = !tcpProxy;
-
         SetAdapterByName("cbDefaultUdpAdapter", udpProxy ? "Default" : rule.UdpAdapter);
         var cbUdpA = this.FindControl<ComboBox>("cbDefaultUdpAdapter");
         if (cbUdpA != null) cbUdpA.IsEnabled = !udpProxy;
-
         var cbTcpR = this.FindControl<ComboBox>("cbDefaultTcpRouting");
         var cbUdpR = this.FindControl<ComboBox>("cbDefaultUdpRouting");
         if (cbTcpR != null && cbTcpR.ItemCount > 0)
             cbTcpR.SelectedIndex = RoutingIndex(rule.TcpRouting);
         if (cbUdpR != null && cbUdpR.ItemCount > 0)
             cbUdpR.SelectedIndex = RoutingIndex(rule.UdpRouting);
-
         RefreshCustomProxyPool("cbDefaultCustomProxy");
         AttachCustomProxyPaste();
         ShowCustomProxyInBox("cbDefaultCustomProxy", rule.CustomProxyRaw);
@@ -1762,20 +1562,16 @@ catch (Exception ex)
     private void DefaultRestore_Click(object? sender, RoutedEventArgs e)
     {
         if (string.IsNullOrEmpty(_editingDefaultRuleId)) return;
-
         var rule = _rules.FirstOrDefault(r => r.Id == _editingDefaultRuleId);
         if (rule == null || string.IsNullOrEmpty(rule.DefaultKey)) return;
-
         var preset = CreateDefaultPreset(rule.DefaultKey);
         if (preset == null) return;
-
         rule.Country = preset.Country;
         rule.Region = preset.Region;
         rule.TcpRouting = preset.TcpRouting;
         rule.UdpRouting = preset.UdpRouting;
         rule.TcpAdapter = preset.TcpAdapter;
         rule.UdpAdapter = preset.UdpAdapter;
-
         SaveRules();
         RefreshList();
         ApplyDefaultEditorValues(rule);
@@ -1785,11 +1581,9 @@ catch (Exception ex)
     {
         var hdr = this.FindControl<Avalonia.Controls.TextBlock>("lblDefaultEditorHeader");
         if (hdr != null) hdr.Text = string.IsNullOrEmpty(rule.ExeName) ? "APP" : rule.ExeName.ToUpperInvariant();
-
         var img    = this.FindControl<Avalonia.Controls.Image>("imgDefaultEditorIcon");
         var holder = this.FindControl<Avalonia.Controls.Border>("defaultEditorIconPlaceholder");
         var bmp    = AppRuleViewModel.RuleIcon(rule);
-
         if (img != null)
         {
             img.Source    = bmp;
@@ -1802,43 +1596,32 @@ catch (Exception ex)
     {
         CloseEditor(true);
         CloseDefaultEditor(true);
-
         var panDefaultEditor = this.FindControl<Avalonia.Controls.Border>("panDefaultEditor");
         if (panDefaultEditor == null) return;
-
         if (_defaultRuleEditorParent == null)
             _defaultRuleEditorParent = panDefaultEditor.Parent as Avalonia.Controls.Panel;
-
         if (panDefaultEditor.Parent is Avalonia.Controls.Panel p) p.Children.Remove(panDefaultEditor);
         else if (panDefaultEditor.Parent is Avalonia.Controls.ContentControl c) { c.Content = null; c.IsVisible = false; }
-
         if (targetContainer == null)
         {
             _defaultRuleEditorParent?.Children.Add(panDefaultEditor);
             return;
         }
-
         targetContainer.IsVisible = true;
         targetContainer.Content = panDefaultEditor;
-
         var parentStack = targetContainer.Parent as Avalonia.Controls.StackPanel;
         _hiddenDefaultRuleView = parentStack?.Children.OfType<Avalonia.Controls.Border>().FirstOrDefault(b => b.Name == "panDefaultRuleWrapper");
         if (_hiddenDefaultRuleView != null) { SetTransitionSpeed(_hiddenDefaultRuleView, 0); _hiddenDefaultRuleView.MaxHeight = 0; _hiddenDefaultRuleView.Opacity = 0; }
-
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             panDefaultEditor.MaxHeight = 800;
             panDefaultEditor.Opacity = 1;
         });
-
         _editingDefaultRuleId = rule.Id;
         UpdateDefaultEditorHeader(rule);
-
         var panDefaultRouting = this.FindControl<Avalonia.Controls.Border>("panDefaultRouting");
         if (panDefaultRouting != null) panDefaultRouting.IsVisible = SupportsRoutingEditor(rule);
-
         ApplyDefaultEditorValues(rule);
-
         SetRulesDimmed(true);
     }
 
@@ -1848,9 +1631,7 @@ catch (Exception ex)
         {
         var panDefaultEditor = this.FindControl<Avalonia.Controls.Border>("panDefaultEditor");
         if (panDefaultEditor == null) return;
-
         _isClosingDefaultEditor = true;
-
         if (_hiddenDefaultRuleView != null)
         {
             SetTransitionSpeed(_hiddenDefaultRuleView, 0.3);
@@ -1858,32 +1639,25 @@ catch (Exception ex)
             _hiddenDefaultRuleView.MaxHeight = 800;
             _hiddenDefaultRuleView.Opacity = 1;
         }
-
         if (!instant)
         {
             panDefaultEditor.MaxHeight = 0;
             panDefaultEditor.Opacity = 0;
-
             SetRulesDimmed(false);
             await System.Threading.Tasks.Task.Delay(300);
         }
-
         if (!_isClosingDefaultEditor) return;
-
         if (_defaultRuleEditorParent != null)
         {
             if (panDefaultEditor.Parent is Avalonia.Controls.Panel p) p.Children.Remove(panDefaultEditor);
             else if (panDefaultEditor.Parent is Avalonia.Controls.ContentControl c) { c.Content = null; c.IsVisible = false; }
-
             _defaultRuleEditorParent.Children.Add(panDefaultEditor);
         }
-
         if (instant)
         {
             panDefaultEditor.MaxHeight = 0;
             panDefaultEditor.Opacity = 0;
         }
-
         _editingDefaultRuleId = "";
         _hiddenDefaultRuleView = null;
         _isClosingDefaultEditor = false;
@@ -1908,7 +1682,6 @@ catch (Exception ex)
     private async void DefaultSubmit_Click(object? sender, RoutedEventArgs e)
     {
         if (string.IsNullOrEmpty(_editingDefaultRuleId)) { CloseDefaultEditor(); return; }
-
         var rule = _rules.FirstOrDefault(r => r.Id == _editingDefaultRuleId);
         if (rule != null)
         {
@@ -1916,13 +1689,10 @@ catch (Exception ex)
             {
                 var cbTcpR = this.FindControl<ComboBox>("cbDefaultTcpRouting");
                 var cbUdpR = this.FindControl<ComboBox>("cbDefaultUdpRouting");
-
                 if (!await ValidateCustomProxyBeforeSubmitAsync("cbDefaultCustomProxy", cbTcpR, cbUdpR)) return;
-
                 rule.TcpRouting = AppsGamesOverlay.RoutingName(cbTcpR?.SelectedIndex ?? 0);
                 rule.UdpRouting = AppsGamesOverlay.RoutingName(cbUdpR?.SelectedIndex ?? 0);
             }
-
             var cbTcpA = this.FindControl<ComboBox>("cbDefaultTcpAdapter");
             var cbUdpA = this.FindControl<ComboBox>("cbDefaultUdpAdapter");
             string GetAdapter(ComboBox? cb)
@@ -1934,11 +1704,9 @@ catch (Exception ex)
             rule.UdpAdapter = GetAdapter(cbUdpA);
             if (AppsGamesOverlay.IsProxyRouting(rule.TcpRouting)) rule.TcpAdapter = "Default";
             if (AppsGamesOverlay.IsProxyRouting(rule.UdpRouting)) rule.UdpAdapter = "Default";
-
             var cbCustomProxy = this.FindControl<ComboBox>("cbDefaultCustomProxy");
             if (cbCustomProxy != null) cbCustomProxy.Text = cbCustomProxy.Text?.Trim() ?? "";
             ApplyCustomProxyToRule(rule, "cbDefaultCustomProxy");
-
             SaveRules();
             RefreshList();
         }
@@ -1967,7 +1735,6 @@ catch (Exception ex)
         {
             this.FindControl<Avalonia.Controls.Button>("btnOverlaySplitRegular")?.Classes.Remove("activeOpt");
             this.FindControl<Avalonia.Controls.Button>("btnOverlaySplitInclusive")?.Classes.Remove("activeOpt");
-
             string mode = _cfg.SplitTunnelMode ?? "DISABLED";
             if (mode == "INCLUSIVE")
                 this.FindControl<Avalonia.Controls.Button>("btnOverlaySplitInclusive")?.Classes.Add("activeOpt");
@@ -1980,20 +1747,14 @@ catch (Exception ex)
             if (sender is Avalonia.Controls.Button clickedBtn)
             {
                 string oldMode = _cfg.SplitTunnelMode ?? "DISABLED";
-                
                 if (clickedBtn.Name == "btnOverlaySplitRegular") _cfg.SplitTunnelMode = "DISABLED";
                 else if (clickedBtn.Name == "btnOverlaySplitInclusive") _cfg.SplitTunnelMode = "INCLUSIVE";
-
                 if (oldMode == _cfg.SplitTunnelMode) return;
-
                 _cfg.EnableDirect = _cfg.SplitTunnelMode != "DISABLED";
-
                 UpdateOverlaySplitUI();
                 MainWindow.Instance.RequestSave();
-
                 _hasPendingRuleChanges = true;
                 UpdateOverlayConnectUI();
-
                 if (_state.IsEngineRunning && !string.Equals(_cfg.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase))
                 {
                     MainWindow.Instance.RestartXray();
@@ -2006,14 +1767,11 @@ catch (Exception ex)
         private void MasterPill_Click(object? sender, RoutedEventArgs e)
         {
             if (!_isReady) return;
-
             bool on = sender is Avalonia.Controls.Button b && b.Name == "btnMasterOn";
             if (_cfg.EnableAppRules == on) return;
-
             _cfg.EnableAppRules = on;
             MainWindow.Instance.RequestSave();
             UpdateMasterRulesVisual();
-
             _hasPendingRuleChanges = true;
             UpdateOverlayConnectUI();
         }
@@ -2026,11 +1784,9 @@ catch (Exception ex)
         private void UpdateMasterRulesVisual()
         {
             bool on = _cfg.EnableAppRules;
-
             this.FindControl<Avalonia.Controls.Button>("btnMasterOn")?.Classes.Remove("activeOpt");
             this.FindControl<Avalonia.Controls.Button>("btnMasterOff")?.Classes.Remove("activeOpt");
             this.FindControl<Avalonia.Controls.Button>(on ? "btnMasterOn" : "btnMasterOff")?.Classes.Add("activeOpt");
-
             var box = this.FindControl<Border>("panRulesBox");
             if (box == null) return;
             box.Opacity = on ? 1.0 : 0.45;
@@ -2038,7 +1794,6 @@ catch (Exception ex)
         }
 
     // ── Overlay Connect & Progress Fill ──
-
 
         private bool _connectBoxPressed;
 
@@ -2055,14 +1810,11 @@ catch (Exception ex)
             _connectBoxPressed = false;
             e.Pointer.Capture(null);
             SetConnectBoxPressed(false);
-
             if (!wasPressed || sender is not Control control) return;
-
             var pos = e.GetPosition(control);
             bool stillOverBox = pos.X >= 0 && pos.Y >= 0
                                 && pos.X <= control.Bounds.Width && pos.Y <= control.Bounds.Height;
             if (!stillOverBox) return;
-
             OverlayConnect_Click(sender, e);
         }
 
@@ -2080,7 +1832,6 @@ catch (Exception ex)
                 double s = pressed ? 0.97 : 1.0;
                 inner.RenderTransform = new Avalonia.Media.ScaleTransform(s, s);
             }
-
             var flash = this.FindControl<Border>("panConnectBoxPress");
             if (flash != null) flash.Opacity = pressed ? 1.0 : 0.0;
         }
@@ -2095,7 +1846,6 @@ catch (Exception ex)
                 UpdateOverlayConnectUI();
                 return;
             }
-
             if (!_state.IsEngineRunning && !_state.IsConnected)
             {
                 string mode = _cfg.LastXrayMode ?? "Proxy Mode";
@@ -2106,13 +1856,10 @@ catch (Exception ex)
                         CrimsonX.Localization.AppStrings.AdvancedRulesVpnOnlyMsg,
                         CrimsonX.Localization.AppStrings.Yes,
                         CrimsonX.Localization.AppStrings.No);
-
                     string? result = await dialog.ShowDialog<string>(MainWindow.Instance);
                     if (result != "Yes") return;
-
                     MainWindow.Instance.SwitchToVpnMode();
                 }
-
                 if (!CrimsonX.Services.ConnectivityService.HasUsableConnection())
                 {
                     var noNetDlg = new CrimsonX.Dialogs.ConfirmDialog(
@@ -2120,12 +1867,10 @@ catch (Exception ex)
                         CrimsonX.Localization.AppStrings.NoInternetMessage,
                         CrimsonX.Localization.AppStrings.Yes,
                         CrimsonX.Localization.AppStrings.No);
-
                     string? noNetResult = await noNetDlg.ShowDialog<string>(MainWindow.Instance);
                     if (noNetResult != "Yes") return;
                 }
             }
-
             MainWindow.Instance.ConnectAfterCheck();
             _hasPendingRuleChanges = false;
             UpdateOverlayConnectUI();
@@ -2143,18 +1888,13 @@ catch (Exception ex)
         private async void ApplyChanges_Click(object? sender, RoutedEventArgs e)
         {
             if (_isApplyingRules) return;
-
             var main = MainWindow.Instance;
             if (main == null) return;
-
             _isApplyingRules = true;
-
             UpdateOverlayConnectUI();
-
             try
             {
                 bool ok = await main.RestartSingBoxOnlyAsync();
-
                 if (ok)
                 {
                     _hasPendingRuleChanges = false;
@@ -2193,9 +1933,7 @@ catch (Exception ex)
                 ApplyOverlayConnectBreath(false);
                 return;
             }
-
             _overlayFillTarget = System.Math.Clamp(percent / 100.0, 0.0, 1.0);
-
             if (_overlayFillTimer == null)
             {
                 _overlayFillTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
@@ -2206,19 +1944,14 @@ catch (Exception ex)
                         _overlayFillTimer.Stop();
                         return;
                     }
-
                     if (!IsEffectivelyVisible) return;
-
                     double diff = _overlayFillTarget - _overlayFillCurrent;
                     if (System.Math.Abs(diff) < 0.005) _overlayFillCurrent = _overlayFillTarget;
                     else _overlayFillCurrent += diff * 0.35;
-
                     bool comingUp = CrimsonX.Services.ConnectPhaseUi.IsComingUp(_state.IsConnected, _state.IsEngineRunning, IsReapplying);
-
                     bool showFill = comingUp && _overlayFillCurrent > 0.001;
                     ApplyOverlayFill(_overlayFillCurrent, showFill);
                     ApplyOverlayConnectBreath(comingUp);
-
                     if (!comingUp)
                     {
                         _overlayFillTarget = -1;
@@ -2231,7 +1964,6 @@ catch (Exception ex)
                     }
                 };
             }
-
             if (!_overlayFillTimer.IsEnabled)
                 _overlayFillTimer.Start();
         }
@@ -2241,7 +1973,6 @@ catch (Exception ex)
             if (_overlayBreathBorder == null)
                 _overlayBreathBorder = this.FindControl<Border>("panConnectBreath");
             if (_overlayBreathBorder == null) return;
-
             _overlayBreathBorder.Opacity = _overlayBreath.Next(DateTime.UtcNow, comingUp);
         }
 
@@ -2254,7 +1985,6 @@ catch (Exception ex)
                     _overlayFillScale = _overlayFillBorder.RenderTransform as Avalonia.Media.ScaleTransform;
             }
             if (_overlayFillBorder == null || _overlayFillScale == null) return;
-
             _overlayFillScale.ScaleX = System.Math.Clamp(pct, 0.0, 1.0);
             _overlayFillBorder.Opacity = show ? 0.35 : 0.0;
         }
@@ -2264,9 +1994,7 @@ catch (Exception ex)
             var txt = this.FindControl<TextBlock>("txtOverlayConnect");
             var txtOk = this.FindControl<TextBlock>("txtOverlayConnectConnected");
             if (txt == null) return;
-
             bool comingUp = CrimsonX.Services.ConnectPhaseUi.IsComingUp(_state.IsConnected, _state.IsEngineRunning, IsReapplying);
-
             if (_state.IsConnected && !comingUp)
             {
                 if (txtOk != null)
@@ -2275,7 +2003,6 @@ catch (Exception ex)
                     txtOk.Opacity = 1;
                 }
                 txt.Text = "";
-
                 _overlayFillTarget = -1;
                 _overlayFillCurrent = 0;
                 _overlayFillTimer?.Stop();
@@ -2284,13 +2011,10 @@ catch (Exception ex)
             else
             {
                 if (txtOk != null) txtOk.Opacity = 0;
-
                 string label = comingUp
                     ? CrimsonX.Localization.AppStrings.StatusConnecting
                     : CrimsonX.Localization.AppStrings.StatusConnect;
-
                 if (txt.Text != label) txt.Text = label;
-
                 if (!comingUp)
                 {
                     _overlayFillTarget = -1;
@@ -2300,10 +2024,8 @@ catch (Exception ex)
                 }
             }
             ApplyOverlayConnectBreath(comingUp);
-
             bool showApply = CrimsonX.Services.ConnectPhaseUi.ShouldShowApplyChanges(
                 _state.IsConnected, IsReapplying, _hasPendingRuleChanges, _cfg.LastXrayMode);
-
             var connectBox = this.FindControl<Border>("panConnectBox");
             if (connectBox != null)
             {
@@ -2316,7 +2038,6 @@ catch (Exception ex)
                     connectBox.Classes.Remove("connected");
                 }
             }
-
             SetApplyChangesBoxVisible(showApply);
         }
 
@@ -2327,15 +2048,12 @@ catch (Exception ex)
         {
             var box = this.FindControl<Border>("panApplyChangesBox");
             if (box == null) return;
-
             _applyChangesBoxVisible = show;
-
             if (!_bottomBarHooked)
             {
                 _bottomBarHooked = true;
                 box.SizeChanged += (_, _) => ApplyBottomBarLayout();
             }
-
             ApplyBottomBarLayout();
         }
 
@@ -2344,16 +2062,12 @@ catch (Exception ex)
             var bar = this.FindControl<StackPanel>("panOverlayBottomBar");
             var box = this.FindControl<Border>("panApplyChangesBox");
             if (bar == null || box == null) return;
-
             const double bottomMargin = 23;
             double nudge = box.Bounds.Width > 0 ? box.Bounds.Width + bar.Spacing : 0;
-
             bar.Margin = _applyChangesBoxVisible
                 ? new Thickness(0, 0, 0, bottomMargin)
                 : new Thickness(nudge, 0, 0, bottomMargin);
-
             box.Opacity = _applyChangesBoxVisible ? 1 : 0;
-
             box.IsHitTestVisible = CrimsonX.Services.ConnectPhaseUi.CanApplyChanges(_applyChangesBoxVisible, IsReapplying);
         }
 
@@ -2371,7 +2085,6 @@ catch (Exception ex)
         protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
-
             if (_dragHelper == null)
             {
                 var lst = this.FindControl<global::Avalonia.Controls.ItemsControl>("lstRules");
@@ -2380,19 +2093,14 @@ catch (Exception ex)
                     _dragHelper = new CrimsonX.Helpers.DragReorderHelper(lst, new[] { "DragHandle", "DragHandleDefault" }, OnItemReordered);
                 }
             }
-
-            
         }
 
         public void ApplyLanguage()
         {
             bool fa = AS.IsPersian;
-
             TextBlock? F(string name) => this.FindControl<TextBlock>(name);
-
             void Apply(TextBlock? tb, string text, bool forceLtr = false)
                 => CrimsonX.Localization.AppStrings.Apply(tb, text, forceLtr);
-
             void ApplyControl(string name, string text)
             {
                 var c = this.FindControl<Avalonia.Controls.ContentControl>(name);
@@ -2409,13 +2117,11 @@ catch (Exception ex)
                     c.FlowDirection = global::Avalonia.Media.FlowDirection.LeftToRight;
                 }
             }
-
             void SetComboItemText(string name, string text)
             {
                 var item = this.FindControl<ComboBoxItem>(name);
                 if (item != null) item.Content = text;
             }
-
             void FillCombo(string name, string[] items, int defaultIndex, int? saved)
             {
                 var cb = this.FindControl<ComboBox>(name);
@@ -2424,14 +2130,12 @@ catch (Exception ex)
                 cb.ItemsSource = items;
                 if (idx >= 0 && idx < items.Length) cb.SelectedIndex = idx;
             }
-
             void RestoreCombo(string name, int? saved)
             {
                 if (saved == null || saved.Value < 0) return;
                 var cb = this.FindControl<ComboBox>(name);
                 if (cb != null && saved.Value < cb.Items.Count) cb.SelectedIndex = saved.Value;
             }
-
             void FillRegionCombo(string name, string[] items, int defaultIndex, int? saved)
             {
                 bool wasSuppressed = _suppressRegionToast;
@@ -2443,17 +2147,14 @@ catch (Exception ex)
             // Top bar: search, filter, master rules, mode
             var btnScan = this.FindControl<global::Avalonia.Controls.Button>("btnScanAdapters");
             if (btnScan != null) btnScan.Content = AS.OverlayScanAdapters;
-
             var btnDefScan = this.FindControl<global::Avalonia.Controls.Button>("btnDefaultScanAdapters");
             if (btnDefScan != null) btnDefScan.Content = AS.OverlayScanAdapters;
-
             Apply(F("lblMasterOn"), AS.MasterRulesEnabled);
             Apply(F("lblMasterOff"), AS.MasterRulesDisabled);
 
             // Overlay split-mode buttons
             Apply(F("lblOverlayRegular"), AS.OverlaySplitRegular);
             Apply(F("lblOverlayInclusive"), AS.Inclusive);
-
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnOverlaySplitRegular"), AS.OverlaySplitRegularTooltip);
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnOverlaySplitInclusive"), AS.OverlaySplitInclusiveTooltip);
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.Button>("btnMasterOn"), AS.MasterRulesTooltip);
@@ -2494,7 +2195,6 @@ catch (Exception ex)
             Apply(F("lblDefaultConfigRow"), AS.ConfigBadge);
             Apply(F("lblCustomProxyConfigRow"), AS.ConfigBadge);
             ApplyControl("btnCustomProxyHint", AS.HintBtn);
-
             CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblCustomProxy"), AS.CustomProxyHint);
             CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblDefaultCustomProxy"), AS.CustomProxyHint);
             foreach (var boxName in new[] { "cbCustomProxy", "cbDefaultCustomProxy" })
@@ -2504,10 +2204,8 @@ catch (Exception ex)
                 box.PlaceholderText = AS.CustomProxyPlaceholder;
                 CrimsonX.Localization.AppStrings.ApplyToolTip(box, AS.CustomProxyTooltip);
             }
-
             RefreshCustomProxyPool("cbCustomProxy");
             RefreshCustomProxyPool("cbDefaultCustomProxy");
-
             ApplyControl("btnDefaultSubmit", AS.Submit);
             ApplyControl("btnDefaultCancel", AS.Cancel);
             ApplyControl("btnDefaultRestore", AS.RestoreDefaults);
@@ -2524,7 +2222,6 @@ catch (Exception ex)
             FillCombo("cbDefaultTcpRouting", routingItems, 0, this.FindControl<ComboBox>("cbDefaultTcpRouting")?.SelectedIndex);
             FillCombo("cbDefaultUdpRouting", routingItems, 1, this.FindControl<ComboBox>("cbDefaultUdpRouting")?.SelectedIndex);
             FillRegionCombo("cbRegion", RegionDisplayOptions(), 0, this.FindControl<ComboBox>("cbRegion")?.SelectedIndex);
-
             int? tcpA = this.FindControl<ComboBox>("cbTcpAdapter")?.SelectedIndex;
             int? udpA = this.FindControl<ComboBox>("cbUdpAdapter")?.SelectedIndex;
             int? dTcpA = this.FindControl<ComboBox>("cbDefaultTcpAdapter")?.SelectedIndex;
@@ -2534,7 +2231,6 @@ catch (Exception ex)
             RestoreCombo("cbUdpAdapter", udpA);
             RestoreCombo("cbDefaultTcpAdapter", dTcpA);
             RestoreCombo("cbDefaultUdpAdapter", dUdpA);
-
             RefreshList();
             UpdateOverlayConnectUI();
         }
@@ -2560,10 +2256,8 @@ catch (Exception ex)
             {
                 var rule = _rules.FirstOrDefault(r => r.Id == ruleId);
                 if (rule == null) return;
-
                 rule.IsPinned = !rule.IsPinned;
                 _rules.Remove(rule);
-
                 if (rule.IsPinned)
                 {
                     _rules.Insert(0, rule);
@@ -2573,7 +2267,6 @@ catch (Exception ex)
                     int insertAt = _rules.Count(r => r.IsPinned);
                     _rules.Insert(insertAt, rule);
                 }
-
                 SaveRules(false);
                 RefreshList();
             }
@@ -2584,37 +2277,26 @@ catch (Exception ex)
             _rules = _rules.OrderBy(r => !r.IsPinned).ToList();
         }
 
-        
         private void OnItemReordered(int oldIndex, int newIndex)
         {
             var lst = this.FindControl<global::Avalonia.Controls.ItemsControl>("lstRules");
             if (lst == null || lst.ItemsSource == null) return;
-            
             var viewModels = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Cast<AppRuleViewModel>(lst.ItemsSource));
             if (oldIndex < 0 || oldIndex >= viewModels.Count || newIndex < 0 || newIndex >= viewModels.Count) return;
-            
             var movedRuleId = viewModels[oldIndex].RuleId;
             var targetRuleId = viewModels[newIndex].RuleId;
-            
             int actualOld = _rules.FindIndex(r => r.Id == movedRuleId);
             int actualNew = _rules.FindIndex(r => r.Id == targetRuleId);
-            
             if (actualOld >= 0 && actualNew >= 0)
             {
                 var temp = _rules[actualOld];
                 _rules.RemoveAt(actualOld);
                 _rules.Insert(actualNew, temp);
-
                 NormalizePinOrder();
-
                 SaveRules(false);
                 RefreshList();
             }
         }
-
-        
-
-        
 
     private void BtnScanAdapters_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -2622,9 +2304,7 @@ catch (Exception ex)
         string? udpA = this.FindControl<global::Avalonia.Controls.ComboBox>("cbUdpAdapter")?.SelectedItem as string;
         string? dTcpA = this.FindControl<global::Avalonia.Controls.ComboBox>("cbDefaultTcpAdapter")?.SelectedItem as string;
         string? dUdpA = this.FindControl<global::Avalonia.Controls.ComboBox>("cbDefaultUdpAdapter")?.SelectedItem as string;
-
         PopulateAdapters();
-
         void RestoreCombo(string name, string? oldVal)
         {
             var cb = this.FindControl<global::Avalonia.Controls.ComboBox>(name);
@@ -2637,11 +2317,9 @@ catch (Exception ex)
                     cb.SelectedIndex = 0;
             }
         }
-
         RestoreCombo("cbTcpAdapter", tcpA);
         RestoreCombo("cbUdpAdapter", udpA);
         RestoreCombo("cbDefaultTcpAdapter", dTcpA);
         RestoreCombo("cbDefaultUdpAdapter", dUdpA);
     }
-
 }

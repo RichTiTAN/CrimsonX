@@ -45,32 +45,26 @@ namespace CrimsonX.Services
         {
             var result = new XrayCheckResult();
             if (cfg == null) return result;
-
             if (!ConfigConverter.TryXrayOutbound(raw, out string document, out _, out string convertError))
             {
                 result.Error = convertError;
                 return result;
             }
-
             string error = await TestAsync(cfg, document).ConfigureAwait(false);
             if (error.Length == 0) return result;
-
             if (FinalMask.FromStream(MaskOwner(document)) != null && FinalMask.LooksLikeMaskFailure(error))
             {
                 string withoutMask = FinalMask.StripDocument(document);
                 string retry = withoutMask == document ? error : await TestAsync(cfg, withoutMask).ConfigureAwait(false);
-
                 if (retry.Length == 0)
                 {
                     result.MaskNote    = error;
                     result.WithoutMask = FinalMask.StripFromText(raw);
-
                     string core = EngineReport.XraySummary();
                     SimpleLogger.Log($"[FinalMask] {core}{(core.Length > 0 ? " " : "")}refused the final mask of this config, so it is used without it: {error}");
                     return result;
                 }
             }
-
             result.Error = error;
             return result;
         }
@@ -79,15 +73,12 @@ namespace CrimsonX.Services
         {
             string wrapped = WrapDocument(document);
             if (wrapped.Length == 0) return "this config could not be wrapped for xray";
-
             string tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json");
             try
             {
                 File.WriteAllText(tempFile, wrapped);
-
                 string xrayExe = Path.Combine(cfg.BaseDir ?? "", "Data", "xray", "xray.exe");
                 if (!File.Exists(xrayExe)) return "";
-
                 var psi = new ProcessStartInfo
                 {
                     FileName               = xrayExe,
@@ -97,23 +88,17 @@ namespace CrimsonX.Services
                     UseShellExecute        = false,
                     CreateNoWindow         = true
                 };
-
                 using var process = Process.Start(psi);
                 if (process == null) return "";
-
                 var outTask = process.StandardOutput.ReadToEndAsync();
                 var errTask = process.StandardError.ReadToEndAsync();
-
                 await process.WaitForExitAsync();
                 if (process.ExitCode == 0) return "";
-
                 string err = await errTask;
                 string outStr = await outTask;
                 string message = string.IsNullOrWhiteSpace(err) ? outStr : err;
-
                 var lines = message.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                                    .Where(l => !l.Contains("Xray, Penetrates Everything") && !l.Contains("unified platform"));
-
                 message = string.Join(" ", lines).Trim();
                 return message.Length > 0 ? message : "xray rejected this config";
             }
@@ -133,10 +118,8 @@ namespace CrimsonX.Services
             try
             {
                 var root = Newtonsoft.Json.Linq.JObject.Parse(document);
-
                 if (root["outbounds"] is Newtonsoft.Json.Linq.JArray outbounds)
                     return outbounds.OfType<Newtonsoft.Json.Linq.JObject>().FirstOrDefault();
-
                 return root;
             }
             catch
@@ -151,7 +134,6 @@ namespace CrimsonX.Services
             {
                 string xrayExe = Path.Combine(xrayDir ?? "", "xray.exe");
                 if (!File.Exists(xrayExe) || !File.Exists(configPath)) return "";
-
                 var psi = new ProcessStartInfo
                 {
                     FileName               = xrayExe,
@@ -161,21 +143,15 @@ namespace CrimsonX.Services
                     UseShellExecute        = false,
                     CreateNoWindow         = true
                 };
-
                 using var process = Process.Start(psi);
                 if (process == null) return "";
-
                 string err = process.StandardError.ReadToEnd();
                 string outStr = process.StandardOutput.ReadToEnd();
                 process.WaitForExit();
-
                 if (process.ExitCode == 0) return "";
-
                 string message = string.IsNullOrWhiteSpace(err) ? outStr : err;
-
                 var lines = message.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                                    .Where(l => !l.Contains("Xray, Penetrates Everything") && !l.Contains("unified platform"));
-
                 message = string.Join(" ", lines).Trim();
                 return message.Length > 0 ? message : "xray rejected this config";
             }
@@ -191,10 +167,8 @@ namespace CrimsonX.Services
             try
             {
                 var root = Newtonsoft.Json.Linq.JObject.Parse(document);
-
                 var outbounds = root["outbounds"] as Newtonsoft.Json.Linq.JArray
                                 ?? new Newtonsoft.Json.Linq.JArray { root };
-
                 return new Newtonsoft.Json.Linq.JObject
                 {
                     ["log"]       = new Newtonsoft.Json.Linq.JObject { ["loglevel"] = "none" },

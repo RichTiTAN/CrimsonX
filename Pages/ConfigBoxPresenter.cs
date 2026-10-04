@@ -73,9 +73,7 @@ namespace CrimsonX.Pages
         {
             var box = Box(key);
             if (box == null) return;
-
             string text = (raw ?? "").Trim();
-
             using var _ = Suppress();
             SetText(box, text.Length == 0 ? "" : Label(text));
         }
@@ -86,16 +84,13 @@ namespace CrimsonX.Pages
             {
                 var box = Box(key);
                 if (box == null) continue;
-
                 string raw     = (_readRaw(key) ?? "").Trim();
                 string title   = raw.Length == 0 ? "" : Label(raw);
                 string current = GetText(box).Trim();
-
                 if (!force && current.Length > 0
                     && !string.Equals(current, raw, StringComparison.Ordinal)
                     && !string.Equals(current, title, StringComparison.Ordinal))
                     continue;
-
                 using var _ = Suppress();
                 SetText(box, current.Length == 0 && !force ? "" : title);
             }
@@ -105,16 +100,12 @@ namespace CrimsonX.Pages
         {
             string visible = GetText(Box(key)).Trim();
             string stored  = (_readRaw(key) ?? "").Trim();
-
             if (visible.Length == 0) return "";
-
             if (stored.Length > 0
                 && (string.Equals(visible, stored, StringComparison.Ordinal)
                  || string.Equals(visible, Label(stored), StringComparison.Ordinal)))
                 return stored;
-
             if (adopt == null || !adopt(visible)) return "";
-
             _writeRaw(key, visible);
             Show(key, visible);
             return visible;
@@ -132,10 +123,8 @@ namespace CrimsonX.Pages
             {
                 var top = TopLevel.GetTopLevel(anchor);
                 if (top?.Clipboard == null) return "";
-
                 var transfer = await top.Clipboard.TryGetDataAsync();
                 if (transfer == null) return "";
-
                 try { return (await transfer.TryGetTextAsync()) ?? ""; }
                 finally
                 {
@@ -154,16 +143,12 @@ namespace CrimsonX.Pages
         {
             var box = Box(key);
             if (box == null) return;
-
             box.AddHandler(InputElement.KeyDownEvent, async (object? sender, KeyEventArgs e) =>
             {
                 if (!IsPasteGesture(e)) return;
-
                 e.Handled = true;
-
                 string text = (await ReadClipboardAsync(box)).Trim();
                 if (text.Length == 0) return;
-
                 await onPasted(text);
             }, RoutingStrategies.Tunnel);
         }

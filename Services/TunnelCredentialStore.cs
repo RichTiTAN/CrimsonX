@@ -55,7 +55,6 @@ namespace CrimsonX.Services
         public static TunnelCredential Get(string key)
         {
             if (string.IsNullOrWhiteSpace(key)) return null;
-
             lock (Sync)
             {
                 var map = LoadCore();
@@ -66,7 +65,6 @@ namespace CrimsonX.Services
         public static void Remember(string key, string user, string password)
         {
             if (string.IsNullOrWhiteSpace(key)) return;
-
             lock (Sync)
             {
                 var map = LoadCore();
@@ -78,7 +76,6 @@ namespace CrimsonX.Services
         public static void Forget(string key)
         {
             if (string.IsNullOrWhiteSpace(key)) return;
-
             lock (Sync)
             {
                 var map = LoadCore();
@@ -90,7 +87,6 @@ namespace CrimsonX.Services
         {
             var path = StorePath();
             SecureJsonStore.AdoptPlaintextFile(LegacyStorePath(), path);
-
             try
             {
                 if (!File.Exists(path))
@@ -98,13 +94,10 @@ namespace CrimsonX.Services
                     _cache = new Dictionary<string, TunnelCredential>(StringComparer.Ordinal);
                     return _cache;
                 }
-
                 var info = new FileInfo(path);
                 if (_cache != null && info.LastWriteTimeUtc == _stampUtc && info.Length == _length) return _cache;
-
                 var loaded = SecureJsonStore.Load<Dictionary<string, TunnelCredential>>(path)
                              ?? new Dictionary<string, TunnelCredential>(StringComparer.Ordinal);
-
                 _cache = new Dictionary<string, TunnelCredential>(loaded, StringComparer.Ordinal);
                 _stampUtc = info.LastWriteTimeUtc;
                 _length = info.Length;
@@ -124,7 +117,6 @@ namespace CrimsonX.Services
             {
                 var path = StorePath();
                 SecureJsonStore.Save(path, map);
-
                 var info = new FileInfo(path);
                 _stampUtc = info.LastWriteTimeUtc;
                 _length = info.Length;
@@ -142,11 +134,9 @@ namespace CrimsonX.Services
         {
             if (tunnel == null || tunnel.Endpoint == null) return false;
             if (!NeedsCredentials(tunnel)) return true;
-
             string key = TunnelConfigParser.Normalize(tunnel.Raw);
             var stored = TunnelCredentialStore.Get(key);
             if (stored == null || stored.User.Length == 0) return false;
-
             TunnelConfigParser.WithCredentials(tunnel.Endpoint, stored.User, stored.Password);
             return true;
         }
@@ -154,10 +144,8 @@ namespace CrimsonX.Services
         public static bool NeedsCredentials(TunnelParseResult tunnel)
         {
             if (tunnel == null || tunnel.Endpoint == null) return false;
-
             string type = tunnel.Endpoint["type"]?.ToString() ?? "";
             if (!type.Equals("openvpn-client", StringComparison.OrdinalIgnoreCase)) return false;
-
             if (!tunnel.NeedsCredentials) return false;
             return (tunnel.Endpoint["username"]?.ToString() ?? "").Length == 0;
         }
@@ -165,15 +153,11 @@ namespace CrimsonX.Services
         public static async Task<bool> ApplyAsync(TunnelParseResult tunnel)
         {
             if (tunnel == null || tunnel.Endpoint == null) return false;
-
             string type = tunnel.Endpoint["type"]?.ToString() ?? "";
             if (!type.Equals("openvpn-client", StringComparison.OrdinalIgnoreCase)) return true;
-
             string user = tunnel.Endpoint["username"]?.ToString() ?? "";
             string password = tunnel.Endpoint["password"]?.ToString() ?? "";
-
             if (user.Length > 0 || !tunnel.NeedsCredentials) return true;
-
             string key = TunnelConfigParser.Normalize(tunnel.Raw);
             var stored = TunnelCredentialStore.Get(key);
             if (stored != null && stored.User.Length > 0)
@@ -181,10 +165,8 @@ namespace CrimsonX.Services
                 TunnelConfigParser.WithCredentials(tunnel.Endpoint, stored.User, stored.Password);
                 return true;
             }
-
             var entered = await TunnelCredentialPrompt.AskAsync(tunnel.Label, user, password);
             if (entered == null || entered.User.Length == 0) return false;
-
             TunnelConfigParser.WithCredentials(tunnel.Endpoint, entered.User, entered.Password);
             if (entered.Remember) TunnelCredentialStore.Remember(key, entered.User, entered.Password);
             return true;
@@ -197,7 +179,6 @@ namespace CrimsonX.Services
         {
             var owner = MainWindow.Instance;
             if (owner == null) return Task.FromResult<TunnelCredential>(null);
-
             return Dispatcher.UIThread.InvokeAsync(async () =>
             {
                 var dialog = new CrimsonX.Dialogs.TunnelCredentialsDialog(label, user, password);

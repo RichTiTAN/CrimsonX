@@ -31,12 +31,10 @@ namespace CrimsonX.Services
         public static string Normalise(string? mode)
         {
             string value = (mode ?? "").Trim();
-
             foreach (string known in All)
             {
                 if (string.Equals(known, value, StringComparison.OrdinalIgnoreCase)) return known;
             }
-
             return Proxy;
         }
     }

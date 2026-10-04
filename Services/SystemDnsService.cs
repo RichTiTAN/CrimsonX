@@ -45,7 +45,6 @@ namespace CrimsonX.Services
             {
                 var cfg = MainWindow.Instance?.Config;
                 if (cfg?.DnsRestore == null) return false;
-
                 lock (_stateLock) { return cfg.DnsRestore.Count > 0; }
             }
         }
@@ -55,13 +54,11 @@ namespace CrimsonX.Services
             var cfg = MainWindow.Instance?.Config;
             var list = new List<DnsState>();
             if (cfg?.DnsRestore == null) return list;
-
             lock (_stateLock)
             {
                 foreach (var entry in cfg.DnsRestore)
                 {
                     if (entry == null || string.IsNullOrWhiteSpace(entry.Adapter)) continue;
-
                     list.Add(new DnsState
                     {
                         AdapterName = entry.Adapter,
@@ -70,7 +67,6 @@ namespace CrimsonX.Services
                     });
                 }
             }
-
             return list;
         }
 
@@ -78,12 +74,10 @@ namespace CrimsonX.Services
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
-
             lock (_stateLock)
             {
                 if (cfg.DnsRestore == null) cfg.DnsRestore = new List<DnsRestoreEntry>();
                 if (cfg.DnsRestore.Any(e => e != null && string.Equals(e.Adapter, state.AdapterName, StringComparison.OrdinalIgnoreCase))) return;
-
                 cfg.DnsRestore.Add(new DnsRestoreEntry
                 {
                     Adapter = state.AdapterName,
@@ -91,7 +85,6 @@ namespace CrimsonX.Services
                     Servers = state.Servers ?? Array.Empty<string>()
                 });
             }
-
             SavePending();
         }
 
@@ -99,12 +92,10 @@ namespace CrimsonX.Services
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg?.DnsRestore == null) return;
-
             lock (_stateLock)
             {
                 cfg.DnsRestore.RemoveAll(e => e == null || string.Equals(e.Adapter, adapterName, StringComparison.OrdinalIgnoreCase));
             }
-
             SavePending();
         }
 
@@ -120,23 +111,19 @@ namespace CrimsonX.Services
             {
                 string legacy = Path.Combine(AppContext.BaseDirectory, "Data", "dns_backup.json");
                 if (!File.Exists(legacy)) return;
-
                 var array = JArray.Parse(File.ReadAllText(legacy));
                 foreach (var entry in array.OfType<JObject>())
                 {
                     string adapterName = entry["adapter"]?.ToString() ?? "";
                     if (string.IsNullOrWhiteSpace(adapterName)) continue;
-
                     AddPending(new DnsState
                     {
                         AdapterName = adapterName,
                         WasDhcp     = entry["dhcp"]?.ToObject<bool>() ?? false,
                         Servers     = entry["servers"]?.ToObject<string[]>() ?? Array.Empty<string>()
                     });
-
                     SimpleLogger.Log($"[DnsService] moved the pending DNS backup for {adapterName} into the settings");
                 }
-
                 File.Delete(legacy);
                 SimpleLogger.Log("[DnsService] removed the old Data\\dns_backup.json");
             }
@@ -152,9 +139,7 @@ namespace CrimsonX.Services
         {
             if (!cfg.EnableSystemDns) return;
             if (string.IsNullOrWhiteSpace(cfg.SystemDnsPrimary)) return;
-
             int myEpoch = Volatile.Read(ref _epoch);
-
             await _gate.WaitAsync().ConfigureAwait(false);
             try
             {
@@ -163,32 +148,26 @@ namespace CrimsonX.Services
                     SimpleLogger.Log("[DnsService] Skipped DNS apply: a newer DNS operation replaced it.");
                     return;
                 }
-
                 string primary   = cfg.SystemDnsPrimary.Trim();
                 string secondary = cfg.SystemDnsSecondary?.Trim() ?? "";
                 string wanted    = string.IsNullOrEmpty(secondary) ? primary : $"{primary}, {secondary}";
-
                 await Task.Run(() =>
                 {
                     try
                     {
                         AdoptLegacyBackup();
-
                         var nic = ResolveAdapter(cfg);
                         if (nic == null)
                         {
                             SimpleLogger.Log("[DnsService] No valid adapter found for DNS.");
                             return;
                         }
-
                         if (!Pending().Any(s => string.Equals(s.AdapterName, nic.Name, StringComparison.OrdinalIgnoreCase)))
                         {
                             AddPending(DnsService.CaptureState(nic));
                         }
-
                         bool ok = DnsService.SetDns(nic.Name, primary, secondary, ApplyBudgetMs, out string error);
                         string actual = string.Join(", ", DnsService.GetCurrentDns(nic.Name));
-
                         if (ok)
                             SimpleLogger.Log($"[DnsService] Applied DNS {actual} on {nic.Name} (requested {wanted})");
                         else
@@ -217,15 +196,12 @@ namespace CrimsonX.Services
         private static async Task RestoreCoreAsync(int budgetMs, bool adoptDisk)
         {
             Interlocked.Increment(ref _epoch);
-
             await _gate.WaitAsync().ConfigureAwait(false);
             try
             {
                 if (adoptDisk) AdoptLegacyBackup();
-
                 var pending = Pending();
                 if (pending.Count == 0) return;
-
                 await Task.Run(() =>
                 {
                     try
@@ -235,7 +211,6 @@ namespace CrimsonX.Services
                             string wanted = state.WasDhcp
                                 ? "DHCP (automatic)"
                                 : string.Join(", ", state.Servers);
-
                             if (DnsService.RestoreState(state, budgetMs, out string error))
                             {
                                 RemovePending(state.AdapterName);
@@ -266,10 +241,8 @@ namespace CrimsonX.Services
                 var bound = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
                     .FirstOrDefault(a => a.Name == cfg.SelectedAdapterName
                                       && a.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up);
-
                 if (bound != null) return bound;
             }
-
             return DnsService.GetMainPhysicalAdapter();
         }
     }

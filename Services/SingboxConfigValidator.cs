@@ -87,22 +87,17 @@ namespace CrimsonX.Services
                     RedirectStandardOutput = true,
                     RedirectStandardError  = true
                 };
-
                 using var process = Process.Start(psi);
                 if (process == null) return true;
-
                 JobManager.AddProcess(process);
-
                 var outTask = process.StandardOutput.ReadToEndAsync();
                 var errTask = process.StandardError.ReadToEndAsync();
-
                 if (!process.WaitForExit(CheckTimeoutMs))
                 {
                     try { process.Kill(); } catch { }
                     SimpleLogger.Log($"[SingBox:check] check timed out after {CheckTimeoutMs}ms; assuming the config is valid.");
                     return true;
                 }
-
                 Task.WaitAll(outTask, errTask);
                 bool ok = process.ExitCode == 0;
                 if (!ok)
@@ -123,9 +118,7 @@ namespace CrimsonX.Services
             var invalid = new HashSet<string>(StringComparer.Ordinal);
             if (probes == null || probes.Count == 0) return invalid;
             if (string.IsNullOrWhiteSpace(sbDir) || !Directory.Exists(sbDir)) return invalid;
-
             SweepStaleProbeDirs();
-
             var usable = new List<JObject>();
             var keys   = new List<string>();
             foreach (var probe in probes)
@@ -141,15 +134,12 @@ namespace CrimsonX.Services
                     invalid.Add(probe.Key);
                 }
             }
-
             if (usable.Count == 0) return invalid;
-
             string probeDir = Path.Combine(Path.GetTempPath(), "CrimsonX_sbcheck_" + Guid.NewGuid().ToString("N"));
             try
             {
                 Directory.CreateDirectory(probeDir);
                 string probePath = Path.Combine(probeDir, "probe.json");
-
                 if (!WriteAndCheck(sbDir, probePath, usable, batch: true))
                 {
                     for (int i = 0; i < usable.Count; i++)
@@ -167,7 +157,6 @@ namespace CrimsonX.Services
             {
                 try { if (Directory.Exists(probeDir)) Directory.Delete(probeDir, true); } catch { }
             }
-
             return invalid;
         }
         private static bool WriteAndCheck(string sbDir, string probePath, List<JObject> outbounds, bool batch)
@@ -178,22 +167,18 @@ namespace CrimsonX.Services
                 outbounds[i]["tag"] = batch ? "probe-" + i : "probe";
                 list.Add(outbounds[i]);
             }
-
             list.Add(new JObject { ["type"] = "direct", ["tag"] = "direct" });
-
             var config = new JObject
             {
                 ["log"] = new JObject { ["level"] = "fatal" },
                 ["outbounds"] = list
             };
-
             File.WriteAllText(probePath, config.ToString(Formatting.Indented));
             return Check(sbDir, probePath);
         }
         private static void SweepStaleProbeDirs()
         {
             if (Interlocked.Exchange(ref _tempSweepDone, 1) != 0) return;
-
             try
             {
                 var cutoff = DateTime.UtcNow.AddMinutes(-30);
@@ -208,10 +193,8 @@ namespace CrimsonX.Services
         public static bool CheckOutbound(string sbDir, string outboundJson)
         {
             if (string.IsNullOrWhiteSpace(outboundJson)) return false;
-
             try { JObject.Parse(outboundJson); }
             catch { return false; }
-
             var probe = new CustomOutboundProbe { Key = SingleProbeKey, OutboundJson = outboundJson };
             var invalid = FindInvalidOutbounds(sbDir, new[] { probe });
             return !invalid.Contains(SingleProbeKey);
@@ -220,7 +203,6 @@ namespace CrimsonX.Services
         public static bool CheckEndpoint(string sbDir, string endpointJson)
         {
             if (string.IsNullOrWhiteSpace(endpointJson)) return false;
-
             JObject endpoint;
             try
             {
@@ -230,24 +212,19 @@ namespace CrimsonX.Services
             {
                 return false;
             }
-
             SweepStaleProbeDirs();
-
             string dir = Path.Combine(Path.GetTempPath(), "CrimsonX_sbcheck_" + Guid.NewGuid().ToString("N"));
             try
             {
                 Directory.CreateDirectory(dir);
                 string probePath = Path.Combine(dir, "config.json");
-
                 if (endpoint["tag"] == null) endpoint["tag"] = "probe-endpoint";
-
                 var config = new JObject
                 {
                     ["log"]       = new JObject { ["level"] = "fatal" },
                     ["endpoints"] = new JArray { endpoint },
                     ["outbounds"] = new JArray { new JObject { ["type"] = "direct", ["tag"] = "direct" } }
                 };
-
                 File.WriteAllText(probePath, config.ToString(Formatting.Indented));
                 return Check(sbDir, probePath);
             }
@@ -265,27 +242,21 @@ namespace CrimsonX.Services
             string adapterName = "", string adapterIp = "")
         {
             reason = "";
-
             string text = (raw ?? "").Trim();
             if (text.Length == 0)
             {
                 reason = "the box is empty";
                 return CustomProxyCheckResult.Missing;
             }
-
             var verdict = ConfigValidator
                 .CheckAsync(text, null, ConfigTarget.Singbox, ConfigCheckLevel.Live, adapterName, adapterIp, sbDir)
                 .GetAwaiter()
                 .GetResult();
-
             reason = verdict.Reason ?? "";
             if (reason.Length == 0 && !verdict.Ok) reason = "sing-box refused this config";
-
             if (verdict.NeedsCredentials) return CustomProxyCheckResult.NeedsCredentials;
             if (verdict.Ok) return CustomProxyCheckResult.Ok;
-
             if (verdict.Reason.Length > 0) SimpleLogger.Log($"[SingBox:check] {verdict.Reason}");
-
             return verdict.Unreadable ? CustomProxyCheckResult.Unparsable : CustomProxyCheckResult.Rejected;
         }
     }

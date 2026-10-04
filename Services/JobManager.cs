@@ -93,19 +93,15 @@ namespace CrimsonX.Services
         public static void Initialize()
         {
             if (_initialized) return;
-
             lock (_lock)
             {
                 if (_initialized) return;
-
                 if (Environment.OSVersion.Platform != PlatformID.Win32NT)
                 {
                     _initialized = true;
                     return;
                 }
-
                 _jobHandle = CreateJobObject(IntPtr.Zero, null!);
-
                 var info = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION
                 {
                     BasicLimitInformation = new JOBOBJECT_BASIC_LIMIT_INFORMATION
@@ -113,13 +109,11 @@ namespace CrimsonX.Services
                         LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
                     }
                 };
-
                 var length = Marshal.SizeOf(typeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION));
                 IntPtr extendedInfoPtr = Marshal.AllocHGlobal(length);
                 try
                 {
                     Marshal.StructureToPtr(info, extendedInfoPtr, false);
-
                     if (!SetInformationJobObject(_jobHandle, JobObjectInfoType.ExtendedLimitInformation, extendedInfoPtr, (uint)length))
                     {
                         SimpleLogger.Log($"[JobManager] SetInformationJobObject failed (win32 error {Marshal.GetLastWin32Error()}); "
@@ -130,7 +124,6 @@ namespace CrimsonX.Services
                 {
                     Marshal.FreeHGlobal(extendedInfoPtr);
                 }
-
                 _initialized = true;
             }
         }
@@ -151,7 +144,6 @@ namespace CrimsonX.Services
         public static void AddProcess(Process process)
         {
             if (!_initialized) Initialize();
-
             if (_jobHandle != IntPtr.Zero && process != null)
             {
                 try

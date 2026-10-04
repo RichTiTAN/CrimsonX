@@ -45,10 +45,8 @@ namespace CrimsonX.Services
                 SimpleLogger.Log($"[Background] {site} failed: {ex}");
                 return;
             }
-
             if (!(MainWindow.Instance?.Config?.DebugMode ?? false)) return;
             if (!_reported.TryAdd(site, 0)) return;
-
             SimpleLogger.Log($"[Background] {site}: an I/O read was aborted while the connection was being torn down ({Root(ex).Message})");
         }
 
@@ -63,7 +61,6 @@ namespace CrimsonX.Services
                                                               or SocketError.Interrupted
                                                               or SocketError.Shutdown) return true;
             }
-
             return false;
         }
 

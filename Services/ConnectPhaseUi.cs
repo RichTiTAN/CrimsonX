@@ -54,7 +54,6 @@ namespace CrimsonX.Services
         {
             double gap = target - current;
             if (Math.Abs(gap) < 0.5) return target;
-
             return current + gap * 0.22;
         }
 
@@ -63,7 +62,6 @@ namespace CrimsonX.Services
         public static double Breath(double secondsIntoPhase)
         {
             if (double.IsNaN(secondsIntoPhase) || secondsIntoPhase <= 0) return 0;
-
             double phase = (secondsIntoPhase % BreathPeriodSeconds) / BreathPeriodSeconds;   // 0..1
             return 0.5 - 0.5 * Math.Cos(2 * Math.PI * phase);
         }
@@ -82,9 +80,7 @@ namespace CrimsonX.Services
                 _startedUtc = null;
                 return 0;
             }
-
             _startedUtc ??= nowUtc;
-
             return ConnectPhaseUi.Breath((nowUtc - _startedUtc.Value).TotalSeconds) * PeakOpacity;
         }
     }

@@ -60,7 +60,6 @@ namespace CrimsonX.Services
             ConfigCheckLevel level = ConfigCheckLevel.Offline, string adapterName = "", string adapterIp = "", string sbDirOverride = "")
         {
             var result = new ConfigCheckResult();
-
             string text = (raw ?? "").Trim();
             if (text.Length == 0)
             {
@@ -68,27 +67,21 @@ namespace CrimsonX.Services
                 result.Reason = "empty config";
                 return result;
             }
-
             string sbDir = !string.IsNullOrWhiteSpace(sbDirOverride) ? sbDirOverride : cfg?.SbDir ?? "";
-
             if (ConfigConverter.TryTunnel(text, out var tunnel, out _))
             {
                 result.IsTunnel = true;
                 result.Label = tunnel.Label ?? "";
-
                 return level == ConfigCheckLevel.Live
                     ? await CheckTunnelLiveAsync(sbDir, tunnel, adapterName, adapterIp, result).ConfigureAwait(false)
                     : CheckTunnelOffline(sbDir, tunnel, result);
             }
-
             switch (target)
             {
                 case ConfigTarget.Xray:
                     return await CheckForXrayAsync(text, cfg, result).ConfigureAwait(false);
-
                 case ConfigTarget.Singbox:
                     return await CheckForSingboxAsync(text, sbDir, adapterName, adapterIp, result).ConfigureAwait(false);
-
                 default:
                     result.Ok = ConfigConverter.TryAcceptFor(text, ConfigTarget.Pool, out string poolError);
                     if (result.Ok) result.Label = ConfigConverter.LabelFor(text);
@@ -106,10 +99,8 @@ namespace CrimsonX.Services
         private static ConfigCheckResult CheckTunnelOffline(string sbDir, TunnelParseResult tunnel, ConfigCheckResult result)
         {
             string endpointJson = (tunnel.Endpoint ?? new JObject()).ToString(Formatting.None);
-
             result.Ok = SingboxConfigValidator.CheckEndpoint(sbDir, endpointJson);
             if (!result.Ok) result.Reason = "sing-box rejected this OpenVPN / WireGuard config";
-
             return result;
         }
 
@@ -121,17 +112,13 @@ namespace CrimsonX.Services
                 result.Reason = "this tunnel needs a username and password";
                 return result;
             }
-
             int port = 0;
             IDisposable lease = null;
             string tunnelError = "";
-
             bool started = await Task.Run(() => TunnelEngine.StartTransient(sbDir, tunnel, adapterName, adapterIp, out port, out lease, out tunnelError)).ConfigureAwait(false);
             try { lease?.Dispose(); } catch { }
-
             result.Ok = started;
             if (!started) result.Reason = tunnelError.Length > 0 ? tunnelError : "the tunnel could not be started";
-
             return result;
         }
 
@@ -143,17 +130,13 @@ namespace CrimsonX.Services
                 result.Reason = convertError;
                 return result;
             }
-
             result.EngineJson = xrayDoc;
             result.Label = label;
-
             var xrayCheck = await XrayConfigValidator.CheckDetailedAsync(cfg, text).ConfigureAwait(false);
-
             result.Ok          = xrayCheck.Ok;
             result.MaskNote    = xrayCheck.MaskNote;
             result.WithoutMask = xrayCheck.WithoutMask;
             if (!result.Ok) result.Reason = xrayCheck.Error;
-
             return result;
         }
 
@@ -165,16 +148,13 @@ namespace CrimsonX.Services
                 result.Reason = convertError.Length > 0 ? convertError : "this config cannot be used here";
                 return result;
             }
-
             result.EngineJson = outboundJson;
             result.Label = label;
-
             bool ok;
             try
             {
                 var tagged = SingboxLinkParser.WithTagAndDial(JObject.Parse(outboundJson), ProbeTag, adapterName, adapterIp);
                 string probe = tagged.ToString(Formatting.None);
-
                 ok = await Task.Run(() => SingboxConfigValidator.CheckOutbound(sbDir, probe)).ConfigureAwait(false);
             }
             catch
@@ -182,10 +162,8 @@ namespace CrimsonX.Services
                 result.Unreadable = true;
                 return result;
             }
-
             result.Ok = ok;
             if (!ok) result.Reason = "sing-box rejected this config";
-
             return result;
         }
     }

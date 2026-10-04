@@ -44,7 +44,6 @@ namespace CrimsonX.Pages
 
         public ObservableCollection<AppItem> AppItems { get; } = new();
 
-
         private AppConfig _cfg => MainWindow.Instance.Config;
         private AppState _state => MainWindow.Instance.State;
 
@@ -66,7 +65,6 @@ namespace CrimsonX.Pages
             HookReadoutInset();
         }
 
-
         private double _readoutInset;
 
         private double _appliedInset = -1;
@@ -86,16 +84,12 @@ namespace CrimsonX.Pages
             var scroller = this.FindControl<ScrollViewer>("Scroller");
             var content  = this.FindControl<Border>("splitContent");
             if (scroller == null || content == null) return;
-
             double contentHeight = Math.Max(scroller.Extent.Height, content.DesiredSize.Height) - _appliedInset;
             double spaceAbove = Math.Max(0, (scroller.Viewport.Height - contentHeight) / 2);
             double inset = Math.Clamp(_readoutInset - spaceAbove, 0, _readoutInset);
-
             CrimsonX.Behaviors.ScrollScrimBehavior.SetTopInset(scroller, _readoutInset);
-
             if (Math.Abs(inset - _appliedInset) < 0.5) return;
             _appliedInset = inset;
-
             if (_splitContentPadding.HasValue)
             {
                 var padding = _splitContentPadding.Value;
@@ -106,11 +100,9 @@ namespace CrimsonX.Pages
         private void HookReadoutInset()
         {
             if (_readoutInsetHooked) return;
-
             var scroller = this.FindControl<ScrollViewer>("Scroller");
             var content  = this.FindControl<Border>("splitContent");
             if (scroller == null || content == null) return;
-
             _splitContentPadding = content.Padding;
             scroller.ScrollChanged += (_, _) => ApplyReadoutInset();
             scroller.SizeChanged += (_, _) => ApplyReadoutInset();
@@ -127,7 +119,6 @@ namespace CrimsonX.Pages
             {
                 var togDirectUDP = this.FindControl<ToggleSwitch>("togDirectUDP");
                 if (togDirectUDP != null) togDirectUDP.IsChecked = MainWindow.Instance.Config.EnableDirectUDP;
-
             UpdateSplitTunnelUI();
             }
             finally
@@ -139,12 +130,9 @@ namespace CrimsonX.Pages
         public void ApplyLanguage()
         {
             global::Avalonia.Threading.Dispatcher.UIThread.Post(() => SyncUI());
-    
             TextBlock? F(string name) => this.FindControl<TextBlock>(name);
             Button? B(string name) => this.FindControl<Button>(name);
-            
             bool fa = CrimsonX.Localization.AppStrings.IsPersian;
-
             CrimsonX.Localization.AppStrings.Apply(F("lblSplitTunnelingHeader"), CrimsonX.Localization.AppStrings.NavSplitTunneling);
             CrimsonX.Localization.AppStrings.Apply(F("lblDomainsAndIps"), CrimsonX.Localization.AppStrings.DomainsAndIps);
             CrimsonX.Localization.AppStrings.Apply(F("lblApplications"), CrimsonX.Localization.AppStrings.Applications);
@@ -168,20 +156,16 @@ namespace CrimsonX.Pages
             var btnSplitDisabled = this.FindControl<Button>("btnSplitDisabled");
             var btnSplitExclusive = this.FindControl<Button>("btnSplitExclusive");
             var btnSplitInclusive = this.FindControl<Button>("btnSplitInclusive");
-            
             CrimsonX.Localization.AppStrings.ApplyToolTip(btnSplitDisabled, CrimsonX.Localization.AppStrings.TtSplitDis);
             CrimsonX.Localization.AppStrings.ApplyToolTip(btnSplitExclusive, CrimsonX.Localization.AppStrings.SplitExplanationExclusive);
             CrimsonX.Localization.AppStrings.ApplyToolTip(btnSplitInclusive, CrimsonX.Localization.AppStrings.SplitExplanationInclusive);
-            
             if (btnSplitDisabled?.Content is TextBlock tbDis) CrimsonX.Localization.AppStrings.Apply(tbDis, CrimsonX.Localization.AppStrings.Disabled);
             if (btnSplitExclusive?.Content is TextBlock tbEx) CrimsonX.Localization.AppStrings.Apply(tbEx, CrimsonX.Localization.AppStrings.Exclusive);
             if (btnSplitInclusive?.Content is TextBlock tbIn) CrimsonX.Localization.AppStrings.Apply(tbIn, CrimsonX.Localization.AppStrings.Inclusive);
-
             CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<Button>("btnSaveDomains"), CrimsonX.Localization.AppStrings.Save);
             CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<Button>("btnCancelDomains"), CrimsonX.Localization.AppStrings.Cancel);
             CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<Button>("btnSaveBlock"), CrimsonX.Localization.AppStrings.Save);
             CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<Button>("btnCancelBlock"), CrimsonX.Localization.AppStrings.Cancel);
-
             var lblSplitExplanation = this.FindControl<TextBlock>("lblSplitExplanation");
             if (lblSplitExplanation != null)
             {
@@ -192,25 +176,20 @@ namespace CrimsonX.Pages
                     lblSplitExplanation.Text = CrimsonX.Localization.AppStrings.SplitExplanationInclusive;
                 else
                     lblSplitExplanation.Text = "";
-                    
                 lblSplitExplanation.FlowDirection = fa 
                     ? Avalonia.Media.FlowDirection.RightToLeft 
                     : Avalonia.Media.FlowDirection.LeftToRight;
             }
-            
             var btnAddApp = B("btnAddApp");
             if (btnAddApp != null) btnAddApp.Content = CrimsonX.Localization.AppStrings.Add;
-            
             var btnSaveDomains = B("btnSaveDomains");
             if (btnSaveDomains != null) btnSaveDomains.Content = CrimsonX.Localization.AppStrings.Save;
             var btnCancelDomains = B("btnCancelDomains");
             if (btnCancelDomains != null) btnCancelDomains.Content = CrimsonX.Localization.AppStrings.Cancel;
-            
             var btnSaveBlock = B("btnSaveBlock");
             if (btnSaveBlock != null) btnSaveBlock.Content = CrimsonX.Localization.AppStrings.Save;
             var btnCancelBlock = B("btnCancelBlock");
             if (btnCancelBlock != null) btnCancelBlock.Content = CrimsonX.Localization.AppStrings.Cancel;
-            
             var txtSplitDomains = this.FindControl<global::Avalonia.Controls.TextBox>("txtSplitDomains");
             var btnToggleDomains = B("btnToggleDomains");
             if (txtSplitDomains != null && btnToggleDomains != null)
@@ -218,7 +197,6 @@ namespace CrimsonX.Pages
                 bool hasText = !string.IsNullOrWhiteSpace(txtSplitDomains.Text);
                 btnToggleDomains.Content = hasText ? CrimsonX.Localization.AppStrings.Edit : CrimsonX.Localization.AppStrings.Add;
             }
-            
             var txtSplitBlock = this.FindControl<global::Avalonia.Controls.TextBox>("txtSplitBlock");
             var btnToggleBlock = B("btnToggleBlock");
             if (txtSplitBlock != null && btnToggleBlock != null)
@@ -240,29 +218,23 @@ namespace CrimsonX.Pages
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
-            
             AppStrings.Apply(this.FindControl<TextBlock>("lblSplitTunnelingHeader"), AppStrings.NavSplitTunneling);
             AppStrings.Apply(this.FindControl<TextBlock>("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDP);
             AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDPTooltip);
             var btnSplitDisabled = this.FindControl<Button>("btnSplitDisabled");
             var btnSplitExclusive = this.FindControl<Button>("btnSplitExclusive");
             var btnSplitInclusive = this.FindControl<Button>("btnSplitInclusive");
-            
             AppStrings.ApplyToolTip(btnSplitDisabled, AppStrings.TtSplitDis);
             AppStrings.ApplyToolTip(btnSplitExclusive, AppStrings.SplitExplanationExclusive);
             AppStrings.ApplyToolTip(btnSplitInclusive, AppStrings.SplitExplanationInclusive);
-            
             if (btnSplitDisabled?.Content is TextBlock tbDis) AppStrings.Apply(tbDis, AppStrings.Disabled);
             if (btnSplitExclusive?.Content is TextBlock tbEx) AppStrings.Apply(tbEx, AppStrings.Exclusive);
             if (btnSplitInclusive?.Content is TextBlock tbIn) AppStrings.Apply(tbIn, AppStrings.Inclusive);
-
             AppStrings.ApplyBtn(this.FindControl<Button>("btnSaveDomains"), AppStrings.Save);
             AppStrings.ApplyBtn(this.FindControl<Button>("btnCancelDomains"), AppStrings.Cancel);
             AppStrings.ApplyBtn(this.FindControl<Button>("btnSaveBlock"), AppStrings.Save);
             AppStrings.ApplyBtn(this.FindControl<Button>("btnCancelBlock"), AppStrings.Cancel);
-
             var togDirectUDP = this.FindControl<ToggleSwitch>("togDirectUDP");
-
             UpdateSplitTunnelUI();
         }
 
@@ -273,12 +245,10 @@ namespace CrimsonX.Pages
             this.FindControl<Button>("btnSplitDisabled")?.Classes.Remove("activeOpt");
             this.FindControl<Button>("btnSplitExclusive")?.Classes.Remove("activeOpt");
             this.FindControl<Button>("btnSplitInclusive")?.Classes.Remove("activeOpt");
-
             var modeStr = _cfg.SplitTunnelMode ?? "DISABLED";
             if (modeStr == "EXCLUSIVE") this.FindControl<Button>("btnSplitExclusive")?.Classes.Add("activeOpt");
             else if (modeStr == "INCLUSIVE") this.FindControl<Button>("btnSplitInclusive")?.Classes.Add("activeOpt");
             else this.FindControl<Button>("btnSplitDisabled")?.Classes.Add("activeOpt");
-
             var panSplitConfig = this.FindControl<Border>("panSplitConfig");
             if (panSplitConfig != null)
             {
@@ -293,7 +263,6 @@ namespace CrimsonX.Pages
                     panSplitConfig.Opacity = 1;
                 }
             }
-
             var lblSplitExplanation = this.FindControl<TextBlock>("lblSplitExplanation");
             if (lblSplitExplanation != null)
             {
@@ -301,25 +270,20 @@ namespace CrimsonX.Pages
                     lblSplitExplanation.Text = AppStrings.SplitExplanationExclusive;
                 else if (modeStr == "INCLUSIVE")
                     lblSplitExplanation.Text = AppStrings.SplitExplanationInclusive;
-                    
                 lblSplitExplanation.FlowDirection = AppStrings.IsPersian 
                     ? Avalonia.Media.FlowDirection.RightToLeft 
                     : Avalonia.Media.FlowDirection.LeftToRight;
             }
-
             var panSplitDomains = this.FindControl<StackPanel>("panSplitDomains");
             var panSplitApps = this.FindControl<StackPanel>("panSplitApps");
-
             if (panSplitDomains != null && panSplitApps != null)
             {
                 if (_cfg.LastXrayMode == "VPN Mode")
                 {
                     panSplitDomains.IsEnabled = false;
                     panSplitDomains.IsVisible = false;
-                    
                     panSplitApps.IsEnabled = true;
                     panSplitApps.IsVisible = true;
-                    
                 }
                 else
                 {
@@ -328,24 +292,20 @@ namespace CrimsonX.Pages
                     panSplitDomains.Opacity = 1.0;
                     panSplitApps.IsEnabled = false;
                     panSplitApps.IsVisible = false;
-                    
                 }
             }
-            
             var txtSplitDomains = this.FindControl<TextBox>("txtSplitDomains");
             if (txtSplitDomains != null)
             {
                 if (txtSplitDomains.Text != _cfg.LastManualSplit) txtSplitDomains.Text = _cfg.LastManualSplit;
                 InitPanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, txtSplitDomains, this.FindControl<Button>("btnToggleDomains")!, this.FindControl<Border>("panDomainsBtns")!);
             }
-                
             AppItems.Clear();
             if (!string.IsNullOrWhiteSpace(_cfg.LastAppSplit))
             {
                 var apps = _cfg.LastAppSplit.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(a => a.Trim()).Distinct();
                 string iconsPath = MainWindow.Instance.GetAppPath(@"Data\cache\icons.bin");
                 var iconCache = CrimsonX.Services.ConfigCache.LoadIconCache(iconsPath);
-                
                 foreach(var app in apps)
                 {
                     Avalonia.Media.Imaging.Bitmap? bmp = null;
@@ -364,17 +324,13 @@ namespace CrimsonX.Pages
                     AppItems.Add(new AppItem { ExeName = app, Icon = bmp });
                 }
             }
-                
             bool hasApps = AppItems.Count > 0;
             var panAppsGrid = this.FindControl<Border>("panAppsGrid");
             if (panAppsGrid != null) panAppsGrid.IsVisible = hasApps;
-            
             var panAppsToggle = this.FindControl<Border>("panAppsToggle");
             if (panAppsToggle != null) panAppsToggle.CornerRadius = hasApps ? new Avalonia.CornerRadius(4, 4, 0, 0) : new Avalonia.CornerRadius(4);
-            
             var btnAddApp = this.FindControl<Button>("btnAddApp");
             if (btnAddApp != null) btnAddApp.CornerRadius = hasApps ? new Avalonia.CornerRadius(0, 3, 0, 0) : new Avalonia.CornerRadius(0, 3, 3, 0);
-            
             var txtSplitBlock = this.FindControl<TextBox>("txtSplitBlock");
             if (txtSplitBlock != null)
             {
@@ -388,24 +344,18 @@ namespace CrimsonX.Pages
             if (sender is Button clickedBtn)
             {
                 string oldMode = _cfg.SplitTunnelMode ?? "DISABLED";
-                
                 if (clickedBtn.Name == "btnSplitExclusive") _cfg.SplitTunnelMode = "EXCLUSIVE";
                 else if (clickedBtn.Name == "btnSplitInclusive") _cfg.SplitTunnelMode = "INCLUSIVE";
                 else _cfg.SplitTunnelMode = "DISABLED";
-
                 if (oldMode == _cfg.SplitTunnelMode) return;
-
                 _cfg.EnableDirect = _cfg.SplitTunnelMode != "DISABLED";
-
                 UpdateSplitTunnelUI();
                 MainWindow.Instance.RequestSave();
-                
                 if (_state.IsEngineRunning)
                 {
                     bool hasAnyInput = !string.IsNullOrWhiteSpace(_cfg.LastManualSplit) || 
                                        !string.IsNullOrWhiteSpace(_cfg.LastAppSplit) || 
                                        !string.IsNullOrWhiteSpace(_cfg.LastBlockSplit);
-
                     if (hasAnyInput)
                     {
                         MainWindow.Instance.RestartXray();
@@ -422,7 +372,6 @@ namespace CrimsonX.Pages
             panel.Height = hasText ? 34 : 0;
             btnToggle.Content = hasText ? AppStrings.Edit : AppStrings.Add;
             togglePanel.CornerRadius = hasText ? new Avalonia.CornerRadius(4, 4, 0, 0) : new Avalonia.CornerRadius(4);
-            
             if (hasText)
             {
                 tb.Height = 17;
@@ -439,7 +388,6 @@ namespace CrimsonX.Pages
                 tb.Focusable = true;
                 tb.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Ibeam);
             }
-            
             if (btnPanel != null) btnPanel.IsVisible = false;
         }
 
@@ -448,7 +396,6 @@ namespace CrimsonX.Pages
             if (panel.Height < 51)
             {
                 tempStore = tb.Text ?? "";
-                
                 tb.Height = 34;
                 tb.IsHitTestVisible = true;
                 tb.IsReadOnly = false;
@@ -456,7 +403,6 @@ namespace CrimsonX.Pages
                 tb.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Ibeam);
                 btnToggle.Content = AppStrings.Edit;
                 togglePanel.CornerRadius = new Avalonia.CornerRadius(4, 4, 0, 0);
-                
                 panel.Height = 51;
                 if (btnPanel != null) btnPanel.IsVisible = true;
                 tb.Focus();
@@ -470,10 +416,8 @@ namespace CrimsonX.Pages
         private void ClosePanel(Border panel, Border togglePanel, TextBox tb, Button btnToggle, Border btnPanel)
         {
             bool hasText = !string.IsNullOrWhiteSpace(tb.Text);
-            
             btnToggle.Content = hasText ? AppStrings.Edit : AppStrings.Add;
             togglePanel.CornerRadius = hasText ? new Avalonia.CornerRadius(4, 4, 0, 0) : new Avalonia.CornerRadius(4);
-            
             if (hasText)
             {
                 tb.Height = 17;
@@ -482,7 +426,6 @@ namespace CrimsonX.Pages
                 tb.Focusable = false;
                 tb.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Arrow);
             }
-            
             panel.Height = hasText ? 34 : 0;
             if (btnPanel != null) btnPanel.IsVisible = false;
         }
@@ -494,7 +437,6 @@ namespace CrimsonX.Pages
             if (sender is Button btn)
             {
                 if (btn.Name == "btnToggleDomains") TogglePanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, this.FindControl<TextBox>("txtSplitDomains")!, btn, this.FindControl<Border>("panDomainsBtns")!, ref _tempDomains);
-                
                 else if (btn.Name == "btnToggleBlock") TogglePanel(this.FindControl<Border>("panBlockEdit")!, this.FindControl<Border>("panBlockToggle")!, this.FindControl<TextBox>("txtSplitBlock")!, btn, this.FindControl<Border>("panBlockBtns")!, ref _tempBlock);
             }
         }
@@ -515,7 +457,6 @@ namespace CrimsonX.Pages
                     }
                     ClosePanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, tb, this.FindControl<Button>("btnToggleDomains")!, this.FindControl<Border>("panDomainsBtns")!);
                 }
-                
                 else if (btn.Name == "btnSaveBlock")
                 {
                     var tb = this.FindControl<TextBox>("txtSplitBlock")!;
@@ -527,7 +468,6 @@ namespace CrimsonX.Pages
                     }
                     ClosePanel(this.FindControl<Border>("panBlockEdit")!, this.FindControl<Border>("panBlockToggle")!, tb, this.FindControl<Button>("btnToggleBlock")!, this.FindControl<Border>("panBlockBtns")!);
                 }
-                
                 if (changed)
                 {
                     MainWindow.Instance.RequestSave();
@@ -547,7 +487,6 @@ namespace CrimsonX.Pages
                     tb.Text = _tempDomains;
                     ClosePanel(this.FindControl<Border>("panDomainsEdit")!, this.FindControl<Border>("panDomainsToggle")!, tb, this.FindControl<Button>("btnToggleDomains")!, this.FindControl<Border>("panDomainsBtns")!);
                 }
-                
                 else if (btn.Name == "btnCancelBlock")
                 {
                     var tb = this.FindControl<TextBox>("txtSplitBlock")!;
@@ -557,7 +496,6 @@ namespace CrimsonX.Pages
             }
         }
 
-        
         private void RemoveApp_Click(object? sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.DataContext is AppItem item)
@@ -565,7 +503,6 @@ namespace CrimsonX.Pages
                 var currentApps = string.IsNullOrWhiteSpace(_cfg.LastAppSplit) ? new System.Collections.Generic.List<string>() : _cfg.LastAppSplit.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(a => a.Trim()).ToList();
                 currentApps.RemoveAll(a => a.Equals(item.ExeName, StringComparison.OrdinalIgnoreCase));
                 _cfg.LastAppSplit = string.Join(", ", currentApps);
-                
                 try
                 {
                     string iconsPath = MainWindow.Instance.GetAppPath(@"Data\cache\icons.bin");
@@ -576,11 +513,9 @@ namespace CrimsonX.Pages
                     }
                 }
                 catch { }
-
                 MainWindow.Instance.RequestSave();
                 if (_state.IsEngineRunning)
                     MainWindow.Instance.RestartXray();
-                
                 UpdateSplitTunnelUI();
             }
         }
@@ -591,7 +526,6 @@ namespace CrimsonX.Pages
             {
             var mainWindow = MainWindow.Instance;
             if (mainWindow == null) return;
-            
             var storageProvider = mainWindow.StorageProvider;
             var fileOptions = new Avalonia.Platform.Storage.FilePickerOpenOptions
             {
@@ -603,14 +537,12 @@ namespace CrimsonX.Pages
                     new Avalonia.Platform.Storage.FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
                 }
             };
-
             var result = await storageProvider.OpenFilePickerAsync(fileOptions);
             if (result != null && result.Count > 0)
             {
                 var file = result[0];
                 var exeName = file.Name;
                 var localPath = file.Path.LocalPath;
-                
                 if (!string.IsNullOrWhiteSpace(localPath))
                 {
                     try
@@ -636,7 +568,6 @@ namespace CrimsonX.Pages
                     }
                     catch { }
                 }
-                
                 var currentApps = string.IsNullOrWhiteSpace(_cfg.LastAppSplit) ? new System.Collections.Generic.List<string>() : _cfg.LastAppSplit.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(a => a.Trim()).ToList();
                 if (!currentApps.Contains(exeName, StringComparer.OrdinalIgnoreCase))
                 {
@@ -645,7 +576,6 @@ namespace CrimsonX.Pages
                     MainWindow.Instance.RequestSave();
                     if (_state.IsEngineRunning)
                         MainWindow.Instance.RestartXray();
-                    
                     UpdateSplitTunnelUI();
                 }
             }
@@ -687,17 +617,13 @@ namespace CrimsonX.Pages
                     src = src.Parent as global::Avalonia.Controls.Control;
                 }
             }
-
             _isDirectUdpExpanded = !_isDirectUdpExpanded;
             var pan = this.FindControl<Border>("panDirectUdpExpanded");
             var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoDirectUdpExpander");
-            
             var panToggle = this.FindControl<Border>("panDirectUdpToggle");
             var btnToggle = this.FindControl<Button>("btnDirectUdpToggle");
-
             if (panToggle != null) panToggle.CornerRadius = _isDirectUdpExpanded ? new Avalonia.CornerRadius(8, 8, 0, 0) : new Avalonia.CornerRadius(8);
             if (btnToggle != null) btnToggle.CornerRadius = _isDirectUdpExpanded ? new Avalonia.CornerRadius(8, 8, 0, 0) : new Avalonia.CornerRadius(8);
-            
             if (pan != null)
             {
                 if (_isDirectUdpExpanded)
@@ -705,7 +631,6 @@ namespace CrimsonX.Pages
                     pan.MaxHeight = 200;
                     pan.Opacity = 1;
                     if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(180);
-                    
                     var cmb = this.FindControl<ComboBox>("cmbUdpAdapters");
                     if (cmb != null && cmb.Items.Count == 0)
                     {
@@ -727,7 +652,6 @@ namespace CrimsonX.Pages
         {
             var cmb = this.FindControl<ComboBox>("cmbUdpAdapters");
             if (cmb == null) return;
-            
             _isScanningUdpAdapters = true;
             try {
                 cmb.Items.Clear();
@@ -746,7 +670,6 @@ namespace CrimsonX.Pages
                     }
                 }
             }
-            
             if (!string.IsNullOrWhiteSpace(_cfg.DirectUdpAdapterName) && !string.IsNullOrWhiteSpace(_cfg.DirectUdpAdapterIp))
             {
                 string target = $"{_cfg.DirectUdpAdapterName} - {_cfg.DirectUdpAdapterIp}";
@@ -796,7 +719,6 @@ namespace CrimsonX.Pages
                     {
                         var newIp   = parts[parts.Length - 1];
                         var newName = string.Join(" - ", parts, 0, parts.Length - 1);
-
                         bool changed = newIp != _cfg.DirectUdpAdapterIp || newName != _cfg.DirectUdpAdapterName;
                         if (changed)
                         {
@@ -810,6 +732,5 @@ namespace CrimsonX.Pages
                 }
             }
         }
-    
 }
 }

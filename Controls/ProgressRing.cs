@@ -70,16 +70,12 @@ namespace CrimsonX.Controls
         {
             double width = Bounds.Width, height = Bounds.Height;
             if (width <= 2 || height <= 2) return;
-
             double thickness = Math.Max(1, Thickness);
             double radius = Math.Max(0, (Math.Min(width, height) - thickness) / 2);
             if (radius <= 0.5) return;
-
             var centre = new Point(width / 2, height / 2);
-
             if (TrackBrush != null)
                 context.DrawEllipse(null, new Pen(TrackBrush, thickness), centre, radius, radius);
-
             var arc = BuildArc(Value, new Size(width, height), thickness);
             if (arc != null && RingBrush != null)
                 context.DrawGeometry(null, new Pen(RingBrush, thickness, lineCap: PenLineCap.Round), arc);
@@ -90,14 +86,11 @@ namespace CrimsonX.Controls
         {
             double fraction = Math.Clamp(value, 0, 1);
             if (fraction <= 0) return null;
-
             double line = Math.Max(1, thickness);
             double radius = Math.Max(0, (Math.Min(size.Width, size.Height) - line) / 2);
             if (radius <= 0.5) return null;
-
             var centre = new Point(size.Width / 2, size.Height / 2);
             double sweep = fraction * 360;
-
             return (PointOnRing(centre, radius, -90),
                     PointOnRing(centre, radius, sweep - 90),
                     sweep,
@@ -109,10 +102,8 @@ namespace CrimsonX.Controls
         {
             var arc = ArcGeometry(value, size, thickness);
             if (arc == null) return null;
-
             var (start, end, sweep, isLargeArc, radius) = arc.Value;
             var top = new Point(size.Width / 2, size.Height / 2 - radius);
-
             var geometry = new StreamGeometry();
             using (var context = geometry.Open())
             {
@@ -125,12 +116,10 @@ namespace CrimsonX.Controls
                     context.EndFigure(false);
                     return geometry;
                 }
-
                 context.BeginFigure(start, false);
                 context.ArcTo(end, new Size(radius, radius), 0, isLargeArc, SweepDirection.Clockwise);
                 context.EndFigure(false);
             }
-
             return geometry;
         }
 

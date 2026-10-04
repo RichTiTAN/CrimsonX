@@ -58,10 +58,8 @@ namespace CrimsonX.Services
             {
                 var path = RulesPath();
                 SecureJsonStore.AdoptPlaintextFile(LegacyRulesPath(), path);
-
                 if (CacheIsCurrent(path)) return Clone(_cached!);
                 if (!File.Exists(path)) return new List<AppGameRule>();
-
                 var rules = SecureJsonStore.Load<List<AppGameRule>>(path) ?? new List<AppGameRule>();
                 rules = rules.Where(r => r != null).ToList();
                 Remember(path, rules);

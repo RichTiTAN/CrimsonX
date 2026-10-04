@@ -41,17 +41,14 @@ namespace CrimsonX.Dialogs
             _label = label ?? "";
             _user = user ?? "";
             _password = password ?? "";
-
             InitializeComponent();
             ApplyLanguage();
-
             var userBox = this.FindControl<TextBox>("txtTunnelUser");
             if (userBox != null)
             {
                 userBox.Text = _user;
                 userBox.AttachedToVisualTree += (_, __) => userBox.Focus();
             }
-
             var passBox = this.FindControl<TextBox>("txtTunnelPass");
             if (passBox != null) passBox.Text = _password;
         }
@@ -61,21 +58,16 @@ namespace CrimsonX.Dialogs
             FlowDirection = AS.IsPersian
                 ? Avalonia.Media.FlowDirection.RightToLeft
                 : Avalonia.Media.FlowDirection.LeftToRight;
-
             Title = AS.TunnelCredsTitle;
-
             AS.Apply(this.FindControl<TextBlock>("lblTunnelTitle"), AS.TunnelCredsTitle);
             AS.Apply(this.FindControl<TextBlock>("lblTunnelSub"),
                      _label.Length > 0 ? AS.TunnelCredsSubtitle + " " + _label : AS.TunnelCredsSubtitle);
             AS.Apply(this.FindControl<TextBlock>("lblTunnelUser"), AS.TunnelCredsUser);
             AS.Apply(this.FindControl<TextBlock>("lblTunnelPass"), AS.TunnelCredsPass);
-
             var remember = this.FindControl<CheckBox>("chkTunnelRemember");
             if (remember != null) remember.Content = AS.TunnelCredsRemember;
-
             var ok = this.FindControl<Button>("btnTunnelOk");
             if (ok != null) ok.Content = AS.StatusConnect;
-
             var cancel = this.FindControl<Button>("btnTunnelCancel");
             if (cancel != null) cancel.Content = AS.TunnelCredsCancel;
         }
@@ -102,9 +94,7 @@ namespace CrimsonX.Dialogs
         {
             string user = this.FindControl<TextBox>("txtTunnelUser")?.Text?.Trim() ?? "";
             if (user.Length == 0) return;
-
             var remember = this.FindControl<CheckBox>("chkTunnelRemember");
-
             Close(new TunnelCredential
             {
                 User = user,

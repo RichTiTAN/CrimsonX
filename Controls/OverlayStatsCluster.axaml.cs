@@ -108,7 +108,6 @@ namespace CrimsonX.Controls
         public OverlayStatsCluster()
         {
             InitializeComponent();
-
             _txtIdle       = this.FindControl<TextBlock>("txtIdle")!;
             _txtActive     = this.FindControl<TextBlock>("txtActive")!;
             _txtActiveWord = this.FindControl<TextBlock>("txtActiveWord")!;
@@ -124,50 +123,41 @@ namespace CrimsonX.Controls
             _txtMode       = this.FindControl<TextBlock>("txtMode")!;
             _hotCount      = this.FindControl<Border>("hotCount")!;
             _hotSpeed      = this.FindControl<Border>("hotSpeed")!;
-
             ToolTip.SetTip(_hotCount, _countTip.Root);
             ToolTip.SetTip(_hotSpeed, _speedTip.Root);
             ToolTip.SetShowDelay(_hotCount, 250);
             ToolTip.SetShowDelay(_hotSpeed, 250);
-
             SizeChanged += (_, e) => ApplyDensity(e.NewSize.Width);
         }
 
         protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
-
             _timer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _timer.Tick -= OnTick;
             _timer.Tick += OnTick;
             _timer.Start();
-
             OnTick(null, EventArgs.Empty);
         }
 
         protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
         {
             base.OnDetachedFromVisualTree(e);
-
             if (_timer != null)
             {
                 _timer.Stop();
                 _timer.Tick -= OnTick;
             }
-
             try { _cts?.Cancel(); _cts?.Dispose(); } catch { }
             _cts = null;
-
             try { _client?.Dispose(); } catch (Exception ex) { SimpleLogger.Log(ex); }
             _client = null;
-
             ResetTelemetry();
         }
 
         private async void OnTick(object? sender, EventArgs e)
         {
             if (_tickBusy) return;
-
             _tickBusy = true;
             try
             {
@@ -188,21 +178,16 @@ namespace CrimsonX.Controls
         private async Task RefreshAsync()
         {
             if (!IsEffectivelyVisible) return;
-
             var mw = MainWindow.Instance;
             if (mw == null) return;
-
             var state = mw.State;
             var cfg   = mw.Config;
-
             _visualState = state.IsConnected ? 2 : (state.IsEngineRunning ? 1 : 0);
             _vpnMode     = string.Equals(cfg.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase);
             _sessionElapsed = state.IsConnected && state.SessionStartTime.HasValue
                 ? DateTime.Now - state.SessionStartTime.Value
                 : null;
-
             bool wantTelemetry = state.IsConnected && _vpnMode && cfg.EnableAppRules;
-
             if (wantTelemetry)
             {
                 var names = GetRuleNames();
@@ -210,7 +195,6 @@ namespace CrimsonX.Controls
                 {
                     _client ??= new SingboxConnectionsClient();
                     _cts ??= new CancellationTokenSource();
-
                     var snapshot = await _client.GetAsync(names, _cts.Token);
                     if (snapshot != null && snapshot.Available)
                         ApplyTelemetry(snapshot);
@@ -226,7 +210,6 @@ namespace CrimsonX.Controls
             {
                 ResetTelemetry();
             }
-
             Render();
         }
 
@@ -246,7 +229,6 @@ namespace CrimsonX.Controls
         {
             if (_ruleNames != null && (DateTime.UtcNow - _ruleNamesStamp).TotalSeconds < 5)
                 return;
-
             var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var apps = new List<(string Label, HashSet<string> Names)>();
             try
@@ -254,16 +236,13 @@ namespace CrimsonX.Controls
                 foreach (var rule in AppRulesService.Load())
                 {
                     if (rule == null || !rule.IsEnabled) continue;
-
                     var source = rule.ProcessNames != null && rule.ProcessNames.Count > 0
                         ? (IEnumerable<string>)rule.ProcessNames
                         : new[] { rule.ExeName ?? "" };
-
                     var names = new HashSet<string>(AppRulesSingboxBuilder.BuildProcessNames(source),
                                                     StringComparer.OrdinalIgnoreCase);
                     foreach (var name in names)
                         set.Add(name);
-
                     if (names.Count > 0)
                         apps.Add((AppLabel(string.IsNullOrWhiteSpace(rule.DisplayName) ? rule.ExeName : rule.DisplayName,
                                            rule.ProcessNames), names));
@@ -273,7 +252,6 @@ namespace CrimsonX.Controls
             {
                 SimpleLogger.Log(ex);
             }
-
             _ruleNames = set;
             _ruleApps = apps;
             _ruleNamesStamp = DateTime.UtcNow;
@@ -284,11 +262,9 @@ namespace CrimsonX.Controls
             string name = exeName ?? "";
             if (string.IsNullOrWhiteSpace(name) && processNames != null && processNames.Count > 0)
                 name = processNames[0];
-
             name = name.Trim();
             if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 name = name.Substring(0, name.Length - 4);
-
             return Capitalize(name);
         }
 
@@ -308,34 +284,27 @@ namespace CrimsonX.Controls
         {
             var now = DateTime.UtcNow;
             double elapsed = _lastSample == DateTime.MinValue ? 0 : (now - _lastSample).TotalSeconds;
-
             double downPerSec = 0;
             double upPerSec   = 0;
             _procSpeed.Clear();
-
             if (elapsed >= 0.25)
             {
                 foreach (var proc in snapshot.Processes)
                 {
                     if (!_prevTotals.TryGetValue(proc.ProcessName, out var prev)) continue;
-
                     double dn = Math.Max(0, proc.DownloadBytes - prev.Dn) / elapsed;
                     double up = Math.Max(0, proc.UploadBytes - prev.Up) / elapsed;
-
                     downPerSec += dn;
                     upPerSec   += up;
                     _procSpeed[proc.ProcessName] = (dn, up);
                 }
             }
-
             const double alpha = 0.45;
             _speedDown = _speedDown <= 0 ? downPerSec : _speedDown + (downPerSec - _speedDown) * alpha;
             _speedUp   = _speedUp   <= 0 ? upPerSec   : _speedUp   + (upPerSec   - _speedUp)   * alpha;
-
             _prevTotals.Clear();
             foreach (var proc in snapshot.Processes)
                 _prevTotals[proc.ProcessName] = (proc.DownloadBytes, proc.UploadBytes);
-
             _lastSample = now;
             _activeConnections = snapshot.ActiveConnections;
             _lastProcesses = snapshot.Processes;
@@ -358,24 +327,19 @@ namespace CrimsonX.Controls
         private void ApplyStrings()
         {
             _persian = AppStrings.IsPersian;
-
             string stateText = _visualState switch
             {
                 2 => AppStrings.StatusConnected,
                 1 => AppStrings.StatusConnecting,
                 _ => AppStrings.StatusNotConnected
             };
-
             _txtIdle.Text = stateText;
-
             _txtActiveWord.Text = AppStrings.OverlayStatsActive;
             _txtMode.Text       = AppStrings.OverlayStatsProxyMode;
-
             var label = _persian ? PersianFont : FontFamily.Default;
             _txtIdle.FontFamily       = label;
             _txtActiveWord.FontFamily = label;
             _txtMode.FontFamily       = label;
-
             FlowDirection = _persian ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
             _txtActive.FlowDirection = FlowDirection.LeftToRight;
             _txtTimer.FlowDirection  = FlowDirection.LeftToRight;
@@ -391,7 +355,6 @@ namespace CrimsonX.Controls
                 1 => DotConnecting,
                 _ => DotIdle
             };
-
             _dotState.Fill = fill;
             _dotIdle.Fill  = fill;
         }
@@ -406,13 +369,10 @@ namespace CrimsonX.Controls
                 SetValue(_txtUp, NoValue, false);
                 return;
             }
-
             SetValue(_txtActive,
                 _hasTelemetry ? _activeConnections.ToString(CultureInfo.InvariantCulture) : NoValue,
                 _hasTelemetry);
-
             SetValue(_txtTimer, FormatDuration(_sessionElapsed ?? TimeSpan.Zero), _sessionElapsed.HasValue);
-
             SetValue(_txtDown, _hasTelemetry ? FormatSpeed(_speedDown, _compact) : NoValue, _hasTelemetry);
             SetValue(_txtUp,   _hasTelemetry ? FormatSpeed(_speedUp,   _compact) : NoValue, _hasTelemetry);
         }
@@ -420,7 +380,6 @@ namespace CrimsonX.Controls
         private static void SetValue(TextBlock block, string text, bool ready)
         {
             if (block.Text != text) block.Text = text;
-
             var brush = ready ? ValueReady : ValueBlank;
             if (!ReferenceEquals(block.Foreground, brush)) block.Foreground = brush;
         }
@@ -436,19 +395,14 @@ namespace CrimsonX.Controls
         {
             bool connected   = _visualState == 2;
             bool showNumbers = connected;
-
             _panIdle.IsVisible  = !connected;
             _txtTimer.IsVisible = showNumbers;
-
             _dotState.IsVisible      = connected;
             _txtActive.IsVisible     = showNumbers;
             _txtActiveWord.IsVisible = showNumbers;
-
             _panDown.IsVisible = showNumbers;
             _panUp.IsVisible   = showNumbers;
-
             if (_hoverLive == showNumbers) return;
-
             _hoverLive = showNumbers;
             _hotCount.Classes.Set("statHot", showNumbers);
             _hotSpeed.Classes.Set("statHot", showNumbers);
@@ -465,14 +419,12 @@ namespace CrimsonX.Controls
         {
             var sb = new StringBuilder();
             sb.Append(AppStrings.TtOverlayStatsTitle);
-
             if (_visualState == 2)
             {
                 sb.Append('\n')
                   .Append(AppStrings.TtOverlayStatsSession)
                   .Append(' ')
                   .Append(FormatDuration(_sessionElapsed ?? TimeSpan.Zero));
-
                 if (_hasTelemetry)
                 {
                     sb.Append("   ·   ")
@@ -480,7 +432,6 @@ namespace CrimsonX.Controls
                       .Append(' ').Append(AppStrings.OverlayStatsActive)
                       .Append("   ·   ↓ ").Append(FormatSpeed(_speedDown, false))
                       .Append("   ↑ ").Append(FormatSpeed(_speedUp, false));
-
                     foreach (var proc in _lastProcesses.Take(5))
                     {
                         sb.Append('\n')
@@ -488,13 +439,11 @@ namespace CrimsonX.Controls
                           .Append(" — ")
                           .Append(proc.ActiveConnections.ToString(CultureInfo.InvariantCulture))
                           .Append(" · ↓ ");
-
                         if (_procSpeed.TryGetValue(proc.ProcessName, out var speed))
                             sb.Append(FormatSpeed(speed.Dn, false)).Append(" ↑ ").Append(FormatSpeed(speed.Up, false));
                         else
                             sb.Append(NoValue);
                     }
-
                     sb.Append('\n').Append(AppStrings.TtOverlayStatsHint);
                 }
                 else
@@ -506,10 +455,8 @@ namespace CrimsonX.Controls
             {
                 sb.Append('\n').Append(_visualState == 1 ? AppStrings.StatusConnecting : AppStrings.StatusNotConnected);
             }
-
             string text = sb.ToString();
             if (text == _tipText) return;
-
             _tipText = text;
             AppStrings.ApplyToolTip(this, text);
         }
@@ -519,18 +466,15 @@ namespace CrimsonX.Controls
         private void ApplyAppTips()
         {
             var totals = new Dictionary<string, (int Count, double Dn, double Up)>(StringComparer.OrdinalIgnoreCase);
-
             if (_hasTelemetry)
             {
                 foreach (var app in GetRuleApps())
                 {
                     int count = 0;
                     double down = 0, up = 0;
-
                     foreach (var proc in _lastProcesses)
                     {
                         if (!app.Names.Contains(proc.ProcessName)) continue;
-
                         count += proc.ActiveConnections;
                         if (_procSpeed.TryGetValue(proc.ProcessName, out var speed))
                         {
@@ -538,20 +482,16 @@ namespace CrimsonX.Controls
                             up   += speed.Up;
                         }
                     }
-
                     if (count == 0 && down <= 0 && up <= 0) continue;
-
                     if (totals.TryGetValue(app.Label, out var seen))
                     {
                         count += seen.Count;
                         down  += seen.Dn;
                         up    += seen.Up;
                     }
-
                     totals[app.Label] = (count, down, up);
                 }
             }
-
             SyncTip(_countTip, BuildTipLines(totals, bySpeed: false), AppStrings.OverlayStatsNoConnections, _persian);
             SyncTip(_speedTip, BuildTipLines(totals, bySpeed: true), AppStrings.OverlayStatsNoTraffic, _persian);
         }
@@ -560,13 +500,11 @@ namespace CrimsonX.Controls
                                                    bool bySpeed)
         {
             var lines = new List<TipLine>();
-
             var busy = totals
                 .Where(kv => bySpeed ? kv.Value.Dn + kv.Value.Up > 0 : kv.Value.Count > 0)
                 .OrderByDescending(kv => bySpeed ? kv.Value.Dn + kv.Value.Up : (double)kv.Value.Count)
                 .ThenBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-
             int shown = Math.Min(busy.Count, TipMaxRows);
             for (int i = 0; i < shown; i++)
             {
@@ -576,46 +514,36 @@ namespace CrimsonX.Controls
                     : value.Count.ToString(CultureInfo.InvariantCulture) + " "
                       + (value.Count == 1 ? AppStrings.OverlayStatsConnection : AppStrings.OverlayStatsConnections)));
             }
-
             if (busy.Count > shown && shown > 0)
                 lines.Add(new TipLine(
                     string.Format(CultureInfo.InvariantCulture, AppStrings.OverlayStatsMoreApps, busy.Count - shown),
                     "", true));
-
             return lines;
         }
 
         private static void SyncTip(TipBox box, List<TipLine> lines, string emptyText, bool persian)
         {
             var font = persian ? PersianFont : FontFamily.Default;
-
             box.Empty.IsVisible = lines.Count == 0;
             box.Table.IsVisible = lines.Count > 0;
-
             if (box.Empty.Text != emptyText) box.Empty.Text = emptyText;
             box.Empty.FontFamily = font;
             box.Root.FlowDirection = persian ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
-
             for (int i = 0; i < lines.Count; i++)
             {
                 if (i >= box.Rows.Count) box.AddRow();
-
                 var row  = box.Rows[i];
                 var line = lines[i];
-
                 if (row.Name.Text != line.Label) row.Name.Text = line.Label;
                 if (row.Value.Text != line.Value) row.Value.Text = line.Value;
-
                 row.Name.FontFamily  = font;
                 row.Value.FontFamily = font;
                 row.Name.FontStyle   = line.Note ? FontStyle.Italic : FontStyle.Normal;
                 row.Name.Foreground  = line.Note ? TipNote : TipName;
-
                 row.Name.IsVisible      = true;
                 row.Value.IsVisible     = true;
                 row.Separator.IsVisible = i < lines.Count - 1;
             }
-
             for (int i = lines.Count; i < box.Rows.Count; i++)
             {
                 var row = box.Rows[i];
@@ -649,9 +577,7 @@ namespace CrimsonX.Controls
                     FontStyle  = FontStyle.Italic,
                     Foreground = TipValue
                 };
-
                 Table = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
-
                 Root = new StackPanel { Orientation = Orientation.Vertical, Spacing = 0 };
                 Root.Children.Add(Empty);
                 Root.Children.Add(Table);
@@ -669,7 +595,6 @@ namespace CrimsonX.Controls
             {
                 int line = Rows.Count * 2;
                 EnsureRows(line + 1);
-
                 var name = new TextBlock
                 {
                     FontSize          = 11,
@@ -679,7 +604,6 @@ namespace CrimsonX.Controls
                     TextTrimming      = TextTrimming.CharacterEllipsis,
                     VerticalAlignment = VerticalAlignment.Center
                 };
-
                 var value = new TextBlock
                 {
                     FontSize          = 11,
@@ -688,7 +612,6 @@ namespace CrimsonX.Controls
                     FlowDirection     = FlowDirection.LeftToRight,
                     VerticalAlignment = VerticalAlignment.Center
                 };
-
                 var separator = new Border
                 {
                     Height              = 1,
@@ -696,7 +619,6 @@ namespace CrimsonX.Controls
                     Margin              = new Thickness(0, 5, 0, 5),
                     HorizontalAlignment = HorizontalAlignment.Stretch
                 };
-
                 Grid.SetRow(name, line);
                 Grid.SetColumn(name, 0);
                 Grid.SetRow(value, line);
@@ -704,11 +626,9 @@ namespace CrimsonX.Controls
                 Grid.SetRow(separator, line + 1);
                 Grid.SetColumn(separator, 0);
                 Grid.SetColumnSpan(separator, 2);
-
                 Table.Children.Add(name);
                 Table.Children.Add(value);
                 Table.Children.Add(separator);
-
                 Rows.Add((name, value, separator));
             }
 
@@ -724,7 +644,6 @@ namespace CrimsonX.Controls
         internal static string FormatDuration(TimeSpan span)
         {
             if (span < TimeSpan.Zero) span = TimeSpan.Zero;
-
             int hours = (int)span.TotalHours;
             return hours.ToString("00", CultureInfo.InvariantCulture) + ":"
                  + span.Minutes.ToString("00", CultureInfo.InvariantCulture) + ":"
@@ -735,16 +654,13 @@ namespace CrimsonX.Controls
         {
             if (bytesPerSec < 1)
                 return compact ? "0" : "0 B/s";
-
             if (bytesPerSec < 1024)
                 return Math.Round(bytesPerSec).ToString("0", CultureInfo.InvariantCulture) + (compact ? "" : " B/s");
-
             if (bytesPerSec < 1024 * 1024)
             {
                 double kb = bytesPerSec / 1024.0;
                 return kb.ToString(kb >= 100 ? "0" : "0.#", CultureInfo.InvariantCulture) + (compact ? "K" : " KB/s");
             }
-
             double mb = bytesPerSec / (1024.0 * 1024.0);
             return mb.ToString(mb >= 100 ? "0" : "0.#", CultureInfo.InvariantCulture) + (compact ? "M" : " MB/s");
         }

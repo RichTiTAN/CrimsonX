@@ -247,7 +247,8 @@
         </Border>
 
         <!-- Popups -->
-        <Popup x:Name="PopupSlot1" IsLightDismissEnabled="False">
+        <Popup x:Name="PopupSlot1" IsLightDismissEnabled="False"
+               Placement="AnchorAndGravity" PlacementAnchor="None" PlacementGravity="Top">
             <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="195" Padding="2">
                 <ScrollViewer MaxHeight="300">
                     <StackPanel x:Name="panPopupSlot1Items">
@@ -256,7 +257,8 @@
             </Border>
         </Popup>
 
-        <Popup x:Name="PopupSlot2" IsLightDismissEnabled="False">
+        <Popup x:Name="PopupSlot2" IsLightDismissEnabled="False"
+               Placement="AnchorAndGravity" PlacementAnchor="None" PlacementGravity="Top">
             <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="195" Padding="2">
                 <ScrollViewer MaxHeight="300">
                     <StackPanel x:Name="panPopupSlot2Items">

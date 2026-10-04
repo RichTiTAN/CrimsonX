@@ -35,10 +35,8 @@ namespace CrimsonX.Services
         {
             string text = (ip ?? "").Trim();
             if (text.Length <= TileBudget || !IsIpv6(text)) return text;
-
             string[] groups = text.Split(':');
             if (groups.Length < 4) return text;
-
             return $"{groups[0]}:{groups[1]}:{groups[2]}…:{groups[groups.Length - 1]}";
         }
     }

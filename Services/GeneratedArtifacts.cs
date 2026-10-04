@@ -53,7 +53,6 @@ namespace CrimsonX.Services
         public static void Cleanup()
         {
             var owner = MainWindow.Instance;
-
             foreach (var relative in Files)
             {
                 try
@@ -63,7 +62,6 @@ namespace CrimsonX.Services
                 }
                 catch (Exception ex) { SimpleLogger.Log(ex); }
             }
-
             foreach (var relative in Patterns)
             {
                 try
@@ -71,12 +69,10 @@ namespace CrimsonX.Services
                     string path = owner?.GetAppPath(relative) ?? relative;
                     string? dir = Path.GetDirectoryName(path);
                     if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) continue;
-
                     foreach (var file in Directory.GetFiles(dir, Path.GetFileName(path)))
                     {
                         try { File.Delete(file); } catch (Exception ex) { SimpleLogger.Log(ex); }
                     }
-
                     foreach (var sub in Directory.GetDirectories(dir, Path.GetFileName(path)))
                     {
                         TryDeleteTree(sub);
@@ -84,7 +80,6 @@ namespace CrimsonX.Services
                 }
                 catch (Exception ex) { SimpleLogger.Log(ex); }
             }
-
             foreach (var relative in Trees)
             {
                 try

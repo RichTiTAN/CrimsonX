@@ -108,196 +108,167 @@ public partial class AppsGamesOverlay
     private void EnsureDefaultRules()
     {
         bool changed = false;
-
         if (!_rules.Any(r => r.DefaultKey == DiscordDefaultKey))
         {
             _rules.Insert(0, CreateDiscordDefaultRule());
             changed = true;
         }
-
         var discordRule = _rules.FirstOrDefault(r => r.DefaultKey == DiscordDefaultKey);
         if (discordRule != null && !string.IsNullOrWhiteSpace(discordRule.Region))
         {
             discordRule.Region = "";
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == Cs2DefaultKey))
         {
             int discordIndex = _rules.FindIndex(r => r.DefaultKey == DiscordDefaultKey);
             _rules.Insert(discordIndex >= 0 ? discordIndex + 1 : 0, CreateCs2DefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == ApexDefaultKey))
         {
             int cs2Index = _rules.FindIndex(r => r.DefaultKey == Cs2DefaultKey);
             _rules.Insert(cs2Index >= 0 ? cs2Index + 1 : _rules.Count, CreateApexDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == DeadlockDefaultKey))
         {
             int apexIndex = _rules.FindIndex(r => r.DefaultKey == ApexDefaultKey);
             _rules.Insert(apexIndex >= 0 ? apexIndex + 1 : _rules.Count, CreateDeadlockDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == EfootballDefaultKey))
         {
             int deadlockIndex = _rules.FindIndex(r => r.DefaultKey == DeadlockDefaultKey);
             _rules.Insert(deadlockIndex >= 0 ? deadlockIndex + 1 : _rules.Count, CreateEfootballDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == Tekken8DefaultKey))
         {
             int efootballIndex = _rules.FindIndex(r => r.DefaultKey == EfootballDefaultKey);
             _rules.Insert(efootballIndex >= 0 ? efootballIndex + 1 : _rules.Count, CreateTekken8DefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == RocketLeagueDefaultKey))
         {
             int tekkenIndex = _rules.FindIndex(r => r.DefaultKey == Tekken8DefaultKey);
             _rules.Insert(tekkenIndex >= 0 ? tekkenIndex + 1 : _rules.Count, CreateRocketLeagueDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == Dota2DefaultKey))
         {
             int rlIndex = _rules.FindIndex(r => r.DefaultKey == RocketLeagueDefaultKey);
             _rules.Insert(rlIndex >= 0 ? rlIndex + 1 : _rules.Count, CreateDota2DefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == LeagueDefaultKey))
         {
             int dota2Index = _rules.FindIndex(r => r.DefaultKey == Dota2DefaultKey);
             _rules.Insert(dota2Index >= 0 ? dota2Index + 1 : _rules.Count, CreateLeagueDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == ValorantDefaultKey))
         {
             int leagueIndex = _rules.FindIndex(r => r.DefaultKey == LeagueDefaultKey);
             _rules.Insert(leagueIndex >= 0 ? leagueIndex + 1 : _rules.Count, CreateValorantDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == Bf6DefaultKey))
         {
             int valorantIndex = _rules.FindIndex(r => r.DefaultKey == ValorantDefaultKey);
             _rules.Insert(valorantIndex >= 0 ? valorantIndex + 1 : _rules.Count, CreateBf6DefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == Titanfall2DefaultKey))
         {
             int bf6Index = _rules.FindIndex(r => r.DefaultKey == Bf6DefaultKey);
             _rules.Insert(bf6Index >= 0 ? bf6Index + 1 : _rules.Count, CreateTitanfall2DefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == MarvelRivalsDefaultKey))
         {
             int titanfall2Index = _rules.FindIndex(r => r.DefaultKey == Titanfall2DefaultKey);
             _rules.Insert(titanfall2Index >= 0 ? titanfall2Index + 1 : _rules.Count, CreateMarvelRivalsDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == IRacingDefaultKey))
         {
             int marvelRivalsIndex = _rules.FindIndex(r => r.DefaultKey == MarvelRivalsDefaultKey);
             _rules.Insert(marvelRivalsIndex >= 0 ? marvelRivalsIndex + 1 : _rules.Count, CreateIRacingDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == EaAppDefaultKey))
         {
             int iRacingIndex = _rules.FindIndex(r => r.DefaultKey == IRacingDefaultKey);
             _rules.Insert(iRacingIndex >= 0 ? iRacingIndex + 1 : _rules.Count, CreateEaAppDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == UbisoftDefaultKey))
         {
             int eaIndex = _rules.FindIndex(r => r.DefaultKey == EaAppDefaultKey);
             _rules.Insert(eaIndex >= 0 ? eaIndex + 1 : _rules.Count, CreateUbisoftDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == EpicDefaultKey))
         {
             int ubisoftIndex = _rules.FindIndex(r => r.DefaultKey == UbisoftDefaultKey);
             _rules.Insert(ubisoftIndex >= 0 ? ubisoftIndex + 1 : _rules.Count, CreateEpicDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == SteamDefaultKey))
         {
             int epicIndex = _rules.FindIndex(r => r.DefaultKey == EpicDefaultKey);
             _rules.Insert(epicIndex >= 0 ? epicIndex + 1 : _rules.Count, CreateSteamDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == XboxDefaultKey))
         {
             int steamIndex = _rules.FindIndex(r => r.DefaultKey == SteamDefaultKey);
             _rules.Insert(steamIndex >= 0 ? steamIndex + 1 : _rules.Count, CreateXboxDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == RiotDefaultKey))
         {
             int xboxIndex = _rules.FindIndex(r => r.DefaultKey == XboxDefaultKey);
             _rules.Insert(xboxIndex >= 0 ? xboxIndex + 1 : _rules.Count, CreateRiotDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == BattleNetDefaultKey))
         {
             int riotIndex = _rules.FindIndex(r => r.DefaultKey == RiotDefaultKey);
             _rules.Insert(riotIndex >= 0 ? riotIndex + 1 : _rules.Count, CreateBattleNetDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == TelegramDefaultKey))
         {
             _rules.Add(CreateTelegramDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == WhatsAppDefaultKey))
         {
             _rules.Add(CreateWhatsAppDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == BraveDefaultKey))
         {
             _rules.Add(CreateBraveDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == ChromeDefaultKey))
         {
             _rules.Add(CreateChromeDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == EdgeDefaultKey))
         {
             _rules.Add(CreateEdgeDefaultRule());
             changed = true;
         }
-
         if (!_rules.Any(r => r.DefaultKey == FirefoxDefaultKey))
         {
             _rules.Add(CreateFirefoxDefaultRule());
             changed = true;
         }
-
         var regionOnlyKeys = new[] { Cs2DefaultKey, ApexDefaultKey, DeadlockDefaultKey, EfootballDefaultKey, RocketLeagueDefaultKey, Dota2DefaultKey, Bf6DefaultKey, Titanfall2DefaultKey, MarvelRivalsDefaultKey, IRacingDefaultKey };
         foreach (var r in _rules.Where(r => regionOnlyKeys.Contains(r.DefaultKey)))
         {
@@ -307,7 +278,6 @@ public partial class AppsGamesOverlay
                 changed = true;
             }
         }
-
         var launcherKeys = new[] { EaAppDefaultKey, UbisoftDefaultKey, EpicDefaultKey, SteamDefaultKey, XboxDefaultKey, RiotDefaultKey, BattleNetDefaultKey };
         foreach (var r in _rules.Where(r => launcherKeys.Contains(r.DefaultKey)))
         {
@@ -328,7 +298,6 @@ public partial class AppsGamesOverlay
                 changed = true;
             }
         }
-
         var eaRule = _rules.FirstOrDefault(r => r.DefaultKey == EaAppDefaultKey);
         if (eaRule != null)
         {
@@ -342,7 +311,6 @@ public partial class AppsGamesOverlay
                 }
             }
         }
-
         var noRegionKeys = new[] { TelegramDefaultKey, WhatsAppDefaultKey, BraveDefaultKey, ChromeDefaultKey, EdgeDefaultKey, FirefoxDefaultKey };
         foreach (var r in _rules.Where(r => noRegionKeys.Contains(r.DefaultKey)))
         {
@@ -353,7 +321,6 @@ public partial class AppsGamesOverlay
                 changed = true;
             }
         }
-
         var telegramRule = _rules.FirstOrDefault(r => r.DefaultKey == TelegramDefaultKey);
         if (telegramRule != null && (telegramRule.ProcessNames == null || telegramRule.ProcessNames.Count != 1 || !string.Equals(telegramRule.ProcessNames[0], "Telegram.exe", StringComparison.Ordinal)))
         {
@@ -407,7 +374,6 @@ public partial class AppsGamesOverlay
                 changed = true;
             }
         }
-
         foreach (var r in _rules.Where(r => !string.IsNullOrEmpty(r.DefaultKey)))
         {
             string? asset = DefaultIconAssetName(r.DefaultKey);
@@ -419,7 +385,6 @@ public partial class AppsGamesOverlay
                 changed = true;
             }
         }
-
         if (changed) SaveRules();
     }
 

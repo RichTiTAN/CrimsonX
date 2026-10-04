@@ -36,10 +36,8 @@ namespace CrimsonX.Services
             using var aes = Aes.Create();
             aes.Key = Key;
             aes.GenerateIV();
-
             using var ms = new MemoryStream();
             ms.Write(aes.IV, 0, aes.IV.Length); 
-
             using (var encryptor = aes.CreateEncryptor(aes.Key, aes.IV))
             using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
             {
@@ -71,7 +69,6 @@ namespace CrimsonX.Services
                 {
                 }
             }
-
             try
             {
                 using var aes = Aes.Create();
@@ -89,13 +86,11 @@ namespace CrimsonX.Services
         public static List<string> LoadCache(string path)
         {
             if (!File.Exists(path)) return new List<string>();
-
             try
             {
                 byte[] encrypted = File.ReadAllBytes(path);
                 string? json = DecryptToString(encrypted);
                 if (string.IsNullOrEmpty(json)) return new List<string>();
-
                 var list = JsonConvert.DeserializeObject<List<string>>(json);
                 return list ?? new List<string>();
             }
@@ -111,13 +106,11 @@ namespace CrimsonX.Services
             try
             {
                 var finalConfigs = newConfigs;
-                
                 if (!overwrite)
                 {
                     var existing = LoadCache(path);
                     var merged = new List<string>();
                     merged.AddRange(newConfigs);
-                    
                     foreach (var old in existing)
                     {
                         if (!merged.Contains(old))
@@ -127,10 +120,8 @@ namespace CrimsonX.Services
                     }
                     finalConfigs = merged.Take(20).ToList();
                 }
-
                 string json = JsonConvert.SerializeObject(finalConfigs);
                 byte[] plainBytes = Encoding.UTF8.GetBytes(json);
-
                 File.WriteAllBytes(path, Encrypt(plainBytes));
             }
             catch (Exception ex)
@@ -170,10 +161,8 @@ namespace CrimsonX.Services
             try
             {
                 byte[] plainBytes = Encoding.UTF8.GetBytes(content ?? "");
-
                 string dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-
                 File.WriteAllBytes(path, Encrypt(plainBytes));
             }
             catch { }

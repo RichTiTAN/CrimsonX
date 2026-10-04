@@ -70,7 +70,6 @@ public partial class AboutPage : UserControl
         var panToggle = this.FindControl<Border>("panWalletToggle");
         var btnToggle = this.FindControl<Button>("btnWalletToggle");
         bool expanded = pan != null && pan.MaxHeight == 0;
-
         if (pan != null) { pan.MaxHeight = expanded ? 260 : 0; pan.Opacity = expanded ? 1 : 0; }
         if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(expanded ? 180 : 0);
         if (panToggle != null) panToggle.CornerRadius = expanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
@@ -131,12 +130,10 @@ public partial class AboutPage : UserControl
         {
             _aboutCardMargin ??= card.Margin;
             var margin = _aboutCardMargin.Value;
-
             card.Margin = barHeight > 0
                 ? new Avalonia.Thickness(margin.Left, margin.Top + barHeight, margin.Right, margin.Bottom)
                 : margin;
         }
-
         var scroller = this.FindControl<ScrollViewer>("Scroller");
         if (scroller != null) CrimsonX.Behaviors.ScrollScrimBehavior.SetTopInset(scroller, barHeight > 0 ? barHeight : 0);
     }
@@ -146,7 +143,6 @@ public partial class AboutPage : UserControl
     internal void UpdateLocalization()
     {
         var Apply = new System.Action<TextBlock?, string>((tb, s) => { if (tb != null) tb.Text = s; });
-        
         Apply(this.FindControl<TextBlock>("lblAboutVersion"), Localization.AppStrings.AboutVersion);
         Apply(this.FindControl<TextBlock>("lblAboutCreator"), Localization.AppStrings.AboutCreator);
         Apply(this.FindControl<TextBlock>("lblAboutLicense"), Localization.AppStrings.AboutLicense);
@@ -154,7 +150,6 @@ public partial class AboutPage : UserControl
         Apply(this.FindControl<TextBlock>("lblDonationsDesc"), Localization.AppStrings.DonationsDesc);
         Apply(this.FindControl<TextBlock>("lblDonateCard"), Localization.AppStrings.DonateCardTitle);
         Apply(this.FindControl<TextBlock>("lblWalletAddresses"), Localization.AppStrings.WalletAddressesTitle);
-        
         var btnCheckUpdate = this.FindControl<Button>("btnCheckUpdate");
         if (btnCheckUpdate != null) btnCheckUpdate.Content = Localization.AppStrings.CheckForUpdates;
     }

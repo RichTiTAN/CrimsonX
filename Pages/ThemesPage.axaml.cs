@@ -40,28 +40,21 @@ public partial class ThemesPage : UserControl
     {
         var btn = sender as Button;
         if (btn == null) return;
-        
         string themeName = btn.CommandParameter?.ToString() ?? "Crimson";
-        
         MainWindow.Instance.Config.ThemeColor = themeName;
         MainWindow.Instance.RequestSave();
-
         Avalonia.Threading.DispatcherTimer.RunOnce(() => {
             MainWindow.Instance.ApplyTheme(themeName);
         }, System.TimeSpan.FromMilliseconds(300));
     }
 
-    
     private bool _isInitializing = false;
 
     public void SyncUI()
     {
         _isInitializing = true;
-        
         UpdateGlowButtons();
-
         MainWindow.Instance.UpdateGlobalAnimations();
-
         _isInitializing = false;
     }
 
@@ -71,7 +64,6 @@ public partial class ThemesPage : UserControl
     {
         var btnPause = this.FindControl<Button>("btnPauseGlows");
         var btnDisable = this.FindControl<Button>("btnDisableGlows");
-
         if (btnPause != null)
         {
             if (MainWindow.Instance.Config.PauseGlows)
@@ -79,7 +71,6 @@ public partial class ThemesPage : UserControl
             else
                 btnPause.Classes.Remove("activeMode");
         }
-
         if (btnDisable != null)
         {
             if (MainWindow.Instance.Config.DisableGlows)
@@ -95,7 +86,6 @@ public partial class ThemesPage : UserControl
         MainWindow.Instance.Config.PauseGlows = !MainWindow.Instance.Config.PauseGlows;
         UpdateGlowButtons();
         MainWindow.Instance.RequestSave();
-        
         MainWindow.Instance.UpdateGlobalAnimations();
     }
 
@@ -105,7 +95,6 @@ public partial class ThemesPage : UserControl
         MainWindow.Instance.Config.DisableGlows = !MainWindow.Instance.Config.DisableGlows;
         UpdateGlowButtons();
         MainWindow.Instance.RequestSave();
-        
         MainWindow.Instance.UpdateGlobalAnimations();
     }
 
@@ -126,7 +115,6 @@ public partial class ThemesPage : UserControl
         CrimsonX.Localization.AppStrings.Apply(F("lblColorGreen"), CrimsonX.Localization.AppStrings.ColorGreen);
         CrimsonX.Localization.AppStrings.Apply(F("lblColorPink"), CrimsonX.Localization.AppStrings.ColorPink);
         CrimsonX.Localization.AppStrings.Apply(F("lblColorYellow"), CrimsonX.Localization.AppStrings.ColorYellow);
-    
         CrimsonX.Localization.AppStrings.Apply(F("lblManageGlow"), CrimsonX.Localization.AppStrings.ThemeManageGlow);
         CrimsonX.Localization.AppStrings.Apply(F("lblPauseGlows"), CrimsonX.Localization.AppStrings.ThemePauseGlows);
         CrimsonX.Localization.AppStrings.Apply(F("lblDisableGlows"), CrimsonX.Localization.AppStrings.ThemeDisableGlows);

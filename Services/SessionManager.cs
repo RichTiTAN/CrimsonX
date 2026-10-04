@@ -41,20 +41,16 @@ namespace CrimsonX.Services
             lock (_startLock) { _startTime = DateTime.Now; }
             _cts       = new CancellationTokenSource();
             var token  = _cts.Token;
-
             CrimsonX.Services.BackgroundTask.Run("session clock", async () =>
             {
                 while (!token.IsCancellationRequested)
                 {
                     try { await Task.Delay(1000, token).ConfigureAwait(false); }
                     catch { break; }
-
                     if (token.IsCancellationRequested) break;
-
                     DateTime? start;
                     lock (_startLock) { start = _startTime; }
                     if (start == null) break;
-
                     var elapsed = DateTime.Now - start.Value;
                     ElapsedTimeUpdated?.Invoke(elapsed.ToString(@"hh\:mm\:ss"));
                 }

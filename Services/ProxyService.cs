@@ -55,12 +55,10 @@ namespace CrimsonX.Services
                 {
                     SimpleLogger.Log(ex);
                 }
-
                 try { RefreshProxy(); }
                 catch (Exception ex) { SimpleLogger.Log(ex); }
             }));
         }
-
 
         public static void DisableSystemProxy()
         {

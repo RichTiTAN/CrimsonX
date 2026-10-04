@@ -41,7 +41,6 @@ namespace CrimsonX.Dialogs
         {
             InitializeComponent();
             _main = main;
-            
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _timer.Tick += (s, e) => UpdateUI();
             _timer.Start();
@@ -77,11 +76,9 @@ namespace CrimsonX.Dialogs
         public void ApplyLanguage(bool isPersian)
         {
             UpdateUI();
-
             bool fa = isPersian;
             btnClose.Content      = AppStrings.TrayClose;
             btnShowWindow.Content = AppStrings.TrayShowWindow;
-
             lblStatus.FlowDirection = fa
                 ? global::Avalonia.Media.FlowDirection.RightToLeft
                 : global::Avalonia.Media.FlowDirection.LeftToRight;

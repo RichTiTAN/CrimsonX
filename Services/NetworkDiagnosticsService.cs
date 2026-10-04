@@ -36,28 +36,21 @@ namespace CrimsonX.Services
         {
             var cfg = MainWindow.Instance?.Config;
             int port = ExitNodeChain.ActivePort;
-
             bool auth = cfg != null
                 && cfg.AllowLanConnections
                 && cfg.EnableLanAuth
                 && !string.IsNullOrWhiteSpace(cfg.LanAuthUsername)
                 && !string.IsNullOrWhiteSpace(cfg.LanAuthPassword);
-
             string key = port + "|" + (auth ? cfg!.LanAuthUsername + ":" + cfg.LanAuthPassword : "");
-
             if (_geoPingClient != null && _geoClientKey == key) return _geoPingClient;
-
             try { _geoPingClient?.Dispose(); } catch { }
-
             var proxy = new System.Net.WebProxy("http://127.0.0.1:" + port);
             if (auth) proxy.Credentials = new System.Net.NetworkCredential(cfg!.LanAuthUsername, cfg.LanAuthPassword);
-
             _geoPingClient = new HttpClient(new HttpClientHandler { Proxy = proxy, UseProxy = true })
             {
                 Timeout = TimeSpan.FromSeconds(30)
             };
             _geoClientKey = key;
-
             return _geoPingClient;
         }
 
@@ -114,7 +107,6 @@ namespace CrimsonX.Services
             _geoCts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             var token = _geoCts.Token;
             var sw    = Stopwatch.StartNew();
-
             CrimsonX.Services.BackgroundTask.Run("geo trace", async () =>
             {
                 try
@@ -124,7 +116,6 @@ namespace CrimsonX.Services
                         .ConfigureAwait(false);
                     sw.Stop();
                     if (token != _geoCts?.Token) return; 
-
                     var data          = JObject.Parse(json);
                     var continentCode = data["continent_code"]?.ToString() ?? "";
                     var countryCode   = data["country_code"]?.ToString()   ?? "";
@@ -132,11 +123,9 @@ namespace CrimsonX.Services
                     var ip            = data["ip"]?.ToString()             ?? "";
                     ContinentNames.TryGetValue(continentCode, out var continent);
                     continent ??= continentCode;
-
                     SimpleLogger.Log(
                         $"[Geo] traced through 127.0.0.1:{ExitNodeChain.ActivePort} -> {country} ({countryCode}) in {sw.ElapsedMilliseconds} ms" +
                         (ExitNodeChain.ChainActive ? " - that is the exit node's location" : ""));
-
                     GeoTraceCompleted?.Invoke(new GeoTraceResult
                     {
                         Country       = country,
@@ -169,38 +158,31 @@ namespace CrimsonX.Services
         public void StartStatsPolling(Func<bool> isConnected)
         {
             StopStatsPolling();
-
             _statsCts = new CancellationTokenSource();
             var token = _statsCts.Token;
-
             CrimsonX.Services.BackgroundTask.Run("stats polling", async () =>
             {
                 while (!token.IsCancellationRequested)
                 {
                     try { await Task.Delay(1500, token).ConfigureAwait(false); }
                     catch { break; }
-
                     if (token.IsCancellationRequested) break;
                     if (!isConnected()) break;
-
                     try { await PollStatsTick(token).ConfigureAwait(false); } catch { }
                 }
             });
         }
-
 
         public void StopStatsPolling()
         {
             if (_statsCts == null) return;
             try { _statsCts.Cancel(); _statsCts.Dispose(); } catch { }
             _statsCts = null;
-
             _upHistory.Clear();
             _dnHistory.Clear();
             _upSum = 0; _dnSum = 0;
             _lastUpBytes = 0; _lastDnBytes = 0;
             _lastPollTime = DateTime.MinValue;
-
             _endpointUpSeen.Clear();
             _endpointDnSeen.Clear();
             _endpointUpTotal = 0;
@@ -215,10 +197,8 @@ namespace CrimsonX.Services
             try
             {
                 var endpoint = await ReadExitEndpointTotalsAsync(token).ConfigureAwait(false);
-
                 long curUp;
                 long curDn;
-
                 if (endpoint.HasValue)
                 {
                     curUp = endpoint.Value.Up;
@@ -237,42 +217,33 @@ namespace CrimsonX.Services
                     request.Content.Headers.ContentType =
                         new System.Net.Http.Headers.MediaTypeHeaderValue("application/grpc");
                     request.Headers.Add("TE", "trailers");
-
                     using var cts      = new CancellationTokenSource(TimeSpan.FromSeconds(1.5));
                     using var combined = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
                     using var response = await _grpcClient.SendAsync(request, combined.Token)
                         .ConfigureAwait(false);
                     var bytes = await response.Content.ReadAsByteArrayAsync(combined.Token)
                         .ConfigureAwait(false);
-
                     long upVal = 0, dnVal = 0;
                     ParseGrpcStatsBytes(bytes, ref upVal, ref dnVal);
-
                     curUp = upVal;
                     curDn = dnVal;
                 }
-
                 if (curUp > 0 && _lastUpBytes > 0)
                 {
                     var diffUp = Math.Max(0, curUp - _lastUpBytes);
                     var diffDn = Math.Max(0, curDn - _lastDnBytes);
-
                     var now     = DateTime.UtcNow;
                     double elapsed = (_lastPollTime == DateTime.MinValue)
                         ? 1.5
                         : Math.Max(0.1, (now - _lastPollTime).TotalSeconds);
-
                     _upSum += diffUp;
                     _upHistory.Enqueue(diffUp);
                     if (_upHistory.Count > HistorySamples) _upSum -= _upHistory.Dequeue();
-
                     _dnSum += diffDn;
                     _dnHistory.Enqueue(diffDn);
                     if (_dnHistory.Count > HistorySamples) _dnSum -= _dnHistory.Dequeue();
-
                     double spdUpRaw = diffUp / elapsed;
                     double spdDnRaw = diffDn / elapsed;
-
                     StatsUpdated?.Invoke(new StatsSnapshot
                     {
                         SpeedUp     = FormatSpeed(spdUpRaw),
@@ -283,7 +254,6 @@ namespace CrimsonX.Services
                         DnHistory   = _dnHistory.ToArray()
                     });
                 }
-
                 if (curUp > 0) _lastUpBytes = curUp;
                 if (curDn > 0) _lastDnBytes = curDn;
                 _lastPollTime = DateTime.UtcNow;
@@ -298,38 +268,28 @@ namespace CrimsonX.Services
             if (cfg == null) return null;
             if (!ExitNodeChain.ChainActive || !ExitNodeChain.IsTunnelExit(cfg)) return null;
             if (!SingboxClashApi.IsConfigured) return null;
-
             _chainClient ??= new SingboxConnectionsClient();
-
             var snapshot = await _chainClient.GetChainAsync(ExitNodeChain.EndpointTag, token)
                 .ConfigureAwait(false);
             if (snapshot == null) return null;
-
             if (!snapshot.HasChains)
                 return (snapshot.SessionUploadBytes, snapshot.SessionDownloadBytes);
-
             var live = new HashSet<string>(StringComparer.Ordinal);
-
             foreach (var connection in snapshot.Connections)
             {
                 live.Add(connection.Id);
-
                 long seenUp = _endpointUpSeen.TryGetValue(connection.Id, out long prevUp) ? prevUp : 0;
                 long seenDn = _endpointDnSeen.TryGetValue(connection.Id, out long prevDn) ? prevDn : 0;
-
                 _endpointUpTotal += Math.Max(0, connection.UploadBytes   - seenUp);
                 _endpointDnTotal += Math.Max(0, connection.DownloadBytes - seenDn);
-
                 _endpointUpSeen[connection.Id] = Math.Max(seenUp, connection.UploadBytes);
                 _endpointDnSeen[connection.Id] = Math.Max(seenDn, connection.DownloadBytes);
             }
-
             foreach (var id in _endpointUpSeen.Keys.Where(k => !live.Contains(k)).ToList())
             {
                 _endpointUpSeen.Remove(id);
                 _endpointDnSeen.Remove(id);
             }
-
             return (_endpointUpTotal, _endpointDnTotal);
         }
 
@@ -342,12 +302,10 @@ namespace CrimsonX.Services
             {
                 if (bytes[pos] != 0x0A) break;
                 pos++;
-
                 int  statLen  = ReadVarint32(bytes, ref pos);
                 int  statEnd  = pos + statLen;
                 bool isUplink = false, isDownlink = false, isSocks = false;
                 long value    = 0;
-
                 while (pos < statEnd)
                 {
                     int tag = ReadVarint32(bytes, ref pos);
@@ -373,7 +331,6 @@ namespace CrimsonX.Services
                         else if (wireType == 5) pos += 4;
                     }
                 }
-
                 if (isSocks)
                 {
                     if (isUplink)   upVal += value;
@@ -421,7 +378,6 @@ namespace CrimsonX.Services
         {
             if (_disposed) return;
             _disposed = true;
-
             StopGeoTrace();
             StopStatsPolling();
             _chainClient?.Dispose();

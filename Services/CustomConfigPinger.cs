@@ -29,40 +29,31 @@ namespace CrimsonX.Services
         {
             string text = (raw ?? "").Trim();
             if (text.Length == 0 || cfg == null) return new ConfigTestResult { Link = raw ?? "" };
-
             string bindIp = !string.IsNullOrWhiteSpace(adapterIp)
                 ? adapterIp.Trim()
                 : XrayConfigWriter.ProbeSendThrough(cfg);
-
             if (TunnelConfigParser.TryParse(text, out var tunnel) && tunnel != null && TunnelTcpProbe.IsOpenVpn(tunnel))
             {
                 var tcp = await Task.Run(() => TunnelTcpProbe.Probe(tunnel, bindIp, TunnelTcpProbe.DefaultTimeoutMs), ct).ConfigureAwait(false);
                 string route = TunnelTcpProbe.RouteText(bindIp);
-
                 if (tcp.Ok)
                 {
                     return new ConfigTestResult { Link = text, Success = true, Ping = tcp.Ms };
                 }
-
                 bool tunnelActive = XrayPipelineManager.ActiveOutbounds.Count > 0;
                 string hint = tunnelActive ? " (a session is up, so the probe may be captured by the active tunnel)" : "";
                 return new ConfigTestResult { Link = text, Success = false, TimedOut = tcp.TimedOut };
             }
-
             string xrayJson = "";
             if (ConfigConverter.IsXrayOutbound(text)) xrayJson = text;
             else if (ConfigConverter.TryConvert(text, out string converted, out _, out _)) xrayJson = converted;
-
             if (xrayJson.Length > 0)
             {
                 var xrayResult = await ConfigTester.TestConfigAsync(ApplyBindAddress(xrayJson, bindIp), cfg, ct).ConfigureAwait(false);
                 if (xrayResult.Success) return xrayResult;
-
                 if (xrayResult.Kind == ConfigPingKind.Slow) return xrayResult;
-
                 if (TunnelConfigParser.TryParse(text, out var wireGuard) && wireGuard != null && TunnelTcpProbe.IsWireGuard(wireGuard))
                     return await TcpFallbackAsync(wireGuard, xrayResult, bindIp, ct).ConfigureAwait(false);
-
                 if (ConfigConverter.TrySingboxOutbound(text, out string sbOutbound, out _, out _) && sbOutbound.Length > 0)
                 {
                     var sbResult = await SingboxConfigTester.TestOutboundAsync(sbOutbound, cfg, adapterName, adapterIp, ct).ConfigureAwait(false);
@@ -71,14 +62,11 @@ namespace CrimsonX.Services
                         sbResult.Reason = xrayResult.Reason;
                         return sbResult;
                     }
-
                     xrayResult.Reason = xrayResult.Reason.Length > 0 ? xrayResult.Reason : sbResult.Reason;
                     return xrayResult;
                 }
-
                 return xrayResult;
             }
-
             return await SingboxConfigTester.TestAsync(text, cfg, adapterName, adapterIp, ct).ConfigureAwait(false);
         }
 
@@ -86,7 +74,6 @@ namespace CrimsonX.Services
         {
             var tcp = await Task.Run(() => TunnelTcpProbe.Probe(tunnel, bindIp, TunnelTcpProbe.DefaultTimeoutMs), ct).ConfigureAwait(false);
             string route = TunnelTcpProbe.RouteText(bindIp);
-
             if (tcp.Ok)
             {
                 return new ConfigTestResult
@@ -95,8 +82,6 @@ namespace CrimsonX.Services
                     Kind = ConfigPingKind.Ok, IsTcpPing = true, Reason = xrayResult.Reason
                 };
             }
-
-
             return new ConfigTestResult
             {
                 Link = tunnel.Raw,
@@ -112,13 +97,11 @@ namespace CrimsonX.Services
         private static string ApplyBindAddress(string xrayJson, string bindIp)
         {
             if (string.IsNullOrWhiteSpace(bindIp)) return xrayJson;
-
             try
             {
                 var root = JObject.Parse(xrayJson);
                 var outbound = (root["outbounds"] as JArray)?[0] as JObject;
                 if (outbound == null || XrayLinkParser.IsLocalOutbound(outbound)) return xrayJson;
-
                 outbound["sendThrough"] = bindIp;
                 return root.ToString(Newtonsoft.Json.Formatting.None);
             }

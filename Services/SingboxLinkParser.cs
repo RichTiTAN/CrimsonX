@@ -56,17 +56,13 @@ namespace CrimsonX.Services
             outboundJson = string.Empty;
             label = string.Empty;
             if (string.IsNullOrWhiteSpace(link)) return false;
-
             link = link.Trim();
             try
             {
                 var outbound = ParseOutbound(link, out label);
                 if (outbound == null || string.IsNullOrWhiteSpace(outbound["type"]?.ToString())) return false;
-
                 outbound.Remove("tag");
-
                 outboundJson = outbound.ToString(Newtonsoft.Json.Formatting.None);
-
                 if (string.IsNullOrWhiteSpace(label)) label = DescribeOutbound(outbound);
                 label = CleanLabel(label);
                 if (label.Length == 0) label = outbound["type"].ToString();
@@ -99,10 +95,8 @@ namespace CrimsonX.Services
         public static string Normalize(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return "";
-
             string text = raw.Trim();
             if (!TryParseLink(text, out var outboundJson, out _)) return StripWhitespace(text);
-
             try { return SortKeys(JObject.Parse(outboundJson)).ToString(Newtonsoft.Json.Formatting.None); }
             catch { return StripWhitespace(text); }
         }
@@ -118,14 +112,12 @@ namespace CrimsonX.Services
                     sorted[property.Name] = SortKeys(property.Value);
                 return sorted;
             }
-
             if (token is JArray array)
             {
                 var sorted = new JArray();
                 foreach (var item in array) sorted.Add(SortKeys(item));
                 return sorted;
             }
-
             return token;
         }
 
@@ -145,9 +137,7 @@ namespace CrimsonX.Services
         private static JObject ParseOutbound(string link, out string label)
         {
             label = "";
-
             if (link.StartsWith("{")) return ParseRawJson(link, out label);
-
             if (link.StartsWith("vless://", StringComparison.OrdinalIgnoreCase))                                     return ParseVless(link, out label);
             if (link.StartsWith("vmess://", StringComparison.OrdinalIgnoreCase))                                     return ParseVmess(link, out label);
             if (link.StartsWith("trojan://", StringComparison.OrdinalIgnoreCase))                                    return ParseTrojan(link, out label);
@@ -161,7 +151,6 @@ namespace CrimsonX.Services
              || link.StartsWith("socks5h://", StringComparison.OrdinalIgnoreCase))                                   return ParseSocks(link, out label);
             if (link.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
              || link.StartsWith("https://", StringComparison.OrdinalIgnoreCase))                                     return ParseHttp(link, out label);
-
             return null;
         }
 
@@ -172,24 +161,20 @@ namespace CrimsonX.Services
             var parts = new Parts();
             int schemeIdx = link.IndexOf("://", StringComparison.Ordinal);
             if (schemeIdx <= 0) return null;
-
             parts.Scheme = link.Substring(0, schemeIdx).ToLowerInvariant();
             string rest = link.Substring(schemeIdx + 3);
-
             int hash = rest.IndexOf('#');
             if (hash >= 0)
             {
                 parts.Fragment = SafeDecode(rest.Substring(hash + 1));
                 rest = rest.Substring(0, hash);
             }
-
             int q = rest.IndexOf('?');
             if (q >= 0)
             {
                 ParseQuery(rest.Substring(q + 1), parts.Query);
                 rest = rest.Substring(0, q);
             }
-
             int at = rest.LastIndexOf('@');
             string hostPort = rest;
             if (at >= 0)
@@ -197,7 +182,6 @@ namespace CrimsonX.Services
                 parts.UserInfo = rest.Substring(0, at);
                 hostPort = rest.Substring(at + 1);
             }
-
             if (hostPort.StartsWith("["))
             {
                 int close = hostPort.IndexOf(']');
@@ -219,7 +203,6 @@ namespace CrimsonX.Services
                     parts.Host = hostPort;
                 }
             }
-
             parts.Host = parts.Host.Trim();
             return parts.Host.Length == 0 ? null : parts;
         }
@@ -270,25 +253,18 @@ namespace CrimsonX.Services
         {
             ok = true;
             security = (security ?? "").Trim().ToLowerInvariant();
-
             bool enable = security == "tls" || security == "reality" || security == "xtls"
                        || (defaultEnabled && security != "none" && security != "");
-
             string pbk = p.Get("pbk");
             if (security == "reality" && pbk.Length == 0) { ok = false; return null; }
             if (!enable) return null;
-
             var tls = new JObject { ["enabled"] = true };
-
             string sni = FirstNonEmpty(p.Get("sni"), p.Get("peer"), p.Get("host"), p.Get("serverName"));
             if (sni.Length > 0) tls["server_name"] = sni;
-
             if (p.Flag("insecure") || p.Get("allowInsecure") == "1" || p.Get("allow_insecure") == "1")
                 tls["insecure"] = true;
-
             var alpn = SplitList(p.Get("alpn"));
             if (alpn.Length > 0) tls["alpn"] = new JArray(alpn);
-
             if (security == "reality")
             {
                 var reality = new JObject { ["enabled"] = true, ["public_key"] = pbk };
@@ -302,23 +278,19 @@ namespace CrimsonX.Services
                 string fp = FirstNonEmpty(p.Get("fp"), p.Get("fingerprint"));
                 if (fp.Length > 0 || p.Get("utls") == "1") tls["utls"] = BuildUtls(p);
             }
-
             string fm = FirstNonEmpty(p.Get("fm"), p.Get("finalmask"));
             if (fm.Length > 0)
             {
                 var mask = FinalMask.Read(fm, out string maskWarning);
                 if (maskWarning.Length > 0) SimpleLogger.Log($"[FinalMask] {maskWarning}");
-
                 if (FinalMask.HasTcpFragment(mask))
                 {
                     tls["fragment"] = true;
-
                     SimpleLogger.LogOnce(
                         $"mask-singbox|{p.Host}|{fm.Length}:{fm.GetHashCode()}",
                         "[FinalMask] sing-box cannot carry the packet rules of the mask; plain TLS fragmentation was kept.");
                 }
             }
-
             return tls;
         }
 
@@ -333,14 +305,12 @@ namespace CrimsonX.Services
         {
             transport = null;
             net = (net ?? "").Trim().ToLowerInvariant();
-
             switch (net)
             {
                 case "":
                 case "tcp":
                 case "raw":
                     return true;
-
                 case "ws":
                 case "websocket":
                 {
@@ -350,7 +320,6 @@ namespace CrimsonX.Services
                     transport = t;
                     return true;
                 }
-
                 case "grpc":
                 {
                     var t = new JObject { ["type"] = "grpc" };
@@ -358,7 +327,6 @@ namespace CrimsonX.Services
                     transport = t;
                     return true;
                 }
-
                 case "http":
                 case "h2":
                 {
@@ -369,7 +337,6 @@ namespace CrimsonX.Services
                     transport = t;
                     return true;
                 }
-
                 case "httpupgrade":
                 {
                     var t = new JObject { ["type"] = "httpupgrade" };
@@ -378,11 +345,9 @@ namespace CrimsonX.Services
                     transport = t;
                     return true;
                 }
-
                 case "quic":
                     transport = new JObject { ["type"] = "quic" };
                     return true;
-
                 default:
                     return false;
             }
@@ -411,17 +376,14 @@ namespace CrimsonX.Services
             label = "";
             var p = SplitUri(link);
             if (p == null) return null;
-
             string uuid = SafeDecode(p.UserInfo);
             if (uuid.Length == 0) return null;
-
             int port = NormalizePort(p.Port, 443);
             string security = FirstNonEmpty(p.Get("security"), "none");
             string net = p.Get("type");
             string host = FirstNonEmpty(p.Get("host"), p.Get("hostName"));
             string path = p.Get("path");
             string serviceName = FirstNonEmpty(p.Get("serviceName"), p.Get("servicename"));
-
             var ob = new JObject
             {
                 ["type"]        = "vless",
@@ -429,20 +391,15 @@ namespace CrimsonX.Services
                 ["server_port"] = port,
                 ["uuid"]        = uuid
             };
-
             string flow = p.Get("flow");
             if (flow.Length > 0) ob["flow"] = flow;
-
             string pe = FirstNonEmpty(p.Get("packetEncoding"), p.Get("packet_encoding"));
             ob["packet_encoding"] = pe.Length > 0 ? pe : DefaultPacketEncoding;
-
             if (!TryBuildTransport(net, host, path, serviceName, out var transport)) return null;
             if (transport != null) ob["transport"] = transport;
-
             var tls = BuildTls(p, security, false, out bool tlsOk);
             if (!tlsOk) return null;
             if (tls != null) ob["tls"] = tls;
-
             label = FirstNonEmpty(p.Fragment, $"vless · {p.Host}:{port}");
             return ob;
         }
@@ -452,7 +409,6 @@ namespace CrimsonX.Services
         private static JObject ParseVmess(string link, out string label)
         {
             label = "";
-
             string body = link.Substring("vmess://".Length).Trim();
             string fragment = "";
             int hash = body.IndexOf('#');
@@ -461,18 +417,14 @@ namespace CrimsonX.Services
                 fragment = SafeDecode(body.Substring(hash + 1));
                 body = body.Substring(0, hash);
             }
-
             string json = DecodeBase64(body);
             if (json.Length == 0) return null;
-
             var j = JObject.Parse(json);
-
             string server = j["add"]?.ToString() ?? "";
             string uuid   = j["id"]?.ToString() ?? "";
             int    port   = 0;
             int.TryParse(j["port"]?.ToString(), out port);
             if (server.Length == 0 || uuid.Length == 0 || port <= 0 || port > 65535) return null;
-
             var ob = new JObject
             {
                 ["type"]        = "vmess",
@@ -480,41 +432,31 @@ namespace CrimsonX.Services
                 ["server_port"] = port,
                 ["uuid"]        = uuid
             };
-
             if (int.TryParse(j["aid"]?.ToString(), out int aid) && aid != 0) ob["alter_id"] = aid;
-
             string scy = j["scy"]?.ToString() ?? "";
             if (scy.Length > 0 && !scy.Equals("auto", StringComparison.OrdinalIgnoreCase)) ob["security"] = scy;
-
             string pe = FirstNonEmpty(j["packetEncoding"]?.ToString(), j["packet_encoding"]?.ToString());
             ob["packet_encoding"] = pe.Length > 0 ? pe : DefaultPacketEncoding;
-
             var p = new Parts { Host = server, Port = port };
-
             void SetQuery(string key, string value)
             {
                 if (!string.IsNullOrWhiteSpace(value)) p.Query[key] = value.Trim();
             }
-
             SetQuery("sni", j["sni"]?.ToString() ?? "");
             SetQuery("fp", j["fp"]?.ToString() ?? "");
             SetQuery("alpn", j["alpn"]?.ToString() ?? "");
             SetQuery("insecure", j["allowInsecure"]?.ToString() ?? "");
             SetQuery("allowInsecure", j["allowInsecure"]?.ToString() ?? "");
-
             string net   = j["net"]?.ToString() ?? "";
             string host  = j["host"]?.ToString() ?? "";
             string vpath = j["path"]?.ToString() ?? "";
             bool   grpc  = net.Equals("grpc", StringComparison.OrdinalIgnoreCase);
-
             if (!TryBuildTransport(net, host, grpc ? "" : vpath, grpc ? vpath : "", out var transport)) return null;
             if (transport != null) ob["transport"] = transport;
-
             string tlsMode = FirstNonEmpty(j["tls"]?.ToString(), j["security"]?.ToString());
             var tls = BuildTls(p, tlsMode, false, out bool tlsOk);
             if (!tlsOk) return null;
             if (tls != null) ob["tls"] = tls;
-
             label = FirstNonEmpty(j["ps"]?.ToString(), fragment, $"vmess · {server}:{port}");
             return ob;
         }
@@ -529,12 +471,9 @@ namespace CrimsonX.Services
             label = "";
             var p = SplitUri(link);
             if (p == null) return null;
-
             string password = SafeDecode(p.UserInfo);
             if (password.Length == 0) return null;
-
             int port = NormalizePort(p.Port, 443);
-
             var ob = new JObject
             {
                 ["type"]        = "trojan",
@@ -542,19 +481,16 @@ namespace CrimsonX.Services
                 ["server_port"] = port,
                 ["password"]    = password
             };
-
             string net = p.Get("type");
             string host = p.Get("host");
             string path = p.Get("path");
             string serviceName = FirstNonEmpty(p.Get("serviceName"), p.Get("servicename"));
             if (!TryBuildTransport(net, host, path, serviceName, out var transport)) return null;
             if (transport != null) ob["transport"] = transport;
-
             string security = FirstNonEmpty(p.Get("security"), "tls");
             var tls = BuildTls(p, security, true, out bool tlsOk);
             if (!tlsOk) return null;
             if (tls != null) ob["tls"] = tls;
-
             label = FirstNonEmpty(p.Fragment, $"trojan · {p.Host}:{port}");
             return ob;
         }
@@ -565,7 +501,6 @@ namespace CrimsonX.Services
         {
             label = "";
             string rest = link.Substring("ss://".Length);
-
             string fragment = "";
             int hash = rest.IndexOf('#');
             if (hash >= 0)
@@ -573,7 +508,6 @@ namespace CrimsonX.Services
                 fragment = SafeDecode(rest.Substring(hash + 1));
                 rest = rest.Substring(0, hash);
             }
-
             var query = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             int q = rest.IndexOf('?');
             if (q >= 0)
@@ -581,23 +515,19 @@ namespace CrimsonX.Services
                 ParseQuery(rest.Substring(q + 1), query);
                 rest = rest.Substring(0, q);
             }
-
             string method = "", password = "", host = "";
             int port = 0;
-
             int at = rest.LastIndexOf('@');
             if (at >= 0)
             {
                 string user = rest.Substring(0, at);
                 string hostPort = rest.Substring(at + 1);
-
                 string creds = user.Contains(":") ? SafeDecode(user) : DecodeBase64(user);
                 if (creds.Length == 0) creds = SafeDecode(user);
                 int colon = creds.IndexOf(':');
                 if (colon <= 0) return null;
                 method = creds.Substring(0, colon).Trim();
                 password = creds.Substring(colon + 1);
-
                 if (!TrySplitHostPort(hostPort, out host, out port)) return null;
             }
             else
@@ -606,18 +536,14 @@ namespace CrimsonX.Services
                 if (decoded.Length == 0) decoded = SafeDecode(rest);
                 int at2 = decoded.LastIndexOf('@');
                 if (at2 <= 0) return null;
-
                 string creds = decoded.Substring(0, at2);
                 int colon = creds.IndexOf(':');
                 if (colon <= 0) return null;
                 method = creds.Substring(0, colon).Trim();
                 password = creds.Substring(colon + 1);
-
                 if (!TrySplitHostPort(decoded.Substring(at2 + 1), out host, out port)) return null;
             }
-
             if (method.Length == 0 || host.Length == 0) return null;
-
             var ob = new JObject
             {
                 ["type"]        = "shadowsocks",
@@ -626,7 +552,6 @@ namespace CrimsonX.Services
                 ["method"]      = method,
                 ["password"]    = password
             };
-
             if (query.TryGetValue("plugin", out var pluginRaw) && !string.IsNullOrWhiteSpace(pluginRaw))
             {
                 var plugin = MapShadowsocksPlugin(pluginRaw.Trim());
@@ -634,7 +559,6 @@ namespace CrimsonX.Services
                 ob["plugin"] = plugin.Value.Name;
                 if (plugin.Value.Opts.Length > 0) ob["plugin_opts"] = plugin.Value.Opts;
             }
-
             label = FirstNonEmpty(fragment, $"ss · {host}:{ob["server_port"]}");
             return ob;
         }
@@ -644,7 +568,6 @@ namespace CrimsonX.Services
             int semi = plugin.IndexOf(';');
             string name = (semi < 0 ? plugin : plugin.Substring(0, semi)).Trim().ToLowerInvariant();
             string opts = semi < 0 ? "" : plugin.Substring(semi + 1).Trim();
-
             switch (name)
             {
                 case "obfs-local":
@@ -663,7 +586,6 @@ namespace CrimsonX.Services
             host = "";
             port = 0;
             if (string.IsNullOrWhiteSpace(value)) return false;
-
             value = value.Trim();
             if (value.StartsWith("["))
             {
@@ -686,7 +608,6 @@ namespace CrimsonX.Services
                     host = value;
                 }
             }
-
             host = host.Trim();
             return host.Length > 0;
         }
@@ -698,9 +619,7 @@ namespace CrimsonX.Services
             label = "";
             var p = SplitUri(link);
             if (p == null) return null;
-
             int port = NormalizePort(p.Port, 1080);
-
             var ob = new JObject
             {
                 ["type"]        = "socks",
@@ -708,7 +627,6 @@ namespace CrimsonX.Services
                 ["server"]      = p.Host,
                 ["server_port"] = port
             };
-
             string userInfo = SafeDecode(p.UserInfo);
             int colon = userInfo.IndexOf(':');
             if (colon > 0)
@@ -720,7 +638,6 @@ namespace CrimsonX.Services
             {
                 ob["username"] = userInfo;
             }
-
             string security = p.Get("security");
             if (security.Equals("tls", StringComparison.OrdinalIgnoreCase))
             {
@@ -728,7 +645,6 @@ namespace CrimsonX.Services
                 if (!tlsOk) return null;
                 if (tls != null) ob["tls"] = tls;
             }
-
             label = FirstNonEmpty(p.Fragment, $"socks · {p.Host}:{port}");
             return ob;
         }
@@ -738,17 +654,14 @@ namespace CrimsonX.Services
             label = "";
             var p = SplitUri(link);
             if (p == null) return null;
-
             bool tlsEnabled = p.Scheme == "https";
             int port = NormalizePort(p.Port, tlsEnabled ? 443 : 80);
-
             var ob = new JObject
             {
                 ["type"]        = "http",
                 ["server"]      = p.Host,
                 ["server_port"] = port
             };
-
             string userInfo = SafeDecode(p.UserInfo);
             int colon = userInfo.IndexOf(':');
             if (colon > 0)
@@ -760,12 +673,10 @@ namespace CrimsonX.Services
             {
                 ob["username"] = userInfo;
             }
-
             string security = FirstNonEmpty(p.Get("security"), tlsEnabled ? "tls" : "");
             var tls = BuildTls(p, security, false, out bool tlsOk);
             if (!tlsOk) return null;
             if (tls != null) ob["tls"] = tls;
-
             label = FirstNonEmpty(p.Fragment, $"http · {p.Host}:{port}");
             return ob;
         }
@@ -777,14 +688,11 @@ namespace CrimsonX.Services
             label = "";
             var p = SplitUri(link);
             if (p == null) return null;
-
             string auth = SafeDecode(p.UserInfo);
             int colon = auth.IndexOf(':');
             string password = colon > 0 ? auth.Substring(colon + 1) : auth;   // "user:pass" links use the pass part
             if (password.Length == 0) return null;
-
             int port = NormalizePort(p.Port, 443);
-
             var ob = new JObject
             {
                 ["type"]        = "hysteria2",
@@ -792,7 +700,6 @@ namespace CrimsonX.Services
                 ["server_port"] = port,
                 ["password"]    = password
             };
-
             string obfs = p.Get("obfs");
             if (obfs.Length > 0)
             {
@@ -802,7 +709,6 @@ namespace CrimsonX.Services
                 if (obfsPass.Length > 0) obfsNode["password"] = obfsPass;
                 ob["obfs"] = obfsNode;
             }
-
             ob["tls"] = BuildQuicTls(p, "h3");
             label = FirstNonEmpty(p.Fragment, $"hysteria2 · {p.Host}:{port}");
             return ob;
@@ -815,17 +721,13 @@ namespace CrimsonX.Services
             label = "";
             var p = SplitUri(link);
             if (p == null) return null;
-
             string userInfo = SafeDecode(p.UserInfo);
             int colon = userInfo.IndexOf(':');
             if (colon <= 0) return null;
-
             string uuid     = userInfo.Substring(0, colon);
             string password = userInfo.Substring(colon + 1);
             if (uuid.Length == 0 || password.Length == 0) return null;
-
             int port = NormalizePort(p.Port, 443);
-
             var ob = new JObject
             {
                 ["type"]        = "tuic",
@@ -834,13 +736,10 @@ namespace CrimsonX.Services
                 ["uuid"]        = uuid,
                 ["password"]    = password
             };
-
             string congestion = FirstNonEmpty(p.Get("congestion_control"), p.Get("congestionControl"));
             if (congestion.Length > 0) ob["congestion_control"] = congestion.ToLowerInvariant();
-
             string relayMode = FirstNonEmpty(p.Get("udp_relay_mode"), p.Get("udpRelayMode"));
             if (relayMode.Length > 0) ob["udp_relay_mode"] = relayMode.ToLowerInvariant();
-
             ob["tls"] = BuildQuicTls(p, "h3");
             label = FirstNonEmpty(p.Fragment, $"tuic · {p.Host}:{port}");
             return ob;
@@ -849,16 +748,12 @@ namespace CrimsonX.Services
         private static JObject BuildQuicTls(Parts p, string defaultAlpn)
         {
             var tls = new JObject { ["enabled"] = true };
-
             string sni = FirstNonEmpty(p.Get("sni"), p.Get("peer"));
             if (sni.Length > 0) tls["server_name"] = sni;
-
             if (p.Flag("insecure") || p.Get("allow_insecure") == "1" || p.Get("allowInsecure") == "1")
                 tls["insecure"] = true;
-
             var alpn = SplitList(p.Get("alpn"));
             tls["alpn"] = new JArray(alpn.Length > 0 ? alpn : new[] { defaultAlpn });
-
             return tls;
         }
 
@@ -869,14 +764,11 @@ namespace CrimsonX.Services
             label = "";
             var p = SplitUri(link);
             if (p == null) return null;
-
             string userInfo = SafeDecode(p.UserInfo);
             int colon = userInfo.IndexOf(':');
             string password = colon > 0 ? userInfo.Substring(colon + 1) : userInfo;
             if (password.Length == 0) return null;
-
             int port = NormalizePort(p.Port, 443);
-
             var ob = new JObject
             {
                 ["type"]        = "anytls",
@@ -884,11 +776,9 @@ namespace CrimsonX.Services
                 ["server_port"] = port,
                 ["password"]    = password
             };
-
             var tls = BuildQuicTls(p, "h2");
             if (SplitList(p.Get("alpn")).Length == 0) tls.Remove("alpn");
             ob["tls"] = tls;
-
             label = FirstNonEmpty(p.Fragment, $"anytls · {p.Host}:{port}");
             return ob;
         }
@@ -898,27 +788,20 @@ namespace CrimsonX.Services
         private static JObject ParseRawJson(string text, out string label)
         {
             label = "";
-
             var ob = JObject.Parse(text);
             ob.Remove("tag");
-
             if (ob["outbounds"] is JArray arr)
             {
                 if (arr.Count != 1 || arr[0] is not JObject only) return null;
-
                 only.Remove("tag");
                 ob = only;
             }
-
             string type = ob["type"]?.ToString() ?? "";
             if (type.Length == 0) return null;
-
             string server = ob["server"]?.ToString() ?? "";
             string port   = ob["server_port"]?.ToString() ?? "";
             if (server.Length > 0 && port.Length == 0) return null;
-
             foreach (var key in WrapperKeys) ob.Remove(key);
-
             label = FirstNonEmpty(ob["label"]?.ToString(), DescribeOutbound(ob));
             ob.Remove("label");
             return ob;
@@ -928,6 +811,5 @@ namespace CrimsonX.Services
             "outbounds", "inbounds", "endpoints", "route", "dns", "log", "services",
             "experimental", "certificate", "ntp", "script"
         };
-
     }
 }

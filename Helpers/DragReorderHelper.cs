@@ -52,7 +52,6 @@ namespace CrimsonX.Helpers
             _itemsControl = itemsControl;
             _handleNames = handleNames ?? new[] { "DragHandle" };
             _onReordered = onReordered;
-            
             _itemsControl.AddHandler(InputElement.PointerPressedEvent, OnPointerPressed, Avalonia.Interactivity.RoutingStrategies.Tunnel);
             _itemsControl.AddHandler(InputElement.PointerMovedEvent, OnPointerMoved, Avalonia.Interactivity.RoutingStrategies.Tunnel);
             _itemsControl.AddHandler(InputElement.PointerReleasedEvent, OnPointerReleased, Avalonia.Interactivity.RoutingStrategies.Tunnel);
@@ -69,22 +68,16 @@ namespace CrimsonX.Helpers
         {
             var src = e.Source as Visual;
             if (src == null) return;
-            
             var handle = src.GetSelfAndVisualAncestors().OfType<Control>().FirstOrDefault(c => _handleNames.Contains(c.Name));
             if (handle == null) return;
-            
             _draggedContainer = src.GetSelfAndVisualAncestors().OfType<ContentPresenter>().FirstOrDefault(c => c.Parent == _itemsControl || (c.Parent is Panel p && p.Parent is ItemsPresenter));
             if (_draggedContainer == null) return;
-            
             _originalIndex = _itemsControl.IndexFromContainer(_draggedContainer);
             if (_originalIndex < 0) return;
-            
             _currentIndex = _originalIndex;
             _isDragging = true;
             _startPointerPos = e.GetPosition(_itemsControl);
-            
             _draggedContainer.ZIndex = 1000;
-            
             var containers = _itemsControl.GetRealizedContainers();
             foreach (var container in containers)
             {
@@ -98,44 +91,34 @@ namespace CrimsonX.Helpers
                     container.RenderTransform = transform;
                 }
             }
-            
             if (_draggedContainer.RenderTransform is TranslateTransform dragTransform)
             {
                 dragTransform.Transitions?.Clear();
             }
-            
             e.Handled = true;
         }
         
         private void OnPointerMoved(object? sender, PointerEventArgs e)
         {
             if (!_isDragging || _draggedContainer == null) return;
-            
             var currentPos = e.GetPosition(_itemsControl);
             double deltaY = currentPos.Y - _startPointerPos.Y;
-            
             if (_draggedContainer.RenderTransform is TranslateTransform t)
             {
                 t.Y = deltaY;
             }
-            
             var containers = _itemsControl.GetRealizedContainers().ToList();
             if (containers.Count == 0) return;
-            
             double itemHeight = _draggedContainer.Bounds.Height;
             if (itemHeight == 0) itemHeight = 49;
-            
             int newIndex = _originalIndex + (int)Math.Round(deltaY / itemHeight);
             newIndex = Math.Max(0, Math.Min(containers.Count - 1, newIndex));
-            
             if (newIndex != _currentIndex)
             {
                 _currentIndex = newIndex;
-                
                 for (int i = 0; i < containers.Count; i++)
                 {
                     if (i == _originalIndex) continue;
-                    
                     var container = containers[i];
                     if (container?.RenderTransform is TranslateTransform ct)
                     {
@@ -143,7 +126,6 @@ namespace CrimsonX.Helpers
                         {
                             ct.Transitions = new Transitions { new DoubleTransition { Property = TranslateTransform.YProperty, Duration = TimeSpan.FromMilliseconds(250), Easing = new CubicEaseOut() } };
                         }
-                        
                         if (i > _originalIndex && i <= _currentIndex)
                         {
                             ct.Y = -itemHeight; 
@@ -164,14 +146,11 @@ namespace CrimsonX.Helpers
         private void OnPointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             if (!_isDragging) return;
-            
             _isDragging = false;
-            
             if (_draggedContainer != null)
             {
                 _draggedContainer.ZIndex = 0;
             }
-            
             var containers = _itemsControl.GetRealizedContainers();
             foreach (var container in containers)
             {
@@ -181,12 +160,10 @@ namespace CrimsonX.Helpers
                     ct.Y = 0;
                 }
             }
-            
             if (_currentIndex != _originalIndex && _currentIndex >= 0)
             {
                 _onReordered?.Invoke(_originalIndex, _currentIndex);
             }
-            
             _draggedContainer = null;
         }
     }

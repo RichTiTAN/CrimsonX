@@ -93,7 +93,6 @@
             <Setter Property="Opacity" Value="0.8"/>
         </Style>
 
-
         <!-- The ad/tracker blocker tile: the nav tiles' look, but a toggle - its icon turns green while it is on.
              It never joins the page group, so clicking it cannot navigate. -->
         <Style Selector="ToggleButton.railTile">
@@ -148,6 +147,10 @@
         </Style>
         <Style Selector="ToggleButton.railTile:checked">
             <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <Style Selector="ToggleButton.locationsTile:pointerover /template/ ContentPresenter#TileContent">
+            <Setter Property="Foreground" Value="#E0E0E0"/>
         </Style>
 
         <!-- While the locations overlay is open its tile wears the nav tiles' checked highlight: the same

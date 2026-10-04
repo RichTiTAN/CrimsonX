@@ -62,13 +62,10 @@ namespace CrimsonX.Services
         public string Text(string label)
         {
             if (Ping <= 0) return "";
-
             string number = IsTcpPing
                 ? CrimsonX.Localization.AppStrings.TcpPingPrefix + Ping + "ms"
                 : Ping + "ms";
-
             if (Kind == ConfigPingKind.Slow) number += CrimsonX.Localization.AppStrings.PingSlowSuffix;
-
             return string.IsNullOrEmpty(label) ? number : $"{label}: {number}";
         }
 
@@ -129,9 +126,7 @@ namespace CrimsonX.Services
     public static class ConfigTester
     {
         internal static readonly string[] TestTargets = {
-            "http://clients3.google.com/generate_204",
-            "http://cp.cloudflare.com",
-            "http://detectportal.firefox.com"
+            "http://clients3.google.com/generate_204"
         };
         private const int TimeoutMs = 3000;
         private const int SpeedTestDurationMs = 7000;
@@ -174,12 +169,9 @@ namespace CrimsonX.Services
         public static List<ConfigTestResult> RankForConnection(IEnumerable<ConfigTestResult> configs)
         {
             var all = configs?.ToList() ?? new List<ConfigTestResult>();
-
             var stable = all.Where(c => c.SpeedStable).OrderByDescending(c => c.Speed).ToList();
             var unstable = all.Where(c => !c.SpeedStable).OrderByDescending(c => c.Speed).ToList();
-
             if (stable.Count == 0) return unstable;
-
             var ranked = new List<ConfigTestResult>(all.Count);
             ranked.AddRange(stable);
             ranked.AddRange(unstable);
@@ -195,14 +187,12 @@ namespace CrimsonX.Services
             target.SpeedMedianMbps = speed.MedianMbps;
             target.SpeedStalls = speed.StalledWindows;
             target.SpeedDegraded = speed.Degraded;
-
             var culture = System.Globalization.CultureInfo.InvariantCulture;
             string trend = speed.Mbps <= 0
                 ? "no throughput"
                 : speed.Degraded
                     ? $"dropped {speed.FirstHalfMbps.ToString("F1", culture)} -> {speed.SecondHalfMbps.ToString("F1", culture)} Mbps"
                     : "no drop";
-
             SimpleLogger.Log($"[Speed] {target.CountryCode} {XrayLinkParser.ExtractServerAddress(target.OutboundJson)}: " +
                              $"{speed.Mbps.ToString("F1", culture)} Mbps, stability {speed.StabilityPercent}% " +
                              $"({speed.Windows} windows, {speed.StalledWindows} stalls, {trend})" +
@@ -213,18 +203,14 @@ namespace CrimsonX.Services
         {
             if (cfg.EnableAdapterBinding)
                 return (cfg.SelectedAdapterName ?? "", (cfg.SelectedAdapterIp ?? "").Trim());
-
             string ip = XrayConfigWriter.ProbeSendThrough(cfg);
-
             foreach (string item in cfg.LoadBalanceAdapters ?? new List<string>())
             {
                 if (string.IsNullOrWhiteSpace(item)) continue;
-
                 int at = item.LastIndexOf(" - ", StringComparison.Ordinal);
                 if (at > 0 && string.Equals(item[(at + 3)..].Trim(), ip, StringComparison.Ordinal))
                     return (item[..at].Trim(), ip);
             }
-
             return ("", ip);
         }
 
@@ -232,16 +218,13 @@ namespace CrimsonX.Services
         {
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr = string.Empty;
-
             var adapter = TestAdapter(cfg);
             string testAdapterName = adapter.Name;
             string testAdapterIp   = adapter.Ip;
-
             if (TunnelConfigParser.TryParse(link, out var openVpn) && TunnelTcpProbe.IsOpenVpn(openVpn))
             {
                 var tcp = await Task.Run(() => TunnelTcpProbe.Probe(openVpn, testAdapterIp, TunnelTcpProbe.DefaultTimeoutMs));
                 string route = TunnelTcpProbe.RouteText(testAdapterIp);
-
                 if (tcp.Ok)
                 {
                     return new ConfigTestResult
@@ -250,7 +233,6 @@ namespace CrimsonX.Services
                         Kind = ConfigPingKind.Ok, IsTcpPing = true
                     };
                 }
-
                 return new ConfigTestResult
                 {
                     Link = link, Success = false, TimedOut = tcp.TimedOut,
@@ -258,19 +240,15 @@ namespace CrimsonX.Services
                     Reason = tcp.Error, IsTcpPing = true
                 };
             }
-
             IDisposable tunnelLease = null;
             var tunnelPrep = await TunnelEngine.PrepareTestAsync(link, cfg, testAdapterName, testAdapterIp);
-
             if (tunnelPrep.State == TunnelTestState.Failed)
             {
                 try { tunnelPrep.Lease?.Dispose(); } catch { }
-
                 res.Kind = ConfigPingKind.Rejected;
                 res.Reason = "the tunnel behind this config could not be prepared";
                 return res;
             }
-
             if (tunnelPrep.State == TunnelTestState.Ready)
             {
                 outboundJsonStr = tunnelPrep.OutboundJson;
@@ -282,18 +260,13 @@ namespace CrimsonX.Services
                 res.Reason = "this config could not be read as an xray outbound";
                 return res;
             }
-
             res.OutboundJson = outboundJsonStr;
-
             int port = GetFreePort();
             int udpPort = GetFreeUdpPort();
             string tempId = Guid.NewGuid().ToString("N");
             string cfgPath = Path.Combine(cfg.XrayDir, $"test_{tempId}.json");
-
             Process testProc = null;
-
             var engineLog = new System.Text.StringBuilder();
-
             try
             {
                 var outboundJson = JObject.Parse(outboundJsonStr);
@@ -301,14 +274,12 @@ namespace CrimsonX.Services
                 {
                     var outb = (JObject)arr[0];
                     outb["tag"] = "proxy";
-
                     string sendThroughIp = XrayConfigWriter.ProbeSendThrough(cfg);
                     if (sendThroughIp.Length > 0 && !XrayLinkParser.IsLocalOutbound(outb))
                     {
                         outb["sendThrough"] = sendThroughIp;
                     }
                 }
-
                 var fullConfig = new JObject
                 {
                     ["log"] = new JObject { ["loglevel"] = "error" },
@@ -348,15 +319,12 @@ namespace CrimsonX.Services
                         }
                     }
                 };
-
                 File.WriteAllText(cfgPath, fullConfig.ToString());
-
                 testProc = new Process();
                 testProc.StartInfo.FileName = Path.Combine(cfg.XrayDir, "xray.exe");
                 testProc.StartInfo.Arguments = $"run -c \"{cfgPath}\"";
                 testProc.StartInfo.UseShellExecute = false;
                 testProc.StartInfo.CreateNoWindow = true;
-                
                 testProc.StartInfo.RedirectStandardError = true;
                 testProc.StartInfo.RedirectStandardOutput = true;
                 testProc.ErrorDataReceived  += (s, ev) => { if (!string.IsNullOrWhiteSpace(ev.Data)) engineLog.AppendLine(ev.Data); };
@@ -366,9 +334,7 @@ namespace CrimsonX.Services
                     testProc.BeginErrorReadLine();
                     testProc.BeginOutputReadLine();
                 });
-                
                 JobManager.AddProcess(testProc);
-
                 await Task.Delay(300, ct);
                 if (testProc.HasExited)
                 {
@@ -377,20 +343,16 @@ namespace CrimsonX.Services
                     res.EngineLog = Tail(engineLog);
                     return res;
                 }
-
-
                 var handler = new HttpClientHandler
                 {
                     Proxy = new WebProxy($"http://127.0.0.1:{port}"),
                     UseProxy = true,
                     ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
                 };
-                
                 using var client = new HttpClient(handler);
                 client.Timeout = TimeSpan.FromMilliseconds(TimeoutMs);
-
                 long totalPing = 0;
-                var targetsToTest = isActiveWatchdog ? new[] { "http://clients3.google.com/generate_204" } : TestTargets;
+                var targetsToTest = TestTargets;
                 foreach (var target in targetsToTest)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -398,7 +360,6 @@ namespace CrimsonX.Services
                     using var req = new HttpRequestMessage(HttpMethod.Get, target);
                     req.Headers.ConnectionClose = true;
                     using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
-                    
                     if (!resp.IsSuccessStatusCode && resp.StatusCode != HttpStatusCode.NoContent && resp.StatusCode != HttpStatusCode.Found)
                     {
                         throw new Exception("the tunnel answered HTTP " + (int)resp.StatusCode);
@@ -406,7 +367,6 @@ namespace CrimsonX.Services
                     sw.Stop();
                     long ping = sw.ElapsedMilliseconds;
                     totalPing += ping;
-
                     if (!isWatchdog && ping > MaxAcceptedPingMs)
                     {
                         res.Success = false;
@@ -415,13 +375,10 @@ namespace CrimsonX.Services
                         return res;
                     }
                 }
-
                 res.Success = true;
                 res.Kind = ConfigPingKind.Ok;
                 res.Ping = totalPing / targetsToTest.Length;
-
-                res.UdpOk = await TestUdpAsync(udpPort, ct);
-
+                res.UdpOk = cfg.EnableUdpCapableNodes ? await TestUdpAsync(udpPort, ct) : true;
                 if (fetchGeo)
                 {
                     try
@@ -477,18 +434,15 @@ namespace CrimsonX.Services
                 try { if (File.Exists(cfgPath)) File.Delete(cfgPath); } catch { }
                 try { tunnelLease?.Dispose(); } catch { }
             }
-
             return res;
         }
 
         public static async Task<SpeedStabilityResult> TestSpeedStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct)
         {
             var res = new SpeedStabilityResult();
-
             int port = GetFreePort();
             string tempId = Guid.NewGuid().ToString("N");
             string cfgPath = Path.Combine(cfg.XrayDir, $"test_{tempId}.json");
-
             Process testProc = null;
             try
             {
@@ -497,14 +451,12 @@ namespace CrimsonX.Services
                 {
                     var outb = (JObject)arr[0];
                     outb["tag"] = "proxy";
-
                     string sendThroughIp = XrayConfigWriter.ProbeSendThrough(cfg);
                     if (sendThroughIp.Length > 0 && !XrayLinkParser.IsLocalOutbound(outb))
                     {
                         outb["sendThrough"] = sendThroughIp;
                     }
                 }
-
                 var fullConfig = new JObject
                 {
                     ["log"] = new JObject { ["loglevel"] = "none" },
@@ -530,37 +482,28 @@ namespace CrimsonX.Services
                         }
                     }
                 };
-
                 File.WriteAllText(cfgPath, fullConfig.ToString());
-
                 testProc = new Process();
                 testProc.StartInfo.FileName = Path.Combine(cfg.XrayDir, "xray.exe");
                 testProc.StartInfo.Arguments = $"run -c \"{cfgPath}\"";
                 testProc.StartInfo.UseShellExecute = false;
                 testProc.StartInfo.CreateNoWindow = true;
-                
                 await Task.Run(() => {
                     testProc.Start();
                 });
-                
                 JobManager.AddProcess(testProc);
-
                 await Task.Delay(300, ct); 
-
                 var handler = new HttpClientHandler
                 {
                     Proxy = new WebProxy($"http://127.0.0.1:{port}"),
                     UseProxy = true,
                     ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
                 };
-                
                 using var client = new HttpClient(handler);
                 client.Timeout = TimeSpan.FromMilliseconds(10000); 
-
                 ct.ThrowIfCancellationRequested();
                 var samples = await SampleSpeedWindowsAsync(client, ct);
                 FillSpeedResult(samples, res);
-
                 return res;
             }
             catch
@@ -581,42 +524,33 @@ namespace CrimsonX.Services
         private static async Task<List<(long Bytes, bool IsGap)>> SampleSpeedWindowsAsync(HttpClient client, CancellationToken ct)
         {
             var samples = new List<(long Bytes, bool IsGap)>();
-
             using var timeoutCts = new CancellationTokenSource(SpeedTestDurationMs);
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-
             var sw = Stopwatch.StartNew();
             long[] pending = new long[1];
             long[] everRead = new long[1];
             long[] gapStart = new long[1];
             long[] noData = new long[1];
             long[] readerAlive = new long[1];
-
             Volatile.Write(ref gapStart[0], -1);
-
             async Task ReadLoopAsync()
             {
                 byte[] buffer = new byte[SpeedSampleBufferSize];
-
                 while (!linkedCts.IsCancellationRequested)
                 {
                     try
                     {
                         Volatile.Write(ref gapStart[0], sw.ElapsedMilliseconds);
-
                         using var req = new HttpRequestMessage(HttpMethod.Get, SpeedTestUrl);
                         req.Headers.ConnectionClose = true;
                         req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
-
                         using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token);
                         if (!resp.IsSuccessStatusCode)
                         {
                             Volatile.Write(ref noData[0], Volatile.Read(ref everRead[0]) == 0 ? 1 : 0);
                             return;
                         }
-
                         using var stream = await resp.Content.ReadAsStreamAsync(linkedCts.Token);
-
                         int read;
                         while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, linkedCts.Token)) > 0)
                         {
@@ -624,7 +558,6 @@ namespace CrimsonX.Services
                             Interlocked.Add(ref everRead[0], read);
                             Volatile.Write(ref gapStart[0], -1);
                         }
-
                     }
                     catch
                     {
@@ -633,12 +566,9 @@ namespace CrimsonX.Services
                     }
                 }
             }
-
             var reader = Task.Run(ReadLoopAsync);
-
             Volatile.Write(ref readerAlive[0], 1);
             _ = reader.ContinueWith(_ => Volatile.Write(ref readerAlive[0], 0), TaskScheduler.Default);
-
             try
             {
                 long nextTick = SpeedSampleWindowMs;
@@ -646,9 +576,7 @@ namespace CrimsonX.Services
                 {
                     int wait = (int)(nextTick - sw.ElapsedMilliseconds);
                     if (wait > 0) await Task.Delay(wait, linkedCts.Token);
-
                     if (linkedCts.IsCancellationRequested) break;
-
                     bool isGap = Volatile.Read(ref readerAlive[0]) == 1 && Volatile.Read(ref gapStart[0]) >= 0;
                     samples.Add((Interlocked.Exchange(ref pending[0], 0), isGap));
                     nextTick += SpeedSampleWindowMs;
@@ -657,9 +585,7 @@ namespace CrimsonX.Services
             catch (OperationCanceledException)
             {
             }
-
             try { await reader; } catch { }
-
             return samples;
         }
 
@@ -667,18 +593,14 @@ namespace CrimsonX.Services
         {
             const int warmupWindows = SpeedWarmupMs / SpeedSampleWindowMs;
             const double windowSeconds = SpeedSampleWindowMs / 1000.0;
-
             var measured = new List<long>();
             foreach (var sample in samples)
             {
                 if (!sample.IsGap) measured.Add(sample.Bytes);
             }
-
             if (measured.Count > warmupWindows) measured.RemoveRange(0, warmupWindows);
-
             res.Windows = measured.Count;
             if (measured.Count == 0) return;
-
             var speeds = new List<double>(measured.Count);
             long totalBytes = 0;
             foreach (long bytes in measured)
@@ -686,19 +608,15 @@ namespace CrimsonX.Services
                 totalBytes += bytes;
                 speeds.Add(bytes * 8.0 / windowSeconds / 1000000.0);
             }
-
             res.Mbps = totalBytes * 8.0 / (measured.Count * windowSeconds) / 1000000.0;
             res.PeakMbps = speeds.Max();
             res.MinMbps = speeds.Min();
-
             var sorted = speeds.OrderBy(s => s).ToList();
             res.MedianMbps = sorted.Count % 2 == 1
                 ? sorted[sorted.Count / 2]
                 : (sorted[sorted.Count / 2 - 1] + sorted[sorted.Count / 2]) / 2.0;
-
             double reference = sorted[(int)(sorted.Count * 0.75)];
             res.StalledWindows = reference <= 0 ? speeds.Count : speeds.Count(s => s < reference * SpeedStallRatio);
-
             int half = speeds.Count / 2;
             if (half > 0)
             {
@@ -710,9 +628,7 @@ namespace CrimsonX.Services
                 res.FirstHalfMbps = res.Mbps;
                 res.SecondHalfMbps = res.Mbps;
             }
-
             res.Degraded = res.FirstHalfMbps > 0 && res.SecondHalfMbps < res.FirstHalfMbps * SpeedDegradeRatio;
-
             if (res.Mbps > 0 && speeds.Count > 1)
             {
                 double variance = 0;
@@ -720,11 +636,9 @@ namespace CrimsonX.Services
                 variance /= speeds.Count;
                 res.JitterCv = Math.Sqrt(variance) / res.Mbps;
             }
-
             res.Stability = res.Mbps < SpeedMinStableMbps
                 ? 0
                 : Math.Clamp(1.0 - (0.6 * res.JitterCv + 1.5 * res.StallRatio + (res.Degraded ? 0.3 : 0)), 0, 1);
-
             res.Stable = res.Windows >= SpeedMinWindows
                          && res.Mbps >= SpeedMinStableMbps
                          && !res.Degraded
@@ -778,7 +692,6 @@ namespace CrimsonX.Services
                     ownsClient = true;
                 }
                 udp.Connect(IPAddress.Loopback, udpPort);
-
                 try
                 {
                     var stale = new byte[512];
@@ -788,24 +701,19 @@ namespace CrimsonX.Services
                     }
                 }
                 catch { }
-
                 var ntpRequest = new byte[48];
                 ntpRequest[0] = 0x23;
-
                 var sw = Stopwatch.StartNew();
                 await udp.SendAsync(ntpRequest.AsMemory(), ct);
-
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeoutCts.CancelAfter(timeoutMs);
                 var resp = await udp.ReceiveAsync(timeoutCts.Token);
                 sw.Stop();
-
                 bool ok = resp.Buffer != null && resp.Buffer.Length > 0;
                 if (ok && requireNtpReply)
                 {
                     ok = resp.Buffer!.Length >= 48 && (resp.Buffer[0] & 0x07) == 4;
                 }
-
                 return (ok, ok ? sw.ElapsedMilliseconds : 0);
             }
             catch (OperationCanceledException)
@@ -857,7 +765,6 @@ namespace CrimsonX.Services
             {
                 if (!_bindNotices.Add(message)) return;
             }
-
             SimpleLogger.Log(message);
         }
         private static async Task<UdpTestSession> StartUdpTestSessionAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null)
@@ -868,7 +775,6 @@ namespace CrimsonX.Services
                 UdpPort = GetFreeUdpPort()
             };
             session.CfgPath = Path.Combine(cfg.XrayDir, $"test_{Guid.NewGuid().ToString("N")}.json");
-
             Process testProc = null;
             try
             {
@@ -877,11 +783,9 @@ namespace CrimsonX.Services
                 {
                     var outb = (JObject)arr[0];
                     outb["tag"] = "proxy";
-
                     string adapterIp = !string.IsNullOrWhiteSpace(sendThroughIp)
                         ? sendThroughIp!
                         : XrayConfigWriter.ProbeSendThrough(cfg);
-
                     if (!string.IsNullOrWhiteSpace(adapterIp))
                     {
                         if (!IsAvailableAdapterAddress(adapterIp))
@@ -895,14 +799,12 @@ namespace CrimsonX.Services
                             adapterIp = "";
                         }
                     }
-
                     if (!string.IsNullOrWhiteSpace(adapterIp))
                     {
                         outb["sendThrough"] = adapterIp;
                         LogBindNoticeOnce($"[UdpScanner] Test traffic bound to adapter address {adapterIp}");
                     }
                 }
-
                 var fullConfig = new JObject
                 {
                     ["log"] = new JObject { ["loglevel"] = "none" },
@@ -942,28 +844,21 @@ namespace CrimsonX.Services
                         }
                     }
                 };
-
                 File.WriteAllText(session.CfgPath, fullConfig.ToString());
-
                 testProc = new Process();
                 testProc.StartInfo.FileName = Path.Combine(cfg.XrayDir, "xray.exe");
                 testProc.StartInfo.Arguments = $"run -c \"{session.CfgPath}\"";
                 testProc.StartInfo.UseShellExecute = false;
                 testProc.StartInfo.CreateNoWindow = true;
-
                 var proc = testProc;
                 await Task.Run(() => { proc.Start(); });
-
                 JobManager.AddProcess(testProc);
-
                 await Task.Delay(300, ct);
-
                 if (testProc.HasExited)
                 {
                     session.Dispose();
                     return null;
                 }
-
                 session.Proc = testProc;
                 return session;
             }
@@ -971,7 +866,6 @@ namespace CrimsonX.Services
             {
                 if (testProc != null) { try { testProc.Kill(); } catch { } try { testProc.Dispose(); } catch { } }
                 try { if (File.Exists(session.CfgPath)) File.Delete(session.CfgPath); } catch { }
-
                 if (ct.IsCancellationRequested) throw;
                 return null;
             }
@@ -986,20 +880,16 @@ namespace CrimsonX.Services
         {
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr;
-
             var adapter = TestAdapter(cfg);
             string testAdapterName = adapter.Name;
             string testAdapterIp   = adapter.Ip;
-
             IDisposable tunnelLease = null;
             var tunnelPrep = await TunnelEngine.PrepareTestAsync(link, cfg, testAdapterName, testAdapterIp);
-
             if (tunnelPrep.State == TunnelTestState.Failed)
             {
                 try { tunnelPrep.Lease?.Dispose(); } catch { }
                 return res;
             }
-
             if (tunnelPrep.State == TunnelTestState.Ready)
             {
                 outboundJsonStr = tunnelPrep.OutboundJson;
@@ -1009,18 +899,14 @@ namespace CrimsonX.Services
             {
                 return res;
             }
-
             res.OutboundJson = outboundJsonStr;
-
             UdpTestSession session = null;
             try
             {
                 session = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp);
                 if (session == null) return res;
-
                 long bestPing = long.MaxValue;
                 int okCount = 0;
-
                 using (var probeSocket = new UdpClient())
                 {
                     for (int i = 0; i < UdpProbeAttempts; i++)
@@ -1034,30 +920,24 @@ namespace CrimsonX.Services
                         }
                     }
                 }
-
                 res.UdpOk = okCount > 0;
                 res.Success = res.UdpOk;
                 res.UdpPing = okCount > 0 ? bestPing : 0;
                 res.Ping = res.UdpPing;
-
                 if (res.Success)
                 {
                     await FetchGeoAsync(res, session.HttpPort, ct);
-
                     if (string.IsNullOrWhiteSpace(res.CountryCode) && string.IsNullOrWhiteSpace(res.Country))
                         await FetchGeoForServerAsync(res, ct);
-
                     long realPing = await MeasureHttpPingAsync(session.HttpPort, ct);
                     if (realPing > 0) res.Ping = realPing;
                 }
-
                 return res;
             }
             catch (OperationCanceledException)
             {
                 res.Success = false;
                 res.UdpOk = false;
-
                 if (ct.IsCancellationRequested) throw;
                 return res;
             }
@@ -1080,24 +960,18 @@ namespace CrimsonX.Services
             try
             {
                 using var probeSocket = new UdpClient();
-
                 for (int attempt = 0; attempt < StabilitySessionAttempts && session == null; attempt++)
                 {
                     var candidate = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp);
                     if (candidate == null) continue;
-
                     if (await WarmUpAsync(candidate.UdpPort, probeSocket, ct)) session = candidate;
                     else candidate.Dispose();
                 }
-
                 if (session == null) return result;
-
                 var elapsed = Stopwatch.StartNew();
-
                 while (elapsed.ElapsedMilliseconds < durationMs)
                 {
                     ct.ThrowIfCancellationRequested();
-
                     var (ok, rtt) = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: true);
                     result.Sent++;
                     if (ok)
@@ -1107,9 +981,7 @@ namespace CrimsonX.Services
                         if (rtt < result.MinPingMs) result.MinPingMs = rtt;
                         if (rtt > result.MaxPingMs) result.MaxPingMs = rtt;
                     }
-
                     try { onSample?.Invoke(ok, rtt); } catch { }
-
                     long nextTick = (long)result.Sent * intervalMs;
                     int wait = (int)(nextTick - elapsed.ElapsedMilliseconds);
                     if (wait > 0) await Task.Delay(wait, ct);
@@ -1125,7 +997,6 @@ namespace CrimsonX.Services
             {
                 session?.Dispose();
             }
-
             return result;
         }
         private static async Task<long> MeasureHttpPingAsync(int httpPort, CancellationToken ct)
@@ -1138,30 +1009,23 @@ namespace CrimsonX.Services
                     UseProxy = true,
                     ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
                 };
-
                 using var client = new HttpClient(handler);
                 client.Timeout = TimeSpan.FromMilliseconds(TimeoutMs);
-
                 long totalPing = 0;
                 foreach (var target in TestTargets)
                 {
                     ct.ThrowIfCancellationRequested();
-
                     var sw = Stopwatch.StartNew();
                     using var req = new HttpRequestMessage(HttpMethod.Get, target);
                     req.Headers.ConnectionClose = true;
                     using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
-
                     if (!resp.IsSuccessStatusCode && resp.StatusCode != HttpStatusCode.NoContent && resp.StatusCode != HttpStatusCode.Found)
                         return 0;
-
                     sw.Stop();
                     long ping = sw.ElapsedMilliseconds;
                     if (ping > MaxAcceptedPingMs) return 0;
-
                     totalPing += ping;
                 }
-
                 return totalPing / TestTargets.Length;
             }
             catch (OperationCanceledException)
@@ -1178,13 +1042,11 @@ namespace CrimsonX.Services
         {
             if (string.IsNullOrWhiteSpace(ip)) return false;
             if (!IPAddress.TryParse(ip, out _)) return false;
-
             try
             {
                 foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces())
                 {
                     if (adapter.OperationalStatus != OperationalStatus.Up) continue;
-
                     foreach (var unicast in adapter.GetIPProperties().UnicastAddresses)
                     {
                         if (unicast.Address.AddressFamily == AddressFamily.InterNetwork && unicast.Address.ToString() == ip)
@@ -1196,20 +1058,17 @@ namespace CrimsonX.Services
             {
                 SimpleLogger.Log($"[UdpScanner] Adapter check failed: {ex.Message}");
             }
-
             return false;
         }
         private static async Task<bool> WarmUpAsync(int udpPort, UdpClient socket, CancellationToken ct)
         {
             var budget = Stopwatch.StartNew();
-
             while (budget.ElapsedMilliseconds < WarmupBudgetMs)
             {
                 ct.ThrowIfCancellationRequested();
                 var (ok, _) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, socket, requireNtpReply: true);
                 if (ok) return true;
             }
-
             return false;
         }
         private static async Task FetchGeoAsync(ConfigTestResult res, int httpPort, CancellationToken ct)
@@ -1222,31 +1081,23 @@ namespace CrimsonX.Services
                     UseProxy = true,
                     ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
                 };
-
                 using var client = new HttpClient(handler);
                 client.Timeout = TimeSpan.FromMilliseconds(GeoTimeoutMs);
-
                 foreach (var endpoint in GeoEndpoints)
                 {
                     ct.ThrowIfCancellationRequested();
-
                     try
                     {
                         using var geoReq = new HttpRequestMessage(HttpMethod.Get, endpoint);
                         geoReq.Headers.ConnectionClose = true;
                         geoReq.Headers.UserAgent.ParseAdd("Mozilla/5.0");
-
                         using var geoResp = await client.SendAsync(geoReq, ct);
                         if (!geoResp.IsSuccessStatusCode) continue;
-
                         var geoJson = JObject.Parse(await geoResp.Content.ReadAsStringAsync(ct));
-
                         string code = geoJson["country_code"]?.ToString() ?? geoJson["countryCode"]?.ToString() ?? "";
                         string country = geoJson["country"]?.ToString() ?? "";
                         string continent = geoJson["continent_code"]?.ToString() ?? geoJson["continentCode"]?.ToString() ?? "";
-
                         if (string.IsNullOrWhiteSpace(code) && string.IsNullOrWhiteSpace(country)) continue;
-
                         res.CountryCode = code;
                         res.Country = country;
                         res.Continent = continent switch
@@ -1285,7 +1136,6 @@ namespace CrimsonX.Services
             {
                 string target = XrayLinkParser.ExtractServerAddress(res.OutboundJson).Trim();
                 if (string.IsNullOrWhiteSpace(target)) return;
-
                 if (!System.Net.IPAddress.TryParse(target, out _))
                 {
                     var addresses = await Dns.GetHostAddressesAsync(target, ct);
@@ -1298,19 +1148,14 @@ namespace CrimsonX.Services
                         }
                     }
                 }
-
                 if (!System.Net.IPAddress.TryParse(target, out _) || XrayLinkParser.IsLocalAddress(target)) return;
-
                 using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(4000) };
                 using var resp = await client.GetAsync($"https://get.geojs.io/v1/ip/geo/{target}.json", ct);
                 if (!resp.IsSuccessStatusCode) return;
-
                 var geoJson = JObject.Parse(await resp.Content.ReadAsStringAsync(ct));
-
                 string code = geoJson["country_code"]?.ToString() ?? "";
                 string country = geoJson["country"]?.ToString() ?? "";
                 if (string.IsNullOrWhiteSpace(code) && string.IsNullOrWhiteSpace(country)) return;
-
                 res.CountryCode = code;
                 res.Country = country;
                 res.Continent = (geoJson["continent_code"]?.ToString() ?? "") switch

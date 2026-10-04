@@ -131,6 +131,7 @@ namespace CrimsonX.Pages
 
         private double _readoutInset;
         private double _appliedInset = -1;
+        private double _appliedTop = -1;
         private Avalonia.Thickness? _udpContentPadding;
         private bool _readoutInsetHooked;
 
@@ -143,28 +144,24 @@ namespace CrimsonX.Pages
         private void ApplyReadoutInset()
         {
             var content = this.FindControl<Border>("udpContent");
-            if (content == null) return;
-
+            if (content == null || !_udpContentPadding.HasValue) return;
             bool overflowing = content.DesiredSize.Height - _appliedInset > Bounds.Height + 0.5;
             double inset = overflowing ? _readoutInset : 0;
-
-            if (System.Math.Abs(inset - _appliedInset) < 0.5) return;
             _appliedInset = inset;
-
-            if (_udpContentPadding.HasValue)
-            {
-                var padding = _udpContentPadding.Value;
-                content.Padding = new Avalonia.Thickness(padding.Left, padding.Top + inset, padding.Right, padding.Bottom);
-            }
+            var padding = _udpContentPadding.Value;
+            double top = _readoutInset > 0
+                ? padding.Top + inset
+                : padding.Bottom + content.Margin.Bottom - content.Margin.Top;
+            if (System.Math.Abs(top - _appliedTop) < 0.5) return;
+            _appliedTop = top;
+            content.Padding = new Avalonia.Thickness(padding.Left, top, padding.Right, padding.Bottom);
         }
 
         private void HookReadoutInset()
         {
             if (_readoutInsetHooked) return;
-
             var content = this.FindControl<Border>("udpContent");
             if (content == null) return;
-
             _udpContentPadding = content.Padding;
             LayoutUpdated += (_, _) => ApplyReadoutInset();
             _readoutInsetHooked = true;
@@ -180,7 +177,6 @@ namespace CrimsonX.Pages
             try
             {
                 var cfg = Main.Config;
-
                 SetComboIndex("cmbAmount", cfg.UdpScanAmount == 5 ? 0 : cfg.UdpScanAmount == 15 ? 2 : 1);
                 SetComboIndex("cmbConcurrency", cfg.UdpScanConcurrency >= 10 ? 1 : 0);
                 SetComboIndex("cmbDiscard", cfg.UdpScanDiscardMs <= 0 ? 0 : Math.Clamp(cfg.UdpScanDiscardMs / 100, 1, 9));
@@ -200,34 +196,27 @@ namespace CrimsonX.Pages
         private void ScannerOption_Changed(object? sender, SelectionChangedEventArgs e)
         {
             if (_loadingOptions) return;
-
             if ((sender as ComboBox)?.SelectedIndex < 0) return;
-
             var cfg = Main.Config;
             int previousDiscard = cfg.UdpScanDiscardMs;
-
             cfg.UdpScanAmount = SelectedAmount();
             cfg.UdpScanConcurrency = SelectedConcurrency();
             cfg.UdpScanDiscardMs = SelectedDiscardPing();
             cfg.UdpScanAdapterName = SelectedAdapterName();
             cfg.UdpScanAdapterIp = SelectedAdapterIp();
             Main.RequestConfigSave();
-
             if (cfg.UdpScanDiscardMs != previousDiscard) _lastPadded = 0;
-
             if (!_isScanning && !_isStabilityRunning) RefreshStatusText();
         }
         internal void OnEnter()
         {
             LoadAdapters();
-
             ApplyLanguage();
         }
 
         protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
-
             if (_lifetimeCts.IsCancellationRequested)
             {
                 try { _lifetimeCts.Dispose(); } catch (Exception ex) { SimpleLogger.Log(ex); }
@@ -239,9 +228,7 @@ namespace CrimsonX.Pages
         {
             try { _lifetimeCts.Cancel(); } catch (Exception ex) { SimpleLogger.Log(ex); }
             try { _stabilityCts?.Cancel(); } catch (Exception ex) { SimpleLogger.Log(ex); }
-
             _dotsTimer?.Stop();
-
             base.OnDetachedFromVisualTree(e);
         }
 
@@ -251,7 +238,6 @@ namespace CrimsonX.Pages
         {
             TextBlock? T(string name) => this.FindControl<TextBlock>(name);
             Button? B(string name) => this.FindControl<Button>(name);
-
             RenderEmptyLabel();
             AppStrings.Apply(T("lblAmount"), AppStrings.UdpScannerAmount);
             AppStrings.Apply(T("lblConcurrency"), AppStrings.UdpScannerConcurrency);
@@ -263,22 +249,16 @@ namespace CrimsonX.Pages
             AppStrings.ApplyToolTip(T("lblDiscard"), AppStrings.TtUdpScannerDiscard);
             AppStrings.ApplyToolTip(T("lblAdapter"), AppStrings.TtUdpScannerAdapter);
             AppStrings.ApplyToolTip(B("btnStart"), AppStrings.TtUdpScanner);
-
             var cbiNoLimit = this.FindControl<ComboBoxItem>("cbiDiscardNone");
             if (cbiNoLimit != null) cbiNoLimit.Content = AppStrings.UdpScannerNoLimit;
-
             var cbiAdapterDefault = this.FindControl<ComboBoxItem>("cbiAdapterDefault");
             if (cbiAdapterDefault != null) cbiAdapterDefault.Content = AppStrings.AdapterDefault;
-
             if (!_isStabilityRunning && !_hasStabilityResult)
                 UpdateGraphInfo(AppStrings.UdpScannerGraphIdle);
-
             if (B("btnStart") is Button startBtn)
                 AppStrings.ApplyBtn(startBtn, _isScanning ? AppStrings.UdpScannerStop : AppStrings.UdpScannerStart);
-
             if (!_isScanning && !_isStabilityRunning)
                 RefreshStatusText();
-
             foreach (var item in _items)
             {
                 item.StabilityLabel = AppStrings.UdpScannerStability;
@@ -294,19 +274,15 @@ namespace CrimsonX.Pages
         {
             var left = new List<UdpScanItem>();
             var right = new List<UdpScanItem>();
-
             for (int i = 0; i < _items.Count; i++)
             {
                 if (i % 2 == 0) left.Add(_items[i]);
                 else right.Add(_items[i]);
             }
-
             var lstLeft = this.FindControl<ItemsControl>("lstResultsLeft");
             if (lstLeft != null) lstLeft.ItemsSource = left;
-
             var lstRight = this.FindControl<ItemsControl>("lstResultsRight");
             if (lstRight != null) lstRight.ItemsSource = right;
-
             var empty = this.FindControl<StackPanel>("pnlEmpty");
             if (empty != null)
             {
@@ -331,7 +307,6 @@ namespace CrimsonX.Pages
                 CopyTip = AppStrings.TtUdpScannerCopy,
                 SaveTip = AppStrings.TtSavedConfigsAdd
             });
-
             RefreshResults();
         }
         private static string BuildCopyText(UdpScanItem item)
@@ -339,12 +314,9 @@ namespace CrimsonX.Pages
             string name = string.IsNullOrWhiteSpace(item.CountryCode)
                 ? "CrimsonX"
                 : $"CrimsonX-{item.CountryCode.ToUpperInvariant()}";
-
             string candidate = string.IsNullOrWhiteSpace(item.Source) ? item.OutboundJson : item.Source;
-
             if (XrayLinkParser.TryBuildShareLink(candidate, out string link, name) && !string.IsNullOrWhiteSpace(link))
                 return link;
-
             return item.OutboundJson;
         }
 
@@ -354,14 +326,11 @@ namespace CrimsonX.Pages
         {
             string code = r.CountryCode ?? "";
             string name = r.Country ?? "";
-
             if (AppStrings.IsPersian)
                 name = GeoTranslation.GetCountryFa(code, string.IsNullOrWhiteSpace(name) ? code : name);
-
             if (string.IsNullOrWhiteSpace(name)) name = code;
             if (string.IsNullOrWhiteSpace(name)) name = XrayLinkParser.ExtractServerAddress(r.OutboundJson);
             if (string.IsNullOrWhiteSpace(name)) name = "UNKNOWN";
-
             return name;
         }
 
@@ -371,14 +340,11 @@ namespace CrimsonX.Pages
             if (!string.IsNullOrWhiteSpace(r.Country)) parts.Add(r.Country!);
             if (!string.IsNullOrWhiteSpace(r.CountryCode)) parts.Add(r.CountryCode!.ToUpperInvariant());
             if (!string.IsNullOrWhiteSpace(r.Continent)) parts.Add(r.Continent!);
-
             string server = XrayLinkParser.ExtractServerAddress(r.OutboundJson);
             if (!string.IsNullOrWhiteSpace(server)) parts.Add(server);
-
             if (r.Ping > 0) parts.Add(string.Format(AppStrings.UdpScannerDetailRealPing, r.Ping));
             if (r.UdpPing > 0) parts.Add(string.Format(AppStrings.UdpScannerDetailUdpPing, r.UdpPing));
             if (overLimit) parts.Add(AppStrings.UdpScannerOverLimit);
-
             return string.Join(" • ", parts);
         }
 
@@ -387,7 +353,6 @@ namespace CrimsonX.Pages
         private async void Copy_Click(object? sender, RoutedEventArgs e)
         {
             if ((sender as Control)?.DataContext is not UdpScanItem item) return;
-
             await CopyItemAsync(item);
         }
 
@@ -396,12 +361,10 @@ namespace CrimsonX.Pages
         {
             if (sender is not Control row || row.DataContext is not UdpScanItem) return;
             if (!e.GetCurrentPoint(row).Properties.IsLeftButtonPressed) return;
-
             for (var visual = e.Source as Avalonia.Visual; visual != null && !ReferenceEquals(visual, row); visual = visual.GetVisualParent())
             {
                 if (visual is Button) return;
             }
-
             _pressedRow = row;
             e.Pointer.Capture(row);
             row.Classes.Add("pressed");
@@ -409,15 +372,11 @@ namespace CrimsonX.Pages
         private void ScanRow_PointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             if (sender is not Control row) return;
-
             row.Classes.Remove("pressed");
-
             bool startedHere = ReferenceEquals(_pressedRow, row);
             _pressedRow = null;
-
             if (!startedHere || e.InitialPressMouseButton != MouseButton.Left) return;
             if (row.DataContext is not UdpScanItem item) return;
-
             _ = CopyItemAsync(item);
         }
         private void ScanRow_PointerCaptureLost(object? sender, RoutedEventArgs e)
@@ -430,7 +389,6 @@ namespace CrimsonX.Pages
         {
             string text = BuildCopyText(item);
             if (string.IsNullOrWhiteSpace(text)) return;
-
             try
             {
                 var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
@@ -441,14 +399,12 @@ namespace CrimsonX.Pages
                 SimpleLogger.Log($"[UdpScanner] Copy failed: {ex.Message}");
                 return;
             }
-
             Main.ShowToast(AppStrings.ToastCopiedToClipboard, kind: ToastKind.Success);
         }
 
         private void Save_Click(object? sender, RoutedEventArgs e)
         {
             if ((sender as Control)?.DataContext is not UdpScanItem item) return;
-
             SaveItem(item);
         }
 
@@ -456,21 +412,17 @@ namespace CrimsonX.Pages
         {
             var cfg = Main.Config;
             if (cfg == null) return;
-
             string raw = BuildCopyText(item);
             if (string.IsNullOrWhiteSpace(raw)) return;
-
             switch (AppCustomConfigStore.Store(cfg, raw, out string label))
             {
                 case CustomConfigSaveResult.Saved:
                 case CustomConfigSaveResult.Updated:
                     Main.ShowToast($"{AppStrings.ToastCustomProxySaved}: {label}", kind: ToastKind.Success);
                     break;
-
                 case CustomConfigSaveResult.PoolFull:
                     Main.ShowToast(AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
                     break;
-
                 default:
                     Main.ShowToast(AppStrings.ToastCustomProxyInvalid, ToastKind.Error);
                     break;
@@ -489,7 +441,6 @@ namespace CrimsonX.Pages
         {
             var lbl = this.FindControl<TextBlock>("lblScanStatus");
             if (lbl == null) return;
-
             bool animating = _isScanning && !_isStabilityRunning && _dotsTimer?.IsEnabled == true;
             AppStrings.Apply(lbl, animating ? _statusBase + Dots(_dotsPhase) : _statusBase);
         }
@@ -499,7 +450,6 @@ namespace CrimsonX.Pages
             var lbl = this.FindControl<TextBlock>("lblEmpty");
             var dots = this.FindControl<TextBlock>("lblEmptyDots");
             if (lbl == null || dots == null) return;
-
             if (_isScanning)
             {
                 AppStrings.Apply(lbl, AppStrings.UdpScannerTesting);
@@ -521,7 +471,6 @@ namespace CrimsonX.Pages
                 _dotsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
                 _dotsTimer.Tick += (_, _) => OnDotsTick();
             }
-
             _dotsPhase = 0;
             _dotsTimer.Start();
             ApplyStatusLabel();
@@ -543,9 +492,7 @@ namespace CrimsonX.Pages
                 StopDots();
                 return;
             }
-
             if (_isStabilityRunning) return;
-
             _dotsPhase = (_dotsPhase + 1) % 3;
             ApplyStatusLabel();
             RenderEmptyLabel();
@@ -562,33 +509,25 @@ namespace CrimsonX.Pages
         private async void Stability_Click(object? sender, RoutedEventArgs e)
         {
             if ((sender as Control)?.DataContext is not UdpScanItem item) return;
-
             if (_isStabilityRunning)
             {
                 try { _stabilityCts?.Cancel(); } catch { }
             }
-
             var btn = sender as Button;
             if (btn != null) btn.IsEnabled = false;
-
             var graph = this.FindControl<CrimsonX.Controls.StabilityGraph>("graphStability");
             graph?.Reset();
-
             var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
             cts.CancelAfter(TimeSpan.FromSeconds(40));
             _stabilityCts = cts;
-
             _isStabilityRunning = true;
             _hasStabilityResult = true;
             UpdateGraphInfo(string.Format(AppStrings.UdpScannerStabilityRunning, item.Location));
-
             try
             {
                 UpdateStatus(AppStrings.UdpScannerStabilityTesting);
-
                 int sent = 0;
                 int loss = 0;
-
                 var res = await ConfigTester.TestUdpStabilityAsync(
                     item.OutboundJson,
                     Main.Config,
@@ -597,21 +536,17 @@ namespace CrimsonX.Pages
                     {
                         sent++;
                         if (!ok) loss++;
-
                         int probes = sent;
                         int losses = loss;
                         Dispatcher.UIThread.Post(() =>
                         {
                             if (!ReferenceEquals(_stabilityCts, cts)) return;
-
                             graph?.AddSample(ok, ping);
                             UpdateGraphInfo(string.Format(AppStrings.UdpScannerGraphLive, probes, losses, ok ? ping.ToString() : "-"));
                         });
                     },
                     sendThroughIp: SelectedAdapterIp());
-
                 if (!ReferenceEquals(_stabilityCts, cts)) return;
-
                 if (!res.HasSamples)
                 {
                     item.StabilityText = AppStrings.UdpScannerStabilityFailed;
@@ -619,12 +554,10 @@ namespace CrimsonX.Pages
                     UpdateGraphInfo(AppStrings.UdpScannerStabilityFailed);
                     return;
                 }
-
                 int rate = (int)Math.Round(res.SuccessRate * 100);
                 item.StabilityText = $"{rate}% • {res.AvgPingMs} ms";
                 item.StabilityBrush = rate >= 90 ? UdpScanItem.Good : rate >= 60 ? UdpScanItem.Weak : UdpScanItem.Bad;
                 item.StabilityDetail = string.Format(AppStrings.UdpScannerStabilityDetail, rate, res.Ok, res.Sent, res.AvgPingMs, res.MinPingOrZero, res.MaxPingMs);
-
                 UpdateGraphInfo(string.Format(AppStrings.UdpScannerStabilityResult, rate, res.AvgPingMs));
             }
             catch (OperationCanceledException)
@@ -639,14 +572,12 @@ namespace CrimsonX.Pages
             finally
             {
                 if (btn != null) btn.IsEnabled = true;
-
                 if (ReferenceEquals(_stabilityCts, cts))
                 {
                     _stabilityCts = null;
                     _isStabilityRunning = false;
                     RefreshStatusText();
                 }
-
                 cts.Dispose();
             }
         }

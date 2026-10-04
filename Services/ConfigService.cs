@@ -64,7 +64,6 @@ namespace CrimsonX.Services
                 DirectUdpAdapterIp = config.DirectUdpAdapterIp,
                 EnableV2rayChain = config.EnableV2rayChain,
                 V2rayChainJson = config.V2rayChainJson,
-
                 EnableAdapterBinding = config.EnableAdapterBinding,
                 SelectedAdapterName = config.SelectedAdapterName,
                 QuickSetting1 = config.QuickSetting1,
@@ -76,35 +75,28 @@ namespace CrimsonX.Services
                 EnableSystemDns = config.EnableSystemDns,
                 SystemDnsPrimary = config.SystemDnsPrimary,
                 SystemDnsSecondary = config.SystemDnsSecondary,
-
                 MinimizeToTray = config.MinimizeToTray,
                 XrayBalancePolicy = config.XrayBalancePolicy,
                 AdapterBalancePolicy = config.AdapterBalancePolicy,
-
                 EnableLoadBalanceAdapters = config.EnableLoadBalanceAdapters,
+                EnableUdpCapableNodes = config.EnableUdpCapableNodes,
                 LoadBalanceAdapters = new System.Collections.Generic.List<string>(config.LoadBalanceAdapters ?? new()),
-
                 EnableExcludedContinents = config.EnableExcludedContinents,
                 ExcludedContinents = config.ExcludedContinents,
-
                 UdpScanAmount = config.UdpScanAmount,
                 UdpScanConcurrency = config.UdpScanConcurrency,
                 UdpScanDiscardMs = config.UdpScanDiscardMs,
                 UdpScanAdapterName = config.UdpScanAdapterName,
                 UdpScanAdapterIp = config.UdpScanAdapterIp,
                 DnsRestore = config.DnsRestore,
-
                 PinTopBar = config.PinTopBar,
             };
-
             try
             {
                 var dir = Path.GetDirectoryName(cfgFile);
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
-
                 string json = JsonConvert.SerializeObject(data, Formatting.None);
-
                 lock (SaveLock)
                 {
                     WriteSettings(cfgFile, json);
@@ -158,36 +150,29 @@ namespace CrimsonX.Services
                     json = File.ReadAllText(cfgFile);
                 }
             }
-
             string oldJsonPath = Path.ChangeExtension(cfgFile, ".json");
             if (json == null && File.Exists(oldJsonPath))
             {
                 state.IsFirstLaunch = false;
                 json = File.ReadAllText(oldJsonPath);
             }
-
             if (string.IsNullOrEmpty(json))
             {
                 config.LastAppVersion = UpdateService.AppVersion;
                 return;
             }
-
             try
             {
-
                 var jobj = Newtonsoft.Json.Linq.JObject.Parse(json);
                 using var jReader = jobj.CreateReader();
                 Newtonsoft.Json.JsonSerializer.CreateDefault().Populate(jReader, config);
-
                 if (jobj["XrayBalancePolicy"] == null && jobj["HaProxyBalancePolicy"] != null)
                     config.XrayBalancePolicy = jobj.Value<string>("HaProxyBalancePolicy") ?? config.XrayBalancePolicy;
-
             }
             catch (Exception ex)
             {
                 SimpleLogger.Log(ex);
             }
-
             if (string.IsNullOrWhiteSpace(config.LastAppVersion)) Migrate(config, state, cfgFile);
             else config.LastAppVersion = UpdateService.AppVersion;
         }
@@ -196,9 +181,7 @@ namespace CrimsonX.Services
         {
             config.QuickSetting1  = "CUSTOM CONFIGS";
             config.LastAppVersion = UpdateService.AppVersion;
-
             Save(config, state, cfgFile);
-
             SimpleLogger.Log(
                 $"[Config] Profile carried over to the current settings (v{UpdateService.AppVersion}): Quick Settings slot 1 is CUSTOM CONFIGS now.");
         }

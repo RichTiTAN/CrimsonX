@@ -103,7 +103,6 @@ namespace CrimsonX.Pages
             string number = isTcp
                 ? CrimsonX.Localization.AppStrings.TcpPingPrefix + ping + "ms"
                 : $"{ping} ms";
-
             PingText = ping > 0 ? number : "-";
             PingBrush = ping <= 0 ? MutedBrush : ping <= 120 ? GoodBrush : ping <= 250 ? WeakBrush : BadBrush;
         }
@@ -127,10 +126,8 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
-
             _configComboEntries = AppCustomConfigStore.Load(cfg);
             var options = AppCustomConfigStore.DisplayOptions(_configComboEntries);
-
             bool wasSuppressed = _suppressConfigComboSync;
             _suppressConfigComboSync = true;
             try
@@ -139,7 +136,6 @@ namespace CrimsonX.Pages
                 {
                     var cb = this.FindControl<ComboBox>(name);
                     if (cb == null) continue;
-
                     string text = cb.Text ?? "";
                     cb.ItemsSource = options;
                     cb.SelectedIndex = -1;
@@ -150,10 +146,8 @@ namespace CrimsonX.Pages
             {
                 _suppressConfigComboSync = wasSuppressed;
             }
-
             AttachCustomConfigInput();
             ApplyCustomConfigTitles();
-
             ShowQuickSettingsConfigs();
         }
 
@@ -161,29 +155,22 @@ namespace CrimsonX.Pages
         {
             if (_isInitializingSettings || _suppressConfigComboSync) return;
             if (sender is not ComboBox cb || cb.SelectedIndex < 0) return;
-
             int index = cb.SelectedIndex;
             var cfg = MainWindow.Instance?.Config;
-
             bool usable = true;
             string raw = "";
             string reason = "";
             int slot = cb.Name != null && cb.Name.EndsWith("2", StringComparison.Ordinal) ? 2 : 1;
-
             if (index > 0 && index - 1 < _configComboEntries.Count)
             {
                 var entry = _configComboEntries[index - 1];
-
                 usable = ConfigConverter.TryAcceptFor(entry.Raw, ConfigTarget.Xray, out reason);
-
                 if (usable) raw = entry.Raw.Trim();
             }
-
             _suppressConfigComboSync = true;
             try
             {
                 cb.SelectedIndex = -1;
-
                 if (usable)
                 {
                     SetConfigRaw(cfg, slot, raw);
@@ -195,13 +182,11 @@ namespace CrimsonX.Pages
             {
                 _suppressConfigComboSync = false;
             }
-
             if (!usable)
             {
                 MainWindow.Instance?.ShowToast(AppStrings.ToastConfigNotForXray + reason, ToastKind.Error);
                 return;
             }
-
             _ = ValidateSlotAfterPickAsync(slot, raw);
         }
 
@@ -212,17 +197,13 @@ namespace CrimsonX.Pages
 
             // OpenVPN / WireGuard are dialed by sing-box
             if (ConfigConverter.TryTunnel(raw, out _, out _)) return;
-
             string xrayError = await XrayConfigValidator.CheckAsync(cfg, raw);
             if (xrayError.Length == 0) return;
-
             string shortError = ConfigValidator.ShortReason(xrayError);
             MainWindow.Instance?.ShowToast(AppStrings.ToastXrayRejected + shortError, ToastKind.Error);
-
             SetConfigRaw(cfg, slot, "");
             var cb = this.FindControl<ComboBox>(ConfigComboName(slot));
             if (cb != null) cb.Text = "";
-
             ConfigBoxes.Show(QuickSlotBoxKey(slot), "");
         }
 
@@ -233,33 +214,27 @@ namespace CrimsonX.Pages
             AppStrings.ApplyToolTip(this.FindControl<Button>("btnSavedConfigAdd"), AppStrings.TtSavedConfigsAdd);
             AppStrings.ApplyBtn(this.FindControl<Button>("btnSavedConfigAdd"), AppStrings.Save);
             AppStrings.Apply(this.FindControl<TextBlock>("lblSavedEmpty"), AppStrings.SavedConfigsEmpty);
-
             var browse = this.FindControl<Button>("btnSavedConfigBrowse");
             if (browse != null) AppStrings.ApplyToolTip(browse, AppStrings.ImportConfigTooltip);
-
             foreach (var name in new[] { "btnCustomConfigImport1", "btnCustomConfigImport2" })
             {
                 var add = this.FindControl<Button>(name);
                 if (add != null) AppStrings.ApplyToolTip(add, AppStrings.ImportConfigTooltip);
             }
-
             var box = this.FindControl<TextBox>("txtSavedConfigImport");
             if (box != null) box.PlaceholderText = AppStrings.SavedConfigsImportPlaceholder;
-
             RefreshSavedConfigs();
         }
 
         internal void RefreshSavedConfigs()
         {
             var cfg = MainWindow.Instance?.Config;
-
             _savedConfigs.Clear();
             if (cfg != null)
             {
                 foreach (var entry in AppCustomConfigStore.Load(cfg))
                 {
                     if (entry == null || string.IsNullOrWhiteSpace(entry.Raw)) continue;
-
                     string raw = entry.Raw.Trim();
                     _savedConfigs.Add(new SavedConfigItem
                     {
@@ -273,7 +248,6 @@ namespace CrimsonX.Pages
                     });
                 }
             }
-
             var left = new List<SavedConfigItem>();
             var right = new List<SavedConfigItem>();
             for (int i = 0; i < _savedConfigs.Count; i++)
@@ -281,16 +255,12 @@ namespace CrimsonX.Pages
                 if (i % 2 == 0) left.Add(_savedConfigs[i]);
                 else right.Add(_savedConfigs[i]);
             }
-
             var lstLeft = this.FindControl<ItemsControl>("lstSavedLeft");
             if (lstLeft != null) lstLeft.ItemsSource = left;
-
             var lstRight = this.FindControl<ItemsControl>("lstSavedRight");
             if (lstRight != null) lstRight.ItemsSource = right;
-
             var empty = this.FindControl<StackPanel>("pnlSavedEmpty");
             if (empty != null) empty.IsVisible = _savedConfigs.Count == 0;
-
             RefreshConfigCombos();
         }
 
@@ -298,13 +268,10 @@ namespace CrimsonX.Pages
         {
             var pan = this.FindControl<Border>("panSavedConfigs");
             if (pan == null) return;
-
             if (expanded) RefreshSavedConfigs();
-
             var ico = this.FindControl<PathIcon>("icoSavedConfigsExpander");
             var panToggle = this.FindControl<Border>("panSavedConfigsToggle");
             var btnToggle = this.FindControl<Button>("btnSavedConfigsToggle");
-
             pan.MaxHeight = expanded ? 270 : 0;
             pan.Opacity = expanded ? 1 : 0;
             if (ico != null) ico.RenderTransform = new RotateTransform(expanded ? 180 : 0);
@@ -322,7 +289,6 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null || string.IsNullOrWhiteSpace(raw)) return;
-
             switch (AppCustomConfigStore.Store(cfg, raw.Trim(), out var label))
             {
                 case CustomConfigSaveResult.Saved:
@@ -331,12 +297,10 @@ namespace CrimsonX.Pages
                     RefreshSavedConfigs();
                     RefreshConfigCombos();
                     break;
-
                 case CustomConfigSaveResult.PoolFull:
                     MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
                     RefreshSavedConfigs();
                     break;
-
                 default:
                     MainWindow.Instance?.ShowToast(AppStrings.ToastConfigUnreadable, ToastKind.Error);
                     break;
@@ -346,12 +310,10 @@ namespace CrimsonX.Pages
         private void SavedConfigAdd_Click(object? sender, RoutedEventArgs e)
         {
             var box = this.FindControl<TextBox>("txtSavedConfigImport");
-
             try
             {
                 var cfg = MainWindow.Instance?.Config;
                 if (cfg == null) return;
-
                 string raw = box?.Text?.Trim() ?? "";
                 if (raw.Length == 0)
                 {
@@ -359,7 +321,6 @@ namespace CrimsonX.Pages
                     box?.Focus();
                     return;
                 }
-
                 switch (AppCustomConfigStore.Store(cfg, raw, out var label))
                 {
                     case CustomConfigSaveResult.Saved:
@@ -368,16 +329,13 @@ namespace CrimsonX.Pages
                         if (box != null) box.Text = "";
                         RefreshSavedConfigs();
                         break;
-
                     case CustomConfigSaveResult.PoolFull:
                         MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
                         break;
-
                     default:
                         MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyInvalid, ToastKind.Error);
                         break;
                 }
-
                 box?.Focus();
             }
             catch (Exception ex)
@@ -390,26 +348,20 @@ namespace CrimsonX.Pages
         {
             if (_isSavedConfigPinging) return;
             if ((sender as Control)?.DataContext is not SavedConfigItem item) return;
-
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
-
             var btn = sender as Button;
             _isSavedConfigPinging = true;
             item.PingLabel = AppStrings.ValidatingConfig;
             if (btn != null) btn.IsEnabled = false;
-
             try
             {
                 using var cts = new CancellationTokenSource(15000);
                 var res = await CustomConfigPinger.ProbeAsync(item.Raw, cfg, cfg.UdpScanAdapterName, cfg.UdpScanAdapterIp, cts.Token);
-
                 bool measured = res != null && res.Measured;
                 long ping = measured ? res.Ping : -1;
                 bool timedOut = !measured && res != null && res.TimedOut;
-
                 item.SetPing(ping, res != null && res.IsTcpPing);
-
                 string msg = measured ? res.Text(item.Label)
                            : timedOut ? AppStrings.CustomProxyNoResponse
                            : AppStrings.InvalidConfig + ReasonOf(res);
@@ -431,19 +383,16 @@ namespace CrimsonX.Pages
         private async void SavedConfigCopy_Click(object? sender, RoutedEventArgs e)
         {
             if ((sender as Control)?.DataContext is not SavedConfigItem item) return;
-
             await CopySavedConfigAsync(item);
         }
 
         private void SavedConfigDelete_Click(object? sender, RoutedEventArgs e)
         {
             if ((sender as Control)?.DataContext is not SavedConfigItem item) return;
-
             try
             {
                 var cfg = MainWindow.Instance?.Config;
                 if (cfg == null) return;
-
                 if (AppCustomConfigStore.Delete(cfg, item.Raw) > 0)
                 {
                     ClearSlotsForDeletedConfig(item.Raw);
@@ -465,13 +414,11 @@ namespace CrimsonX.Pages
         {
             if (sender is not Control row || row.DataContext is not SavedConfigItem) return;
             if (!e.GetCurrentPoint(row).Properties.IsLeftButtonPressed) return;
-
             for (var visual = e.Source as Visual; visual != null && !ReferenceEquals(visual, row); visual = visual.GetVisualParent())
             {
                 if (visual is Button || visual is TextBox) return;
                 if (visual is TextBlock tb && tb.Classes.Contains("savedLabel")) return;
             }
-
             _pressedSavedRow = row;
             e.Pointer.Capture(row);
             row.Classes.Add("pressed");
@@ -480,15 +427,11 @@ namespace CrimsonX.Pages
         private void SavedConfigRow_PointerReleased(object? sender, PointerReleasedEventArgs e)
         {
             if (sender is not Control row) return;
-
             row.Classes.Remove("pressed");
-
             bool startedHere = ReferenceEquals(_pressedSavedRow, row);
             _pressedSavedRow = null;
-
             if (!startedHere || e.InitialPressMouseButton != MouseButton.Left) return;
             if (row.DataContext is not SavedConfigItem item) return;
-
             _ = CopySavedConfigAsync(item);
         }
 
@@ -502,17 +445,13 @@ namespace CrimsonX.Pages
         {
             if (sender is not Control row || row.DataContext is not SavedConfigItem item) return;
             if (!e.GetCurrentPoint(row).Properties.IsLeftButtonPressed) return;
-
             item.EditLabel = item.Label;
             item.IsRenaming = true;
             e.Handled = true;
-
             var root = row as Visual;
             while (root != null && root is not Border) root = root.GetVisualParent();
-
             var box = root?.GetVisualDescendants().OfType<TextBox>().FirstOrDefault();
             if (box == null) return;
-
             Dispatcher.UIThread.Post(() =>
             {
                 box.Focus();
@@ -523,7 +462,6 @@ namespace CrimsonX.Pages
         private void SavedConfigLabelEdit_KeyDown(object? sender, KeyEventArgs e)
         {
             if ((sender as Control)?.DataContext is not SavedConfigItem item) return;
-
             if (e.Key == Key.Enter)
             {
                 CommitSavedConfigRename(item);
@@ -546,24 +484,18 @@ namespace CrimsonX.Pages
         {
             if (!item.IsRenaming) return;
             item.IsRenaming = false;
-
             string name = (item.EditLabel ?? "").Trim();
             if (name.Length == 0 || name == item.Label) return;
-
             try
             {
                 var cfg = MainWindow.Instance?.Config;
                 if (cfg == null) return;
-
                 var entries = AppCustomConfigStore.Load(cfg);
                 var entry = entries.FirstOrDefault(en => string.Equals(en.Raw.Trim(), item.Raw, StringComparison.Ordinal));
                 if (entry == null) return;
-
                 entry.Label = name;
                 AppCustomConfigStore.Save(entries);
-
                 item.Label = name;
-
                 RefreshConfigCombos();
             }
             catch (Exception ex)
@@ -577,9 +509,7 @@ namespace CrimsonX.Pages
             string text = XrayLinkParser.TryBuildShareLink(item.Raw, out string link, "CrimsonX") && !string.IsNullOrWhiteSpace(link)
                 ? link
                 : item.Raw;
-
             if (string.IsNullOrWhiteSpace(text)) return;
-
             try
             {
                 var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
@@ -590,7 +520,6 @@ namespace CrimsonX.Pages
                 SimpleLogger.Log($"[Settings] Copy failed: {ex.Message}");
                 return;
             }
-
             MainWindow.Instance?.ShowToast(AppStrings.ToastCopiedToClipboard, ToastKind.Success);
         }
     }

@@ -64,7 +64,6 @@ namespace CrimsonX.Controls
         {
             double fps = isHomeTab ? HomeTabFps : OtherTabFps;
             if (Math.Abs(fps - _glowFps) < 0.01) return;
-
             _glowFps = fps;
             if (_bgTimer != null) _bgTimer.Interval = IntervalFor(_glowFps);
         }
@@ -74,9 +73,7 @@ namespace CrimsonX.Controls
                 private void EvaluateTimer()
         {
             if (_bgTimer == null) return;
-
             bool shouldRun = !_isDisabled && !_isPaused && _isWindowFocused;
-            
             if (shouldRun && !_bgTimer.IsEnabled)
             {
                 if (_pauseStartTime.HasValue)
@@ -121,11 +118,9 @@ namespace CrimsonX.Controls
             InitializeComponent();
             GenerateDotMatrixOverlay(2560, 1440);
             this.SizeChanged += DotOverlay_SizeChanged;
-
             _e1 = this.FindControl<Ellipse>("e1");
             _e2 = this.FindControl<Ellipse>("e2");
             _e3 = this.FindControl<Ellipse>("e3");
-
             ResolveGradientStops(_e1, out _gs1Center, out _gs1Edge);
             ResolveGradientStops(_e2, out _gs2Center, out _gs2Edge);
             ResolveGradientStops(_e3, out _gs3Center, out _gs3Edge);
@@ -134,18 +129,15 @@ namespace CrimsonX.Controls
         protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
-
             if (this.FindControl<Border>("b1") is { } b1 &&
                 b1.RenderTransform is TranslateTransform bt1) _b1Trans = bt1;
             if (this.FindControl<Border>("b2") is { } b2 &&
                 b2.RenderTransform is TranslateTransform bt2) _b2Trans = bt2;
             if (this.FindControl<Border>("b3") is { } b3 &&
                 b3.RenderTransform is TranslateTransform bt3) _b3Trans = bt3;
-
             if (_e1?.RenderTransform is ScaleTransform st1) _e1Scale = st1;
             if (_e2?.RenderTransform is ScaleTransform st2) _e2Scale = st2;
             if (_e3?.RenderTransform is ScaleTransform st3) _e3Scale = st3;
-
             _startTime = DateTime.UtcNow;
             _pauseStartTime = DateTime.UtcNow;
             _bgTimer = new DispatcherTimer { Interval = IntervalFor(_glowFps) };
@@ -176,7 +168,6 @@ namespace CrimsonX.Controls
         private void BgTimer_Tick(object? sender, EventArgs e)
         {
             double elapsed = (DateTime.UtcNow - _startTime).TotalSeconds;
-
             if (_b1Trans != null && _e1Scale != null && _e1 != null)
                 ApplyBlob(_b1Trans, _e1Scale, _e1, elapsed, D1, BKf1, EKf1);
             if (_b2Trans != null && _e2Scale != null && _e2 != null)
@@ -193,7 +184,6 @@ namespace CrimsonX.Controls
         {
             double cycle = elapsed % (2.0 * duration);
             double t = cycle < duration ? cycle / duration : 1.0 - (cycle - duration) / duration;
-
             double tx, ty, sx, sy, op;
             if (t <= 0.5)
             {
@@ -213,7 +203,6 @@ namespace CrimsonX.Controls
                 sy = Lerp(eKf[1].sy, eKf[2].sy, tt);
                 op = Lerp(eKf[1].op, eKf[2].op, tt);
             }
-
             trans.X         = tx;
             trans.Y         = ty;
             scale.ScaleX    = sx;
@@ -229,10 +218,8 @@ namespace CrimsonX.Controls
         {
             if (_gs1Center != null) _gs1Center.Color = c1;
             if (_gs1Edge   != null) _gs1Edge.Color   = Color.FromArgb(0, c1.R, c1.G, c1.B);
-
             if (_gs2Center != null) _gs2Center.Color = c2;
             if (_gs2Edge   != null) _gs2Edge.Color   = Color.FromArgb(0, c2.R, c2.G, c2.B);
-
             if (_gs3Center != null) _gs3Center.Color = c3;
             if (_gs3Edge   != null) _gs3Edge.Color   = Color.FromArgb(0, c3.R, c3.G, c3.B);
         }
@@ -243,17 +230,13 @@ namespace CrimsonX.Controls
         {
             var size = Bounds.Size;
             if (size.Width <= 0 || size.Height <= 0) return;
-
             int width  = Math.Clamp((int)Math.Ceiling(size.Width), 320, 2560);
             int height = Math.Clamp((int)Math.Ceiling(size.Height), 240, 1440);
-
             bool significantlyDifferent = Math.Abs(width - _dotPixelWidth) > _dotPixelWidth * 0.08
                                        || Math.Abs(height - _dotPixelHeight) > _dotPixelHeight * 0.08;
             if (!significantlyDifferent) return;
-
             _dotPixelWidth  = width;
             _dotPixelHeight = height;
-
             if (_dotResizeTimer == null)
             {
                 _dotResizeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
@@ -274,21 +257,17 @@ namespace CrimsonX.Controls
                 new Avalonia.Vector(96, 96),
                 PixelFormat.Bgra8888,
                 AlphaFormat.Premul);
-
             using (var fb = bitmap.Lock())
             {
                 int    stride = fb.RowBytes;
                 IntPtr ptr    = fb.Address;
-
                 unsafe
                 {
                     byte* pStart = (byte*)ptr;
                     for (int i = 0; i < height * stride; i++) pStart[i] = 0;
                 }
-
                 var rnd        = new Random();
                 int dotSpacing = 22;
-
                 unsafe
                 {
                     for (int y = 0; y < height; y += dotSpacing)
@@ -296,9 +275,7 @@ namespace CrimsonX.Controls
                         for (int x = 0; x < width; x += dotSpacing)
                         {
                             if (rnd.NextDouble() < 0.20) continue;
-
                             byte alphaByte = (byte)((0.1 + rnd.NextDouble() * 0.5) * 255);
-
                             for (int dy = 0; dy < 3; dy++)
                             {
                                 if (y + dy >= height) continue;
@@ -317,7 +294,6 @@ namespace CrimsonX.Controls
                     }
                 }
             }
-
             imgDotOverlay.Source = bitmap;
         }
     }

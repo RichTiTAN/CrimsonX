@@ -58,25 +58,20 @@ namespace CrimsonX.Services
         public static AppRulesSingboxResult Build(AppConfig config, ISet<string> skipCustomKeys = null, string proxyTag = "proxy")
         {
             var result = new AppRulesSingboxResult();
-
             if (config == null || !config.EnableAppRules) return result;
-
             List<AppGameRule> rules;
             try { rules = AppRulesService.Load(); }
             catch { return result; }
             if (rules == null) return result;
-
             var enabled = rules
                 .Where(r => r.IsEnabled
                     && ((r.ProcessNames != null && r.ProcessNames.Count > 0) || !string.IsNullOrWhiteSpace(r.ExeName)))
                 .ToList();
             if (enabled.Count == 0) return result;
-
             var adapterTags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var adapterIps  = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             int adapterIndex = 1;
             var usedRuleSets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
             foreach (var rule in enabled)
             {
                 var nameSource = rule.ProcessNames != null && rule.ProcessNames.Count > 0
@@ -84,16 +79,13 @@ namespace CrimsonX.Services
                     : new List<string> { rule.ExeName };
                 var names = BuildProcessNames(nameSource);
                 if (names.Count == 0) continue;
-
                 var namesArray = names.ToArray();
-
                 if (!string.IsNullOrWhiteSpace(rule.Region)
                     && rule.Region != "ALL"
                     && RegionToRuleSet.TryGetValue(rule.Region.Trim(), out var ruleSetFile))
                 {
                     string ruleSetTag = "region-" + ruleSetFile;
                     usedRuleSets.Add(ruleSetFile);
-
                     result.RouteRules.Add(new
                     {
                         type = "logical",
@@ -109,10 +101,8 @@ namespace CrimsonX.Services
                         action = "reject"
                     });
                 }
-
                 string tcpOutbound = ResolveOutbound(rule, rule.TcpRouting, rule.TcpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys, proxyTag);
                 string udpOutbound = ResolveOutbound(rule, rule.UdpRouting, rule.UdpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys, proxyTag);
-
                 result.RouteRules.Add(new
                 {
                     process_name = namesArray,
@@ -127,27 +117,23 @@ namespace CrimsonX.Services
                     action = "route",
                     outbound = udpOutbound
                 });
-
                 bool tcpCustom = IsCustomRouting(rule.TcpRouting);
                 bool udpCustom = IsCustomRouting(rule.UdpRouting);
                 bool tcpCustomTag = tcpCustom && tcpOutbound.StartsWith("custom-", StringComparison.Ordinal);
                 bool udpCustomTag = udpCustom && udpOutbound.StartsWith("custom-", StringComparison.Ordinal);
                 bool fullyCustom = tcpCustomTag && udpCustomTag && tcpOutbound == udpOutbound;
                 bool fullyProxied = IsProxyRouting(rule.TcpRouting) && IsProxyRouting(rule.UdpRouting);
-
                 string dnsServer = fullyCustom ? "dns-" + tcpOutbound
                                  : tcpCustomTag ? "dns-" + tcpOutbound
                                  : udpCustomTag ? "dns-" + udpOutbound
                                  : fullyProxied ? "dns_proxy"
                                  : "dns_direct";
-
                 result.DnsRules.Add(new
                 {
                     process_name = namesArray,
                     action = "route",
                     server = dnsServer
                 });
-
                 var domains = rule.Domains != null
                     ? rule.Domains.Where(d => !string.IsNullOrWhiteSpace(d)).Select(d => d.Trim()).ToArray()
                     : Array.Empty<string>();
@@ -159,7 +145,6 @@ namespace CrimsonX.Services
                         action = "route",
                         outbound = tcpOutbound
                     });
-
                     result.DnsRules.Add(new
                     {
                         domain_suffix = domains,
@@ -168,7 +153,6 @@ namespace CrimsonX.Services
                     });
                 }
             }
-
             foreach (var file in usedRuleSets)
             {
                 result.RuleSets.Add(new
@@ -179,7 +163,6 @@ namespace CrimsonX.Services
                     path = "rule_sets/" + file + ".srs"
                 });
             }
-
             return result;
         }
 
@@ -192,20 +175,15 @@ namespace CrimsonX.Services
                 string customTag = ResolveCustomOutbound(rule, adapter, adapterIps, result, skipCustomKeys);
                 return customTag.Length > 0 ? customTag : proxyTag;
             }
-
             bool direct = string.Equals(routing, "Direct", StringComparison.OrdinalIgnoreCase);
             bool customAdapter = !string.IsNullOrWhiteSpace(adapter)
                 && !string.Equals(adapter, "Default", StringComparison.OrdinalIgnoreCase);
-
             if (!direct) return proxyTag;
-
             if (customAdapter)
             {
                 if (adapterTags.TryGetValue(adapter, out var existing)) return existing;
-
                 string tag = "direct-adapter-" + adapterIndex++;
                 adapterTags[adapter] = tag;
-
                 var ob = new Dictionary<string, object>
                 {
                     ["type"] = "direct",
@@ -214,11 +192,9 @@ namespace CrimsonX.Services
                 };
                 string ip = CachedAdapterIp(adapterIps, adapter);
                 if (!string.IsNullOrWhiteSpace(ip)) ob["inet4_bind_address"] = ip;
-
                 result.Outbounds.Add(ob);
                 return tag;
             }
-
             return "direct";
         }
 
@@ -235,13 +211,10 @@ namespace CrimsonX.Services
         {
             string raw = rule?.CustomProxyRaw ?? "";
             if (string.IsNullOrWhiteSpace(raw)) return "";
-
             string key = CustomProxyKey(raw, adapter);
             if (skipCustomKeys != null && skipCustomKeys.Contains(key)) return "";
             if (result.CustomTags.TryGetValue(key, out var existing)) return existing;
-
             JObject outbound;
-
             if (TunnelConfigParser.TryParse(raw, out var tunnel))
             {
                 if (tunnel == null || !tunnel.Success)
@@ -249,23 +222,19 @@ namespace CrimsonX.Services
                     SimpleLogger.Log($"[AppRules] Tunnel custom proxy rejected: {tunnel?.Error}");
                     return "";
                 }
-
                 int? tunnelPort = RuleTunnelPort(key, adapter, adapterIps);
                 if (tunnelPort == null)
                 {
                     SimpleLogger.Log($"[AppRules] Tunnel '{tunnel.Label}' is not running; that rule keeps the default outbound.");
                     return "";
                 }
-
                 string tunnelTag = "custom-" + result.CustomProxies.Count;
                 outbound = TunnelEngine.BuildSingboxSocksOutbound(tunnelPort.Value);
                 outbound["tag"] = tunnelTag;
-
                 result.Outbounds.Add(outbound);
                 result.CustomProxies.Add(new CustomOutboundProbe { Key = key, OutboundJson = outbound.ToString(Formatting.None) });
                 result.CustomTags[key] = tunnelTag;
                 result.CustomLabels[tunnelTag] = tunnel.Label;
-
                 result.DnsServers.Add(new
                 {
                     tag    = "dns-" + tunnelTag,
@@ -274,28 +243,21 @@ namespace CrimsonX.Services
                     path   = "/dns-query",
                     detour = tunnelTag
                 });
-
                 return tunnelTag;
             }
-
             if (!ConfigConverter.TrySingboxOutbound(raw, out string outboundJson, out string label, out _))
             {
                 return "";
             }
-
             try { outbound = JObject.Parse(outboundJson); }
             catch { return ""; }
-
             string tag = "custom-" + result.CustomProxies.Count;
             SingboxLinkParser.WithTagAndDial(outbound, tag, adapter, CachedAdapterIp(adapterIps, adapter));
-
             string normalized = outbound.ToString(Formatting.None);
-
             result.Outbounds.Add(outbound);
             result.CustomProxies.Add(new CustomOutboundProbe { Key = key, OutboundJson = normalized });
             result.CustomTags[key] = tag;
             result.CustomLabels[tag] = label;
-
             result.DnsServers.Add(new
             {
                 tag     = "dns-" + tag,
@@ -304,7 +266,6 @@ namespace CrimsonX.Services
                 path    = "/dns-query",
                 detour  = tag
             });
-
             return tag;
         }
 
@@ -320,27 +281,21 @@ namespace CrimsonX.Services
         {
             var targets = new List<TunnelTarget>();
             if (config == null || !config.EnableAppRules) return targets;
-
             List<AppGameRule> rules;
             try { rules = AppRulesService.Load(); }
             catch { return targets; }
             if (rules == null) return targets;
-
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var adapterIps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
             foreach (var rule in rules)
             {
                 if (rule == null || !rule.IsEnabled) continue;
                 if ((rule.ProcessNames == null || rule.ProcessNames.Count == 0) && string.IsNullOrWhiteSpace(rule.ExeName)) continue;
-
                 string raw = rule.CustomProxyRaw ?? "";
                 if (raw.Length == 0) continue;
-
                 if (IsCustomRouting(rule.TcpRouting)) AddTunnelTarget(targets, seen, adapterIps, raw, rule.TcpAdapter);
                 if (IsCustomRouting(rule.UdpRouting)) AddTunnelTarget(targets, seen, adapterIps, raw, rule.UdpAdapter);
             }
-
             return targets;
         }
 
@@ -348,17 +303,14 @@ namespace CrimsonX.Services
             Dictionary<string, string> adapterIps, string raw, string adapter)
         {
             if (!TunnelConfigParser.TryParse(raw, out var tunnel) || tunnel == null || !tunnel.Success) return;
-
             string name = string.IsNullOrWhiteSpace(adapter) ? "Default" : adapter.Trim();
             string key = TunnelConfigParser.KeyOf(raw, name);
             if (!seen.Add(key)) return;
-
             if (!TunnelCredentialResolver.ApplyStored(tunnel))
             {
                 SimpleLogger.Log($"[AppRules] '{tunnel.Label}' needs a username and password; that rule keeps the default outbound.");
                 return;
             }
-
             targets.Add(new TunnelTarget
             {
                 Key = key,
@@ -372,31 +324,26 @@ namespace CrimsonX.Services
         private static int? RuleTunnelPort(string key, string adapter, Dictionary<string, string> adapterIps)
         {
             string adapterIp = CachedAdapterIp(adapterIps, adapter);
-
             if (TunnelEngine.GroupServes(TunnelEngine.GroupCustom, key, adapter, adapterIp))
                 return TunnelEngine.PortFor(TunnelEngine.GroupCustom, key);
-
             return TunnelEngine.PortFor(TunnelEngine.GroupRules, key);
         }
 
         public static bool EnsureRuleTunnels(AppConfig config, out string error)
         {
             error = "";
-
             var targets = CollectTunnelTargets(config);
             if (targets.Count == 0)
             {
                 TunnelEngine.Stop(TunnelEngine.GroupRules);
                 return true;
             }
-
             if (targets.All(t => TunnelEngine.GroupServes(TunnelEngine.GroupCustom, t.Key, t.AdapterName, t.AdapterIp)))
             {
                 TunnelEngine.Stop(TunnelEngine.GroupRules);
                 SimpleLogger.Log($"[AppRules] {targets.Count} app-rule tunnel(s) reuse the custom-config engine.");
                 return true;
             }
-
             bool ok = TunnelEngine.EnsureTargetsStarted(config, TunnelEngine.GroupRules, targets, "", "", out error);
             if (!ok) SimpleLogger.Log($"[AppRules] The app-rule tunnel group could not be started: {error}");
             return ok;
@@ -406,22 +353,17 @@ namespace CrimsonX.Services
         {
             var result = new List<string>();
             var seen = new HashSet<string>(StringComparer.Ordinal);
-
             void AddUnique(string value)
             {
                 if (value.Length > 0 && seen.Add(value)) result.Add(value);
             }
-
             foreach (var raw in processNames)
             {
                 if (raw == null) continue;
-
                 string exe = raw.Trim();
                 if (exe.Length == 0) continue;
-
                 AddUnique(exe);
                 AddUnique(exe.ToLowerInvariant());
-
                 if (exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 {
                     string baseName = exe.Substring(0, exe.Length - 4);
@@ -429,13 +371,11 @@ namespace CrimsonX.Services
                     AddUnique(baseName.ToLowerInvariant());
                 }
             }
-
             return result;
         }
         private static string CachedAdapterIp(Dictionary<string, string> cache, string adapterName)
         {
             if (cache.TryGetValue(adapterName, out var cached)) return cached;
-
             string ip = ResolveAdapterIp(adapterName);
             cache[adapterName] = ip;
             return ip;
@@ -448,7 +388,6 @@ namespace CrimsonX.Services
                 var nic = NetworkInterface.GetAllNetworkInterfaces()
                     .FirstOrDefault(n => n.Name == adapterName && n.OperationalStatus == OperationalStatus.Up);
                 if (nic == null) return "";
-
                 return nic.GetIPProperties().UnicastAddresses
                     .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork)?
                     .Address?.ToString() ?? "";

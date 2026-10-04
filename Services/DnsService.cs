@@ -69,7 +69,6 @@ namespace CrimsonX.Services
         public static NetworkInterface? FindAdapter(string adapterName)
         {
             if (string.IsNullOrWhiteSpace(adapterName)) return null;
-
             try
             {
                 return NetworkInterface.GetAllNetworkInterfaces()
@@ -110,14 +109,11 @@ namespace CrimsonX.Services
         public static bool TryReadStaticDnsFromRegistry(NetworkInterface nic, out string[] servers)
         {
             servers = Array.Empty<string>();
-
             try
             {
                 using var key = Registry.LocalMachine.OpenSubKey(
                     $@"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\{nic.Id}");
-
                 if (key == null) return false;
-
                 servers = NormalizeList(((key.GetValue("NameServer") as string) ?? "").Split(','));
                 return true;
             }
@@ -131,13 +127,9 @@ namespace CrimsonX.Services
         public static DnsState CaptureState(NetworkInterface nic)
         {
             bool readable = TryReadStaticDnsFromRegistry(nic, out var staticServers);
-
             bool wasDhcp = readable && staticServers.Length == 0;
-
             string[] servers = staticServers.Length > 0 ? staticServers : GetCurrentDns(nic);
-
             SimpleLogger.Log($"[DnsService] Captured {nic.Name}: dhcp={wasDhcp}, servers=[{string.Join(", ", servers)}], registryReadable={readable}");
-
             return new DnsState
             {
                 AdapterName = nic.Name,
@@ -149,20 +141,16 @@ namespace CrimsonX.Services
         public static bool RestoreState(DnsState state, int budgetMs, out string error)
         {
             var servers = NormalizeList(state.Servers);
-
             if (state.WasDhcp || servers.Length == 0)
                 return ResetToDhcp(state.AdapterName, budgetMs, out error);
-
             return ApplyList(state.AdapterName, servers, budgetMs, out error);
         }
 
         public static string[] DescribeRestore(DnsState state)
         {
             var servers = NormalizeList(state.Servers);
-
             if (state.WasDhcp || servers.Length == 0)
                 return new[] { BuildDhcpCommand(state.AdapterName) };
-
             return BuildApplyCommands(state.AdapterName, servers);
         }
 
@@ -171,21 +159,18 @@ namespace CrimsonX.Services
             var servers = string.IsNullOrWhiteSpace(secondary)
                 ? new[] { primary }
                 : new[] { primary, secondary! };
-
             return ApplyList(adapterName, NormalizeList(servers), budgetMs, out error);
         }
 
         public static string[] BuildApplyCommands(string adapterName, string[] servers)
         {
             var commands = new string[servers.Length];
-
             for (int i = 0; i < servers.Length; i++)
             {
                 commands[i] = i == 0
                     ? $"interface ip set dns name=\"{adapterName}\" static {servers[i]} primary"
                     : $"interface ip add dns name=\"{adapterName}\" {servers[i]} index={i + 1}";
             }
-
             return commands;
         }
 
@@ -197,73 +182,60 @@ namespace CrimsonX.Services
         private static bool ApplyList(string adapterName, string[] servers, int budgetMs, out string error)
         {
             error = "";
-
             if (servers.Length == 0)
             {
                 error = "no DNS servers to apply";
                 return false;
             }
-
             var sw = Stopwatch.StartNew();
             string[] current = GetCurrentDns(adapterName);
-
             if (ListMatches(current, servers))
             {
                 SimpleLogger.Log($"[DnsService] {adapterName} already lists {string.Join(", ", servers)}");
                 return true;
             }
-
             string[] commands = BuildApplyCommands(adapterName, servers);
             var missing = new List<string>();
-
             for (int i = 0; i < servers.Length; i++)
             {
                 string server = servers[i];
-
                 if (current.Any(s => string.Equals(s, server, StringComparison.OrdinalIgnoreCase)))
                 {
                     SimpleLogger.Log($"[DnsService] {server} is already on {adapterName}, skipping");
                     continue;
                 }
-
                 if (RemainingBudget(sw, budgetMs) <= 0)
                 {
                     SimpleLogger.Log($"[DnsService] the {budgetMs} ms budget for {adapterName} ran out before {server}");
                     missing.Add(server);
                     continue;
                 }
-
                 if (WriteStep(adapterName, server, commands[i], sw, budgetMs))
                     current = GetCurrentDns(adapterName);
                 else
                     missing.Add(server);
             }
-
             if (missing.Count > 0)
             {
                 error = $"{string.Join(", ", missing)} not applied (adapter now: {string.Join(", ", GetCurrentDns(adapterName))})";
                 return false;
             }
-
             return true;
         }
 
         private static bool WriteStep(string adapterName, string server, string command, Stopwatch sw, int budgetMs)
         {
             if (RunStep(adapterName, server, command, sw, budgetMs, out bool failedFast)) return true;
-
             if (!failedFast)
             {
                 SimpleLogger.Log($"[DnsService] not retrying {server} on {adapterName}: the first attempt was slow");
                 return false;
             }
-
             if (RemainingBudget(sw, budgetMs) <= 0)
             {
                 SimpleLogger.Log($"[DnsService] no budget left to retry {server} on {adapterName}");
                 return false;
             }
-
             SimpleLogger.Log($"[DnsService] retrying {server} on {adapterName}");
             return RunStep(adapterName, server, command, sw, budgetMs, out _);
         }
@@ -271,19 +243,15 @@ namespace CrimsonX.Services
         private static bool RunStep(string adapterName, string server, string command, Stopwatch sw, int budgetMs, out bool failedFast)
         {
             failedFast = false;
-
             var (ok, detail) = RunNetsh(command, Math.Min(NetshTimeoutMs, RemainingBudget(sw, budgetMs)));
             bool applied = WaitFor(() => IsConfigured(adapterName, server), ClosingWaitMs(sw, budgetMs));
-
             if (applied)
             {
                 if (!ok)
                     SimpleLogger.Log($"[DnsService] {server} is on {adapterName} even though netsh did not exit cleanly ({detail})");
                 return true;
             }
-
             failedFast = ok || sw.ElapsedMilliseconds < FastFailRetryMs;
-
             SimpleLogger.Log($"[DnsService] {server} is not on {adapterName} yet ({detail})");
             return false;
         }
@@ -301,17 +269,14 @@ namespace CrimsonX.Services
         private static bool ResetToDhcp(string adapterName, int budgetMs, out string error)
         {
             error = "";
-
             if (IsOnDhcpDns(adapterName))
             {
                 SimpleLogger.Log($"[DnsService] {adapterName} is already on DHCP DNS");
                 return true;
             }
-
             var sw = Stopwatch.StartNew();
             string command = BuildDhcpCommand(adapterName);
             string detail = "";
-
             for (int attempt = 1; attempt <= MaxAttempts; attempt++)
             {
                 if (RemainingBudget(sw, budgetMs) <= 0)
@@ -319,24 +284,20 @@ namespace CrimsonX.Services
                     SimpleLogger.Log($"[DnsService] the {budgetMs} ms budget for {adapterName} ran out during the DHCP reset");
                     break;
                 }
-
                 var (ok, runDetail) = RunNetsh(command, Math.Min(NetshTimeoutMs, RemainingBudget(sw, budgetMs)));
                 detail = runDetail;
-
                 if (WaitFor(() => IsOnDhcpDns(adapterName), ClosingWaitMs(sw, budgetMs)))
                 {
                     if (!ok)
                         SimpleLogger.Log($"[DnsService] {adapterName} is back on DHCP DNS even though netsh did not exit cleanly ({detail})");
                     return true;
                 }
-
                 if (!ok && sw.ElapsedMilliseconds >= FastFailRetryMs)
                 {
                     SimpleLogger.Log($"[DnsService] not retrying the DHCP reset on {adapterName}: the first attempt was slow");
                     break;
                 }
             }
-
             error = string.IsNullOrWhiteSpace(detail)
                 ? "adapter is still on static DNS"
                 : $"adapter is still on static DNS ({detail})";
@@ -350,14 +311,12 @@ namespace CrimsonX.Services
         {
             var nic = FindAdapter(adapterName);
             if (nic == null) return false;
-
             return TryReadStaticDnsFromRegistry(nic, out var staticServers) && staticServers.Length == 0;
         }
 
         private static bool WaitFor(Func<bool> check, int timeoutMs)
         {
             var sw = Stopwatch.StartNew();
-
             while (true)
             {
                 try
@@ -365,7 +324,6 @@ namespace CrimsonX.Services
                     if (check()) return true;
                 }
                 catch { }
-
                 if (sw.ElapsedMilliseconds >= timeoutMs) return false;
                 Thread.Sleep(ReadBackPollMs);
             }
@@ -374,26 +332,21 @@ namespace CrimsonX.Services
         private static string[] NormalizeList(IEnumerable<string> servers)
         {
             var list = new List<string>();
-
             foreach (var server in servers)
             {
                 string value = (server ?? "").Trim();
-
                 if (value.Length == 0) continue;
                 if (value == "0.0.0.0") continue;
                 if (!IsValidIpv4(value)) continue;
                 if (list.Any(x => string.Equals(x, value, StringComparison.OrdinalIgnoreCase))) continue;
-
                 list.Add(value);
             }
-
             return list.ToArray();
         }
 
         private static (bool Ok, string Detail) RunNetsh(string args, int timeoutMs)
         {
             var sw = Stopwatch.StartNew();
-
             try
             {
                 var psi = new ProcessStartInfo
@@ -407,22 +360,17 @@ namespace CrimsonX.Services
                 };
                 using var proc = Process.Start(psi);
                 if (proc == null) return (false, "netsh could not be started");
-
                 var outTask = proc.StandardOutput.ReadToEndAsync();
                 var errTask = proc.StandardError.ReadToEndAsync();
-
                 if (!proc.WaitForExit(timeoutMs))
                 {
                     try { proc.Kill(); } catch { }
                     proc.WaitForExit();
                     try { Task.WaitAll(new Task[] { outTask, errTask }, 1000); } catch { }
-
                     SimpleLogger.Log($"[DnsService] netsh timed out after {sw.ElapsedMilliseconds} ms: {args}");
                     return (false, $"netsh timed out after {timeoutMs} ms");
                 }
-
                 Task.WaitAll(outTask, errTask);
-
                 if (proc.ExitCode != 0)
                 {
                     string detail = string.IsNullOrWhiteSpace(errTask.Result) ? outTask.Result : errTask.Result;
@@ -430,7 +378,6 @@ namespace CrimsonX.Services
                     SimpleLogger.Log($"[DnsService] netsh failed (exit {proc.ExitCode}, {sw.ElapsedMilliseconds} ms): {detail}");
                     return (false, detail);
                 }
-
                 SimpleLogger.Log($"[DnsService] netsh ok ({sw.ElapsedMilliseconds} ms): {args}");
                 return (true, "");
             }

@@ -74,7 +74,6 @@ namespace CrimsonX.Behaviors
             {
                 if (e.Handled || e.KeyModifiers.HasFlag(KeyModifiers.Shift) || e.KeyModifiers.HasFlag(KeyModifiers.Control))
                     return;
-
                 var visual = e.Source as Avalonia.Visual;
                 ScrollViewer? targetScroller = null;
                 while (visual != null)
@@ -92,42 +91,31 @@ namespace CrimsonX.Behaviors
                     }
                     visual = visual.GetVisualParent();
                 }
-
                 if (targetScroller != null && targetScroller != scroller)
                     return;
-
                 if (targetScroller != scroller)
                     return;
-
                 var state = _activeStates.FirstOrDefault(s => s.Scroller == scroller);
                 if (state == null)
                 {
                     state = new ScrollState { Scroller = scroller, TargetOffset = scroller.Offset.Y };
                     _activeStates.Add(state);
                 }
-
                 if (Math.Sign(e.Delta.Y) != Math.Sign(state.Velocity))
                 {
                     state.Velocity = 0;
                 }
-
                 double scrollAmount = GetStep(scroller);
                 state.Velocity += e.Delta.Y * scrollAmount;
-                
-
                 state.TargetOffset = scroller.Offset.Y - state.Velocity;
-                
                 double maxOffset = scroller.Extent.Height - scroller.Viewport.Height;
                 state.TargetOffset = Math.Max(0, Math.Min(state.TargetOffset, maxOffset));
-
                 e.Handled = true;
-
                 if (_animTimer == null)
                 {
                     _animTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) }; 
                     _animTimer.Tick += AnimTimer_Tick;
                 }
-                
                 if (!_animTimer.IsEnabled)
                     _animTimer.Start();
             }
@@ -140,12 +128,9 @@ namespace CrimsonX.Behaviors
             {
                 var state = _activeStates[i];
                 var scroller = state.Scroller;
-
                 double currentOffset = scroller.Offset.Y;
                 double diff = state.TargetOffset - currentOffset;
-
                 state.Velocity *= 0.82; 
-
                 if (Math.Abs(diff) < 1.0 && Math.Abs(state.Velocity) < 1.0)
                 {
                     scroller.Offset = new Vector(scroller.Offset.X, state.TargetOffset);
@@ -158,7 +143,6 @@ namespace CrimsonX.Behaviors
                     anyActive = true;
                 }
             }
-
             if (!anyActive)
                 _animTimer?.Stop();
         }

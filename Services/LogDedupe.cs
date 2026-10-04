@@ -30,25 +30,18 @@ namespace CrimsonX.Services
         {
             summary = false;
             repeats = 0;
-
             if (counters == null) return true;
-
             key = key ?? "";
-
             if (counters.Count >= MaxKeys && !counters.ContainsKey(key)) counters.Clear();
-
             if (!counters.TryGetValue(key, out int seen))
             {
                 counters[key] = 1;
                 return true;
             }
-
             seen++;
             counters[key] = seen;
             repeats = seen;
-
             if (seen % SummaryEvery != 0) return false;
-
             summary = true;
             return true;
         }

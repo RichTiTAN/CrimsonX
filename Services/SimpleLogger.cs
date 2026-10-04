@@ -53,7 +53,6 @@ namespace CrimsonX.Services
                                 buffered = 0;
                             }
                         }
-
                         if (buffered > 0)
                         {
                             WriteBuffer(sb);
@@ -90,11 +89,9 @@ namespace CrimsonX.Services
                     }
                     _dirCreated = true;
                 }
-
                 if (sb.Length == 0) return;
                 File.AppendAllText(LogFile, sb.ToString());
                 sb.Clear();
-
                 if (++_writeCount >= 50)
                 {
                     _writeCount = 0;
@@ -150,15 +147,12 @@ namespace CrimsonX.Services
         public static void LogOnce(string key, string message)
         {
             string line = message;
-
             lock (_onceLock)
             {
                 if (!LogDedupe.ShouldLog(key, _onceCounts, out bool summary, out int repeats)) return;
-
                 if (summary)
                     line = $"{message} (this notice repeated {repeats} times; further repeats are suppressed)";
             }
-
             Log(line);
         }
     }

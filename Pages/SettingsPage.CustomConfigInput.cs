@@ -45,24 +45,19 @@ namespace CrimsonX.Pages
         internal void AttachCustomConfigInput()
         {
             if (_customConfigInputAttached) return;
-
             var cb1 = this.FindControl<ComboBox>("cbCustomConfig1");
             var cb2 = this.FindControl<ComboBox>("cbCustomConfig2");
             if (cb1 == null || cb2 == null) return;
-
             var exitBox   = this.FindControl<ComboBox>("cbXrayExitNode");
             var importBox = this.FindControl<TextBox>("txtSavedConfigImport");
-
             ConfigBoxes.Attach(SlotBoxKey(1), cb1);
             ConfigBoxes.Attach(SlotBoxKey(2), cb2);
             ConfigBoxes.Attach(ExitNodeBoxKey, exitBox);
             ConfigBoxes.Attach(SavedConfigImportKey, importBox);
-
             ConfigBoxes.AttachPaste(SlotBoxKey(1), text => OnSlotPasteAsync(1, text));
             ConfigBoxes.AttachPaste(SlotBoxKey(2), text => OnSlotPasteAsync(2, text));
             ConfigBoxes.AttachPaste(ExitNodeBoxKey, ApplyExitNodeRawAsync);
             ConfigBoxes.AttachPaste(SavedConfigImportKey, OnSavedImportPasteAsync);
-
             _customConfigInputAttached = true;
         }
 
@@ -72,24 +67,19 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
-
             var verdict = await ConfigIntake.AcceptAsync(text, cfg, ConfigTarget.Pool, AppStrings.SavedConfigsTitle);
-
             if (!verdict.Accepted)
             {
                 MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
                 return;
             }
-
             if (verdict.Toast.Length > 0) MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
             text = verdict.Raw;
-
             if (text.Contains('\n') || text.Contains('\r'))
             {
                 StoreSavedConfigRaw(text);
                 return;
             }
-
             var box = this.FindControl<TextBox>("txtSavedConfigImport");
             if (box != null) box.Text = text;
         }
@@ -102,33 +92,25 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return false;
-
             raw = (raw ?? "").Trim();
-
             if (raw.Length == 0)
             {
                 SetConfigRaw(cfg, slot, "");
                 ConfigBoxes.Show(SlotBoxKey(slot), "");
                 return true;
             }
-
             var verdict = await ConfigIntake.AcceptAsync(raw, cfg, ConfigTarget.Xray, AppStrings.PaneCustomConfig);
-
             if (!verdict.Accepted)
             {
                 MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
                 return false;
             }
-
             if (verdict.Toast.Length > 0) MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
             raw = verdict.Raw;
-
             SetConfigRaw(cfg, slot, raw);
             RefreshConfigCombos();
             RefreshSavedConfigs();
-
             ConfigBoxes.Show(SlotBoxKey(slot), raw);
-
             MainWindow.Instance?.RequestConfigSave();
             return true;
         }
@@ -137,7 +119,6 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return "";
-
             return ConfigBoxes.Resolve(SlotBoxKey(slot),
                 visible => AppCustomConfigStore.CanStore(visible));
         }
@@ -146,12 +127,10 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
-
             for (int slot = 1; slot <= 2; slot++)
             {
                 string resolved = ResolveCustomConfigRaw(slot);
                 bool cleared = ConfigBoxes.IsEmpty(SlotBoxKey(slot));
-
                 if (resolved.Length > 0 || cleared || GetConfigRaw(cfg, slot).Length == 0)
                     SetConfigRaw(cfg, slot, resolved);
             }
@@ -161,21 +140,17 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null || string.IsNullOrWhiteSpace(raw)) return;
-
             bool changed = false;
             for (int slot = 1; slot <= 2; slot++)
             {
                 string stored = GetConfigRaw(cfg, slot);
                 if (stored.Length == 0 || !AppCustomConfigStore.SameConfig(stored, raw)) continue;
-
                 SetConfigRaw(cfg, slot, "");
                 var cb = this.FindControl<ComboBox>(ConfigComboName(slot));
                 if (cb != null) cb.Text = "";
                 changed = true;
             }
-
             if (!changed) return;
-
             RefreshConfigCombos();
             MainWindow.Instance?.RequestConfigSave();
             SimpleLogger.Log("[CustomConfigs] A saved config was deleted, so its custom config slot was cleared.");
@@ -189,7 +164,6 @@ namespace CrimsonX.Pages
                 MainWindow.Instance?.ShowToast(AppStrings.CustomProxyEmpty, ToastKind.Error);
                 return;
             }
-
             StoreSavedConfigRaw(raw);
         }
 
@@ -211,10 +185,8 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
-
             string text = await PickConfigFileTextAsync();
             if (text.Length == 0) return;
-
             switch (AppCustomConfigStore.Store(cfg, text, out string label))
             {
                 case CustomConfigSaveResult.Saved:
@@ -223,11 +195,9 @@ namespace CrimsonX.Pages
                     RefreshSavedConfigs();
                     RefreshConfigCombos();
                     break;
-
                 case CustomConfigSaveResult.PoolFull:
                     MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
                     break;
-
                 default:
                     MainWindow.Instance?.ShowToast(AppStrings.ToastConfigUnreadable, ToastKind.Error);
                     break;
@@ -240,7 +210,6 @@ namespace CrimsonX.Pages
             {
                 var top = TopLevel.GetTopLevel(this);
                 if (top == null) return "";
-
                 var files = await top.StorageProvider.OpenFilePickerAsync(new global::Avalonia.Platform.Storage.FilePickerOpenOptions
                 {
                     Title = AppStrings.ImportConfigTooltip,
@@ -251,12 +220,9 @@ namespace CrimsonX.Pages
                         new global::Avalonia.Platform.Storage.FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
                     }
                 });
-
                 if (files == null || files.Count == 0) return "";
-
                 string path = files[0].Path.LocalPath;
                 if (!System.IO.File.Exists(path)) return "";
-
                 return System.IO.File.ReadAllText(path).Trim();
             }
             catch (Exception ex)
@@ -274,42 +240,32 @@ namespace CrimsonX.Pages
         internal void AttachQuickSettingsConfigBoxes(ComboBox? box1, ComboBox? box2)
         {
             if (box1 == null && box2 == null) return;
-
             foreach ((int slot, ComboBox? box) in new[] { (1, box1), (2, box2) })
             {
                 if (box == null) continue;
-
                 string key = QuickSlotBoxKey(slot);
                 ConfigBoxes.Attach(key, box);
-
                 if (_quickSettingsBoxesAttached) continue;
-
                 ConfigBoxes.AttachPaste(key, text => QuickSettingsPasteAsync(slot, text));
-
                 box.SelectionChanged += CustomConfigSaved_SelectionChanged;
             }
-
             _quickSettingsBoxesAttached = true;
-
             ShowQuickSettingsConfigs();
         }
 
         private async Task QuickSettingsPasteAsync(int slot, string text)
         {
             await ApplyCustomConfigRawAsync(slot, text);
-
             ConfigBoxes.Show(QuickSlotBoxKey(slot), ReadConfigBoxRaw(QuickSlotBoxKey(slot)));
         }
 
         internal void ShowQuickSettingsConfigs()
         {
             RefreshQuickSettingsConfigList();
-
             for (int slot = 1; slot <= 2; slot++)
             {
                 string key = QuickSlotBoxKey(slot);
                 if (ConfigBoxes.Box(key) == null) continue;
-
                 ConfigBoxes.Show(key, ReadConfigBoxRaw(key));
             }
         }
@@ -318,10 +274,8 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
-
             _configComboEntries = AppCustomConfigStore.Load(cfg);
             var options = AppCustomConfigStore.DisplayOptions(_configComboEntries);
-
             bool wasSuppressed = _suppressConfigComboSync;
             _suppressConfigComboSync = true;
             try
@@ -329,7 +283,6 @@ namespace CrimsonX.Pages
                 for (int slot = 1; slot <= 2; slot++)
                 {
                     if (ConfigBoxes.Box(QuickSlotBoxKey(slot)) is not ComboBox cb) continue;
-
                     string text = cb.Text ?? "";
                     cb.ItemsSource = options;
                     cb.SelectedIndex = -1;

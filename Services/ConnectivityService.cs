@@ -72,22 +72,18 @@ namespace CrimsonX.Services
                 SimpleLogger.Log(ex);
                 return Array.Empty<AdapterSnapshot>();
             }
-
             var list = new List<AdapterSnapshot>(nics.Length);
             foreach (var nic in nics)
             {
                 try
                 {
                     var props = nic.GetIPProperties();
-
                     var addresses = props.UnicastAddresses
                         .Where(a => a.Address.AddressFamily == AddressFamily.InterNetwork)
                         .Select(a => a.Address.ToString());
-
                     var gateways = props.GatewayAddresses
                         .Where(g => g.Address.AddressFamily == AddressFamily.InterNetwork)
                         .Select(g => g.Address.ToString());
-
                     list.Add(new AdapterSnapshot(
                         nic.Name,
                         nic.Description,
@@ -101,14 +97,12 @@ namespace CrimsonX.Services
                     SimpleLogger.Log(ex);
                 }
             }
-
             return list;
         }
 
         public static bool HasUsableConnection(IEnumerable<AdapterSnapshot> adapters)
         {
             if (adapters == null) return false;
-
             foreach (var adapter in adapters)
             {
                 if (!adapter.IsUp) continue;
@@ -117,10 +111,8 @@ namespace CrimsonX.Services
                 if (IsVirtual(adapter)) continue;
                 if (!HasRoutableIpv4(adapter)) continue;
                 if (!HasIpv4Gateway(adapter)) continue;
-
                 return true;
             }
-
             return false;
         }
 

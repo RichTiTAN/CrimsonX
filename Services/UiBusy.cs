@@ -54,11 +54,8 @@ namespace CrimsonX.Services
             {
                 if (_done) return;
                 _done = true;
-
                 _current = _previous;
-
                 if (!(MainWindow.Instance?.Config?.DebugMode ?? false)) return;
-
                 long ms = (long)Stopwatch.GetElapsedTime(_startedAt).TotalMilliseconds;
                 if (ms >= SlowScopeMs)
                     SimpleLogger.Log($"[UI] {_name} took {ms} ms on the interface thread");

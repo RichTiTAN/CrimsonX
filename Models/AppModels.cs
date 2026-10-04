@@ -22,7 +22,6 @@ namespace CrimsonX.Models
 {
     public class AppConfig
     {
-
         [JsonIgnore] public string BaseDir { get; set; } = "";
         [JsonIgnore] public string CfgFile { get; set; } = "";
         [JsonIgnore] public string XrayDir { get; set; } = "";
@@ -40,7 +39,6 @@ namespace CrimsonX.Models
         public bool DisableGlows { get; set; } = false;
 
         public bool PinTopBar { get; set; } = true;
-
 
         public bool AutoStart { get; set; } = true;
         public string StartupTab { get; set; } = "Home";
@@ -79,6 +77,8 @@ namespace CrimsonX.Models
         public string SelectedAdapterIp { get; set; } = "";
 
         public bool EnableLoadBalanceAdapters { get; set; } = false;
+
+        public bool EnableUdpCapableNodes { get; set; } = true;
 
         public System.Collections.Generic.List<string> LoadBalanceAdapters { get; set; } = new();
 
@@ -138,6 +138,5 @@ namespace CrimsonX.Models
         public long LastTotalBytes { get; set; } = 0;
         public long SessionDataBytes { get; set; } = 0;
         public double[] SpeedSamples { get; set; } = new double[5];
-
     }
 }

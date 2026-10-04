@@ -231,7 +231,6 @@
 
     </UserControl.Styles>
 
-
         <Grid RowDefinitions="*" Margin="6,3,16,8">
                 <!-- Rules Box -->
                 <Panel>
@@ -832,7 +831,6 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                         </Button>
                     </Border>
                 </StackPanel>
-
 
                 </Panel>
             </Grid>

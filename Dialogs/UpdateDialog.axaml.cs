@@ -49,7 +49,6 @@ namespace CrimsonX.Dialogs
                 Close(param?.ToString());
             });
             DataContext = this;
-            
             if (isManual)
             {
                 DialogTitle = CrimsonX.Localization.AppStrings.UpdateManualTitle;
@@ -62,15 +61,12 @@ namespace CrimsonX.Dialogs
                 DialogMessage = string.Format(CrimsonX.Localization.AppStrings.UpdateAutoMsg, remoteVer);
                 PrimaryButtonText = CrimsonX.Localization.AppStrings.BtnUpdateNow;
             }
-
             SecondaryButtonText = CrimsonX.Localization.AppStrings.BtnChangeLog;
             CancelButtonText = CrimsonX.Localization.AppStrings.Cancel;
-            
             if (CrimsonX.Localization.AppStrings.IsPersian)
             {
                 this.FlowDirection = Avalonia.Media.FlowDirection.RightToLeft;
             }
-            
             InitializeComponent();
         }
     }

@@ -68,10 +68,8 @@ namespace CrimsonX.Services
                     if (peer == null) return "";
                     return $"{peer["address"]?.ToString()}:{peer["port"]?.ToString()}";
                 }
-
                 var server = (Endpoint?["servers"] as JArray)?.FirstOrDefault() as JObject;
                 if (server != null) return $"{server["server"]?.ToString()}:{server["server_port"]?.ToString()}";
-
                 string host = Endpoint?["server"]?.ToString() ?? "";
                 return host.Length == 0 ? "" : $"{host}:{Endpoint?["server_port"]?.ToString()}";
             }
@@ -100,7 +98,6 @@ namespace CrimsonX.Services
         {
             if (endpoint == null) return;
             if (ToInt(endpoint["mtu"]) > 0) return;
-
             endpoint["mtu"] = DefaultTunnelMtu;
         }
 
@@ -108,10 +105,8 @@ namespace CrimsonX.Services
         {
             result = null;
             if (string.IsNullOrWhiteSpace(raw)) return false;
-
             string text = raw.Trim();
             TunnelParseResult parsed = null;
-
             try
             {
                 if (text.StartsWith("{")) parsed = ParseJson(text);
@@ -125,9 +120,7 @@ namespace CrimsonX.Services
                 SimpleLogger.Log($"[Tunnel] Could not parse the custom config: {ex.Message}");
                 parsed = null;
             }
-
             if (parsed == null) return false;
-
             if (parsed.Endpoint != null)
             {
                 ApplyDefaultMtu(parsed.Endpoint);
@@ -140,7 +133,6 @@ namespace CrimsonX.Services
             {
                 parsed.Error = "Unsupported tunnel config.";
             }
-
             parsed.Raw = text;
             result = parsed;
             return true;
@@ -156,10 +148,8 @@ namespace CrimsonX.Services
         public static string Normalize(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return "";
-
             string text = raw.Trim();
             if (!TryParse(text, out var parsed) || parsed.Endpoint == null) return StripWhitespace(text);
-
             try { return SortKeys(parsed.Endpoint).ToString(Formatting.None); }
             catch { return StripWhitespace(text); }
         }
@@ -189,14 +179,12 @@ namespace CrimsonX.Services
             {
                 string type = endpoint?["type"]?.ToString() ?? "";
                 if (type.Length == 0) return "";
-
                 if (type == "wireguard")
                 {
                     var peer = (endpoint["peers"] as JArray)?.FirstOrDefault() as JObject;
                     if (peer != null) return $"wireguard · {peer["address"]}:{peer["port"]}";
                     return "wireguard";
                 }
-
                 if (type == "openvpn-client")
                 {
                     var server = (endpoint["servers"] as JArray)?.FirstOrDefault() as JObject;
@@ -204,7 +192,6 @@ namespace CrimsonX.Services
                     if (endpoint["server"] != null) return $"openvpn · {endpoint["server"]}:{endpoint["server_port"]}";
                     return "openvpn";
                 }
-
                 return type;
             }
             catch { return ""; }
@@ -215,33 +202,25 @@ namespace CrimsonX.Services
         private static TunnelParseResult ParseJson(string text)
         {
             var root = JObject.Parse(text);
-
             if (root["endpoints"] is JArray endpoints)
             {
                 TunnelParseResult first = null;
                 int supported = 0;
-
                 foreach (var item in endpoints.OfType<JObject>())
                 {
                     var found = FromSingboxEndpoint(item);
                     if (found == null) continue;
-
                     supported++;
                     if (first == null) first = found;
                 }
-
                 if (first == null)
                     return new TunnelParseResult { Error = "No wireguard / openvpn-client endpoint found in this JSON." };
-
                 if (supported > 1)
                     SimpleLogger.Log($"[Tunnel] This JSON holds {supported} endpoints; only the first one is used.");
-
                 return first;
             }
-
             var single = FromSingboxEndpoint(root);
             if (single != null) return single;
-
             if (root["outbounds"] is JArray outbounds)
             {
                 foreach (var item in outbounds.OfType<JObject>())
@@ -251,38 +230,31 @@ namespace CrimsonX.Services
                 }
                 return null;
             }
-
             return FromOutbound(root);
         }
 
         private static TunnelParseResult FromOutbound(JObject outbound)
         {
             if (outbound == null) return null;
-
             string type = outbound["type"]?.ToString() ?? "";
             if (type.Equals("wireguard", StringComparison.OrdinalIgnoreCase)) return FromSingboxEndpoint(outbound);
-
             if ((outbound["protocol"]?.ToString() ?? "").Equals("wireguard", StringComparison.OrdinalIgnoreCase))
                 return FromXrayWireGuard(outbound);
-
             return null;
         }
 
         private static TunnelParseResult FromSingboxEndpoint(JObject source)
         {
             if (source == null) return null;
-
             string type = source["type"]?.ToString() ?? "";
             bool isWireGuard = type.Equals("wireguard", StringComparison.OrdinalIgnoreCase);
             bool isOpenVpn = type.Equals("openvpn-client", StringComparison.OrdinalIgnoreCase)
                           || type.Equals("openvpn", StringComparison.OrdinalIgnoreCase);
             if (!isWireGuard && !isOpenVpn) return null;
-
             var endpoint = (JObject)source.DeepClone();
             endpoint.Remove("tag");
             endpoint.Remove("label");
             StripEmpty(endpoint);
-
             if (isWireGuard) return BuildFromWireGuardObject(endpoint);
             return BuildFromOpenVpnObject(endpoint);
         }
@@ -299,12 +271,10 @@ namespace CrimsonX.Services
                         property.Remove();
                         continue;
                     }
-
                     StripEmpty(property.Value);
                 }
                 return;
             }
-
             if (token is JArray array)
             {
                 foreach (var item in array.ToList())
@@ -315,7 +285,6 @@ namespace CrimsonX.Services
                         item.Remove();
                         continue;
                     }
-
                     StripEmpty(item);
                 }
             }
@@ -325,19 +294,15 @@ namespace CrimsonX.Services
         {
             string privateKey = FirstNonEmpty(endpoint["private_key"]?.ToString(), endpoint["privateKey"]?.ToString(),
                                               endpoint["secretKey"]?.ToString());
-
             bool legacyMarkers = endpoint["peers"] == null &&
                                  (endpoint["peer_public_key"] != null || endpoint["peerPublicKey"] != null || endpoint["server"] != null);
-
             if (legacyMarkers)
             {
                 var legacy = FromLegacyWireGuardOutbound(endpoint);
                 if (legacy != null) return legacy;
             }
-
             if (privateKey.Length == 0)
                 return new TunnelParseResult { Error = "This WireGuard config has no private key." };
-
             var peers = new JArray();
             if (endpoint["peers"] is JArray source)
             {
@@ -350,14 +315,11 @@ namespace CrimsonX.Services
                     peers.Add(peer);
                 }
             }
-
             if (peers.Count == 0)
                 return new TunnelParseResult { Error = "This WireGuard config has no usable peer (server + public key)." };
-
             var addresses = ReadList(FirstToken(endpoint, "address", "local_address"));
             if (addresses.Length == 0)
                 return new TunnelParseResult { Error = "This WireGuard config has no tunnel address." };
-
             endpoint["type"] = "wireguard";
             endpoint["private_key"] = privateKey;
             endpoint["address"] = new JArray(addresses);
@@ -365,7 +327,6 @@ namespace CrimsonX.Services
             endpoint.Remove("privateKey");
             endpoint.Remove("secretKey");
             endpoint.Remove("local_address");
-
             return new TunnelParseResult { Kind = TunnelKind.WireGuard, Endpoint = endpoint };
         }
 
@@ -375,10 +336,8 @@ namespace CrimsonX.Services
             string peerKey = FirstNonEmpty(source["peer_public_key"]?.ToString(), source["peerPublicKey"]?.ToString());
             string server = FirstNonEmpty(source["server"]?.ToString(), source["address"]?.ToString());
             if (privateKey.Length == 0 || peerKey.Length == 0 || server.Length == 0) return null;
-
             int port = ToInt(FirstToken(source, "server_port", "port"));
             if (port <= 0) port = 51820;
-
             var peer = new JObject
             {
                 ["address"] = server,
@@ -386,20 +345,15 @@ namespace CrimsonX.Services
                 ["public_key"] = peerKey,
                 ["allowed_ips"] = new JArray(DefaultAllowedIps)
             };
-
             string preShared = FirstNonEmpty(source["pre_shared_key"]?.ToString(), source["preSharedKey"]?.ToString());
             if (preShared.Length > 0) peer["pre_shared_key"] = preShared;
-
             int keepAlive = ToInt(FirstToken(source, "persistent_keepalive_interval", "persistentKeepalive", "keepAlive"));
             if (keepAlive > 0) peer["persistent_keepalive_interval"] = keepAlive;
-
             var reserved = ReadList(FirstToken(source, "reserved"));
             if (reserved.Length > 0) peer["reserved"] = ToIntArray(reserved);
-
             var addresses = ReadList(FirstToken(source, "local_address", "address"));
             if (addresses.Length == 0)
                 return new TunnelParseResult { Error = "This WireGuard config has no tunnel address." };
-
             var endpoint = new JObject
             {
                 ["type"] = "wireguard",
@@ -407,16 +361,12 @@ namespace CrimsonX.Services
                 ["address"] = new JArray(addresses),
                 ["peers"] = new JArray { peer }
             };
-
             int mtu = ToInt(source["mtu"]);
             if (mtu > 0) endpoint["mtu"] = mtu;
-
             int listenPort = ToInt(FirstToken(source, "listen_port", "listenPort"));
             if (listenPort > 0) endpoint["listen_port"] = listenPort;
-
             int workers = ToInt(source["workers"]);
             if (workers > 0) endpoint["workers"] = workers;
-
             return new TunnelParseResult { Kind = TunnelKind.WireGuard, Endpoint = endpoint };
         }
 
@@ -424,34 +374,26 @@ namespace CrimsonX.Services
         {
             var settings = outbound["settings"] as JObject;
             if (settings == null) return null;
-
             string privateKey = FirstNonEmpty(settings["secretKey"]?.ToString(), settings["privateKey"]?.ToString(),
                                               settings["private_key"]?.ToString());
             if (privateKey.Length == 0)
                 return new TunnelParseResult { Error = "Xray wireguard outbound has no secretKey." };
-
             var addresses = ReadList(FirstToken(settings, "address", "local_address"));
             if (addresses.Length == 0)
                 return new TunnelParseResult { Error = "Xray wireguard outbound has no address." };
-
             var endpoint = new JObject
             {
                 ["type"] = "wireguard",
                 ["private_key"] = privateKey,
                 ["address"] = new JArray(addresses)
             };
-
             int mtu = ToInt(settings["mtu"]);
             if (mtu > 0) endpoint["mtu"] = mtu;
-
             int listenPort = ToInt(FirstToken(settings, "listenPort", "listen_port"));
             if (listenPort > 0) endpoint["listen_port"] = listenPort;
-
             int workers = ToInt(settings["workers"]);
             if (workers > 0) endpoint["workers"] = workers;
-
             var reserved = ReadList(FirstToken(settings, "reserved"));
-
             var peers = new JArray();
             if (settings["peers"] is JArray source)
             {
@@ -459,18 +401,14 @@ namespace CrimsonX.Services
                 {
                     var peer = (JObject)item.DeepClone();
                     NormalizePeer(peer);
-
                     if ((peer["public_key"]?.ToString() ?? "").Length == 0) continue;
                     if ((peer["address"]?.ToString() ?? "").Length == 0 || ToInt(peer["port"]) <= 0) continue;
                     if (reserved.Length > 0 && peer["reserved"] == null) peer["reserved"] = ToIntArray(reserved);
-
                     peers.Add(peer);
                 }
             }
-
             if (peers.Count == 0)
                 return new TunnelParseResult { Error = "Xray wireguard outbound has no usable peer." };
-
             endpoint["peers"] = peers;
             return new TunnelParseResult { Kind = TunnelKind.WireGuard, Endpoint = endpoint };
         }
@@ -487,35 +425,28 @@ namespace CrimsonX.Services
                 }
                 peer.Remove("endpoint");
             }
-
             string address = FirstNonEmpty(peer["address"]?.ToString(), peer["server"]?.ToString());
             if (address.Length > 0) peer["address"] = address;
             peer.Remove("server");
-
             int port = ToInt(FirstToken(peer, "port", "server_port"));
             if (port > 0) peer["port"] = port;
             peer.Remove("server_port");
-
             string publicKey = FirstNonEmpty(peer["public_key"]?.ToString(), peer["publicKey"]?.ToString());
             if (publicKey.Length > 0) peer["public_key"] = publicKey;
             peer.Remove("publicKey");
-
             string preShared = FirstNonEmpty(peer["pre_shared_key"]?.ToString(), peer["preSharedKey"]?.ToString(),
                                              peer["preshared_key"]?.ToString());
             if (preShared.Length > 0) peer["pre_shared_key"] = preShared;
             peer.Remove("preSharedKey");
             peer.Remove("preshared_key");
-
             int keepAlive = ToInt(FirstToken(peer, "persistent_keepalive_interval", "persistentKeepalive", "keepAlive", "keep_alive"));
             if (keepAlive > 0) peer["persistent_keepalive_interval"] = keepAlive;
             peer.Remove("persistentKeepalive");
             peer.Remove("keepAlive");
             peer.Remove("keep_alive");
-
             var allowed = ReadList(FirstToken(peer, "allowed_ips", "allowedIPs"));
             peer["allowed_ips"] = new JArray(allowed.Length > 0 ? allowed : DefaultAllowedIps);
             peer.Remove("allowedIPs");
-
             var reserved = ReadList(FirstToken(peer, "reserved"));
             if (reserved.Length > 0) peer["reserved"] = ToIntArray(reserved);
         }
@@ -523,7 +454,6 @@ namespace CrimsonX.Services
         private static string[] ReadList(JToken token)
         {
             if (token == null || token.Type == JTokenType.Null) return new string[0];
-
             if (token is JArray array)
             {
                 return array.Select(v => v?.ToString()?.Trim())
@@ -531,7 +461,6 @@ namespace CrimsonX.Services
                             .Distinct(StringComparer.OrdinalIgnoreCase)
                             .ToArray();
             }
-
             return SplitList(token.ToString());
         }
 
@@ -549,7 +478,6 @@ namespace CrimsonX.Services
         private static TunnelParseResult BuildFromOpenVpnObject(JObject endpoint)
         {
             endpoint["type"] = "openvpn-client";
-
             var servers = new JArray();
             if (endpoint["servers"] is JArray source)
             {
@@ -558,7 +486,6 @@ namespace CrimsonX.Services
                     string host = item["server"]?.ToString() ?? "";
                     int port = ToInt(item["server_port"]);
                     if (host.Length == 0 || port <= 0) continue;
-
                     var server = new JObject { ["server"] = host, ["server_port"] = port };
                     string network = item["network"]?.ToString() ?? "";
                     if (network.Length > 0) server["network"] = network;
@@ -566,25 +493,20 @@ namespace CrimsonX.Services
                 }
                 endpoint.Remove("servers");
             }
-
             if (servers.Count == 0)
             {
                 string host = endpoint["server"]?.ToString() ?? "";
                 int port = ToInt(endpoint["server_port"]);
                 if (host.Length == 0 || port <= 0)
                     return new TunnelParseResult { Error = "This OpenVPN config has no remote server." };
-
                 servers.Add(new JObject { ["server"] = host, ["server_port"] = port });
                 endpoint.Remove("server");
                 endpoint.Remove("server_port");
             }
-
             endpoint["servers"] = servers;
-
             string mode = endpoint["mode"]?.ToString() ?? "";
             if (mode.Length == 0)
                 endpoint["mode"] = endpoint["tls"] != null || endpoint["static_key"] == null ? "tls" : "static_key";
-
             if (endpoint["tls"] is JObject tls)
             {
                 NormalizePem(tls, "certificate");
@@ -592,7 +514,6 @@ namespace CrimsonX.Services
                 NormalizePem(tls, "client_key");
                 if (tls["control_wrap"] is JObject wrap) NormalizePem(wrap, "key");
             }
-
             var result = new TunnelParseResult { Kind = TunnelKind.OpenVpn, Endpoint = endpoint };
             result.User = endpoint["username"]?.ToString() ?? "";
             result.Password = endpoint["password"]?.ToString() ?? "";
@@ -603,10 +524,8 @@ namespace CrimsonX.Services
         {
             var token = owner[key];
             if (token == null) return;
-
             string value = token.ToString();
             if (value.IndexOf('\n') < 0 && value.IndexOf('\r') < 0) return;
-
             value = value.Replace("\r\n", "\n").Replace('\r', '\n');
             var lines = value.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0);
             owner[key] = string.Join("\n", lines);
@@ -633,14 +552,12 @@ namespace CrimsonX.Services
                     sorted[property.Name] = SortKeys(property.Value);
                 return sorted;
             }
-
             if (token is JArray array)
             {
                 var sorted = new JArray();
                 foreach (var item in array) sorted.Add(SortKeys(item));
                 return sorted;
             }
-
             return token;
         }
 
@@ -668,7 +585,6 @@ namespace CrimsonX.Services
         {
             if (token == null) return 0;
             if (token.Type == JTokenType.Integer) return token.Value<int>();
-
             int.TryParse(token.ToString().Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed);
             return parsed;
         }
@@ -702,19 +618,16 @@ namespace CrimsonX.Services
             port = defaultPort;
             text = (text ?? "").Trim();
             if (text.Length == 0) return false;
-
             if (text.StartsWith("["))
             {
                 int close = text.IndexOf(']');
                 if (close < 0) return false;
-
                 host = text.Substring(1, close - 1).Trim();
                 string tail = text.Substring(close + 1);
                 if (tail.StartsWith(":")) int.TryParse(tail.Substring(1).Trim(), out port);
                 if (port <= 0 || port > 65535) port = defaultPort;
                 return host.Length > 0;
             }
-
             int colon = text.LastIndexOf(':');
             if (colon > 0)
             {
@@ -725,7 +638,6 @@ namespace CrimsonX.Services
             {
                 host = text.Trim();
             }
-
             if (port <= 0 || port > 65535) port = defaultPort;
             return host.Length > 0;
         }
@@ -755,7 +667,6 @@ namespace CrimsonX.Services
             string body = link.StartsWith("wireguard://", StringComparison.OrdinalIgnoreCase)
                 ? link.Substring("wireguard://".Length)
                 : link.Substring("wg://".Length);
-
             string label = "";
             int hash = body.IndexOf('#');
             if (hash >= 0)
@@ -763,7 +674,6 @@ namespace CrimsonX.Services
                 label = PercentDecode(body.Substring(hash + 1));
                 body = body.Substring(0, hash);
             }
-
             string query = "";
             int q = body.IndexOf('?');
             if (q >= 0)
@@ -771,13 +681,10 @@ namespace CrimsonX.Services
                 query = body.Substring(q + 1);
                 body = body.Substring(0, q);
             }
-
             var qs = ParseQueryPairs(query);
-
             string privateKey = "";
             string host = "";
             int port = 51820;
-
             int at = body.LastIndexOf('@');
             if (at >= 0)
             {
@@ -788,40 +695,30 @@ namespace CrimsonX.Services
             {
                 SplitHostPort(body, out host, out port, 51820);
             }
-
             if (privateKey.Length == 0) privateKey = QueryValue(qs, "privatekey", "private_key", "secretkey", "secret_key");
             if (host.Length == 0) host = QueryValue(qs, "host", "server", "remote");
             if (port <= 0) port = ParseInt(QueryValue(qs, "port", "server_port"), 51820);
-
             string publicKey = QueryValue(qs, "publickey", "public_key", "pk", "peerpublickey");
             string addressValue = QueryValue(qs, "address", "ip", "local_address", "localaddress");
-
             if (privateKey.Length == 0) return new TunnelParseResult { Error = "This WireGuard link has no private key." };
             if (publicKey.Length == 0) return new TunnelParseResult { Error = "This WireGuard link has no public key." };
             if (host.Length == 0) return new TunnelParseResult { Error = "This WireGuard link has no server address." };
-
             var addresses = SplitList(addressValue);
             if (addresses.Length == 0) return new TunnelParseResult { Error = "This WireGuard link has no tunnel address." };
-
             var peer = new JObject
             {
                 ["address"] = host,
                 ["port"] = port,
                 ["public_key"] = publicKey
             };
-
             var allowed = SplitList(QueryValue(qs, "allowedips", "allowed_ips", "allowedip"));
             peer["allowed_ips"] = new JArray(allowed.Length > 0 ? allowed : DefaultAllowedIps);
-
             string preShared = QueryValue(qs, "presharedkey", "pre_shared_key", "psk");
             if (preShared.Length > 0) peer["pre_shared_key"] = preShared;
-
             int keepAlive = ParseInt(QueryValue(qs, "keepalive", "persistentkeepalive", "persistent_keepalive"), 0);
             if (keepAlive > 0) peer["persistent_keepalive_interval"] = keepAlive;
-
             var reserved = SplitList(QueryValue(qs, "reserved").Replace('+', ','));
             if (reserved.Length > 0) peer["reserved"] = ToIntArray(reserved);
-
             var endpoint = new JObject
             {
                 ["type"] = "wireguard",
@@ -829,16 +726,12 @@ namespace CrimsonX.Services
                 ["address"] = new JArray(addresses),
                 ["peers"] = new JArray { peer }
             };
-
             int mtu = ParseInt(QueryValue(qs, "mtu"), 0);
             if (mtu > 0) endpoint["mtu"] = mtu;
-
             int listenPort = ParseInt(QueryValue(qs, "listenport", "listen_port"), 0);
             if (listenPort > 0) endpoint["listen_port"] = listenPort;
-
             int workers = ParseInt(QueryValue(qs, "workers"), 0);
             if (workers > 0) endpoint["workers"] = workers;
-
             return new TunnelParseResult { Kind = TunnelKind.WireGuard, Endpoint = endpoint, Label = label };
         }
 
@@ -846,17 +739,14 @@ namespace CrimsonX.Services
         {
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (string.IsNullOrWhiteSpace(query)) return result;
-
             foreach (var pair in query.Split('&'))
             {
                 if (pair.Length == 0) continue;
-
                 int eq = pair.IndexOf('=');
                 string key = PercentDecode(eq < 0 ? pair : pair.Substring(0, eq));
                 string value = eq < 0 ? "" : PercentDecode(pair.Substring(eq + 1));
                 if (key.Length > 0 && !result.ContainsKey(key)) result[key] = value;
             }
-
             return result;
         }
 
@@ -874,12 +764,10 @@ namespace CrimsonX.Services
             var interfaceValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var peers = new List<Dictionary<string, string>>();
             Dictionary<string, string> current = null;
-
             foreach (var raw in SplitLines(text))
             {
                 string line = StripComment(raw).Trim();
                 if (line.Length == 0) continue;
-
                 if (line.StartsWith("[") && line.EndsWith("]"))
                 {
                     string section = line.Substring(1, line.Length - 2).Trim().ToLowerInvariant();
@@ -892,68 +780,51 @@ namespace CrimsonX.Services
                     else current = null;
                     continue;
                 }
-
                 if (current == null) continue;
-
                 int eq = line.IndexOf('=');
                 if (eq <= 0) continue;
-
                 string key = line.Substring(0, eq).Trim();
                 string value = line.Substring(eq + 1).Trim();
                 if (key.Length > 0) current[key] = value;
             }
-
             string privateKey = Value(interfaceValues, "privatekey", "private_key");
             var addresses = SplitList(Value(interfaceValues, "address"));
-
             if (privateKey.Length == 0)
                 return new TunnelParseResult { Error = "This WireGuard config has no PrivateKey." };
             if (addresses.Length == 0)
                 return new TunnelParseResult { Error = "This WireGuard config has no Address." };
-
             var endpoint = new JObject
             {
                 ["type"] = "wireguard",
                 ["private_key"] = privateKey,
                 ["address"] = new JArray(addresses)
             };
-
             int mtu = ParseInt(Value(interfaceValues, "mtu"), 0);
             if (mtu > 0) endpoint["mtu"] = mtu;
-
             int listenPort = ParseInt(Value(interfaceValues, "listenport", "listen_port"), 0);
             if (listenPort > 0) endpoint["listen_port"] = listenPort;
-
             var peerArray = new JArray();
             foreach (var values in peers)
             {
                 if (!SplitHostPort(Value(values, "endpoint"), out string host, out int port, 51820)) continue;
-
                 string publicKey = Value(values, "publickey", "public_key");
                 if (publicKey.Length == 0) continue;
-
                 var peer = new JObject
                 {
                     ["address"] = host,
                     ["port"] = port,
                     ["public_key"] = publicKey
                 };
-
                 var allowed = SplitList(Value(values, "allowedips", "allowed_ips"));
                 peer["allowed_ips"] = new JArray(allowed.Length > 0 ? allowed : DefaultAllowedIps);
-
                 string preShared = Value(values, "presharedkey", "pre_shared_key");
                 if (preShared.Length > 0) peer["pre_shared_key"] = preShared;
-
                 int keepAlive = ParseInt(Value(values, "persistentkeepalive", "keepalive"), 0);
                 if (keepAlive > 0) peer["persistent_keepalive_interval"] = keepAlive;
-
                 peerArray.Add(peer);
             }
-
             if (peerArray.Count == 0)
                 return new TunnelParseResult { Error = "This WireGuard config has no usable [Peer]." };
-
             endpoint["peers"] = peerArray;
             return new TunnelParseResult { Kind = TunnelKind.WireGuard, Endpoint = endpoint };
         }
@@ -973,17 +844,14 @@ namespace CrimsonX.Services
         private static string StripComment(string line)
         {
             if (line == null) return "";
-
             string trimmed = line.TrimStart();
             if (trimmed.StartsWith("#") || trimmed.StartsWith(";")) return "";
-
             for (int i = 1; i < line.Length; i++)
             {
                 if (line[i] != '#' && line[i] != ';') continue;
                 if (!char.IsWhiteSpace(line[i - 1])) continue;
                 return line.Substring(0, i);
             }
-
             return line;
         }
 
@@ -994,21 +862,17 @@ namespace CrimsonX.Services
             string lower = text.ToLowerInvariant();
             if (lower.Contains("<ca>") || lower.Contains("<tls-crypt>") || lower.Contains("<tls-auth>")
              || lower.Contains("<cert>") || lower.Contains("<key>") || lower.Contains("<secret>")) return true;
-
             bool hasRemote = false;
             bool hasSignal = false;
-
             foreach (var raw in SplitLines(text))
             {
                 string line = StripComment(raw).Trim();
                 if (line.Length == 0) continue;
-
                 string key = DirectiveKey(line);
                 if (key == "remote") hasRemote = true;
                 else if (key == "dev" || key == "proto" || key == "client" || key == "tls-client"
                       || key == "auth-user-pass" || key == "remote-cert-tls") hasSignal = true;
             }
-
             return hasRemote && hasSignal;
         }
 
@@ -1080,11 +944,9 @@ namespace CrimsonX.Services
             var directives = new List<string>();
             string currentBlock = null;
             var blockLines = new List<string>();
-
             foreach (var raw in SplitLines(text))
             {
                 string line = raw ?? "";
-
                 if (currentBlock != null)
                 {
                     string trimmed = line.Trim();
@@ -1093,27 +955,22 @@ namespace CrimsonX.Services
                     {
                         string head = trimmed.Substring(0, close).Trim();
                         if (head.Length > 0) blockLines.Add(head);
-
                         options.Blocks[currentBlock] = string.Join("\n", blockLines);
                         currentBlock = null;
                         blockLines.Clear();
                         continue;
                     }
-
                     if (trimmed.Length > 0) blockLines.Add(trimmed);
                     continue;
                 }
-
                 string clean = StripComment(line).Trim();
                 if (clean.Length == 0) continue;
-
                 var inline = InlineBlockRegex.Match(clean);
                 if (inline.Success && BlockTags.Contains(inline.Groups["tag"].Value))
                 {
                     options.Blocks[inline.Groups["tag"].Value] = inline.Groups["body"].Value.Trim();
                     continue;
                 }
-
                 if (clean.StartsWith("<") && clean.EndsWith(">") && !clean.StartsWith("</"))
                 {
                     string tag = clean.Substring(1, clean.Length - 2).Trim().ToLowerInvariant();
@@ -1124,10 +981,8 @@ namespace CrimsonX.Services
                         continue;
                     }
                 }
-
                 directives.Add(clean);
             }
-
             return directives;
         }
 
@@ -1137,14 +992,12 @@ namespace CrimsonX.Services
         {
             var options = new OpenVpnOptions();
             var directives = ExtractInlineBlocks(text, options);
-
             foreach (var directive in directives)
             {
                 string key = DirectiveKey(directive);
                 string value = directive.Substring(key.Length).Trim();
                 ApplyOpenVpnDirective(options, key, value);
             }
-
             return BuildOpenVpnEndpoint(options);
         }
 
@@ -1156,34 +1009,28 @@ namespace CrimsonX.Services
                 case "tls-client":
                     options.Client = true;
                     break;
-
                 case "dev":
                 {
                     string dev = FirstArg(value).ToLowerInvariant();
                     if (dev.StartsWith("tap")) options.Tap = true;
                     break;
                 }
-
                 case "dev-type":
                     if (FirstArg(value).ToLowerInvariant().StartsWith("tap")) options.Tap = true;
                     break;
-
                 case "proto":
                 {
                     string net = NormalizeNetwork(value);
                     if (net.Length > 0) options.Network = net;
                     break;
                 }
-
                 case "remote":
                 {
                     var args = SplitArgs(value);
                     if (args.Length == 0) break;
-
                     string host = args[0];
                     int port = 1194;
                     string net = "";
-
                     if (args.Length > 1)
                     {
                         if (int.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedPort)) port = parsedPort;
@@ -1191,24 +1038,20 @@ namespace CrimsonX.Services
                     }
                     if (args.Length > 2) net = NormalizeNetwork(args[2]);
                     if (port <= 0 || port > 65535) port = 1194;
-
                     options.Remotes.Add(Tuple.Create(host, port, net));
                     break;
                 }
-
                 case "ifconfig":
                 {
                     options.LocalAddress = FirstArg(value);
                     options.PeerAddress = SecondArg(value);
                     break;
                 }
-
                 case "remote-random": options.RemoteRandom = true; break;
                 case "remote-cert-tls": options.RemoteCertTls = NormalizeCertificateSide(FirstArg(value)); break;
                 case "remote-cert-ku": options.RemoteCertKu = SplitArgs(value); break;
                 case "remote-cert-eku": options.RemoteCertEku = value; break;
                 case "ns-cert-type": options.NsCertType = NormalizeCertificateSide(FirstArg(value)); break;
-
                 case "verify-x509-name":
                 {
                     options.ServerName = FirstArg(value);
@@ -1216,7 +1059,6 @@ namespace CrimsonX.Services
                     options.ServerNameType = type == "subject" || type == "name-prefix" ? type : "name";
                     break;
                 }
-
                 case "peer-fingerprint": options.PeerFingerprint = SplitArgs(value); break;
                 case "tls-version-min": options.TlsVersionMin = NormalizeTlsVersion(FirstArg(value)); break;
                 case "tls-version-max": options.TlsVersionMax = NormalizeTlsVersion(FirstArg(value)); break;
@@ -1226,53 +1068,43 @@ namespace CrimsonX.Services
                 case "tls-timeout": options.TlsTimeout = ParseInt(FirstArg(value), 0); break;
                 case "handshake-window": options.HandshakeWindow = ParseInt(FirstArg(value), 0); break;
                 case "explicit-exit-notify": options.ExplicitExitNotify = ParseInt(FirstArg(value), 1); break;
-
                 case "auth-user-pass":
                 case "askpass":
                     options.NeedsCredentials = true;
                     break;
-
                 case "username": options.Username = value; break;
                 case "password": options.Password = value; break;
                 case "auth-retry": options.AuthRetry = NormalizeAuthRetry(FirstArg(value)); break;
                 case "key-direction": options.KeyDirection = FirstArg(value); break;
-
                 case "tls-auth":
                     options.HasTlsAuth = true;
                     options.TlsAuthDirection = SecondArg(value);
                     break;
-
                 case "secret":
                 case "static-key":
                     options.HasStaticKey = true;
                     break;
-
                 case "cipher": options.Cipher = FirstArg(value); break;
                 case "data-ciphers": options.DataCiphers = SplitCiphers(value); break;
                 case "data-ciphers-fallback": options.DataCiphersFallback = FirstArg(value); break;
                 case "auth": options.Auth = FirstArg(value).ToUpperInvariant(); break;
-
                 case "tun-mtu":
                 case "mtu": options.Mtu = ParseInt(FirstArg(value), 0); break;
-
                 case "mssfix": options.MssFix = ParseInt(FirstArg(value), 1450); break;
                 case "reneg-sec": options.RenegSec = ParseInt(FirstArg(value), 0); break;
                 case "reneg-bytes": options.RenegBytes = ParseInt(FirstArg(value), 0); break;
                 case "reneg-pkts": options.RenegPackets = ParseInt(FirstArg(value), 0); break;
                 case "ping": options.PingInterval = ParseInt(FirstArg(value), 0); break;
                 case "ping-restart": options.PingRestart = ParseInt(FirstArg(value), 0); break;
-
                 case "comp-lzo": options.CompLzo = value.Length == 0 ? "yes" : FirstArg(value); break;
                 case "compress": options.Compress = value.Length == 0 ? "stub" : FirstArg(value); break;
                 case "allow-compression": options.AllowCompression = FirstArg(value).ToLowerInvariant(); break;
-
                 case "redirect-gateway": options.RedirectGateway = true; options.RedirectGatewayFlags = value; break;
                 case "redirect-private": options.RedirectPrivate = true; break;
                 case "block-ipv6": options.BlockIpv6 = true; break;
                 case "route-nopull": options.RouteNoPull = true; break;
                 case "pull-filter": options.PullFilters.Add(value); break;
                 case "fragment": options.Fragment = ParseInt(FirstArg(value), 0); break;
-
                 case "ca":
                 case "cert":
                 case "key":
@@ -1281,12 +1113,10 @@ namespace CrimsonX.Services
                 case "pkcs12":
                     if (value.Length > 0) options.Warnings.Add($"{key} file references are ignored; use inline blocks instead.");
                     break;
-
                 case "http-proxy":
                 case "socks-proxy":
                     options.Warnings.Add($"{key} is not supported by sing-box.");
                     break;
-
                 case "server":
                 case "push":
                 case "tls-server":
@@ -1299,10 +1129,8 @@ namespace CrimsonX.Services
         {
             if (options.Tap)
                 return new TunnelParseResult { Kind = TunnelKind.OpenVpn, Error = "TAP (layer 2) OpenVPN configs are not supported; use a TUN config." };
-
             if (options.Remotes.Count == 0)
                 return new TunnelParseResult { Kind = TunnelKind.OpenVpn, Error = "This OpenVPN config has no remote server." };
-
             bool hasTlsMaterial = options.Client
                                || options.HasTlsAuth
                                || options.RemoteCertTls.Length > 0
@@ -1312,66 +1140,49 @@ namespace CrimsonX.Services
                                || options.Blocks.ContainsKey("tls-auth")
                                || options.Blocks.ContainsKey("tls-crypt")
                                || options.Blocks.ContainsKey("tls-crypt-v2");
-
             bool staticKey = options.HasStaticKey && !hasTlsMaterial;
-
             var endpoint = new JObject
             {
                 ["type"] = "openvpn-client",
                 ["mode"] = staticKey ? "static_key" : "tls"
             };
-
             if (options.Network.Length > 0) endpoint["network"] = options.Network;
-
             var servers = new JArray();
             foreach (var remote in options.Remotes)
             {
                 if (staticKey && servers.Count == 1) break;
-
                 var server = new JObject { ["server"] = remote.Item1, ["server_port"] = remote.Item2 };
                 if (remote.Item3.Length > 0 && remote.Item3 != options.Network) server["network"] = remote.Item3;
                 servers.Add(server);
             }
-
             if (staticKey && options.Remotes.Count > 1)
                 options.Warnings.Add("Static key mode supports a single remote; extra remotes were dropped.");
-
             endpoint["servers"] = servers;
-
             if (options.RemoteRandom) endpoint["remote_random"] = true;
-
             var tls = BuildOpenVpnTls(options);
             if (tls.Count > 0) endpoint["tls"] = tls;
-
             if (options.Blocks.TryGetValue("auth-user-pass", out string credentials) && credentials.Length > 0)
             {
                 var lines = credentials.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToArray();
                 if (lines.Length > 0 && options.Username.Length == 0) options.Username = lines[0];
                 if (lines.Length > 1 && options.Password.Length == 0) options.Password = string.Join(" ", lines.Skip(1));
             }
-
             if (options.Username.Length > 0) endpoint["username"] = options.Username;
             if (options.Password.Length > 0) endpoint["password"] = options.Password;
             if (options.AuthRetry.Length > 0) endpoint["auth_retry"] = options.AuthRetry;
-
             if (staticKey)
             {
                 if (!options.Blocks.TryGetValue("secret", out string secret) || secret.Length == 0)
                     return new TunnelParseResult { Kind = TunnelKind.OpenVpn, Error = "This static key OpenVPN config has no inline <secret> block." };
-
                 if (options.LocalAddress.Length == 0)
                     return new TunnelParseResult { Kind = TunnelKind.OpenVpn, Error = "This static key OpenVPN config has no ifconfig address." };
-
                 endpoint["static_key"] = secret;
                 endpoint["address"] = options.LocalAddress;
                 if (options.PeerAddress.Length > 0) endpoint["peer_address"] = options.PeerAddress;
             }
-
             ApplyOpenVpnExtras(endpoint, options);
-
             foreach (var warning in options.Warnings)
                 SimpleLogger.Log($"[Tunnel] OpenVPN: {warning}");
-
             var result = new TunnelParseResult { Kind = TunnelKind.OpenVpn, Endpoint = endpoint };
             result.NeedsCredentials = options.NeedsCredentials && options.Username.Length == 0;
             result.User = options.Username;
@@ -1382,17 +1193,14 @@ namespace CrimsonX.Services
         private static JObject BuildOpenVpnTls(OpenVpnOptions options)
         {
             var tls = new JObject();
-
             if (options.Blocks.TryGetValue("ca", out string ca) && ca.Length > 0) tls["certificate"] = ca;
             if (options.Blocks.TryGetValue("cert", out string cert) && cert.Length > 0) tls["client_certificate"] = cert;
             if (options.Blocks.TryGetValue("key", out string key) && key.Length > 0) tls["client_key"] = key;
-
             if (options.ServerName.Length > 0)
             {
                 tls["server_name"] = options.ServerName;
                 if (options.ServerNameType.Length > 0) tls["server_name_type"] = options.ServerNameType;
             }
-
             if (options.RemoteCertTls.Length > 0) tls["remote_certificate_tls"] = options.RemoteCertTls;
             if (options.NsCertType.Length > 0) tls["ns_certificate_type"] = options.NsCertType;
             if (options.RemoteCertKu.Length > 0) tls["remote_certificate_ku"] = new JArray(options.RemoteCertKu);
@@ -1402,10 +1210,8 @@ namespace CrimsonX.Services
             if (options.TlsVersionMax.Length > 0) tls["version_max"] = options.TlsVersionMax;
             if (options.TlsCipher.Length > 0) tls["cipher"] = options.TlsCipher;
             if (options.TlsGroups.Length > 0) tls["groups"] = options.TlsGroups;
-
             var wrap = BuildControlWrap(options);
             if (wrap != null) tls["control_wrap"] = wrap;
-
             return tls;
         }
 
@@ -1413,23 +1219,18 @@ namespace CrimsonX.Services
         {
             string type = "";
             string key = "";
-
             if (options.Blocks.TryGetValue("tls-crypt", out string crypt) && crypt.Length > 0) { type = "tls_crypt"; key = crypt; }
             else if (options.Blocks.TryGetValue("tls-crypt-v2", out string crypt2) && crypt2.Length > 0) { type = "tls_crypt_v2"; key = crypt2; }
             else if (options.Blocks.TryGetValue("tls-auth", out string auth) && auth.Length > 0) { type = "tls_auth"; key = auth; }
             else if (options.HasTlsAuth) type = "tls_auth";
-
             if (type.Length == 0) return null;
-
             var wrap = new JObject { ["type"] = type };
             if (key.Length > 0) wrap["key"] = key;
-
             if (type == "tls_auth")
             {
                 string direction = DirectionName(FirstNonEmpty(options.TlsAuthDirection, options.KeyDirection));
                 if (direction.Length > 0) wrap["direction"] = direction;
             }
-
             return wrap;
         }
 
@@ -1446,19 +1247,14 @@ namespace CrimsonX.Services
             var ciphers = options.DataCiphers.Length > 0
                 ? options.DataCiphers
                 : (options.Cipher.Length > 0 ? new[] { options.Cipher } : new string[0]);
-
             if (ciphers.Length > 0) endpoint["data_ciphers"] = new JArray(ciphers);
             if (options.DataCiphersFallback.Length > 0) endpoint["data_ciphers_fallback"] = options.DataCiphersFallback;
             if (options.Auth.Length > 0) endpoint["auth"] = options.Auth;
-
             if (options.Mtu > 0) endpoint["mtu"] = options.Mtu;
-
             if (options.MssFix == 0) endpoint["mss_fix_disabled"] = true;
             else if (options.MssFix > 0) endpoint["mss_fix"] = options.MssFix;
-
             if (options.RenegSec == 0) endpoint["renegotiate_disabled"] = true;
             else if (options.RenegSec > 0) endpoint["renegotiate_interval"] = options.RenegSec + "s";
-
             if (options.RenegBytes > 0) endpoint["renegotiate_bytes"] = options.RenegBytes;
             if (options.RenegPackets > 0) endpoint["renegotiate_packets"] = options.RenegPackets;
             if (options.PingInterval > 0) endpoint["ping_interval"] = options.PingInterval + "s";
@@ -1467,28 +1263,21 @@ namespace CrimsonX.Services
             if (options.HandshakeWindow > 0) endpoint["handshake_window"] = options.HandshakeWindow + "s";
             if (options.ExplicitExitNotify > 0) endpoint["explicit_exit_notify"] = options.ExplicitExitNotify;
             if (options.Fragment > 0) endpoint["fragment"] = options.Fragment;
-
             string compressionLzo = NormalizeCompressionLzo(options.CompLzo);
             if (compressionLzo.Length > 0) endpoint["compression_lzo"] = compressionLzo;
-
             string compression = NormalizeCompression(options.Compress);
             if (compression.Length > 0) endpoint["compression"] = compression;
-
             string allowCompression = NormalizeAllowCompression(options.AllowCompression);
             if (allowCompression.Length > 0) endpoint["allow_compression"] = allowCompression;
-
             if (options.RedirectGateway)
             {
                 endpoint["redirect_gateway"] = true;
-
                 var flags = SplitArgs(options.RedirectGatewayFlags);
                 if (flags.Length > 0) endpoint["redirect_gateway_flags"] = new JArray(flags);
             }
-
             if (options.RedirectPrivate) endpoint["redirect_private"] = true;
             if (options.BlockIpv6) endpoint["block_ipv6"] = true;
             if (options.RouteNoPull) endpoint["route_no_pull"] = true;
-
             if (options.PullFilters.Count > 0)
             {
                 var filters = new JArray();
@@ -1496,13 +1285,10 @@ namespace CrimsonX.Services
                 {
                     var args = SplitArgs(filter);
                     if (args.Length < 2) continue;
-
                     string action = args[0].ToLowerInvariant();
                     if (action != "ignore" && action != "accept" && action != "reject") continue;
-
                     filters.Add(new JObject { ["action"] = action, ["text"] = string.Join(" ", args.Skip(1)) });
                 }
-
                 if (filters.Count > 0) endpoint["pull_filters"] = filters;
             }
         }
@@ -1514,7 +1300,6 @@ namespace CrimsonX.Services
             string net = FirstArg(value).ToLowerInvariant();
             int dash = net.IndexOf('-');
             if (dash > 0) net = net.Substring(0, dash);
-
             switch (net)
             {
                 case "udp":
@@ -1556,7 +1341,6 @@ namespace CrimsonX.Services
         private static string[] SplitCiphers(string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return new string[0];
-
             return value.Split(new[] { ':', ',' }, StringSplitOptions.RemoveEmptyEntries)
                         .Select(v => v.Trim())
                         .Where(v => v.Length > 0)

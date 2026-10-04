@@ -87,20 +87,16 @@ namespace CrimsonX.Services
         public static TResult Probe(TunnelParseResult tunnel, string adapterIp, int attemptTimeoutMs, int totalBudgetMs = 5000)
         {
             var result = new TResult();
-
             var remotes = Remotes(tunnel);
             if (remotes.Count == 0)
             {
                 result.Error = "no remote server";
                 return result;
             }
-
             int timeout = attemptTimeoutMs > 0 ? attemptTimeoutMs : DefaultTimeoutMs;
             int budget = totalBudgetMs > 0 ? totalBudgetMs : 5000;
-
             var route = ResolveRoute(adapterIp);
             var candidates = new List<Candidate>();
-
             foreach (var remote in remotes.Take(MaxRemotes))
             {
                 foreach (var address in Resolve(remote.Item1))
@@ -114,27 +110,22 @@ namespace CrimsonX.Services
                     });
                 }
             }
-
             if (candidates.Count == 0)
             {
                 result.Error = "the remote host could not be resolved";
                 return result;
             }
-
             candidates = candidates
                 .OrderBy(c => string.Equals(c.Network, "tcp", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
                 .ToList();
-
             var gate = new object();
             var finished = new ManualResetEventSlim(false);
             string failure = "";
             bool sawTimeout = false;
             int pending = candidates.Count;
-
             foreach (var candidate in candidates)
             {
                 var item = candidate;
-
                 Task.Run(() =>
                 {
                     try
@@ -150,11 +141,9 @@ namespace CrimsonX.Services
                                     result.Target = item.Write();
                                 }
                             }
-
                             finished.Set();
                             return;
                         }
-
                         lock (gate)
                         {
                             if (timedOut) sawTimeout = true;
@@ -171,15 +160,12 @@ namespace CrimsonX.Services
                     }
                 });
             }
-
             finished.Wait(budget + timeout + 500);
-
             if (!result.Ok)
             {
                 result.TimedOut = sawTimeout;
                 result.Error = failure.Length > 0 ? failure : "no remote answered";
             }
-
             return result;
         }
 
@@ -187,7 +173,6 @@ namespace CrimsonX.Services
         {
             var route = ResolveRoute(adapterIp);
             if (route == null) return "default route";
-
             return route.Name.Length > 0
                 ? $"{route.Name} ({route.Source}, ifIndex {route.InterfaceIndex})"
                 : route.Source.ToString();
@@ -196,7 +181,6 @@ namespace CrimsonX.Services
         private static List<Tuple<string, int, string>> Remotes(TunnelParseResult tunnel)
         {
             var list = new List<Tuple<string, int, string>>();
-
             try
             {
                 if (tunnel?.Endpoint?["servers"] is JArray servers)
@@ -212,7 +196,6 @@ namespace CrimsonX.Services
                         list.Add(Tuple.Create(host, port, network));
                     }
                 }
-
                 if (list.Count == 0)
                 {
                     string host = tunnel?.Endpoint?["server"]?.ToString() ?? "";
@@ -225,7 +208,6 @@ namespace CrimsonX.Services
             {
                 SimpleLogger.Log(ex);
             }
-
             return list;
         }
 
@@ -234,29 +216,23 @@ namespace CrimsonX.Services
             try
             {
                 var nics = NetworkInterface.GetAllNetworkInterfaces();
-
                 if (IPAddress.TryParse((adapterIp ?? "").Trim(), out var wanted) && wanted.AddressFamily == AddressFamily.InterNetwork)
                 {
                     foreach (var nic in nics)
                     {
                         if (!nic.GetIPProperties().UnicastAddresses.Any(a => a.Address.Equals(wanted))) continue;
-
                         return new Route { Source = wanted, InterfaceIndex = Index(nic), Name = nic.Name };
                     }
                 }
-
                 foreach (var nic in nics)
                 {
                     if (nic.OperationalStatus != OperationalStatus.Up) continue;
                     if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
                     if (nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
                     if (IsVirtual(nic)) continue;
-
                     var address = nic.GetIPProperties().UnicastAddresses
                         .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork)?.Address;
-
                     if (address == null) continue;
-
                     return new Route { Source = address, InterfaceIndex = Index(nic), Name = nic.Name };
                 }
             }
@@ -264,25 +240,21 @@ namespace CrimsonX.Services
             {
                 SimpleLogger.Log(ex);
             }
-
             return null;
         }
 
         private static bool IsVirtual(NetworkInterface nic)
         {
             string text = (nic.Name ?? "") + " " + (nic.Description ?? "");
-
             string[] blocked =
             {
                 "singbox", "sing-box", "tun", "wintun", "tap", "vpn", "wireguard", "virtual",
                 "vmware", "virtualbox", "hyper-v", "hyperv", "loopback", "bluetooth", "warp"
             };
-
             foreach (var word in blocked)
             {
                 if (text.IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0) return true;
             }
-
             return false;
         }
 
@@ -295,7 +267,6 @@ namespace CrimsonX.Services
         private static List<IPAddress> Resolve(string host)
         {
             var list = new List<IPAddress>();
-
             try
             {
                 if (IPAddress.TryParse(host, out var literal))
@@ -303,7 +274,6 @@ namespace CrimsonX.Services
                     list.Add(literal);
                     return list;
                 }
-
                 var found = Dns.GetHostAddresses(host) ?? new IPAddress[0];
                 list.AddRange(found.Where(a => a.AddressFamily == AddressFamily.InterNetwork));
                 list.AddRange(found.Where(a => a.AddressFamily == AddressFamily.InterNetworkV6));
@@ -312,25 +282,18 @@ namespace CrimsonX.Services
             {
                 SimpleLogger.Log(ex);
             }
-
             return list;
         }
 
         private static bool TryConnect(Candidate candidate, Route route, int timeoutMs, out long ms, out bool timedOut, out string error)
         {
             if (TryConnectOnce(candidate, route, timeoutMs, out ms, out timedOut, out error)) return true;
-
             string pinnedError = error;
             bool pinnedTimeout = timedOut;
-
             if (route == null) return false;
-
             if (TryConnectOnce(candidate, null, timeoutMs, out ms, out timedOut, out error)) return true;
-
             error = $"{error} (pinned to {route.Name}: {pinnedError}{(pinnedTimeout ? ", timed out" : "")})";
             if (pinnedTimeout) timedOut = true;
-
-
             return false;
         }
 
@@ -342,26 +305,21 @@ namespace CrimsonX.Services
             ms = -1;
             timedOut = false;
             error = "";
-
             TcpClient client = null;
             try
             {
                 client = new TcpClient(candidate.Address.AddressFamily);
-
                 if (route != null)
                 {
                     try { client.Client.Bind(new IPEndPoint(route.Source, 0)); }
                     catch (Exception ex) { error = "bind to " + route.Source + " failed: " + ex.Message; }
-
                     if (route.InterfaceIndex > 0)
                     {
                         try { client.Client.SetSocketOption(SocketOptionLevel.IP, (SocketOptionName)IpUnicastIf, route.InterfaceIndex); }
                         catch (Exception ex) { error = "pinning to interface " + route.InterfaceIndex + " failed: " + ex.Message; }
                     }
                 }
-
                 var watch = Stopwatch.StartNew();
-
                 var connect = client.ConnectAsync(candidate.Address, candidate.Port);
                 if (!connect.Wait(timeoutMs))
                 {
@@ -369,14 +327,12 @@ namespace CrimsonX.Services
                     error = $"{candidate.Write()} did not answer within {timeoutMs} ms";
                     return false;
                 }
-
                 if (connect.IsFaulted)
                 {
                     var inner = connect.Exception?.InnerException;
                     error = $"{candidate.Write()} refused: {inner?.Message ?? "connect failed"}";
                     return false;
                 }
-
                 watch.Stop();
                 ms = watch.ElapsedMilliseconds;
                 return true;

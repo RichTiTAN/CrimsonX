@@ -31,13 +31,10 @@ namespace CrimsonX.Services
         {
             int nodeCount = 1;
             if (activeOutbounds != null && activeOutbounds.Count > 0) nodeCount = activeOutbounds.Count;
-
             bool exitIsSingboxExit = ExitNodeChain.IsSingboxExit(config);
-
             bool useCustomChain = config.EnableV2rayChain
                 && !string.IsNullOrWhiteSpace(config.V2rayChainJson)
                 && !exitIsSingboxExit;
-
             bool singBoxOwnsLanPort = ExitNodeChain.ShouldChain(config);
             bool preferDirectDefault = config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE" && config.LastXrayMode != "VPN Mode";
 
@@ -45,25 +42,20 @@ namespace CrimsonX.Services
             var adapterPicks = config.EnableLoadBalanceAdapters
                 ? AdapterIps(config.LoadBalanceAdapters)
                 : new System.Collections.Generic.List<string>();
-
             var loadBalanceIps = adapterPicks.Count > 1
                 ? adapterPicks
                 : new System.Collections.Generic.List<string>();
-
             string pinnedIp = adapterPicks.Count == 1
                 ? adapterPicks[0]
                 : (config.EnableAdapterBinding ? (config.SelectedAdapterIp ?? "").Trim() : "");
-
             string xrayBalancePolicy = GetXrayBalancePolicy(
                 loadBalanceIps.Count > 0 ? config.AdapterBalancePolicy : config.XrayBalancePolicy);
             object strategy = GetXrayBalancerStrategy(xrayDir, xrayBalancePolicy);
-
             var rules = new List<object>
             {
                 new { type = "field", ip = new[] { "127.0.0.0/8", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16" }, outboundTag = "direct" },
                 new { type = "field", domain = new[] { "domain:get.geojs.io" }, balancerTag = "proxy" }
             };
-
             var blockDomains = new List<string>();
             var blockIps = new List<string>();
             var blockPorts = new List<string>();
@@ -90,7 +82,6 @@ namespace CrimsonX.Services
                 rules.Add(new { type = "field", ip = blockIps.ToArray(), outboundTag = "block" });
             if (blockPorts.Count > 0)
                 rules.Add(new { type = "field", port = string.Join(",", blockPorts), outboundTag = "block" });
-
             if (config.EnableDirect && config.LastXrayMode != "VPN Mode" && !string.IsNullOrWhiteSpace(config.LastManualSplit))
             {
                 var domains = new List<string>();
@@ -109,10 +100,8 @@ namespace CrimsonX.Services
                 if (ips.Count > 0) rules.Add(new { type = "field", ip = ips.ToArray(), outboundTag = targetTag });
                 if (ports.Count > 0) rules.Add(new { type = "field", port = string.Join(",", ports), outboundTag = targetTag });
             }
-
             rules.Insert(0, new { type = "field", inboundTag = new[] { "api" }, outboundTag = "api" });
             rules.Insert(1, new { type = "field", domain = new[] { $"keyword:{AppSecrets.WorkerDomainKeyword}" }, outboundTag = "direct" });
-            
             if (preferDirectDefault)
             {
                 rules.Add(new { type = "field", network = "tcp,udp", outboundTag = "direct" });
@@ -121,16 +110,13 @@ namespace CrimsonX.Services
             {
                 rules.Add(new { type = "field", network = "tcp,udp", balancerTag = "proxy" });
             }
-
             bool lanAuth = config.AllowLanConnections
                         && config.EnableLanAuth
                         && !string.IsNullOrWhiteSpace(config.LanAuthUsername)
                         && !string.IsNullOrWhiteSpace(config.LanAuthPassword);
-
             object mixedSettings = lanAuth
                 ? (object)new { udp = true, accounts = new[] { new { user = config.LanAuthUsername, pass = config.LanAuthPassword } } }
                 : new { udp = true };
-
             var inbounds = new object[]
             {
                 new { listen = config.AllowLanConnections && !singBoxOwnsLanPort ? "0.0.0.0" : "127.0.0.1", port = 10919, protocol = "mixed", tag = "mixed-in",
@@ -139,38 +125,29 @@ namespace CrimsonX.Services
                 new { listen = "127.0.0.1", port = 10999, protocol = "dokodemo-door", tag = "api",
                       settings = new { address = "127.0.0.1" } }
             };
-
             var outbounds = new List<object>();
             var proxyCloneTags = new List<string>();
-
             string sessionSuffix = Guid.NewGuid().ToString("N").Substring(0, 6);
             if (config.EnableV2rayChain && !string.IsNullOrWhiteSpace(config.V2rayChainJson))
             {
                 try
                 {
                     JObject? v2ob = ResolveExitNodeOutbound(config.V2rayChainJson);
-
                     if (v2ob != null)
                     {
                         int chainCopies = loadBalanceIps.Count > 0 ? loadBalanceIps.Count : 1;
-
                         for (int slot = 0; slot < nodeCount * chainCopies; slot++)
                         {
                             int node = slot / chainCopies + 1;
                             int copy = slot % chainCopies + 1;
-
                             bool localEntry = activeOutbounds != null && node - 1 < activeOutbounds.Count
                                 && XrayLinkParser.IsLocalOutbound(activeOutbounds[node - 1]);
                             if (localEntry && copy > 1) continue;
-
                             string cloneTag = CloneTag(sessionSuffix, node, copy, chainCopies);
                             proxyCloneTags.Add(cloneTag);
-
                             var clone = (JObject)v2ob.DeepClone();
                             clone["tag"] = cloneTag;
-
                             ChainThroughDialer(clone, NodeTag(sessionSuffix, node, copy, chainCopies));
-
                             outbounds.Add(clone);
                         }
                     }
@@ -184,60 +161,46 @@ namespace CrimsonX.Services
                     useCustomChain = false;
                 }
             }
-
             var nodeOutboundTags = new List<string>();
             if (activeOutbounds != null && activeOutbounds.Count > 0)
             {
                 int nodeCopies = loadBalanceIps.Count > 0 ? loadBalanceIps.Count : 1;
-
                 for (int slot = 0; slot < activeOutbounds.Count * nodeCopies; slot++)
                 {
                     int node = slot / nodeCopies;
                     int copy = slot % nodeCopies + 1;
-
                     var ob = (JObject)activeOutbounds[node].DeepClone();
                     bool local = XrayLinkParser.IsLocalOutbound(ob);
-
                     if (local && copy > 1) continue;
-
                     string tag = NodeTag(sessionSuffix, node + 1, copy, nodeCopies);
                     nodeOutboundTags.Add(tag);
                     ob["tag"] = tag;
-                    
                     string sendThroughIp = loadBalanceIps.Count > 0 ? loadBalanceIps[copy - 1] : pinnedIp;
-
                     if (sendThroughIp.Length > 0 && !local)
                     {
                         ob["sendThrough"] = sendThroughIp;
                     }
-                    
                     outbounds.Add(ob);
                 }
             }
-
             if (config.EnableAdBlock || (config.EnableDirect && !string.IsNullOrWhiteSpace(config.LastBlockSplit)))
                 outbounds.Add(new { tag = "block", protocol = "blackhole", settings = new { } });
-
             outbounds.Add(new { tag = "direct", protocol = "freedom", settings = new { } });
             if (config.EnableDirectUDP && !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp))
                 outbounds.Add(new { tag = "direct-udp", protocol = "freedom", settings = new { }, sendThrough = config.DirectUdpAdapterIp });
-
             var allRules = new List<object>();
             if (config.EnableDirectUDP)
             {
                 allRules.Add(new { type = "field", network = "udp", outboundTag = !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp) ? "direct-udp" : "direct" });
             }
             allRules.AddRange(rules);
-
             var balancerSelector = useCustomChain && proxyCloneTags.Count > 0
                 ? new[] { "proxy-clone-" }
                 : new[] { "proxy-node-" };
-
             var balancers = new List<object>
             {
                 new { selector = balancerSelector, strategy = strategy, tag = "proxy" }
             };
-
             var cfg = new Dictionary<string, object>
             {
                 ["log"] = new { loglevel = "info", access = Path.Combine(xrayDir, "access.log").Replace("\\", "/"), error = Path.Combine(xrayDir, "error.log").Replace("\\", "/") },
@@ -257,7 +220,6 @@ namespace CrimsonX.Services
                 ["outbounds"] = outbounds.ToArray(),
                 ["routing"] = new { domainStrategy = "AsIs", rules = allRules.ToArray(), balancers = balancers.ToArray() }
             };
-
             if (xrayBalancePolicy == "leastPing" || xrayBalancePolicy == "leastLoad")
             {
                 cfg["observatory"] = new
@@ -267,7 +229,6 @@ namespace CrimsonX.Services
                     probeInterval = "5s"
                 };
             }
-
             if (config.EnableUpstreamDoh && !string.IsNullOrWhiteSpace(config.UpstreamDohUrl))
             {
                 if (config.UpstreamDohUrl == "8.8.8.8" || config.UpstreamDohUrl == "8.8.4.4") 
@@ -287,7 +248,6 @@ namespace CrimsonX.Services
                     cfg["dns"] = new { servers = new[] { config.UpstreamDohUrl } };
                 }
             }
-
             try
             {
                 var json = JsonConvert.SerializeObject(cfg, Formatting.Indented);
@@ -325,10 +285,8 @@ namespace CrimsonX.Services
                 {
                     return new { type = xrayBalancePolicy, settings = new { expected = 1 } };
                 }
-
                 return new { type = "roundRobin" };
             }
-
             return new { type = xrayBalancePolicy };
         }
 
@@ -349,14 +307,12 @@ namespace CrimsonX.Services
                 {
                     return supported;
                 }
-
                 var xrayExe = Path.Combine(xrayDir, "xray.exe");
                 if (!File.Exists(xrayExe))
                 {
                     XrayBalancerSupportCache[cacheKey] = false;
                     return false;
                 }
-
                 var tempConfig = Path.Combine(xrayDir, $"xray_strategy_check_{strategyType}.json");
                 var config = new Dictionary<string, object>
                 {
@@ -374,7 +330,6 @@ namespace CrimsonX.Services
                         balancers = new[] { new { selector = new[] { "a", "b" }, strategy = new { type = strategyType, settings = new { expected = 1 } }, tag = "test-balancer" } }
                     }
                 };
-
                 if (strategyType == "leastPing" || strategyType == "leastLoad")
                 {
                     config["observatory"] = new
@@ -384,9 +339,7 @@ namespace CrimsonX.Services
                         probeInterval = "5s"
                     };
                 }
-
                 File.WriteAllText(tempConfig, JsonConvert.SerializeObject(config, Formatting.Indented));
-
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = xrayExe,
@@ -396,7 +349,6 @@ namespace CrimsonX.Services
                     RedirectStandardOutput = true,
                     RedirectStandardError = true
                 };
-
                 using var process = Process.Start(startInfo);
                 if (process == null)
                 {
@@ -404,7 +356,6 @@ namespace CrimsonX.Services
                     File.Delete(tempConfig);
                     return false;
                 }
-
                 var outTask = process.StandardOutput.ReadToEndAsync();
                 var errTask = process.StandardError.ReadToEndAsync();
                 if (!process.WaitForExit(5000))
@@ -427,51 +378,41 @@ namespace CrimsonX.Services
         public static void ChainThroughDialer(JObject outbound, string dialerTag)
         {
             if (outbound == null || string.IsNullOrWhiteSpace(dialerTag)) return;
-
             if (outbound["streamSettings"] is not JObject stream)
             {
                 stream = new JObject();
                 outbound["streamSettings"] = stream;
             }
-
             if (stream["sockopt"] is not JObject sockopt)
             {
                 sockopt = new JObject();
                 stream["sockopt"] = sockopt;
             }
-
             sockopt["dialerProxy"] = dialerTag.Trim();
         }
 
         private static JObject? ResolveExitNodeOutbound(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return null;
-
             if (ExitNodeChain.IsPlainTcpVless(raw)) return null;
-
             try
             {
                 if (ConfigConverter.IsXrayOutbound(raw))
                 {
                     var parsed = JObject.Parse(raw);
-
                     if (parsed["outbounds"] is JArray arr)
                     {
                         return arr.OfType<JObject>()
                             .FirstOrDefault(o => o["protocol"]?.ToString() != "freedom" && o["protocol"]?.ToString() != "blackhole");
                     }
-
                     return parsed;
                 }
-
                 if (TunnelConfigParser.LooksLikeTunnel(raw)) return null;
-
                 if (ConfigConverter.TryConvert(raw, out string converted, out _, out string error))
                 {
                     CrimsonX.Services.SimpleLogger.Log("[ExitNode] Converted a sing-box exit config to an xray outbound.");
                     return (JObject.Parse(converted)["outbounds"] as JArray)?.OfType<JObject>().FirstOrDefault();
                 }
-
                 CrimsonX.Services.SimpleLogger.Log($"[ExitNode] The custom exit node could not be used by xray: {error}");
                 return null;
             }
@@ -491,13 +432,11 @@ namespace CrimsonX.Services
         public static string ProbeSendThrough(AppConfig config)
         {
             if (config == null) return "";
-
             if (config.EnableLoadBalanceAdapters)
             {
                 var ips = AdapterIps(config.LoadBalanceAdapters);
                 if (ips.Count > 0) return ips[0];
             }
-
             return config.EnableAdapterBinding ? (config.SelectedAdapterIp ?? "").Trim() : "";
         }
 
@@ -505,18 +444,14 @@ namespace CrimsonX.Services
         {
             var ips = new System.Collections.Generic.List<string>();
             if (adapters == null) return ips;
-
             foreach (string item in adapters)
             {
                 if (string.IsNullOrWhiteSpace(item)) continue;
-
                 int at = item.LastIndexOf(" - ", StringComparison.Ordinal);
                 string ip = (at >= 0 ? item.Substring(at + 3) : item).Trim();
-
                 if (ip.Length == 0 || ips.Contains(ip)) continue;
                 ips.Add(ip);
             }
-
             return ips;
         }
     }
@@ -526,7 +461,6 @@ namespace CrimsonX.Services
         public static bool Write(AppConfig config, string sbDir, bool skipExitNode = false)
         {
             var currentExe = Path.GetFileName(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "");
-
             var systemBypassApps = new List<string>
             {
                 currentExe, "conjure-client.exe", "dnstt-client.exe",
@@ -534,12 +468,9 @@ namespace CrimsonX.Services
                 "sing-box.exe", "sing-box", "cmd.exe", "conhost.exe",
                 "powershell.exe", "pwsh.exe"
             };
-
             if (currentExe.Length > 0 && !systemBypassApps.Contains(currentExe.ToLowerInvariant()))
                 systemBypassApps.Add(currentExe.ToLowerInvariant());
-
             var userApps = new List<string>();
-
             if (config.EnableDirect && !string.IsNullOrWhiteSpace(config.LastAppSplit))
             {
                 foreach (var app in config.LastAppSplit.Split(','))
@@ -548,10 +479,8 @@ namespace CrimsonX.Services
                     if (string.IsNullOrEmpty(a)) continue;
                     var appExe = a.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? a : a + ".exe";
                     var appBase = Path.GetFileNameWithoutExtension(appExe);
-                    
                     if (!userApps.Contains(appExe)) userApps.Add(appExe);
                     if (!userApps.Contains(appBase)) userApps.Add(appBase);
-                    
                     if (!userApps.Contains(appExe.ToLower())) userApps.Add(appExe.ToLower());
                     if (!userApps.Contains(appBase.ToLower())) userApps.Add(appBase.ToLower());
                 }
@@ -562,19 +491,13 @@ namespace CrimsonX.Services
             string exitError    = "";
             ExitNodeChain.ExitNodePlane exitPlane = ExitNodeChain.ExitNodePlane.None;
             JObject? exitObject = null;
-
             if (!skipExitNode)
                 exitObject = ExitNodeChain.BuildExit(config, out exitPlane, out exitChained, out exitError);
-
             if (exitChained) ExitNodeChain.AllocateProxyPort();
-
             if (exitError.Length > 0) CrimsonX.Services.SimpleLogger.Log($"[ExitNode] {exitError}");
-
             string proxyTag = exitChained ? ExitNodeChain.EndpointTag : ExitNodeChain.TransportTag;
-
             var appRules = AppRulesSingboxBuilder.Build(config, null, proxyTag);
             string configPath = Path.Combine(sbDir, "config.json");
-
             object BuildSbConfig(AppRulesSingboxResult rules)
             {
                 var sbRules = new List<object>
@@ -584,32 +507,25 @@ namespace CrimsonX.Services
                     new { port = new[] { 53 }, network = "udp", action = "hijack-dns" },
                     new { port = new[] { 53 }, network = "tcp", action = "hijack-dns" }
                 };
-
                 if (rules.RouteRules.Count > 0)
                     sbRules.AddRange(rules.RouteRules);
-
                 sbRules.Add(new { protocol = "quic", action = "reject", method = "default" });
                 sbRules.Add(new { domain_keyword = new[] { AppSecrets.WorkerDomainKeyword }, action = "route", outbound = "direct" });
-
                 if (exitChained)
                 {
                     sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, ip_is_private = true, action = "route", outbound = "direct" });
                     sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, action = "route", outbound = proxyTag });
                 }
-
                 sbRules.Add(new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" });
-
                 if (userApps.Count > 0)
                 {
                     string targetOutbound = config.SplitTunnelMode == "INCLUSIVE" ? proxyTag : "direct";
                     sbRules.Add(new { process_name = userApps.ToArray(), action = "route", outbound = targetOutbound });
                 }
-
                 if (config.EnableDirectUDP)
                 {
                     sbRules.Add(new { network = "udp", action = "route", outbound = !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp) ? "direct-udp" : "direct" });
                 }
-
                 sbRules.Add(new { network = "udp", port = new[] { 3478, 5349 }, action = "route", outbound = "direct" });
                 sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
 
@@ -618,10 +534,8 @@ namespace CrimsonX.Services
                 {
                     new { tag = "dns_direct", type = "udp", server = "8.8.8.8" }
                 };
-
                 if (rules.DnsServers.Count > 0)
                     dnsServers.AddRange(rules.DnsServers);
-
                 if (config.EnableUpstreamDoh && !string.IsNullOrWhiteSpace(config.UpstreamDohUrl))
                 {
                     if (config.UpstreamDohUrl.StartsWith("https://"))
@@ -661,12 +575,10 @@ namespace CrimsonX.Services
                 {
                     dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "dns.google", path = "/dns-query", detour = "proxy" });
                 }
-
                 var dnsRules = new List<object>
                 {
                     new { domain_keyword = new[] { "stun", "cdn77", "datapacket" }, action = "route", server = "dns_direct" }
                 };
-
                 if (rules.DnsRules.Count > 0)
                     dnsRules.AddRange(rules.DnsRules);
 
@@ -691,10 +603,8 @@ namespace CrimsonX.Services
                 {
                     dnsRules.Add(new { action = "route", server = "dns_proxy" });
                 }
-
                 string clashController = SingboxClashApi.EnsureController();
                 string clashSecret     = SingboxClashApi.EnsureSecret();
-
                 var sbConfig = new
                 {
                     log = new { level = "fatal" },
@@ -741,21 +651,16 @@ namespace CrimsonX.Services
                         }
                     }
                 };
-
                 if (!exitChained) return sbConfig;
-
                 var document = JObject.FromObject(sbConfig);
                 ExitNodeChain.PlaceInto(document, exitObject!, exitPlane);
                 ExitNodeChain.AddProxyInbound(document, config);
-
                 return document;
             }
-
             try
             {
                 var json = JsonConvert.SerializeObject(BuildSbConfig(appRules), Formatting.Indented);
                 File.WriteAllText(configPath, json);
-
                 if (appRules.CustomProxies.Count > 0 && !SingboxConfigValidator.Check(sbDir, configPath))
                 {
                     var invalidKeys = SingboxConfigValidator.FindInvalidOutbounds(sbDir, appRules.CustomProxies);
@@ -764,20 +669,16 @@ namespace CrimsonX.Services
                         var safeRules = AppRulesSingboxBuilder.Build(config, invalidKeys);
                         var safeJson = JsonConvert.SerializeObject(BuildSbConfig(safeRules), Formatting.Indented);
                         File.WriteAllText(configPath, safeJson);
-
                         CrimsonX.Services.SimpleLogger.Log(
                             $"[SingBox] Dropped {invalidKeys.Count} invalid custom proxy outbound(s).");
                         MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastCustomProxyDropped, ToastKind.Error);
-
                         if (safeRules.CustomProxies.Count > 0 && !SingboxConfigValidator.Check(sbDir, configPath))
                         {
                             var allKeys = new HashSet<string>(StringComparer.Ordinal);
                             foreach (var probe in appRules.CustomProxies) allKeys.Add(probe.Key);
-
                             var bareRules = AppRulesSingboxBuilder.Build(config, allKeys);
                             File.WriteAllText(configPath,
                                 JsonConvert.SerializeObject(BuildSbConfig(bareRules), Formatting.Indented));
-
                             CrimsonX.Services.SimpleLogger.Log(
                                 $"[SingBox] Config was still rejected; dropped all {allKeys.Count} custom proxy outbound(s).");
                         }
@@ -788,7 +689,6 @@ namespace CrimsonX.Services
                             "[SingBox] Config rejected but no single custom proxy outbound is at fault; keeping it.");
                     }
                 }
-
                 return true;
             }
             catch (Exception ex)
@@ -799,4 +699,3 @@ namespace CrimsonX.Services
         }
     }
 }
-

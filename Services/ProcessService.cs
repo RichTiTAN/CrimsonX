@@ -39,15 +39,12 @@ namespace CrimsonX.Services
                     CreateNoWindow = hidden,
                     WindowStyle = hidden ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal
                 };
-
                 if (hidden)
                 {
                     psi.RedirectStandardError = true;
                     psi.RedirectStandardOutput = true;
                 }
-
                 var process = new Process { StartInfo = psi };
-
                 if (hidden)
                 {
                     string pName = Path.GetFileName(filePath);
@@ -71,15 +68,12 @@ namespace CrimsonX.Services
                         }
                     };
                 }
-
                 process.Start();
-
                 if (hidden)
                 {
                     process.BeginErrorReadLine();
                     process.BeginOutputReadLine();
                 }
-
                 try { JobManager.AddProcess(process); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
                 try { if (!process.HasExited) process.PriorityClass = ProcessPriorityClass.BelowNormal; } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
                 return process;
@@ -195,7 +189,6 @@ namespace CrimsonX.Services
                             throw new Exception("schtasks exit code " + p.ExitCode + " " + err + " " + outp);
                     }
                 }
-
                 var startupFolder = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
                 var oldLnk = Path.Combine(startupFolder, "CrimsonX.lnk");
                 if (File.Exists(oldLnk)) File.Delete(oldLnk);
@@ -208,5 +201,3 @@ namespace CrimsonX.Services
         }
     }
 }
-
-

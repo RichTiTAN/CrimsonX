@@ -41,10 +41,8 @@ namespace CrimsonX.Dialogs
             YesText = yesText;
             NoText = noText;
             DataContext = this;
-
             if (CrimsonX.Localization.AppStrings.IsPersian)
                 FlowDirection = Avalonia.Media.FlowDirection.RightToLeft;
-
             InitializeComponent();
         }
 
