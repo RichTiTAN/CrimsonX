@@ -13,8 +13,7 @@
 
 **CrimsonX** is an advanced proxy/vpn client for Windows built with C# and Avalonia UI. It takes advantage of the powerful **Xray-core** and **sing-box** engines under the hood, wrapping them in a beautiful, highly animated, and user-friendly interface.
 
-Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantly pulls, tests, and caches the fastest configurations in the background. It automatically load-balances traffic across multiple nodes to ensure uninterrupted, high-speed connectivity.  
-[Persian READ ME](https://github.com/RichTiTAN/CrimsonX/blob/main/README_fa.md)
+Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantly pulls, tests, and caches the fastest configurations in the background. It automatically load-balances traffic across multiple nodes to ensure uninterrupted, high-speed connectivity.
 
 ##  Key Features
 
@@ -32,12 +31,11 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
       - Bypass proxy for specific apps or IPs (Direct UDP support).
 -  **Apps & Games Routing:** A dedicated hub to manage TCP/UDP routing, adapter binding, and region matching for specific applications and games.
 -  **LAN Sharing:** Share your VPN connection over the local network, with optional Username/Password authentication.
--  **DNS Control:** Built-in support for secure DNS-over-HTTPS (DoH) and customizable System DNS fallbacks.
+-  **DNS Control:** Built-in support for secure DNS-over-HTTPS (DoH) and customizable System DNS fallbacks. Name resolution follows the traffic path - proxied apps resolve through the node, direct/bypassed apps resolve directly, so a dead node cannot take down DNS for the traffic that was never proxied.
 
 ##  Screenshots
 
-<img width="652" height="554" alt="image" src="https://github.com/user-attachments/assets/d85ba2c6-4df4-4f39-ab09-bfe2ba63d6e8" />
-
+<img width="696" height="554" alt="Screenshot 2026-10-04 155541" src="https://github.com/user-attachments/assets/7b093fdb-5d37-4ee0-a75c-efadf7aa86b9" />
 
 
 ##  Installation
@@ -66,7 +64,13 @@ Then open `Services/AppSecrets.cs` and fill in your own worker URLs plus a fresh
 - **Clear Proxy Mode:** Disables the system proxy settings, allowing direct connection to the internet. while exposing the proxy to apps that support manual proxy configuration.
 
 ### 2. Custom Configs
-If you don't want to rely on the automated scrapers, you can inject up to 2 of your own VLESS/VMESS/Shadowsocks/Socks/Wireguard configs directly in the Settings tab.
+If you don't want to rely on the automated scrapers, you can inject up to 2 of your own configs directly in the Settings tab: VLESS/VMESS/Shadowsocks/Socks share links, xray/sing-box outbound JSON, or full **OpenVPN** (`.ovpn`, with inline `<ca>`/`<tls-crypt>`/`<tls-auth>` blocks) and **WireGuard** configs (`.conf`, `wireguard://` share links, sing-box endpoint JSON or xray `wireguard` outbound JSON).
+
+Just paste them in (**Ctrl+V**), press the **+** button to import a file, or pick one of your saved configs: the box keeps the config behind the scenes and only shows its title, so a multi-line `.ovpn` can no longer be clipped by the single-line box.
+
+OpenVPN and WireGuard configs are not proxied by xray directly: CrimsonX runs a second, headless sing-box instance that owns the `openvpn-client` / `wireguard` endpoint and exposes a local socks inbound on a free loopback port. xray then dials that socks inbound as one of its `proxy-node` outbounds, so the config takes part in the normal balancer, speed test, split tunnel and watchdog logic. The tunnel port is picked automatically on every connect (never hardcoded, never exposed to the LAN) and is written to the log as `[Tunnel] openvpn <server> → socks 127.0.0.1:<port>`.
+
+The same configs can also be used per app in the **Apps & Games** tab (custom proxy per rule). Those run in their own sing-box tunnel process, kept separate from the Custom Configs tunnels, and only apply in VPN Mode — and when the same config + adapter is already running as a custom config, the rule reuses that engine instead of starting a second process.
 
 ### 3. Load Balance Policies
 Head to the **Settings** tab to adjust how CrimsonX distributes connections. If you're downloading large files, **Least Ping** or **Round Robin** is recommended.  
