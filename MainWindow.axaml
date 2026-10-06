@@ -152,9 +152,6 @@
         <Style Selector="Button.modeBtn:pointerover TextBlock.modeText">
             <Setter Property="Foreground" Value="#E2E8F0"/>
         </Style>
-        <!-- The two sparkline cells fold away while nothing is connected: at Width 0 they take no room at all,
-             and this transition is what makes the readout box grow into them when a session comes up. The clip
-             keeps a folding cell wiping out of its own bounds instead of spilling past them. -->
         <Style Selector="Button.sparkCell">
             <Setter Property="ClipToBounds" Value="True"/>
             <Setter Property="Transitions">
@@ -163,10 +160,6 @@
                 </Transitions>
             </Setter>
         </Style>
-        <!-- The two readout tiles an invisible ghost holds at a fixed width - STATUS (the CONNECTED ghost under it)
-             and UPLOAD (the DOWNLOAD ghost under it) - fold the way the sparkline cells do: at Width 0 a ghost holds
-             nothing, so the tile hugs what it actually shows while nothing is connected, and this transition is what
-             grows the highlight back to that fixed width in a session. -->
         <Style Selector="TextBlock.readoutGhost">
             <Setter Property="Transitions">
                 <Transitions>
@@ -175,9 +168,6 @@
             </Setter>
         </Style>
 
-        <!-- The four stat tiles are the only readouts whose text changes length while the app runs - a country
-             replacing Disconnected, a blank port becoming 10919 - so each tile holds an explicit Width that the
-             resize hook keeps on the tile, and its box follows it: that is the resize instead of a snap. -->
         <Style Selector="Button.statTile">
             <Setter Property="Transitions">
                 <Transitions>
@@ -319,22 +309,11 @@
                   <Grid Grid.Row="0" ZIndex="1000" Background="#110A0C0F" PointerPressed="TitleBar_PointerPressed" FlowDirection="LeftToRight"
                         ColumnDefinitions="Auto,*,Auto">
 
-                      <!-- The tab's name rests in the middle of the strip. While the update badge is up the title
-                           steps to the left end, inset to the page content's own left edge (the rail is 62px
-                           wide), and it comes back to the middle once the badge is gone - SetTitleUpdateBadge
-                           moves it on every state change, and this is where it sits by default.
-                           IsHitTestVisible=False keeps TitleBar_PointerPressed window dragging working. -->
                       <TextBlock x:Name="lblTabTitle" Grid.Column="0" Grid.ColumnSpan="3" Text=""
                                  HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,0" MaxWidth="240"
                                  FontSize="11" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1"
                                  TextTrimming="CharacterEllipsis" IsHitTestVisible="False"/>
 
-                      <!-- The update badge, centred on the strip as a whole (ColumnSpan across all three columns)
-                           so the tab title's width can never push it off centre. The mark and the words are one
-                           pair inside a single button, so hovering either of them lights one highlight behind
-                           both; CANCEL, which only exists while something is running, sits outside that pair.
-                           There is no percentage text anywhere - the ring is the progress - and the words wear the
-                           tab title's own face and grey rather than the theme's colour. -->
                       <StackPanel x:Name="panTitleUpdate" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="False">
                           <Button x:Name="btnTitleUpdate" Classes="graphHover" Background="Transparent" BorderThickness="0"
@@ -377,19 +356,12 @@
                             
                             <!-- viewHome -->
                             <Grid x:Name="viewHome" RowDefinitions="Auto, *, Auto" Margin="0,0,10,0">
-                                  <!-- The readouts lead the tab: STATUS, the SESSION timer and PING, then the two speeds -
-                                       each with its own sparkline beside it, in a cell with no horizontal padding so the
-                                       graph fills the highlight and its fade starts at the highlight's edge - and TOTAL
-                                       closing the row. Two invisible ghosts set the floor under the widths that would
-                                       otherwise move: CONNECTED under the status, and DOWNLOAD's label under the upload
-                                       tile, so the two speeds stay the same size. -->
                                   <StackPanel x:Name="panReadouts" Grid.Row="0" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" Margin="0,10,0,0">
                                       <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="5" HorizontalAlignment="Left">
                                           <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                               <Button Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" CornerRadius="4">
                                                   <StackPanel>
                                                       <TextBlock x:Name="lblStatusLabel" Text="STATUS" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
-                                                      <!-- laid out, never painted: it holds the tile at CONNECTED's width -->
                                                       <Panel>
                                                           <TextBlock x:Name="lblStatusValue" Text="Offline" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                                           <TextBlock x:Name="lblStatusGhost" Classes="readoutGhost" Text="Connected" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Width="0" Opacity="0" IsHitTestVisible="False"/>
@@ -408,7 +380,6 @@
                                                       </Panel>
                                                   </StackPanel>
                                               </Button>
-                                              <!-- PING: click re-traces, the way it did in the stats card -->
                                               <Button x:Name="btnRefreshPing" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" CornerRadius="4" Click="RefreshPing_Click">
                                                   <StackPanel>
                                                       <TextBlock x:Name="lblPingLabel" Text="PING" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
@@ -421,9 +392,6 @@
                                                       <TextBlock x:Name="lblDownloadSpeed" Text="0 KB/s" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                                   </StackPanel>
                                               </Button>
-                                              <!-- The download sparkline: no horizontal padding, so the graph fills the
-                                                   highlight cell and the mask's fade starts at its edge. It starts
-                                                   folded at Width 0 and hidden - see Button.sparkCell. -->
                                               <Button x:Name="cellSparkDn" Classes="graphHover sparkCell" Background="Transparent" BorderThickness="0" Padding="0,2" Cursor="Hand" HorizontalAlignment="Left" CornerRadius="4" Width="0" IsVisible="False">
                                                   <Grid Width="51" Height="30" ClipToBounds="True">
                                                       <Grid.OpacityMask>
@@ -445,7 +413,6 @@
                                               </Button>
                                               <Button Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" CornerRadius="4">
                                                   <StackPanel>
-                                                      <!-- laid out, never painted: it gives the upload tile the download tile's width -->
                                                       <Panel>
                                                           <TextBlock x:Name="lblUploadLabel" Text="UPLOAD" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
                                                           <TextBlock x:Name="lblUploadGhost" Classes="readoutGhost" Text="DOWNLOAD" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3" Width="0" Opacity="0" IsHitTestVisible="False"/>
@@ -453,7 +420,6 @@
                                                       <TextBlock x:Name="lblUploadSpeed" Text="0 KB/s" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                                   </StackPanel>
                                               </Button>
-                                              <!-- The upload sparkline: the same cell again, folded the same way -->
                                               <Button x:Name="cellSparkUp" Classes="graphHover sparkCell" Background="Transparent" BorderThickness="0" Padding="0,2" Cursor="Hand" HorizontalAlignment="Left" CornerRadius="4" Width="0" IsVisible="False">
                                                   <Grid Width="51" Height="30" ClipToBounds="True">
                                                       <Grid.OpacityMask>
@@ -479,7 +445,6 @@
                                                       <TextBlock x:Name="lblTotalData" Text="0 MB" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Classes="portHoverText"/>
                                                   </StackPanel>
                                               </Button>
-                                              <!-- PIN: keeps this readout bar on the split tunneling, themes, UDP scanner and about tabs -->
                                               <Button x:Name="btnPinTopBar" Classes="graphHover" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" VerticalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" CornerRadius="4" Click="PinTopBar_Click">
                                                   <Panel Width="12" Height="12">
                                                       <PathIcon x:Name="icoPinTopBarOn" Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" Width="12" Height="12" Foreground="#E2E8F0" IsVisible="False"/>
@@ -529,7 +494,6 @@
                                             </TextBlock.Transitions>
                                           </TextBlock>
 
-                                          <!-- the click surface: transparent, the box behind it carries the look -->
                                           <Button x:Name="btnConnect" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                                   Background="Transparent" BorderThickness="0" Padding="0" Cursor="Hand"
                                                   Click="btnConnect_Click"
@@ -544,11 +508,6 @@
 
                             <Border x:Name="panMainConfig" Grid.Row="2" Background="Transparent" BorderThickness="0" CornerRadius="12" Padding="6" Margin="0,0,0,10" HorizontalAlignment="Stretch">
                                 <StackPanel Spacing="10">
-                                      <!-- The stats box takes the whole line above Quick Settings, so it is exactly as
-                                           wide as that panel at every window size. It wears the readouts' own shape -
-                                           a hoverBox padded 5 around the same two-line tiles - so the two bars come
-                                           out the same height without either of them carrying a fixed height, and its
-                                           tiles read left to right from that box's left edge. -->
                                 <Border x:Name="panStats" Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch" VerticalAlignment="Center">
                                     <StackPanel x:Name="panStatsView" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                         <Border x:Name="panStatLocation" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="5">
@@ -561,7 +520,7 @@
                                           </Button>
                                         </Border>
                                         <Border x:Name="panStatIp" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="5">
-                                          <!-- IP ADDRESS (the exit address the geo trace reports; click copies it) -->
+                                          <!-- IP ADDRESS -->
                                           <Button x:Name="btnCopyPublicIp" Click="PublicIp_Click" Classes="graphHover statTile" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" HorizontalContentAlignment="Left" CornerRadius="4">
                                               <StackPanel>
                                                   <TextBlock x:Name="lblPublicIpLabel" Text="IP ADDRESS" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
@@ -597,11 +556,6 @@
                         
                         <!-- Other views -->
                         <Panel x:Name="viewSplitTunneling" Margin="0">
-                            <!-- The pinned readout bar floats over the page instead of taking a row of its own: the
-                                 page keeps the tab's whole height, so its centred options sit on the tab's own centre
-                                 rather than half a bar lower. The language never moves the layout either - the tab
-                                 host is laid out left-to-right in both - so nothing here shifts when the app is
-                                 Persian; only the words turn. -->
                             <Grid>
                                 <pages:SplitTunnelPage x:Name="pageSplit"/>
                             </Grid>
@@ -633,9 +587,6 @@
 
                 </Grid>
 
-                <!-- The docked sidebar: 1px inside the shell's left, top and bottom edges so its own background
-                     can never cover the shell's outline, spanning past the title bar so its top tile stays
-                     clickable, and above the content. It never expands - the item names are tooltips. -->
                 <controls:NavigationBar x:Name="navBar" Grid.RowSpan="2" HorizontalAlignment="Left"
                                         VerticalAlignment="Stretch" ZIndex="1200"
                                         NavChanged="NavBar_NavChanged"
@@ -660,9 +611,6 @@
                             <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
                         </Transitions>
                     </Border.Transitions>
-                    <!-- The text colour is assigned per kind by ShowToast (see ToastBrush); the value here is only
-                         a default, so this markup does not imply a themed one. The tracking upper case wants is
-                         set by ShowToast, which knows the language the toast is about to be painted in. -->
                     <TextBlock x:Name="ToastText"
                                Text=""
                                FontSize="12"
