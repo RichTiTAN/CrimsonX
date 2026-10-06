@@ -622,6 +622,30 @@ namespace CrimsonX.Localization
 
         public static string UdpScannerGraphLive => IsPersian ? "تست {0} • ناموفق {1} • آخرین {2} میلی ثانیه" : "PROBES {0} • LOSS {1} • LAST {2} MS";
 
+        public static string OptimizeLabel => IsPersian ? "بهینه سازی" : "OPTIMIZE";
+
+        public static string OptimizingLabel => IsPersian ? "در حال بهینه سازی" : "OPTIMIZING";
+
+        public static string OptimizeReady => IsPersian ? "آماده" : "READY";
+
+        public static string OptimizeOnConnect => IsPersian ? "بهینه سازی هنگام اتصال" : "OPTIMIZE ON CONNECT";
+
+        public static string OptimizeAdapter => IsPersian ? "آداپتور" : "ADAPTER";
+
+        public static string TtOptimizeAdapter => IsPersian ? "تست ها و اتصال برنامه های بهینه شده از این آداپتور انجام می شوند." : "Which adapter the tests and the optimized apps' connection should use.";
+
+        public static string TtOptimize => IsPersian ? "سریع ترین کانفیگ پایدار را پیدا می کند و روی برنامه های انتخاب شده اعمال می کند." : "Finds the fastest stable config and applies it to the apps you choose.";
+
+        public static string TtOptimizeGear => IsPersian ? "تنظیمات بهینه سازی" : "Optimization settings";
+
+        public static string TtOptimizeOnConnect => IsPersian ? "هر بار که برنامه متصل می شود، بهینه سازی خودکار انجام شود." : "Start optimizing automatically every time the app connects.";
+
+        public static string TtOptimizeItem => IsPersian ? "ترافیک این برنامه از کانفیگ بهینه شده عبور کند (TCP و UDP)." : "Route this app through the optimized config (TCP and UDP).";
+
+        public static string ToastOptimizeFailed => IsPersian ? "بهینه سازی ناموفق بود - کانفیگ پایداری پیدا نشد." : "Optimization failed - no stable config was found.";
+
+        public static string ToastOptimizeReady => IsPersian ? "بهینه شد • {0} میلی ثانیه" : "Optimized • {0} ms";
+
         // ── Settings - System ──
 
         public static string DisableBackgroundChecks => IsPersian ? "غیرفعال کردن بررسی پس زمینه" : "DISABLE BACKGROUND CHECK";

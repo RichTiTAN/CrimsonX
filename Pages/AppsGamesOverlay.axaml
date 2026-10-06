@@ -213,10 +213,6 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="FlowDirection" Value="LeftToRight"/>
         </Style>
-        <!-- While an add/edit panel is open, every rule card steps back so the panel is the only thing at full
-             strength. The panel is not a rule card, and the row being edited has its own card hidden behind the
-             panel, so dimming the whole list is exactly right. Keyed on the list, so a rebuilt list keeps the
-             state by itself. -->
         <Style Selector="Border.ruleCard">
             <Setter Property="Transitions">
                 <Transitions>
@@ -751,7 +747,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                             HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,23">
                     <StackPanel.Transitions>
                         <Transitions>
-                            <ThicknessTransition Property="Margin" Duration="0:0:0.28" Easing="CubicEaseOut"/>
+                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.28" Easing="CubicEaseOut"/>
                         </Transitions>
                     </StackPanel.Transitions>
 
@@ -806,7 +802,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                             </Button>
                         </StackPanel>
                     </Border>
-                    <Border Classes="floatBox">
+                    <Border x:Name="panMasterBox" Classes="floatBox">
                         <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
                             <Button x:Name="btnMasterOn" Classes="optBtn" Click="MasterPill_Click" Padding="9,3" CornerRadius="4,0,0,4">
                                 <TextBlock x:Name="lblMasterOn" Text="ON" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"/>
@@ -816,11 +812,11 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                             </Button>
                         </StackPanel>
                     </Border>
-                    <Border x:Name="panApplyChangesBox" Classes="floatBox"
+                    <Border x:Name="panApplyChangesBox" Classes="floatBox" BorderBrush="#DD6B20"
+                            Background="#FF000000" BorderThickness="2" CornerRadius="8" Padding="4"
                             Opacity="0" IsHitTestVisible="False">
                         <Border.Transitions>
                             <Transitions>
-                                <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
                                 <DoubleTransition Property="Opacity" Duration="0:0:0.28" Easing="CubicEaseOut"/>
                             </Transitions>
                         </Border.Transitions>

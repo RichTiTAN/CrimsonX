@@ -207,6 +207,7 @@ public partial class AppsGamesOverlay : UserControl
     private global::Avalonia.Threading.DispatcherTimer? _connectUiTimer;
     private bool _hasPendingRuleChanges = false;
     private global::Avalonia.Threading.DispatcherTimer? _overlayFillTimer;
+    private global::Avalonia.Threading.DispatcherTimer? _overlayBreathTimer;
     private double _overlayFillCurrent = 0;
     private double _overlayFillTarget = -1;
     private Avalonia.Controls.Border? _overlayFillBorder;
@@ -334,6 +335,7 @@ public partial class AppsGamesOverlay : UserControl
         };
         if (this.FindControl<ScrollViewer>("Scroller") is { } scroller)
             scroller.ScrollChanged += OnScrollerScrollChanged;
+        EnsureOptimizeUi();
     }
 
     private void StopOverlayActivity()
@@ -341,6 +343,7 @@ public partial class AppsGamesOverlay : UserControl
         _connectUiTimer?.Stop();
         _overlayFillTimer?.Stop();
         _overlayFillTimer = null;
+        _overlayBreathTimer?.Stop();
         _overlayFillTarget = -1;
         _overlayFillCurrent = 0;
         _overlayFillBorder = null;
@@ -1929,6 +1932,7 @@ catch (Exception ex)
                 _overlayFillTarget = -1;
                 _overlayFillCurrent = 0;
                 _overlayFillTimer?.Stop();
+                _overlayBreathTimer?.Stop();
                 ApplyOverlayFill(0, false);
                 ApplyOverlayConnectBreath(false);
                 return;
@@ -1974,6 +1978,26 @@ catch (Exception ex)
                 _overlayBreathBorder = this.FindControl<Border>("panConnectBreath");
             if (_overlayBreathBorder == null) return;
             _overlayBreathBorder.Opacity = _overlayBreath.Next(DateTime.UtcNow, comingUp);
+        }
+
+        private void EnsureOverlayBreathTicker()
+        {
+            if (_overlayBreathTimer == null)
+            {
+                _overlayBreathTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+                _overlayBreathTimer.Tick += (s, e) =>
+                {
+                    if (!IsEffectivelyVisible)
+                    {
+                        _overlayBreathTimer.Stop();
+                        return;
+                    }
+                    bool comingUp = CrimsonX.Services.ConnectPhaseUi.IsComingUp(_state.IsConnected, _state.IsEngineRunning, IsReapplying);
+                    ApplyOverlayConnectBreath(comingUp);
+                    if (!comingUp) _overlayBreathTimer.Stop();
+                };
+            }
+            if (!_overlayBreathTimer.IsEnabled) _overlayBreathTimer.Start();
         }
 
         private void ApplyOverlayFill(double pct, bool show)
@@ -2024,6 +2048,8 @@ catch (Exception ex)
                 }
             }
             ApplyOverlayConnectBreath(comingUp);
+            if (comingUp) EnsureOverlayBreathTicker();
+            else _overlayBreathTimer?.Stop();
             bool showApply = CrimsonX.Services.ConnectPhaseUi.ShouldShowApplyChanges(
                 _state.IsConnected, IsReapplying, _hasPendingRuleChanges, _cfg.LastXrayMode);
             var connectBox = this.FindControl<Border>("panConnectBox");
@@ -2043,6 +2069,7 @@ catch (Exception ex)
 
         private bool _applyChangesBoxVisible;
         private bool _bottomBarHooked;
+        private double _bottomBarShift;
 
         private void SetApplyChangesBoxVisible(bool show)
         {
@@ -2053,6 +2080,8 @@ catch (Exception ex)
             {
                 _bottomBarHooked = true;
                 box.SizeChanged += (_, _) => ApplyBottomBarLayout();
+                var bar = this.FindControl<StackPanel>("panOverlayBottomBar");
+                if (bar != null) bar.SizeChanged += (_, _) => ApplyBottomBarLayout();
             }
             ApplyBottomBarLayout();
         }
@@ -2063,10 +2092,17 @@ catch (Exception ex)
             var box = this.FindControl<Border>("panApplyChangesBox");
             if (bar == null || box == null) return;
             const double bottomMargin = 23;
-            double nudge = box.Bounds.Width > 0 ? box.Bounds.Width + bar.Spacing : 0;
-            bar.Margin = _applyChangesBoxVisible
-                ? new Thickness(0, 0, 0, bottomMargin)
-                : new Thickness(nudge, 0, 0, bottomMargin);
+            bar.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+            bar.Margin = new Thickness(0, 0, 0, bottomMargin);
+            box.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            double boxWidth = box.DesiredSize.Width > 0 ? box.DesiredSize.Width : box.Bounds.Width;
+            double shift = _applyChangesBoxVisible || boxWidth <= 0 ? 0 : (boxWidth + bar.Spacing) / 2;
+            if (Math.Abs(_bottomBarShift - shift) > 0.5)
+            {
+                _bottomBarShift = shift;
+                bar.RenderTransform = Avalonia.Media.Transformation.TransformOperations.Parse(
+                    "translateX(" + shift.ToString(System.Globalization.CultureInfo.InvariantCulture) + "px)");
+            }
             box.Opacity = _applyChangesBoxVisible ? 1 : 0;
             box.IsHitTestVisible = CrimsonX.Services.ConnectPhaseUi.CanApplyChanges(_applyChangesBoxVisible, IsReapplying);
         }

@@ -24,7 +24,6 @@
              mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="200"
              x:Class="CrimsonX.Controls.QuickSettingsPanel">
     <UserControl.Styles>
-        <!-- The same two setters the Settings tab gives its own config boxes -->
         <Style Selector="ComboBox.customProxy">
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
         </Style>
@@ -37,12 +36,10 @@
         <Style Selector="Button.plusBtn:pointerover PathIcon">
             <Setter Property="Foreground" Value="#FFFFFF"/>
         </Style>
-        <!-- ...and the hover glow each cell of that body carries in Settings -->
         <Style Selector="Grid.cfgCells Button:pointerover /template/ ContentPresenter">
             <Setter Property="Background" Value="#2AFFFFFF"/>
             <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
         </Style>
-        <!-- The two view tabs: a hover halo with room around the label, instead of Fluent's text-hugging one -->
         <Style Selector="Button.qsTab">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -115,7 +112,6 @@
                             </Button>
                         </StackPanel>
 
-                        <!-- CUSTOM CONFIGS mode: the allow-single pill and SUBMIT, the same actions the Settings tab has -->
                         <StackPanel x:Name="panCustomActions" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center" Opacity="0" IsHitTestVisible="False">
                             <StackPanel.Transitions>
                                 <Transitions>
@@ -123,7 +119,6 @@
                                 </Transitions>
                             </StackPanel.Transitions>
 
-                            <!-- ALLOW SINGLE CONFIG is a pill of its own: lit means on, a second click clears it -->
                             <Button x:Name="btnQSAllowSingle" Classes="pillBtn" Click="btnQSAllowSingle_Click">
                                 <TextBlock x:Name="lblQSAllowSingle" Text="ALLOW SINGLE CONFIG" FontSize="9" FontWeight="Bold" LetterSpacing="0.5" VerticalAlignment="Center"/>
                             </Button>
@@ -140,7 +135,6 @@
                     </Panel>
                 </Grid>
 
-                <!-- The two views slide sideways between each other, the way the tab pages do -->
                 <Carousel x:Name="panQSCarousel" Focusable="False">
                     <Carousel.PageTransition>
                         <PageSlide Duration="0:0:0.25" Orientation="Horizontal"/>
@@ -203,8 +197,6 @@
 
                         </Grid>
 
-                        <!-- View 2: the same two config boxes the Settings tab has, as the panel's own rows:
-                             no frame and no fills, so it sits on the panel's surface the way the slots do -->
                         <Grid x:Name="panQSViewCustom" Classes="cfgCells" Margin="0,5.5,0,5.5">
                             <StackPanel Spacing="10">
                                 <Grid ColumnDefinitions="*,10,*">

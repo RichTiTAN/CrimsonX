@@ -143,6 +143,17 @@ namespace CrimsonX.Services
         private const int NtpPort = 123;
         private const int UdpProbeAttempts = 3;
         private const string ScanNtpServerIp = "162.159.200.1";
+        private const int StunPort = 19302;
+        private static readonly Lazy<string> StunServerIp = new Lazy<string>(() =>
+        {
+            try
+            {
+                foreach (var addr in Dns.GetHostAddresses("stun.l.google.com"))
+                    if (addr.AddressFamily == AddressFamily.InterNetwork) return addr.ToString();
+            }
+            catch { }
+            return "74.125.250.129";
+        });
         private const int GeoTimeoutMs = 6000;
         private static readonly string[] GeoEndpoints =
         {
@@ -680,7 +691,7 @@ namespace CrimsonX.Services
             return text.Length <= 60 ? text : text[..60] + "...";
         }
 
-        private static async Task<(bool Ok, long RttMs)> ProbeUdpAsync(int udpPort, CancellationToken ct, int timeoutMs = TimeoutMs, UdpClient? client = null, bool requireNtpReply = false)
+        private static async Task<(bool Ok, long RttMs)> ProbeUdpAsync(int udpPort, CancellationToken ct, int timeoutMs = TimeoutMs, UdpClient? client = null, bool requireNtpReply = false, bool stun = false)
         {
             UdpClient udp = client;
             bool ownsClient = false;
@@ -701,16 +712,29 @@ namespace CrimsonX.Services
                     }
                 }
                 catch { }
-                var ntpRequest = new byte[48];
-                ntpRequest[0] = 0x23;
+                byte[] request;
+                byte[] transactionId = null;
+                if (stun)
+                {
+                    request = BuildStunRequest(out transactionId);
+                }
+                else
+                {
+                    request = new byte[48];
+                    request[0] = 0x23;
+                }
                 var sw = Stopwatch.StartNew();
-                await udp.SendAsync(ntpRequest.AsMemory(), ct);
+                await udp.SendAsync(request.AsMemory(), ct);
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeoutCts.CancelAfter(timeoutMs);
                 var resp = await udp.ReceiveAsync(timeoutCts.Token);
                 sw.Stop();
                 bool ok = resp.Buffer != null && resp.Buffer.Length > 0;
-                if (ok && requireNtpReply)
+                if (ok && stun)
+                {
+                    ok = IsStunResponse(resp.Buffer!, transactionId);
+                }
+                else if (ok && requireNtpReply)
                 {
                     ok = resp.Buffer!.Length >= 48 && (resp.Buffer[0] & 0x07) == 4;
                 }
@@ -732,6 +756,35 @@ namespace CrimsonX.Services
                     try { udp?.Dispose(); } catch { }
                 }
             }
+        }
+
+        internal static byte[] BuildStunRequest(out byte[] transactionId)
+        {
+            transactionId = System.Security.Cryptography.RandomNumberGenerator.GetBytes(12);
+            var request = new byte[20];
+            request[0] = 0x00;
+            request[1] = 0x01;
+            request[2] = 0x00;
+            request[3] = 0x00;
+            request[4] = 0x21;
+            request[5] = 0x12;
+            request[6] = 0xA4;
+            request[7] = 0x42;
+            Array.Copy(transactionId, 0, request, 8, 12);
+            return request;
+        }
+
+        internal static bool IsStunResponse(byte[] buffer, byte[] transactionId)
+        {
+            if (buffer == null || transactionId == null) return false;
+            if (buffer.Length < 20) return false;
+            if (buffer[0] != 0x01 || buffer[1] != 0x01) return false;
+            if (buffer[4] != 0x21 || buffer[5] != 0x12 || buffer[6] != 0xA4 || buffer[7] != 0x42) return false;
+            for (int i = 0; i < 12; i++)
+            {
+                if (buffer[8 + i] != transactionId[i]) return false;
+            }
+            return true;
         }
 
         // ── UDP-Only Scan & Stability (UDP Scanner) ──
@@ -767,7 +820,7 @@ namespace CrimsonX.Services
             }
             SimpleLogger.Log(message);
         }
-        private static async Task<UdpTestSession> StartUdpTestSessionAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null)
+        private static async Task<UdpTestSession> StartUdpTestSessionAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool stun = false)
         {
             var session = new UdpTestSession
             {
@@ -825,8 +878,8 @@ namespace CrimsonX.Services
                             ["tag"] = "udp-in",
                             ["settings"] = new JObject
                             {
-                                ["address"] = ScanNtpServerIp,
-                                ["port"] = NtpPort,
+                                ["address"] = stun ? StunServerIp.Value : ScanNtpServerIp,
+                                ["port"] = stun ? StunPort : NtpPort,
                                 ["network"] = "udp"
                             }
                         }
@@ -876,7 +929,7 @@ namespace CrimsonX.Services
                 return null;
             }
         }
-        public static async Task<ConfigTestResult> TestUdpOnlyAsync(string link, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null)
+        public static async Task<ConfigTestResult> TestUdpOnlyAsync(string link, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool measureHttpPing = true, bool stun = false, bool warmUpFirst = false)
         {
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr;
@@ -903,20 +956,35 @@ namespace CrimsonX.Services
             UdpTestSession session = null;
             try
             {
-                session = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp);
+                session = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp, stun);
                 if (session == null) return res;
                 long bestPing = long.MaxValue;
                 int okCount = 0;
                 using (var probeSocket = new UdpClient())
                 {
-                    for (int i = 0; i < UdpProbeAttempts; i++)
+                    if (warmUpFirst)
                     {
-                        ct.ThrowIfCancellationRequested();
-                        var (ok, rtt) = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: true);
-                        if (ok)
+                        if (await WarmUpAsync(session.UdpPort, probeSocket, ct, stun))
                         {
-                            okCount++;
-                            if (rtt < bestPing) bestPing = rtt;
+                            var (ok, rtt) = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
+                            if (ok)
+                            {
+                                okCount++;
+                                bestPing = rtt;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < UdpProbeAttempts; i++)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            var (ok, rtt) = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
+                            if (ok)
+                            {
+                                okCount++;
+                                if (rtt < bestPing) bestPing = rtt;
+                            }
                         }
                     }
                 }
@@ -929,8 +997,11 @@ namespace CrimsonX.Services
                     await FetchGeoAsync(res, session.HttpPort, ct);
                     if (string.IsNullOrWhiteSpace(res.CountryCode) && string.IsNullOrWhiteSpace(res.Country))
                         await FetchGeoForServerAsync(res, ct);
-                    long realPing = await MeasureHttpPingAsync(session.HttpPort, ct);
-                    if (realPing > 0) res.Ping = realPing;
+                    if (measureHttpPing)
+                    {
+                        long realPing = await MeasureHttpPingAsync(session.HttpPort, ct);
+                        if (realPing > 0) res.Ping = realPing;
+                    }
                 }
                 return res;
             }
@@ -953,7 +1024,7 @@ namespace CrimsonX.Services
                 try { tunnelLease?.Dispose(); } catch { }
             }
         }
-        public static async Task<UdpStabilityResult> TestUdpStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, int durationMs = StabilityDurationMs, int intervalMs = StabilityIntervalMs, Action<bool, long>? onSample = null, string? sendThroughIp = null)
+        public static async Task<UdpStabilityResult> TestUdpStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, int durationMs = StabilityDurationMs, int intervalMs = StabilityIntervalMs, Action<bool, long>? onSample = null, string? sendThroughIp = null, bool stun = false)
         {
             var result = new UdpStabilityResult();
             UdpTestSession session = null;
@@ -962,9 +1033,9 @@ namespace CrimsonX.Services
                 using var probeSocket = new UdpClient();
                 for (int attempt = 0; attempt < StabilitySessionAttempts && session == null; attempt++)
                 {
-                    var candidate = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp);
+                    var candidate = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp, stun);
                     if (candidate == null) continue;
-                    if (await WarmUpAsync(candidate.UdpPort, probeSocket, ct)) session = candidate;
+                    if (await WarmUpAsync(candidate.UdpPort, probeSocket, ct, stun)) session = candidate;
                     else candidate.Dispose();
                 }
                 if (session == null) return result;
@@ -972,7 +1043,7 @@ namespace CrimsonX.Services
                 while (elapsed.ElapsedMilliseconds < durationMs)
                 {
                     ct.ThrowIfCancellationRequested();
-                    var (ok, rtt) = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: true);
+                    var (ok, rtt) = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
                     result.Sent++;
                     if (ok)
                     {
@@ -1060,13 +1131,13 @@ namespace CrimsonX.Services
             }
             return false;
         }
-        private static async Task<bool> WarmUpAsync(int udpPort, UdpClient socket, CancellationToken ct)
+        private static async Task<bool> WarmUpAsync(int udpPort, UdpClient socket, CancellationToken ct, bool stun = false)
         {
             var budget = Stopwatch.StartNew();
             while (budget.ElapsedMilliseconds < WarmupBudgetMs)
             {
                 ct.ThrowIfCancellationRequested();
-                var (ok, _) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, socket, requireNtpReply: true);
+                var (ok, _) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, socket, requireNtpReply: !stun, stun: stun);
                 if (ok) return true;
             }
             return false;

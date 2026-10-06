@@ -67,10 +67,6 @@
             <StackPanel x:Name="panLeft" Orientation="Horizontal" Spacing="5"
                         HorizontalAlignment="Center" VerticalAlignment="Center">
 
-                <!-- The dot alone carries the state now: a CONNECTED word here only ever drew on strips wider than
-                     the control's compact threshold, so the same session showed it or not depending on the width.
-                     The connecting and disconnected words are not lost - they sit in the middle column, which is
-                     where the clock goes once the session is up, so the row reads count | clock | speed. -->
                 <Ellipse x:Name="dotState" Width="7" Height="7" Fill="#4A5568" VerticalAlignment="Center"/>
 
                 <TextBlock x:Name="txtActive" Classes="clusterValue" Text="—"/>

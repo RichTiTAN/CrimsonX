@@ -140,14 +140,10 @@
                 </Grid>
             </Border>
 
-            <!-- ── Two cards side by side with a fixed 10px gutter between them, so both keep exactly the same
-                 width: the graph, status and actions on the left, the scan options on the right. ── -->
             <Grid Grid.Row="0" ColumnDefinitions="*, 10, *" Margin="0,0,0,10">
 
                 <Border Grid.Column="2" Classes="scanCard" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,10">
 
-                    <!-- The scan options: each row's title hugs the left of the card and its dropdown the right,
-                         so the two columns spread across the width. -->
                     <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto, Auto" VerticalAlignment="Top">
 
                         <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center" Margin="0,0,0,7">

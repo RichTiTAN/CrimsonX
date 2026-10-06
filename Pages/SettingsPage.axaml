@@ -229,11 +229,6 @@
                                     <TextBlock x:Name="lblSectionConnection" Text="CONNECTION" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Left" Margin="0,12,0,0"/>
                                     <StackPanel Spacing="8">
                                         
-                                        <!-- The UDP SCANNER row used to sit here. It is a rail tile now, between
-                                             the blocker and Apps & Games. -->
-
-                                        
-
 
 
                                         <StackPanel Spacing="0">
@@ -567,12 +562,6 @@
                                             </Border>
                                         </StackPanel>
                                         <StackPanel Spacing="0">
-                                            <!-- LOAD-BALANCE ADAPTERS: the same shape as BIND ADAPTER above, and the two clear
-                                                 each other, because they are two answers to the same question - how traffic
-                                                 leaves this machine. The entry nodes are spread over the chosen adapters in
-                                                 turn, so the load-balance policy below distributes new connections across
-                                                 them; a single connection still leaves through one adapter, which the
-                                                 section title's tooltip says outright. -->
                                             <Border x:Name="panLoadBalanceToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
                                                 <Button x:Name="btnLoadBalanceToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnLoadBalanceToggle_Click">
                                                     <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="36">
@@ -599,11 +588,6 @@
                                                     </Transitions>
                                                 </Border.Transitions>
                                                 <StackPanel Margin="15,15,15,15" Spacing="10">
-                                                    <!-- The slots: the label sits on the left, its adapter on the right, and no
-                                                         adapter can be picked in two slots at once - each dropdown only offers
-                                                         what the other visible slots have not taken. The first two slots are
-                                                         the pair; the third and fourth are added with the button below and
-                                                         removed again with the X they carry. -->
                                                     <Grid x:Name="rowLbAdapter1" ColumnDefinitions="Auto,*,Auto" MinHeight="26">
                                                         <TextBlock x:Name="lblLbAdapter1" Text="ADAPTER 01" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,12,0"/>
                                                         <ComboBox Grid.Column="1" x:Name="cmbLbAdapter1" HorizontalAlignment="Stretch" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" PlaceholderText="Select an adapter..." SelectionChanged="cmbLbAdapter_SelectionChanged" Background="#1A1C20" Foreground="#E2E8F0" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"/>
@@ -980,10 +964,6 @@
                         </Border>
                     </Popup>
 
-        <!-- State carrier only - the blocker's row was removed from Settings, but its logic stays. The Home
-             quick-settings slot borrows this control by name (QuickSettingsPanel.GetOriginalToggle) in both
-             directions, and SettingTog_CheckedChanged routes it through MainWindow.SetAdBlock, so the name is
-             load-bearing and the control has to stay in the tree. It is invisible and cannot be hit-tested. -->
         <ToggleSwitch x:Name="btnAdBlockTog" IsVisible="False" IsCheckedChanged="SettingTog_CheckedChanged"
                       OnContent="{x:Null}" OffContent="{x:Null}"/>
 

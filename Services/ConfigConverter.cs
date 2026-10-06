@@ -258,7 +258,10 @@ namespace CrimsonX.Services
                 tls["utls"] = new JObject { ["enabled"] = true, ["fingerprint"] = fingerprint };
             if (security == "reality")
             {
-                string publicKey = tlsSettings?["publicKey"]?.ToString() ?? "";
+                string publicKey = FirstNonEmpty(
+                    tlsSettings?["publicKey"]?.ToString() ?? "",
+                    tlsSettings?["public_key"]?.ToString() ?? "",
+                    tlsSettings?["password"]?.ToString() ?? "");
                 if (publicKey.Length == 0)
                 {
                     error = "the reality block has no publicKey";
@@ -268,7 +271,9 @@ namespace CrimsonX.Services
                 {
                     ["enabled"]    = true,
                     ["public_key"] = publicKey,
-                    ["short_id"]   = tlsSettings?["shortId"]?.ToString() ?? ""
+                    ["short_id"]   = FirstNonEmpty(
+                        tlsSettings?["shortId"]?.ToString() ?? "",
+                        tlsSettings?["short_id"]?.ToString() ?? "")
                 };
             }
             if (FinalMask.HasTcpFragment(FinalMask.FromStream(stream)))

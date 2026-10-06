@@ -32,6 +32,8 @@ namespace CrimsonX.Pages
 {
     public partial class UdpScannerPage
     {
+        private const bool UseStunUdpProbe = true;
+
         private readonly List<string> _adapterIps = new List<string> { "" };
         private readonly List<string> _adapterNames = new List<string> { "" };
         private Task? _scanTask;
@@ -105,6 +107,11 @@ namespace CrimsonX.Pages
             else UpdateStatus(string.Format(AppStrings.UdpScannerFound, _items.Count));
         }
 
+        private Task<ConfigTestResult> ScanCandidateAsync(string link, string adapterIp, CancellationToken ct)
+            => UseStunUdpProbe
+                ? ConfigTester.TestUdpOnlyAsync(link, Main.Config, ct, adapterIp, stun: true)
+                : ConfigTester.TestUdpOnlyAsync(link, Main.Config, ct, adapterIp);
+
         private async Task RunScanAsync()
         {
             int goal = SelectedAmount();
@@ -159,7 +166,7 @@ namespace CrimsonX.Pages
                     while (_items.Count < goal && queue.TryDequeue(out string? cfgLink))
                     {
                         ct.ThrowIfCancellationRequested();
-                        tasks.Add(ConfigTester.TestUdpOnlyAsync(cfgLink!, Main.Config, ct, adapterIp));
+                        tasks.Add(ScanCandidateAsync(cfgLink!, adapterIp, ct));
                         if (tasks.Count < concurrency && !queue.IsEmpty) continue;
                         var results = await Task.WhenAll(tasks);
                         tasks.Clear();
