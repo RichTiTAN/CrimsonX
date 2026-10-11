@@ -171,7 +171,7 @@ namespace CrimsonX
                 if (customTopConfigs.Count > 0)
                 {
                     Dispatcher.UIThread.Post(() => SetConnectButtonProgress(50));
-                    if (_cfg.AllowOneCustomConfig || customTopConfigs.Count >= 2)
+                    if (!_cfg.FetchConfigWhenOneProvided || customTopConfigs.Count >= 2)
                     {
                         customConfigApplied = true;
                     }
@@ -786,7 +786,7 @@ namespace CrimsonX
                         var activeResults = await Task.WhenAll(activeTasks);
                         var workingActive = activeResults.Where(x => x != null).ToList();
                         int needed = Math.Max(2 - workingActive.Count, 0);
-                        if (_cfg.AllowOneCustomConfig && _customOutboundJsons.Count > 0)
+                        if (!_cfg.FetchConfigWhenOneProvided && _customOutboundJsons.Count > 0)
                             needed = 0;
                         CrimsonX.Services.SimpleLogger.Log($"[RefreshTimer] Watchdog finished. {workingActive.Count} passed. Replacements needed: {needed}");
                         if (needed > 0)
