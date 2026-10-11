@@ -78,6 +78,7 @@ namespace CrimsonX.Services
                 var path = RulesPath();
                 SecureJsonStore.Save(path, rules);
                 Remember(path, rules);
+                TunnelCredentialPruner.Sweep(MainWindow.Instance?.Config, rules);
             }
             catch { }
         }

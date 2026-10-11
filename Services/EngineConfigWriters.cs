@@ -458,6 +458,9 @@ namespace CrimsonX.Services
 
     public static class SingboxConfigWriter
     {
+        internal static bool SplitListIsProxied(AppConfig config)
+            => string.Equals(config?.SplitTunnelMode, "INCLUSIVE", StringComparison.Ordinal);
+
         public static bool Write(AppConfig config, string sbDir, bool skipExitNode = false)
         {
             var currentExe = Path.GetFileName(System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "");
@@ -509,7 +512,14 @@ namespace CrimsonX.Services
                 };
                 if (rules.RouteRules.Count > 0)
                     sbRules.AddRange(rules.RouteRules);
-                sbRules.Add(new { protocol = "quic", action = "reject", method = "default" });
+                bool splitListProxied  = SplitListIsProxied(config);
+                bool proxyIsTheDefault = !(config.EnableDirect && splitListProxied);
+                if (proxyIsTheDefault)
+                {
+                    if (!splitListProxied && userApps.Count > 0)
+                        sbRules.Add(new { process_name = userApps.ToArray(), protocol = "quic", action = "route", outbound = "direct" });
+                    sbRules.Add(new { protocol = "quic", action = "reject", method = "default" });
+                }
                 sbRules.Add(new { domain_keyword = new[] { AppSecrets.WorkerDomainKeyword }, action = "route", outbound = "direct" });
                 if (exitChained)
                 {
@@ -519,7 +529,9 @@ namespace CrimsonX.Services
                 sbRules.Add(new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" });
                 if (userApps.Count > 0)
                 {
-                    string targetOutbound = config.SplitTunnelMode == "INCLUSIVE" ? proxyTag : "direct";
+                    string targetOutbound = SplitListIsProxied(config) ? proxyTag : "direct";
+                    if (splitListProxied)
+                        sbRules.Add(new { process_name = userApps.ToArray(), protocol = "quic", action = "reject", method = "default" });
                     sbRules.Add(new { process_name = userApps.ToArray(), action = "route", outbound = targetOutbound });
                 }
                 if (config.EnableDirectUDP)

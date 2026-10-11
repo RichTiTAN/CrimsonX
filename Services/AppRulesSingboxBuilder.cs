@@ -142,8 +142,16 @@ namespace CrimsonX.Services
                     result.RouteRules.Add(new
                     {
                         domain_suffix = domains,
+                        network = "tcp",
                         action = "route",
                         outbound = tcpOutbound
+                    });
+                    result.RouteRules.Add(new
+                    {
+                        domain_suffix = domains,
+                        network = "udp",
+                        action = "route",
+                        outbound = udpOutbound
                     });
                     result.DnsRules.Add(new
                     {

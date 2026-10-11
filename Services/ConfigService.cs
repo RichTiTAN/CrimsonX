@@ -26,6 +26,8 @@ namespace CrimsonX.Services
     {
         private static readonly object SaveLock = new object();
 
+        public static bool ConfigLoaded { get; private set; }
+
         public static void Save(AppConfig config, AppState state, string cfgFile)
         {
             var data = new
@@ -37,7 +39,7 @@ namespace CrimsonX.Services
                 DisableGlows = config.DisableGlows,
                 CustomConfig1 = config.CustomConfig1,
                 CustomConfig2 = config.CustomConfig2,
-                AllowOneCustomConfig = config.AllowOneCustomConfig,
+                FetchConfigWhenOneProvided = config.FetchConfigWhenOneProvided,
                 DisableBackgroundChecks = config.DisableBackgroundChecks,
                 DisableRefreshTimer = config.DisableRefreshTimer,
                 AutoStart = config.AutoStart,
@@ -101,6 +103,7 @@ namespace CrimsonX.Services
                 {
                     WriteSettings(cfgFile, json);
                 }
+                TunnelCredentialPruner.Sweep(config, AppRulesService.Load());
             }
             catch (Exception ex)
             {
@@ -159,6 +162,7 @@ namespace CrimsonX.Services
             if (string.IsNullOrEmpty(json))
             {
                 config.LastAppVersion = UpdateService.AppVersion;
+                ConfigLoaded = false;
                 return;
             }
             try
@@ -168,9 +172,11 @@ namespace CrimsonX.Services
                 Newtonsoft.Json.JsonSerializer.CreateDefault().Populate(jReader, config);
                 if (jobj["XrayBalancePolicy"] == null && jobj["HaProxyBalancePolicy"] != null)
                     config.XrayBalancePolicy = jobj.Value<string>("HaProxyBalancePolicy") ?? config.XrayBalancePolicy;
+                ConfigLoaded = true;
             }
             catch (Exception ex)
             {
+                ConfigLoaded = false;
                 SimpleLogger.Log(ex);
             }
             if (string.IsNullOrWhiteSpace(config.LastAppVersion)) Migrate(config, state, cfgFile);

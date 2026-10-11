@@ -119,9 +119,6 @@
                                 </Transitions>
                             </StackPanel.Transitions>
 
-                            <Button x:Name="btnQSAllowSingle" Classes="pillBtn" Click="btnQSAllowSingle_Click">
-                                <TextBlock x:Name="lblQSAllowSingle" Text="ALLOW SINGLE CONFIG" FontSize="9" FontWeight="Bold" LetterSpacing="0.5" VerticalAlignment="Center"/>
-                            </Button>
 
                             <Button x:Name="btnQSSubmit" Click="btnQSSubmit_Click" Background="#2034D399" BorderThickness="0" Cursor="Hand" Padding="8,4" CornerRadius="4" Width="60" HorizontalContentAlignment="Center">
                                 <Button.Styles>
@@ -205,7 +202,7 @@
                                         <ComboBox x:Name="cbQSCustomConfig1" Grid.Column="0" Classes="customProxy" IsEditable="True" SelectedIndex="-1" MinHeight="26" Height="26" PlaceholderText="Config 1 — paste or + file" Background="Transparent" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" Padding="8,5,4,3" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0"/>
                                         <Border Grid.Column="1" Background="Transparent" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="26" MinHeight="26">
                                             <Button x:Name="btnQSCfgImport1" Classes="plusBtn" Tag="1" Click="btnQSCfgImport_Click" ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
-                                                <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="9" Height="9"/>
+                                                <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12"/>
                                             </Button>
                                         </Border>
                                         <Border Grid.Column="2" Background="Transparent" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="46" MinHeight="26">
@@ -220,7 +217,7 @@
                                         <ComboBox x:Name="cbQSCustomConfig2" Grid.Column="0" Classes="customProxy" IsEditable="True" SelectedIndex="-1" MinHeight="26" Height="26" PlaceholderText="Config 2 — paste or + file" Background="Transparent" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" Padding="8,5,4,3" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0"/>
                                         <Border Grid.Column="1" Background="Transparent" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="26" MinHeight="26">
                                             <Button x:Name="btnQSCfgImport2" Classes="plusBtn" Tag="2" Click="btnQSCfgImport_Click" ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}" Foreground="#A0AEC0" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand" BorderThickness="0" CornerRadius="0" Padding="0">
-                                                <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="9" Height="9"/>
+                                                <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12"/>
                                             </Button>
                                         </Border>
                                         <Border Grid.Column="2" Background="Transparent" CornerRadius="0" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="46" MinHeight="26">

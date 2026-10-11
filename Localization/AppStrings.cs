@@ -189,8 +189,6 @@ namespace CrimsonX.Localization
 
         public static string StatusOffline      => IsPersian ? "آفلاین"            : "Offline";
 
-        public static string AllowSingleConfig  => IsPersian ? "اجازه با یک کانفیگ" : "ALLOW SINGLE CONFIG";
-
         public static string LocationLabel      => IsPersian ? "موقعیت"           : "LOCATION";
 
         public static string PublicIpLabel      => IsPersian ? "آی پی"            : "IP ADDRESS";
@@ -378,6 +376,8 @@ namespace CrimsonX.Localization
         public static string AdapterDefault => IsPersian ? "پیش فرض" : "Default";
 
         public static string ConnectionRegionLabel => IsPersian ? "منطقه" : "REGION";
+        public static string DomainLabel => IsPersian ? "دامنه" : "DOMAIN";
+        public static string DomainHint => IsPersian ? "(اختیاری) مثلاً google.com، youtube.com" : "(Optional) e.g. google.com, youtube.com";
         public static string ConnectionRegionWarning => IsPersian ? "انتخاب یک منطقه ممکن است روی همه برنامه ها کار نکند." : "Choosing a region might not work on all programs.";
 
         public static string ConnRegionShort => IsPersian ? "منطقه اتصال" : "CONN-REGION";
@@ -462,8 +462,8 @@ namespace CrimsonX.Localization
         public static string PaneExitNode => IsPersian ? "نود خروجی" : "EXIT NODE";
 
         public static string PaneCustomConfig => IsPersian ? "کانفیگ دلخواه" : "CUSTOM CONFIG";
+        public static string FetchConfigWhenOneProvided => IsPersian ? "دریافت کانفیگ جدید در صورت نیاز" : "Fetch a new config when only one is provided";
 
-        public static string AllowOneCustomConfig => IsPersian ? "اجازه اتصال با یک کانفیگ" : "Allow connecting with one config";
 
         public static string PingBtn => IsPersian ? "پینگ" : "PING";
 
@@ -967,8 +967,8 @@ namespace CrimsonX.Localization
             : "Every 1 hour the app fetches updated configs and seamlessly swaps them in the background without dropping your connection. Enabling this stops the mid-session seamless swap.";
 
         public static string LocationsTooltip => IsPersian ? "شما فقط به کانفیگ های قاره های انتخاب شده متصل خواهید شد." : "You will only be connected to configs from the selected continents.";
+        public static string FetchConfigWhenOneProvidedTooltip => IsPersian ? "اگر این گزینه فعال باشد و فقط یکی از دو کانفیگ سفارشی را وارد کرده باشید، برنامه یک کانفیگ تازه هم دریافت می کند تا بتواند با دو کانفیگ متصل شود. اگر غیرفعال باشد، برنامه فقط با کانفیگ های واردشده متصل می شود." : "If this is on and only one custom config is provided, the app also fetches a fresh config so it can connect with two. If it is off, the app connects using only the config(s) you provided.";
 
-        public static string OneConfigTooltip => IsPersian ? "برنامه معمولاً با دو کانفیگ متصل می شود تا در صورت خرابی بتواند جابجا شود. با فعال کردن این گزینه، برنامه تنها با استفاده از کانفیگ ارائه شده در اینجا متصل می شود و کانفیگ دیگری را دریافت نمی کند." : "The app normally connects with two configs so it can switch over in the case of a failure. By enabling this option the app will connect using the single config provided here and will not fetch another config.";
 
         public static string OverlaySplitRegularTooltip => IsPersian ? "هدایت تمام ترافیک از طریق VPN، با رعایت قوانین تنظیم شده در این تب. این گزینه با انتخاب هر دو گزینه \"غیرفعال\" و \"اختصاصی\" در تب \"اسپلیت تانل\" فعال می شود." : "Route all traffic through the VPN, with respect to the rules set here. This option can be enabled with both \"DISABLED\" and \"EXCLUSIVE\" options in the \"Split Tunneling\" tab.";
 

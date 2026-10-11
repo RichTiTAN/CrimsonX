@@ -57,7 +57,7 @@
 
                         <ContentPresenter x:Name="PART_ContentPresenter"
                                           Content="{TemplateBinding Content}"
-                                          HorizontalAlignment="Left"
+                                          HorizontalAlignment="Center"
                                           VerticalAlignment="Center"
                                           Foreground="{TemplateBinding Foreground}"
                                           Margin="{TemplateBinding Padding}"/>
@@ -249,14 +249,14 @@
 
         <!-- ── The rail ── -->
         <Style Selector="Border.sideRail">
-            <Setter Property="Background" Value="#CC141414"/>
+            <Setter Property="Background" Value="#F20E1014"/>
             <Setter Property="BorderBrush" Value="#2D3748"/>
             <Setter Property="BorderThickness" Value="0,0,1,0"/>
             <Setter Property="CornerRadius" Value="8,0,0,8"/>
-            <Setter Property="Margin" Value="1"/>
+            <Setter Property="Margin" Value="0,1,1,1"/>
             <Setter Property="ClipToBounds" Value="True"/>
             <Setter Property="Padding" Value="7,7,6,7"/>
-            <Setter Property="Width" Value="52"/>
+            <Setter Property="Width" Value="51"/>
         </Style>
 
     </UserControl.Styles>
@@ -322,7 +322,7 @@
                IsLightDismissEnabled="False" Closed="LocationsPopup_Closed">
             <Border x:Name="LocationsCard" Classes="popupContent" Background="#F20E1014" BorderBrush="#2D3748"
                     BorderThickness="1" CornerRadius="6" Padding="8" Margin="12"
-                    BoxShadow="0 6 18 -2 #E6000000" Width="176">
+                    BoxShadow="0 6 18 -2 #E6000000" Width="156">
                 <StackPanel Spacing="6">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock x:Name="lblLocationsTitle" Grid.Column="0" Text="LOCATIONS" FontSize="10"

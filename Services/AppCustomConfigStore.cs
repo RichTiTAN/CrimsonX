@@ -104,6 +104,30 @@ namespace CrimsonX.Services
             }
         }
 
+        internal static List<AppCustomConfigEntry> Snapshot(AppConfig cfg)
+        {
+            lock (_lock)
+            {
+                try
+                {
+                    var path = StorePath();
+                    if (!File.Exists(path)) return new List<AppCustomConfigEntry>();
+                    var info = new FileInfo(path);
+                    if (_cache != null && info.LastWriteTimeUtc == _cacheStampUtc && info.Length == _cacheLength)
+                        return Clone(_cache);
+                    var json = ConfigCache.LoadString(path);
+                    if (string.IsNullOrEmpty(json)) return new List<AppCustomConfigEntry>();
+                    var list = JsonConvert.DeserializeObject<List<AppCustomConfigEntry>>(json) ?? new List<AppCustomConfigEntry>();
+                    return list.Where(e => e != null && !string.IsNullOrWhiteSpace(e.Raw)).ToList();
+                }
+                catch (Exception ex)
+                {
+                    CrimsonX.Services.SimpleLogger.Log(ex);
+                    return new List<AppCustomConfigEntry>();
+                }
+            }
+        }
+
         public static void Save(List<AppCustomConfigEntry> entries)
         {
             lock (_lock)
@@ -156,6 +180,7 @@ namespace CrimsonX.Services
                 label = "";
                 return CustomConfigSaveResult.Invalid;
             }
+            CustomConfigSaveResult result;
             lock (_lock)
             {
                 var entries = LoadCore(cfg);
@@ -167,26 +192,38 @@ namespace CrimsonX.Services
                     existing.Label = label;
                     existing.SavedUtc = DateTime.UtcNow;
                     SaveCore(entries.OrderByDescending(e => e.SavedUtc).ToList());
-                    return CustomConfigSaveResult.Updated;
+                    result = CustomConfigSaveResult.Updated;
                 }
-                if (entries.Count >= MaxEntries) return CustomConfigSaveResult.PoolFull;
-                entries.Insert(0, new AppCustomConfigEntry { Raw = raw, Label = label, SavedUtc = DateTime.UtcNow });
-                SaveCore(entries);
-                return CustomConfigSaveResult.Saved;
+                else if (entries.Count >= MaxEntries)
+                {
+                    result = CustomConfigSaveResult.PoolFull;
+                }
+                else
+                {
+                    entries.Insert(0, new AppCustomConfigEntry { Raw = raw, Label = label, SavedUtc = DateTime.UtcNow });
+                    SaveCore(entries);
+                    result = CustomConfigSaveResult.Saved;
+                }
             }
+            if (result != CustomConfigSaveResult.PoolFull)
+                TunnelCredentialPruner.Sweep(cfg, AppRulesService.Load());
+            return result;
         }
 
         public static int Delete(AppConfig cfg, string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return 0;
+            int removed;
             lock (_lock)
             {
                 var entries = LoadCore(cfg);
                 string key = NormalizeKey(raw.Trim());
-                int removed = entries.RemoveAll(e => NormalizeKey(e.Raw) == key);
+                removed = entries.RemoveAll(e => NormalizeKey(e.Raw) == key);
                 if (removed > 0) SaveCore(entries);
-                return removed;
             }
+            if (removed > 0)
+                TunnelCredentialPruner.Sweep(cfg, AppRulesService.Load());
+            return removed;
         }
 
         public static bool SameConfig(string first, string second)

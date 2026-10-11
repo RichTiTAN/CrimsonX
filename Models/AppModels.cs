@@ -30,7 +30,7 @@ namespace CrimsonX.Models
         public bool EnableCustomConfigs { get; set; } = false;
         public string CustomConfig1 { get; set; } = "";
         public string CustomConfig2 { get; set; } = "";
-        public bool AllowOneCustomConfig { get; set; } = false;
+        public bool FetchConfigWhenOneProvided { get; set; } = false;
 
         public bool DisableBackgroundChecks { get; set; } = false;
         public bool DisableRefreshTimer { get; set; } = false;

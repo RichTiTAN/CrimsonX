@@ -80,8 +80,6 @@ namespace CrimsonX.Controls
         private global::Avalonia.Controls.StackPanel? _panCustomActions;
         private global::Avalonia.Controls.ComboBox? _cbCfg1;
         private global::Avalonia.Controls.ComboBox? _cbCfg2;
-        private global::Avalonia.Controls.Button? _btnAllowSingle;
-        private bool _allowSingle;
         private bool _customView;
         private bool _editMode;
         private bool _syncingCustomView;
@@ -177,8 +175,6 @@ namespace CrimsonX.Controls
             CrimsonX.Localization.AppStrings.Apply(F("lblCancel"), CrimsonX.Localization.AppStrings.Cancel);
             CrimsonX.Localization.AppStrings.Apply(F("lblQSTabCustom"),   CrimsonX.Localization.AppStrings.CustomConfigsTitle);
             CrimsonX.Localization.AppStrings.Apply(F("lblQSSubmit"),      CrimsonX.Localization.AppStrings.Submit);
-            CrimsonX.Localization.AppStrings.Apply(F("lblQSAllowSingle"), CrimsonX.Localization.AppStrings.AllowSingleConfig);
-            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnQSAllowSingle"), CrimsonX.Localization.AppStrings.OneConfigTooltip);
             SyncCustomConfigsView();
             UpdateHeaderActions();
             _panPopupSlot1Items.Children.Clear();
@@ -209,7 +205,6 @@ namespace CrimsonX.Controls
             _cbCfg1 = this.FindControl<ComboBox>("cbQSCustomConfig1");
             _cbCfg2 = this.FindControl<ComboBox>("cbQSCustomConfig2");
             Pages.SettingsPage.Instance?.AttachQuickSettingsConfigBoxes(_cbCfg1, _cbCfg2);
-            _btnAllowSingle = this.FindControl<Button>("btnQSAllowSingle");
             _btnSlot1 = this.FindControl<Button>("btnSlot1")!;
             _btnSlot2 = this.FindControl<Button>("btnSlot2")!;
             _lblSlot1 = this.FindControl<TextBlock>("lblSlot1")!;
@@ -402,7 +397,6 @@ namespace CrimsonX.Controls
             {
                 Pages.SettingsPage.Instance?.AttachQuickSettingsConfigBoxes(_cbCfg1, _cbCfg2);
                 Pages.SettingsPage.Instance?.ShowQuickSettingsConfigs();
-                SetAllowSinglePill(cfg.AllowOneCustomConfig);
             }
             finally { _syncingCustomView = false; }
         }
@@ -446,23 +440,9 @@ namespace CrimsonX.Controls
         private void btnQSSubmit_Click(object? sender, RoutedEventArgs e)
         {
             Pages.SettingsPage.Instance?.SubmitCustomConfigsFromQuickSettings(
-                _cbCfg1?.Text ?? "", _cbCfg2?.Text ?? "", _allowSingle);
+                _cbCfg1?.Text ?? "", _cbCfg2?.Text ?? "");
             RefreshTogglesState();
             ShowCustomView(false);
-        }
-
-        private void btnQSAllowSingle_Click(object? sender, RoutedEventArgs e)
-        {
-            SetAllowSinglePill(!_allowSingle);
-            Pages.SettingsPage.Instance?.SetAllowOneCustomConfig(_allowSingle);
-        }
-
-        private void SetAllowSinglePill(bool on)
-        {
-            _allowSingle = on;
-            if (_btnAllowSingle == null) return;
-            _btnAllowSingle.Classes.Remove("on");
-            if (on) _btnAllowSingle.Classes.Add("on");
         }
 
         private static int SlotOf(object? sender)

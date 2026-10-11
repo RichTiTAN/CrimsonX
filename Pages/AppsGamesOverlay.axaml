@@ -80,22 +80,6 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
-        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar">
-            <Setter Property="Width" Value="6"/>
-            <Setter Property="MinWidth" Value="6"/>
-            <Setter Property="Margin" Value="0,45,0,0"/>
-        </Style>
-        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar /template/ Thumb">
-            <Setter Property="MinWidth" Value="3"/>
-            <Setter Property="Background" Value="#66A0AEC0"/>
-        </Style>
-        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar /template/ Rectangle#TrackRect">
-            <Setter Property="Opacity" Value="0"/>
-        </Style>
-        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar /template/ Grid#Root">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-
         <!-- ── Default-Rule Editor: section boxes, bars and joined fields ── -->
 
         <Style Selector="Border.editBox">
@@ -225,15 +209,21 @@
             <Setter Property="Opacity" Value="0.3"/>
         </Style>
 
+        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar#PART_VerticalScrollBar">
+            <Setter Property="Margin" Value="0,45,0,0"/>
+        </Style>
+
     </UserControl.Styles>
 
-        <Grid RowDefinitions="*" Margin="6,3,16,8">
+        <Grid RowDefinitions="*" Margin="6,3,0,0">
                 <!-- Rules Box -->
                 <Panel>
-                <Border x:Name="panRulesBox" Background="#99141414" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="6,6,2,6" Margin="0,0,0,15">
+                <Border x:Name="panRulesBox" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Padding="0" CornerRadius="0" Margin="0,0,0,0">
                     <ScrollViewer x:Name="Scroller" BringIntoViewOnFocusChange="False"
-                                  behaviors:SmoothScrollBehavior.Step="85">
-                        <StackPanel Spacing="4" Margin="0,0,4,0">
+                                  VerticalScrollBarVisibility="Auto"
+                                  behaviors:SmoothScrollBehavior.Step="85"
+                                  behaviors:ScrollScrimBehavior.IsEnabled="True">
+                        <StackPanel Spacing="4" Margin="0,0,16,0">
 
                             <Border Height="45"/>
 
@@ -254,7 +244,7 @@
 <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
 </Transitions>
 </Border.Transitions>
-<Border Classes="hoverBox ruleCard" Background="Transparent"
+<Border Classes="hoverBox ruleCard" Background="#CC0A0C0F"
 BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,0" IsVisible="{Binding !IsDefault}">
                                             <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto, Auto">
                                                 <Panel x:Name="DragHandle" Grid.Column="0" Tag="{Binding RuleId}" Width="16" Height="24" Margin="0,0,8,0" VerticalAlignment="Center" Background="Transparent" Cursor="SizeAll">
@@ -311,7 +301,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                         <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
                                                     </Transitions>
                                                 </Border.Transitions>
-                                                <Border Classes="hoverBox ruleCard" Background="Transparent"
+                                                <Border Classes="hoverBox ruleCard" Background="#CC0A0C0F"
                                                         BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,0"
                                                         IsVisible="{Binding IsDefault}">
                                                     <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto, Auto, Auto, Auto, Auto">
@@ -395,7 +385,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
 <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
 </Transitions>
 </Border.Transitions>
-<Border x:Name="panAddToggle" Classes="hoverBox" Background="Transparent"  BorderThickness="1" CornerRadius="6" Padding="15,10" Height="45" Cursor="Hand" PointerPressed="AddToggle_Click">
+<Border x:Name="panAddToggle" Classes="hoverBox" Background="#CC0A0C0F"  BorderThickness="1" CornerRadius="6" Padding="15,10" Height="45" Cursor="Hand" PointerPressed="AddToggle_Click">
                                     <TextBlock x:Name="lblAddToggle" Text="ADD +" FontSize="11" FontWeight="Bold" Foreground="#8B949E" HorizontalAlignment="Center" VerticalAlignment="Center" LetterSpacing="1"/>
                                 </Border>
                                 </Border>
@@ -408,7 +398,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                             <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
                                         </Transitions>
                                     </Border.Transitions>
-                                    <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="8">
+                                    <Border Background="#CC0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="8">
                                         <Grid RowDefinitions="Auto, 8, Auto, 8, Auto, 8, Auto">
 
                                             <!-- Title bar: program icon + name + browse + submit / cancel -->
@@ -521,7 +511,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                             </Grid>
 
                                             <!--Type / region -->
-                                            <Grid Grid.Row="4" ColumnDefinitions="*, 8, *">
+                                            <Grid Grid.Row="4" ColumnDefinitions="*, 8, *, 8, *">
 
                                                 <!-- TYPE -->
                                                 <Border Grid.Column="0" Classes="editRow hoverBox">
@@ -541,6 +531,19 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                         </Border>
                                                         <ComboBox x:Name="cbRegion" Grid.Column="1" Classes="fieldCombo"
                                                                   SelectionChanged="Region_SelectionChanged"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <Border Grid.Column="4" Classes="editRow hoverBox">
+                                                    <Grid ColumnDefinitions="Auto, *">
+                                                        <Border Grid.Column="0" Classes="fieldLabel fieldLabelWide">
+                                                            <TextBlock x:Name="lblDomain" Text="DOMAIN" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                                        </Border>
+                                                        <TextBox x:Name="txtDomains" Grid.Column="1" Height="26" MinHeight="26" FontSize="9"
+                                                                 Padding="7,0,4,0" VerticalContentAlignment="Center"
+                                                                 Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="0,4,4,0"
+                                                                 Foreground="#A0AEC0" FlowDirection="LeftToRight"
+                                                                 PlaceholderText="(Optional) e.g. google.com, youtube.com"/>
                                                     </Grid>
                                                 </Border>
                                             </Grid>
@@ -573,7 +576,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                             <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
                                         </Transitions>
                                     </Border.Transitions>
-                                    <Border Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="8">
+                                    <Border Background="#CC0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="8">
                                         <Grid RowDefinitions="Auto, 8, Auto, 8, Auto">
 
                                             <!-- ── Title bar: app icon + name + submit / cancel ── -->
@@ -703,14 +706,14 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
 
                             </Border>
 
-                            <Border Height="43"/>
+                            <Border Height="53"/>
                         </StackPanel>
                     </ScrollViewer>
                 </Border>
 
-                <Panel Margin="1" ClipToBounds="True">
+                <Panel Margin="0" ClipToBounds="True">
                     <Border x:Name="panSearchBarShadow" VerticalAlignment="Top" HorizontalAlignment="Stretch"
-                            Margin="6,6,6,0" Height="45" CornerRadius="6" IsHitTestVisible="False" Opacity="0"
+                            Margin="0,0,16,0" Height="45" CornerRadius="6" IsHitTestVisible="False" Opacity="0"
                             Background="#FF000000" BoxShadow="0 6 18 0 #E6000000">
                         <Border.Transitions>
                             <Transitions>
@@ -719,7 +722,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                         </Border.Transitions>
                     </Border>
                     <Border x:Name="panSearchBar" VerticalAlignment="Top" HorizontalAlignment="Stretch"
-                            Margin="6,6,6,0" Height="45" Classes="hoverBox" Background="#FF000000"
+                            Margin="0,0,16,0" Height="45" Classes="hoverBox" Background="#FF000000"
                             BorderThickness="1" CornerRadius="6" ClipToBounds="True">
                     <Grid ColumnDefinitions="Auto, *, Auto" Margin="10,8">
                         <StackPanel Grid.Column="0" HorizontalAlignment="Left" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
@@ -744,7 +747,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                 </Panel>
 
                 <StackPanel x:Name="panOverlayBottomBar" Orientation="Horizontal" Spacing="6"
-                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,23">
+                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,16,15">
                     <StackPanel.Transitions>
                         <Transitions>
                             <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.28" Easing="CubicEaseOut"/>

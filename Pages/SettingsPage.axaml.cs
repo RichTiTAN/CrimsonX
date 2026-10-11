@@ -108,7 +108,7 @@ namespace CrimsonX.Pages
             if (cbCustomConfig2 != null) cbCustomConfig2.Text = _cfg.CustomConfig2;
             RefreshConfigCombos();
             var chkAllowOneCustomConfig = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
-            if (chkAllowOneCustomConfig != null) chkAllowOneCustomConfig.IsChecked = _cfg.AllowOneCustomConfig;
+            if (chkAllowOneCustomConfig != null) chkAllowOneCustomConfig.IsChecked = _cfg.FetchConfigWhenOneProvided;
             var togXrayExitNode = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
             if (togXrayExitNode != null) togXrayExitNode.IsChecked = _cfg.EnableV2rayChain;
             var togAdapterBinding = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togAdapterBinding");
@@ -187,7 +187,7 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnRefreshPing"), CrimsonX.Localization.AppStrings.TtPingRefresh);
             CrimsonX.Localization.AppStrings.Apply(F("lblCustomConfigsTitle"), CrimsonX.Localization.AppStrings.CustomConfigsTitle);
             ApplySavedConfigsLanguage();
-            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblAllowOneCustomConfig"), CrimsonX.Localization.AppStrings.OneConfigTooltip);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblAllowOneCustomConfig"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvidedTooltip);
             var btn1 = B("btnCustomConfigsPing1");
             if (btn1 != null) btn1.Content = CrimsonX.Localization.AppStrings.PingBtn;
             var btn2 = B("btnCustomConfigsPing2");
@@ -197,13 +197,13 @@ namespace CrimsonX.Pages
             {
                 if (chkAllow.Content is global::Avalonia.Controls.TextBlock tb)
                 {
-                    tb.Text = CrimsonX.Localization.AppStrings.AllowOneCustomConfig;
+                    tb.Text = CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvided;
                     tb.FontFamily = fa ? new global::Avalonia.Media.FontFamily("Segoe UI") : global::Avalonia.Media.FontFamily.Default;
                     tb.FlowDirection = fa ? global::Avalonia.Media.FlowDirection.RightToLeft : global::Avalonia.Media.FlowDirection.LeftToRight;
                 }
                 else
                 {
-                    chkAllow.Content = CrimsonX.Localization.AppStrings.AllowOneCustomConfig;
+                    chkAllow.Content = CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvided;
                     chkAllow.FontFamily = fa ? new global::Avalonia.Media.FontFamily("Segoe UI") : global::Avalonia.Media.FontFamily.Default;
                     chkAllow.FlowDirection = fa ? global::Avalonia.Media.FlowDirection.RightToLeft : global::Avalonia.Media.FlowDirection.LeftToRight;
                 }
@@ -374,7 +374,7 @@ namespace CrimsonX.Pages
         var chk = sender as global::Avalonia.Controls.CheckBox;
         if (chk != null && chk.IsChecked != null)
         {
-            MainWindow.Instance.Config.AllowOneCustomConfig = chk.IsChecked.Value;
+            MainWindow.Instance.Config.FetchConfigWhenOneProvided = chk.IsChecked.Value;
             MainWindow.Instance.RequestConfigSave();
             NotifyCustomConfigsChanged(showSaveToast: false);
         }
@@ -383,20 +383,16 @@ namespace CrimsonX.Pages
     private void btnCustomConfigsSubmit_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         => SubmitCustomConfigs();
 
-    public void SetAllowOneCustomConfig(bool on)
-    {
-        var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
-        if (chk != null) chk.IsChecked = on;
-    }
 
-    public void SubmitCustomConfigsFromQuickSettings(string cfg1, string cfg2, bool allowOne)
+    public void SubmitCustomConfigsFromQuickSettings(string cfg1, string cfg2)
     {
         var cb1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
         var cb2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
-        var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
         if (cb1 != null) cb1.Text = cfg1;
         if (cb2 != null) cb2.Text = cfg2;
-        if (chk != null) chk.IsChecked = allowOne;
+        var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
+        var cfg = MainWindow.Instance?.Config;
+        if (chk != null && cfg != null) chk.IsChecked = cfg.FetchConfigWhenOneProvided;
         SubmitCustomConfigs();
         ShowQuickSettingsConfigs();
     }
@@ -435,7 +431,7 @@ namespace CrimsonX.Pages
         var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
         ResolveCustomConfigSlots();
         ApplyCustomConfigTitles(true);
-        if (chk != null) MainWindow.Instance.Config.AllowOneCustomConfig = chk.IsChecked ?? false;
+        if (chk != null) MainWindow.Instance.Config.FetchConfigWhenOneProvided = chk.IsChecked ?? false;
         bool hasConfig = !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1) ||
                          !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2);
         var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togCustomConfigs");

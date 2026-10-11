@@ -258,7 +258,7 @@
                                                         <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
                                                     </Transitions>
                                                 </Border.Transitions>
-                                                <StackPanel Margin="15,15,15,15" Spacing="10">
+                                                <StackPanel Margin="15,15,15,10" Spacing="10">
                                                     <Grid ColumnDefinitions="*,10,*">
                                                           <!-- Config 1 -->
                                                           <Grid Grid.Column="0" ColumnDefinitions="*,Auto,Auto,Auto" MinHeight="26">
@@ -361,7 +361,7 @@
                                                                     </Setter>
                                                                 </Style>
                                                             </CheckBox.Styles>
-                                                            <TextBlock x:Name="lblAllowOneCustomConfig" Classes="smoothHighlight" Text="Allow connecting with one config" FontSize="14" FontWeight="SemiBold" ToolTip.Tip="{x:Static loc:AppStrings.OneConfigTooltip}" />
+                                                            <TextBlock x:Name="lblAllowOneCustomConfig" Classes="smoothHighlight" Text="Fetch a new config when only one is provided" FontSize="14" FontWeight="SemiBold" ToolTip.Tip="{x:Static loc:AppStrings.FetchConfigWhenOneProvidedTooltip}" />
                                                         </CheckBox>
                                                                                                                   <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="3" BorderBrush="#2D3748" BorderThickness="1" HorizontalAlignment="Right" VerticalAlignment="Center" Width="100" Height="26" Margin="0">
                                                               <Button x:Name="btnCustomConfigsSubmit" Click="btnCustomConfigsSubmit_Click" Content="{x:Static loc:AppStrings.Submit}" ToolTip.Tip="{x:Static loc:AppStrings.SubmitTooltip}" FontSize="10" FontWeight="Bold" Background="Transparent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Stretch" Cursor="Hand" BorderThickness="0" CornerRadius="3">

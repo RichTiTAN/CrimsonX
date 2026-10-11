@@ -457,7 +457,7 @@ public partial class AppsGamesOverlay : UserControl
             hash.Add(rule.IconAsset);
             hash.Add(rule.IconBase64.Length);
             hash.Add(rule.ProcessNames.Count);
-            hash.Add(rule.Domains.Count);
+            hash.Add(string.Join(",", rule.Domains ?? new List<string>()));
         }
         return hash.ToHashCode();
     }
@@ -801,6 +801,7 @@ catch (Exception ex)
         SetComboIndex("cbTcpAdapter", 0);
         SetComboIndex("cbUdpAdapter", 0);
         SetRegionIndex(0);
+        SetDomainText("");
         RefreshCustomProxyPool("cbCustomProxy");
         ShowCustomProxyInBox("cbCustomProxy", "");
         UpdateCustomAdapterAvailability();
@@ -818,6 +819,7 @@ catch (Exception ex)
         SetComboIndex("cbTcpRouting", RoutingIndex(rule.TcpRouting));
         SetComboIndex("cbUdpRouting", RoutingIndex(rule.UdpRouting));
         SetRegionIndex(AppsGamesOverlay.RegionIndexFor(rule.Region));
+        SetDomainText(AppRuleDomains.Format(rule.Domains));
         SetAdapterByName("cbTcpAdapter", rule.TcpAdapter);
         SetAdapterByName("cbUdpAdapter", rule.UdpAdapter);
         RefreshCustomProxyPool("cbCustomProxy");
@@ -826,7 +828,19 @@ catch (Exception ex)
         UpdateCustomAdapterAvailability();
     }
 
-    private void SetComboIndex(string name, int index)
+    private void SetDomainText(string text)
+        {
+            var box = this.FindControl<global::Avalonia.Controls.TextBox>("txtDomains");
+            if (box != null) box.Text = text ?? "";
+        }
+
+        private string DomainText()
+        {
+            var box = this.FindControl<global::Avalonia.Controls.TextBox>("txtDomains");
+            return box?.Text ?? "";
+        }
+
+        private void SetComboIndex(string name, int index)
     {
         var cb = this.FindControl<ComboBox>(name);
         if (cb != null && index < cb.ItemCount) cb.SelectedIndex = index;
@@ -1408,6 +1422,7 @@ catch (Exception ex)
         rule.IconBase64 = _iconBase64;
         var cbRegion = this.FindControl<ComboBox>("cbRegion");
         rule.Region = RegionForIndex(cbRegion?.SelectedIndex ?? 0);
+        rule.Domains = AppRuleDomains.Parse(DomainText());
         rule.TcpRouting = GetRouting(cbTcpR);
         rule.UdpRouting = GetRouting(cbUdpR);
         rule.TcpAdapter = GetAdapter(cbTcpA);
@@ -2091,9 +2106,9 @@ catch (Exception ex)
             var bar = this.FindControl<StackPanel>("panOverlayBottomBar");
             var box = this.FindControl<Border>("panApplyChangesBox");
             if (bar == null || box == null) return;
-            const double bottomMargin = 23;
+            const double bottomMargin = 15;
             bar.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-            bar.Margin = new Thickness(0, 0, 0, bottomMargin);
+            bar.Margin = new Thickness(0, 0, 16, bottomMargin);
             box.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
             double boxWidth = box.DesiredSize.Width > 0 ? box.DesiredSize.Width : box.Bounds.Width;
             double shift = _applyChangesBoxVisible || boxWidth <= 0 ? 0 : (boxWidth + bar.Spacing) / 2;
@@ -2252,6 +2267,9 @@ catch (Exception ex)
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnEditorIconCancel"), AS.Cancel);
             CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblExeName"), AS.RenameDisplayName);
             Apply(F("lblConnectionRegion"), AS.ConnectionRegionLabel);
+        Apply(F("lblDomain"), AS.DomainLabel);
+        var txtDomainsBox = this.FindControl<global::Avalonia.Controls.TextBox>("txtDomains");
+        if (txtDomainsBox != null) txtDomainsBox.PlaceholderText = AS.DomainHint;
             Apply(F("txtApplyChanges"), AS.ApplyChanges);
             Apply(F("lblDefaultRoutingHeader"), AS.RoutingLabel);
             Apply(F("lblDefaultAdapterHeader"), AS.AdapterLabel);

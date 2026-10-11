@@ -83,6 +83,30 @@ namespace CrimsonX.Services
             }
         }
 
+        public static int PruneTo(ISet<string> liveKeys)
+        {
+            lock (Sync)
+            {
+                var map = LoadCore();
+                int removed = PruneCore(map, liveKeys);
+                if (removed > 0) SaveCore(map);
+                return removed;
+            }
+        }
+
+        internal static int PruneCore(Dictionary<string, TunnelCredential> map, ISet<string> liveKeys)
+        {
+            if (map == null || map.Count == 0) return 0;
+            var doomed = new List<string>();
+            foreach (string key in map.Keys)
+            {
+                if (liveKeys != null && liveKeys.Contains(key)) continue;
+                doomed.Add(key);
+            }
+            foreach (string key in doomed) map.Remove(key);
+            return doomed.Count;
+        }
+
         private static Dictionary<string, TunnelCredential> LoadCore()
         {
             var path = StorePath();

@@ -28,13 +28,10 @@ namespace CrimsonX.Services
 {
     public static class ConfigCache
     {
-        private static readonly byte[] Key = Encoding.UTF8.GetBytes(AppSecrets.CacheKey); // 32 bytes
-        private static readonly byte[] Iv = Encoding.UTF8.GetBytes(AppSecrets.CacheIv); // legacy fixed IV (decrypting older cache files)
-
         private static byte[] Encrypt(byte[] plainBytes)
         {
             using var aes = Aes.Create();
-            aes.Key = Key;
+            aes.Key = SecureDataKey.Current();
             aes.GenerateIV();
             using var ms = new MemoryStream();
             ms.Write(aes.IV, 0, aes.IV.Length); 
@@ -47,40 +44,57 @@ namespace CrimsonX.Services
             return ms.ToArray();
         }
 
-        private static string? DecryptToString(byte[] data)
+        private static string? TryDecrypt(byte[] data, byte[] key, bool perFileIv)
         {
-            if (data.Length > 16)
-            {
-                try
-                {
-                    var iv = new byte[16];
-                    Array.Copy(data, 0, iv, 0, iv.Length);
-                    using var aes = Aes.Create();
-                    aes.Key = Key;
-                    aes.IV = iv;
-                    using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-                    using var ms = new MemoryStream(data, 16, data.Length - 16, false);
-                    using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
-                    using var sr = new StreamReader(cs);
-                    string json = sr.ReadToEnd();
-                    if (!string.IsNullOrEmpty(json)) return json;
-                }
-                catch
-                {
-                }
-            }
             try
             {
+                int offset = 0;
+                byte[] iv = SecureDataKey.LegacyIv;
+                if (perFileIv)
+                {
+                    if (data.Length <= 16) return null;
+                    iv = new byte[16];
+                    Array.Copy(data, 0, iv, 0, iv.Length);
+                    offset = 16;
+                }
                 using var aes = Aes.Create();
-                aes.Key = Key;
-                aes.IV = Iv;
+                aes.Key = key;
+                aes.IV = iv;
                 using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-                using var ms = new MemoryStream(data);
+                using var ms = new MemoryStream(data, offset, data.Length - offset, false);
                 using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
                 using var sr = new StreamReader(cs);
-                return sr.ReadToEnd();
+                string json = sr.ReadToEnd();
+                return string.IsNullOrEmpty(json) ? null : json;
             }
-            catch { return null; }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string? DecryptBytes(string path, byte[] data)
+        {
+            string? json = TryDecrypt(data, SecureDataKey.Current(), true);
+            if (json != null) return json;
+            json = TryDecrypt(data, SecureDataKey.LegacyKey, true);
+            if (json == null) json = TryDecrypt(data, SecureDataKey.LegacyKey, false);
+            if (json != null) UpgradeFile(path, json);
+            return json;
+        }
+
+        private static void UpgradeFile(string path, string json)
+        {
+            if (string.IsNullOrEmpty(path) || SecureDataKey.UsingLegacy()) return;
+            try
+            {
+                File.WriteAllBytes(path, Encrypt(Encoding.UTF8.GetBytes(json)));
+                SimpleLogger.Log($"[Cache] {Path.GetFileName(path)} moved to the machine key.");
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log(ex);
+            }
         }
 
         public static List<string> LoadCache(string path)
@@ -89,7 +103,7 @@ namespace CrimsonX.Services
             try
             {
                 byte[] encrypted = File.ReadAllBytes(path);
-                string? json = DecryptToString(encrypted);
+                string? json = DecryptBytes(path, encrypted);
                 if (string.IsNullOrEmpty(json)) return new List<string>();
                 var list = JsonConvert.DeserializeObject<List<string>>(json);
                 return list ?? new List<string>();
@@ -151,7 +165,7 @@ namespace CrimsonX.Services
             if (!File.Exists(path)) return null;
             try
             {
-                return DecryptToString(File.ReadAllBytes(path));
+                return DecryptBytes(path, File.ReadAllBytes(path));
             }
             catch { return null; }
         }

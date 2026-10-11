@@ -96,7 +96,7 @@ namespace CrimsonX.Pages
             if (raw.Length == 0)
             {
                 SetConfigRaw(cfg, slot, "");
-                ConfigBoxes.Show(SlotBoxKey(slot), "");
+                ShowCustomConfigSlot(slot, "");
                 return true;
             }
             var verdict = await ConfigIntake.AcceptAsync(raw, cfg, ConfigTarget.Xray, AppStrings.PaneCustomConfig);
@@ -110,9 +110,15 @@ namespace CrimsonX.Pages
             SetConfigRaw(cfg, slot, raw);
             RefreshConfigCombos();
             RefreshSavedConfigs();
-            ConfigBoxes.Show(SlotBoxKey(slot), raw);
+            ShowCustomConfigSlot(slot, raw);
             MainWindow.Instance?.RequestConfigSave();
             return true;
+        }
+
+        private void ShowCustomConfigSlot(int slot, string raw)
+        {
+            ConfigBoxes.Show(SlotBoxKey(slot), raw);
+            ConfigBoxes.Show(QuickSlotBoxKey(slot), raw);
         }
 
         private string ResolveCustomConfigRaw(int slot)
@@ -146,8 +152,7 @@ namespace CrimsonX.Pages
                 string stored = GetConfigRaw(cfg, slot);
                 if (stored.Length == 0 || !AppCustomConfigStore.SameConfig(stored, raw)) continue;
                 SetConfigRaw(cfg, slot, "");
-                var cb = this.FindControl<ComboBox>(ConfigComboName(slot));
-                if (cb != null) cb.Text = "";
+                ShowCustomConfigSlot(slot, "");
                 changed = true;
             }
             if (!changed) return;
@@ -208,7 +213,7 @@ namespace CrimsonX.Pages
         {
             try
             {
-                var top = TopLevel.GetTopLevel(this);
+                var top = TopLevel.GetTopLevel(this) ?? MainWindow.Instance;
                 if (top == null) return "";
                 var files = await top.StorageProvider.OpenFilePickerAsync(new global::Avalonia.Platform.Storage.FilePickerOpenOptions
                 {
