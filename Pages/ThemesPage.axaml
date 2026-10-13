@@ -27,7 +27,7 @@
         <Border Background="Transparent" BorderThickness="0" Padding="6" Margin="0,0,10,20" HorizontalAlignment="Stretch" VerticalAlignment="Center">
             <StackPanel Margin="0" Spacing="6">
                 
-                <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
+                <Border Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="15,10">
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="0,0,15,0">
                             <!-- Palette Icon -->
@@ -112,7 +112,7 @@
                     </Grid>
                 </Border>
             
-                    <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
+                    <Border Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="15,10">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>

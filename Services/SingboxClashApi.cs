@@ -109,6 +109,8 @@ namespace CrimsonX.Services
     {
         internal string ProcessName { get; set; } = "";
         internal int ActiveConnections { get; set; }
+        internal int TcpConnections { get; set; }
+        internal int UdpConnections { get; set; }
         internal long DownloadBytes { get; set; }
         internal long UploadBytes { get; set; }
     }
@@ -234,6 +236,10 @@ namespace CrimsonX.Services
                     buckets[exe] = bucket;
                 }
                 bucket.ActiveConnections++;
+                if (string.Equals(item["metadata"]?["network"]?.ToString(), "udp", StringComparison.OrdinalIgnoreCase))
+                    bucket.UdpConnections++;
+                else
+                    bucket.TcpConnections++;
                 bucket.DownloadBytes += item.Value<long?>("download") ?? 0;
                 bucket.UploadBytes   += item.Value<long?>("upload") ?? 0;
             }

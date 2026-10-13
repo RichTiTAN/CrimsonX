@@ -175,7 +175,7 @@
                                     <Border Background="Transparent" BorderThickness="0" Padding="6,5,6,7" Margin="0,0,10,20" HorizontalAlignment="Stretch" VerticalAlignment="Top">
                                         <StackPanel Spacing="6">
                                     <TextBlock x:Name="lblSectionStartup" Text="START-UP" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Left"/>
-                                    <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0">
+                                    <Border Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0">
                                         <Grid x:Name="panStartupTab" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                 <PathIcon Data="M3 3h18v18H3V3zm16 16V7H5v12h14zM7 9h4v2H7V9zm6 0h4v2h-4V9zm-6 4h10v2H7v-2z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -188,7 +188,7 @@
                                         </Grid>
                                     </Border>
                                     <Grid ColumnDefinitions="*, *" RowDefinitions="Auto, Auto">
-                                        <Border Grid.Row="0" Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,6">
+                                        <Border Grid.Row="0" Grid.Column="0" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,6">
                                             <Grid x:Name="panLaunchOnStartup" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
                                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                     <PathIcon Data="M13.13 22.19L11.5 18.36C13.07 17.78 14.54 17 15.9 16.09L13.13 22.19M5.64 12.5L1.81 10.87L7.91 8.1C7 9.46 6.22 10.93 5.64 12.5M21.61 2.39C21.61 2.39 16.66 .269 11 5.93C8.81 8.12 7.5 10.53 6.65 12.64L3.05 11.33L1.58 12.8L6.47 14.86L3.92 17.41L5 18.5L7.55 15.95L9.61 20.84L11.08 19.37L9.77 15.77C11.88 14.92 14.29 13.61 16.48 11.42C22.14 5.76 20.02 .81 20.02 .81L21.61 2.39Z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -197,7 +197,7 @@
                                                 <ToggleSwitch x:Name="btnBootTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
                                             </Grid>
                                         </Border>
-                                        <Border Grid.Row="0" Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,6">
+                                        <Border Grid.Row="0" Grid.Column="1" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,6">
                                             <Grid x:Name="panAutoConnect" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
                                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                     <PathIcon Data="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -206,7 +206,7 @@
                                                 <ToggleSwitch x:Name="btnAutoTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
                                             </Grid>
                                         </Border>
-                                        <Border Grid.Row="1" Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
+                                        <Border Grid.Row="1" Grid.Column="0" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
                                             <Grid x:Name="panStartMinimized" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
                                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                     <PathIcon Data="M19 13H5v-2h14v2z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -215,7 +215,7 @@
                                                 <ToggleSwitch x:Name="btnStartMinTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
                                             </Grid>
                                         </Border>
-                                        <Border Grid.Row="1" Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
+                                        <Border Grid.Row="1" Grid.Column="1" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
                                             <Grid x:Name="panMinimizeToTray" ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
                                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                     <PathIcon Data="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zm-10-7h2v3h-2z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -232,7 +232,7 @@
 
 
                                         <StackPanel Spacing="0">
-                                            <Border x:Name="panCustomConfigsToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                            <Border x:Name="panCustomConfigsToggle" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="0">
                                                 <Button x:Name="btnCustomConfigsToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnCustomConfigsToggle_Click">
                                                     <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="36">
                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -379,7 +379,7 @@
                                         </StackPanel>
                                         
                                         <StackPanel Spacing="0">
-                                            <Border x:Name="panSavedConfigsToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                            <Border x:Name="panSavedConfigsToggle" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="0">
                                                 <Button x:Name="btnSavedConfigsToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnSavedConfigsToggle_Click">
                                                     <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -426,7 +426,7 @@
                                                         </Button>
                                                     </Grid>
 
-                                                    <Border Background="#CC141414" BorderBrush="#242E38" BorderThickness="1" CornerRadius="8" Padding="7" Height="150">
+                                                    <Border Background="#CC0A0C0F" BorderBrush="#242E38" BorderThickness="1" CornerRadius="8" Padding="7" Height="150">
                                                         <Grid>
                                                             <StackPanel x:Name="pnlSavedEmpty" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                                 <TextBlock x:Name="lblSavedEmpty" Text="NO SAVED CONFIGS YET" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270" LetterSpacing="1" VerticalAlignment="Center" TextAlignment="Center"/>
@@ -445,7 +445,7 @@
                                         </StackPanel>
 
                                         <StackPanel Spacing="0">
-                                            <Border x:Name="panXrayExitNodeToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                            <Border x:Name="panXrayExitNodeToggle" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="0">
                                                 <Button x:Name="btnXrayExitNodeToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnXrayExitNodeToggle_Click">
                                                     <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="36">
                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -506,7 +506,7 @@
                                         </StackPanel>
 
                                         <StackPanel Spacing="0">
-                                            <Border x:Name="panAdapterBindingToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                            <Border x:Name="panAdapterBindingToggle" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="0">
                                                 <Button x:Name="btnAdapterBindingToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnAdapterBindingToggle_Click">
                                                     <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="36">
                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -551,7 +551,7 @@
                                             </Border>
                                         </StackPanel>
                                         <StackPanel Spacing="0">
-                                            <Border x:Name="panUdpCapableToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8">
+                                            <Border x:Name="panUdpCapableToggle" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8">
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -562,7 +562,7 @@
                                             </Border>
                                         </StackPanel>
                                         <StackPanel Spacing="0">
-                                            <Border x:Name="panLoadBalanceToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                            <Border x:Name="panLoadBalanceToggle" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="0">
                                                 <Button x:Name="btnLoadBalanceToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnLoadBalanceToggle_Click">
                                                     <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="36">
                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -634,7 +634,7 @@
                                         </StackPanel>
 
                                         <StackPanel Spacing="0">
-                                            <Border x:Name="panDnsToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                            <Border x:Name="panDnsToggle" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="0">
                                                 <Button x:Name="btnDnsToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnDnsToggle_Click">
                                                     <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -727,7 +727,7 @@
                                             </Border>
                                         </StackPanel>
                                         <StackPanel Spacing="0">
-                                            <Border x:Name="panLanToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0">
+                                            <Border x:Name="panLanToggle" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="0">
                                                 <Button x:Name="btnLanToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="12,8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnLanToggle_Click">
                                                     <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -795,7 +795,7 @@
                                         </StackPanel>
                                     </StackPanel>
 
-                                    <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8">
+                                    <Border Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8">
                                         <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                 <PathIcon Data="M4 15h16v-2H4v2zm0 4h16v-2H4v2zm0-8h16V9H4v2zm0-6v2h16V5H4z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -810,7 +810,7 @@
                                         </Grid>
                                     </Border>
                                     <!-- LEGACY CONNECTION MODES (moved here from the connect button box) -->
-                                    <Border x:Name="panLegacyModes" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0">
+                                    <Border x:Name="panLegacyModes" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0">
                                         <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                 <PathIcon Data="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -839,7 +839,7 @@
                                     <TextBlock x:Name="lblSectionSystem" Text="SYSTEM" FontSize="11" FontWeight="SemiBold" Foreground="#E2E8F0" LetterSpacing="1" HorizontalAlignment="Left" Margin="0,12,0,0"/>
                                     <StackPanel Spacing="8">
                                         <Grid ColumnDefinitions="*, *">
-                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
+                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -848,7 +848,7 @@
                                                     <ToggleSwitch x:Name="togDisableBgChecks" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
                                                 </Grid>
                                             </Border>
-                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
+                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36" Background="Transparent">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -859,7 +859,7 @@
                                             </Border>
                                         </Grid>
                                         <Grid ColumnDefinitions="*, *">
-                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
+                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.09 13.36 4 12.69 4 12s.09-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.34.16-2h4.68c.09.66.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.17.64.26 1.31.26 2s-.09 1.36-.26 2h-3.38z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -873,7 +873,7 @@
                                                     </Button>
                                                 </Grid>
                                             </Border>
-                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
+                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zm-2-1h-6v-2h6v2zM7.5 17l-1.41-1.41L8.67 13l-2.59-2.59L7.5 9l4 4-4 4z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -884,7 +884,7 @@
                                             </Border>
                                         </Grid>
                                         <Grid ColumnDefinitions="*, *">
-                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
+                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -893,7 +893,7 @@
                                                     <Button Grid.Column="2" x:Name="btnDesktopShortcut" Content="CREATE" Classes="optBtn" FontSize="10" Padding="8,4" Background="#1AFFFFFF" Click="Shortcut_Click"/>
                                                 </Grid>
                                             </Border>
-                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
+                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -904,7 +904,7 @@
                                             </Border>
                                         </Grid>
                                         <Grid ColumnDefinitions="*, *">
-                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
+                                            <Border Grid.Column="0" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,3,0">
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -913,7 +913,7 @@
                                                     <Button Grid.Column="2" x:Name="btnClearWorkingCache" Content="CLEAR" Classes="optBtn" FontSize="10" Padding="8,4" Background="#1AFFFFFF" Click="ClearWorkingCache_Click"/>
                                                 </Grid>
                                             </Border>
-                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
+                                            <Border Grid.Column="1" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="3,0,0,0">
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" Width="14" Height="14" Foreground="#8B949E"/>

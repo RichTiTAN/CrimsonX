@@ -762,6 +762,7 @@ namespace CrimsonX.Pages
         private void ApplyOptimizeVisual()
         {
             if (!_optInit) return;
+            RefreshOptimizeFillBrush();
             SyncOptimizeText();
             if (_optReadyRing != null) _optReadyRing.Opacity = _optReady ? 1.0 : 0.0;
             if (IsOptimizingVisual)
@@ -843,6 +844,11 @@ namespace CrimsonX.Pages
             _optFillTarget = Math.Clamp(pct, 0.0, 1.0);
             EnsureOptimizeTimer();
             if (_optTimer != null && !_optTimer.IsEnabled) _optTimer.Start();
+        }
+
+        private void RefreshOptimizeFillBrush()
+        {
+            if (_optFill != null) _optFill.Background = OptimizeResourceBrush("ThemeGlowBrush", "#B82E42");
         }
 
         private void ApplyOptimizeFill(double pct, bool show)

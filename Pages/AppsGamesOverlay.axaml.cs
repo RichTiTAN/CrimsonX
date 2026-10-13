@@ -66,10 +66,11 @@ public class AppRuleViewModel
     public string EditAdaptersTooltip => CrimsonX.Localization.AppStrings.EditAdapters;
     public bool    IsLauncher { get; }
     public bool    IsBrowser  { get; }
+    public bool    IsMessenger { get; }
     public bool    IsLeague   { get; }
     public bool    IsTekken   { get; }
     public bool    IsValorant { get; }
-    public bool    ShowsRoutingPill => IsLauncher || IsBrowser;
+    public bool    ShowsRoutingPill => IsLauncher || IsBrowser || IsMessenger;
     public bool    ShowsRoutingEditor => IsLeague || IsTekken || IsValorant;
     public bool    IsDirect   { get; }
     public bool    HasDirectRouting { get; }
@@ -83,7 +84,7 @@ public class AppRuleViewModel
         ? CustomProxyLabel
         : EditAdaptersTooltip;
 
-    public bool    ShowAdapterEditor => HasCountry || HasRegion || IsLauncher || IsBrowser || ShowsRoutingEditor || HasDirectRouting;
+    public bool    ShowAdapterEditor => HasCountry || HasRegion || ShowsRoutingPill || ShowsRoutingEditor || HasDirectRouting;
     public int     CountryIndex { get; }
     public int     RegionIndex  { get; }
 
@@ -99,6 +100,7 @@ public class AppRuleViewModel
         HasRegion  = !string.IsNullOrEmpty(rule.Region);
         IsLauncher = string.Equals(rule.AppType, "Launcher", StringComparison.OrdinalIgnoreCase);
         IsBrowser  = AppsGamesOverlay.BrowserDefaultKeys.Contains(rule.DefaultKey ?? "", StringComparer.OrdinalIgnoreCase);
+        IsMessenger = AppsGamesOverlay.IsMessengerKey(rule.DefaultKey);
         IsLeague   = string.Equals(rule.DefaultKey, AppsGamesOverlay.LeagueDefaultKey, StringComparison.Ordinal);
         IsTekken   = string.Equals(rule.DefaultKey, AppsGamesOverlay.Tekken8DefaultKey, StringComparison.Ordinal);
         IsValorant = string.Equals(rule.DefaultKey, AppsGamesOverlay.ValorantDefaultKey, StringComparison.Ordinal);
@@ -192,6 +194,7 @@ public partial class AppsGamesOverlay : UserControl
 
     private const int RuleRowBatchSize = 6;
     private global::Avalonia.Threading.DispatcherTimer? _searchDebounceTimer;
+    private global::Avalonia.Threading.DispatcherTimer? _scrollIdleTimer;
     private CrimsonX.Helpers.DragReorderHelper? _dragHelper;
 
     private string _editingRuleId = "";
@@ -352,14 +355,34 @@ public partial class AppsGamesOverlay : UserControl
         _dragHelper?.Detach();
         _dragHelper = null;
         _searchDebounceTimer?.Stop();
+        _scrollIdleTimer?.Stop();
     }
 
     private void OnScrollerScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
+        if (e.OffsetDelta.Y != 0) ShowScrollerBar();
         var shadow = this.FindControl<Border>("panSearchBarShadow");
         if (shadow == null) return;
         var scroller = this.FindControl<ScrollViewer>("Scroller");
         shadow.Opacity = scroller != null && scroller.Offset.Y > 0.5 ? 1.0 : 0.0;
+    }
+
+    private void ShowScrollerBar()
+    {
+        var scroller = this.FindControl<ScrollViewer>("Scroller");
+        if (scroller == null) return;
+        scroller.Classes.Set("scrolling", true);
+        _scrollIdleTimer ??= new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
+        _scrollIdleTimer.Tick -= ScrollIdle_Tick;
+        _scrollIdleTimer.Tick += ScrollIdle_Tick;
+        _scrollIdleTimer.Stop();
+        _scrollIdleTimer.Start();
+    }
+
+    private void ScrollIdle_Tick(object? sender, EventArgs e)
+    {
+        _scrollIdleTimer?.Stop();
+        this.FindControl<ScrollViewer>("Scroller")?.Classes.Set("scrolling", false);
     }
 
     // ── Rules Load & Defaults Migration ──
@@ -610,7 +633,11 @@ public partial class AppsGamesOverlay : UserControl
 
     // ── Rule Editor (Add / Edit) ──
 
-    private void AddToggle_Click(object? sender, PointerPressedEventArgs e)
+    private void AddToggle_Click(object? sender, PointerPressedEventArgs e) => OpenAddPanel();
+
+    private void OverlayAdd_Click(object? sender, RoutedEventArgs e) => OpenAddPanel();
+
+    private void OpenAddPanel()
     {
         var panEditor = this.FindControl<Border>("panEditor");
         if (panEditor == null) return;
@@ -2219,6 +2246,7 @@ catch (Exception ex)
 
             // Add/Edit rule editor
             Apply(F("lblAddToggle"), AS.AddToggle);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Border>("panOverlayAddBox"), AS.AddToggle);
             bool adding = string.IsNullOrEmpty(_editingRuleId);
             Apply(F("lblEditorHeader"), AS.AddProgram);
             ApplyControl("btnSubmit", adding ? AS.Submit : AS.Update);

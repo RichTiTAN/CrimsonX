@@ -65,7 +65,8 @@ namespace CrimsonX.Controls
             "SYSTEM DNS", "LAN CONNECTIONS", 
             "LAUNCH ON START-UP", "AUTO-CONNECT", "START MINIMIZED", 
             "MINIMIZE TO TRAY", "CUSTOM CONFIGS", 
-            "DISABLE BACKGROUND CHECK", "DISABLE SEAMLESS SWAP"
+            "DISABLE BACKGROUND CHECK", "DISABLE SEAMLESS SWAP",
+            "UDP CAPABLE NODES"
         };
 
         private bool _isUpdating = false;
@@ -102,6 +103,7 @@ namespace CrimsonX.Controls
                 case "DIRECT UDP": return CrimsonX.Localization.AppStrings.SplitTunnelDirectUDP;
                 case "XRAY EXIT-NODE": return CrimsonX.Localization.AppStrings.CustomXrayExit;
                 case "BIND ADAPTER": return CrimsonX.Localization.AppStrings.AdapterBinding;
+                case "UDP CAPABLE NODES": return CrimsonX.Localization.AppStrings.UdpCapableNodesTitle;
                 case "DOH": return CrimsonX.Localization.AppStrings.UpstreamDohUrl;
                 case "SYSTEM DNS": return CrimsonX.Localization.AppStrings.SystemDns;
                 case "AD BLOCKER": return CrimsonX.Localization.AppStrings.AdBlocker;
@@ -129,6 +131,7 @@ namespace CrimsonX.Controls
                 case "DIRECT UDP": return CrimsonX.Localization.AppStrings.SplitTunnelDirectUDPTooltip;
                 case "XRAY EXIT-NODE": return CrimsonX.Localization.AppStrings.TtCustomXray;
                 case "BIND ADAPTER": return CrimsonX.Localization.AppStrings.TtAdapterBinding;
+                case "UDP CAPABLE NODES": return CrimsonX.Localization.AppStrings.TtUdpCapableNodes;
                 case "SYSTEM DNS": return CrimsonX.Localization.AppStrings.TtSystemDns;
                 case "LAN CONNECTIONS": return CrimsonX.Localization.AppStrings.TtAllowLan;
                 case "LAUNCH ON START-UP": return CrimsonX.Localization.AppStrings.TtLaunchOnStartup;
@@ -149,6 +152,7 @@ namespace CrimsonX.Controls
                 "DIRECT UDP" => "M13,2.5L2,14.5L10.5,14.5L9,25.5L20,13.5L11.5,13.5L13,2.5Z",
                 "XRAY EXIT-NODE" => "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z",
                 "BIND ADAPTER" => "M21 3H3C1.89 3 1 3.89 1 5v14c0 1.11.89 2 2 2h18c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm-1 14H4V7h16v10z",
+                "UDP CAPABLE NODES" => "M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z",
                 "DOH" => "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z",
                 "SYSTEM DNS" => "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z",
                 "AD BLOCKER" => "M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z",
@@ -246,7 +250,7 @@ namespace CrimsonX.Controls
                 { "START-UP", new List<string> { "LAUNCH ON START-UP", "AUTO-CONNECT", "START MINIMIZED", "MINIMIZE TO TRAY" } },
                 { "SPLIT TUNNELING", new List<string> { "DIRECT UDP" } },
                 { "SYSTEM", new List<string> { "DISABLE BACKGROUND CHECK", "DISABLE SEAMLESS SWAP" } },
-                { "CONNECTION", new List<string> { "XRAY EXIT-NODE", "BIND ADAPTER", "DOH", "SYSTEM DNS", "LAN CONNECTIONS", "CUSTOM CONFIGS" } }
+                { "CONNECTION", new List<string> { "XRAY EXIT-NODE", "BIND ADAPTER", "UDP CAPABLE NODES", "DOH", "SYSTEM DNS", "LAN CONNECTIONS", "CUSTOM CONFIGS" } }
             };
             foreach (var category in categories)
             {
@@ -368,6 +372,7 @@ namespace CrimsonX.Controls
                 case "DIRECT UDP": return Pages.SplitTunnelPage.Instance?.FindControl<ToggleSwitch>("togDirectUDP");
                 case "XRAY EXIT-NODE": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togXrayExitNode");
                 case "BIND ADAPTER": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togAdapterBinding");
+                case "UDP CAPABLE NODES": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togUdpCapable");
                 case "DOH": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togDnsSettings");
                 case "SYSTEM DNS": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("togSysDns");
                 case "AD BLOCKER": return Pages.SettingsPage.Instance.FindControl<ToggleSwitch>("btnAdBlockTog");

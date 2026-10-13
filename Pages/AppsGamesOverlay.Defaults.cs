@@ -105,6 +105,11 @@ public partial class AppsGamesOverlay
     private const string FirefoxDefaultId = "d1a5c0de-0000-0000-0000-000000000027";
     internal static readonly string[] BrowserDefaultKeys = { BraveDefaultKey, ChromeDefaultKey, EdgeDefaultKey, FirefoxDefaultKey };
 
+    internal static readonly string[] MessengerDefaultKeys = { TelegramDefaultKey, WhatsAppDefaultKey };
+
+    internal static bool IsMessengerKey(string? defaultKey) =>
+        MessengerDefaultKeys.Contains(defaultKey ?? "", StringComparer.OrdinalIgnoreCase);
+
     private void EnsureDefaultRules()
     {
         bool changed = false;

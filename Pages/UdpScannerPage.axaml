@@ -48,6 +48,15 @@
             <Setter Property="BorderBrush" Value="#99FFFFFF"/>
         </Style>
 
+        <Style Selector="TextBlock.boxTitle">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="LetterSpacing" Value="1"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="FlowDirection" Value="LeftToRight"/>
+        </Style>
+
         <Style Selector="Border.scanRow">
             <Setter Property="Background" Value="#CC0F1114"/>
             <Setter Property="BorderBrush" Value="#242E38"/>
@@ -122,27 +131,30 @@
         <Grid RowDefinitions="Auto, Auto">
 
             <!-- ── Qualified configs ── -->
-            <Border Grid.Row="1" Classes="scanCard" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="7" Height="234" VerticalAlignment="Top">
-                <Grid>
-                    <StackPanel Name="pnlEmpty" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Name="lblEmpty" Text="NO CONFIGS TESTED YET" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
-                                   LetterSpacing="1" VerticalAlignment="Center" TextAlignment="Center"/>
-                        <TextBlock Name="lblEmptyDots" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
-                                   LetterSpacing="1" VerticalAlignment="Center" Width="0"/>
-                    </StackPanel>
+            <Border Grid.Row="1" Classes="scanCard" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="7" Height="234" VerticalAlignment="Top">
+                <Grid RowDefinitions="Auto, *">
+                    <TextBlock x:Name="lblBoxConfigs" Grid.Row="0" Classes="boxTitle" Text="CONFIGS" Margin="0,0,0,6"/>
+                    <Grid Grid.Row="1">
+                        <StackPanel Name="pnlEmpty" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Name="lblEmpty" Text="NO CONFIGS TESTED YET" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
+                                       LetterSpacing="1" VerticalAlignment="Center" TextAlignment="Center"/>
+                            <TextBlock Name="lblEmptyDots" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
+                                       LetterSpacing="1" VerticalAlignment="Center" Width="0"/>
+                        </StackPanel>
 
-                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                        <Grid ColumnDefinitions="*, *">
-                            <ItemsControl Name="lstResultsLeft" Grid.Column="0" ItemTemplate="{StaticResource ScanItemTemplate}"/>
-                            <ItemsControl Name="lstResultsRight" Grid.Column="1" Margin="6,0,0,0" ItemTemplate="{StaticResource ScanItemTemplate}"/>
-                        </Grid>
-                    </ScrollViewer>
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <Grid ColumnDefinitions="*, *">
+                                <ItemsControl Name="lstResultsLeft" Grid.Column="0" ItemTemplate="{StaticResource ScanItemTemplate}"/>
+                                <ItemsControl Name="lstResultsRight" Grid.Column="1" Margin="6,0,0,0" ItemTemplate="{StaticResource ScanItemTemplate}"/>
+                            </Grid>
+                        </ScrollViewer>
+                    </Grid>
                 </Grid>
             </Border>
 
             <Grid Grid.Row="0" ColumnDefinitions="*, 10, *" Margin="0,0,0,10">
 
-                <Border Grid.Column="2" Classes="scanCard" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                <Border Grid.Column="2" Classes="scanCard" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,10">
 
                     <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto, Auto" VerticalAlignment="Top">
 
@@ -208,7 +220,7 @@
                     </Grid>
                 </Border>
 
-                <Border Grid.Column="0" Classes="scanCard" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                <Border Grid.Column="0" Classes="scanCard" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,10">
 
                     <!-- Status and START TESTING, then the graph, then the stability caption. -->
                     <Grid RowDefinitions="Auto, *, Auto">

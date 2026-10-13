@@ -51,7 +51,7 @@
             <Border x:Name="splitContent" Background="Transparent" BorderThickness="0" CornerRadius="0" Padding="6" Margin="0,0,10,20" HorizontalAlignment="Stretch" VerticalAlignment="Center">
             <StackPanel Margin="0" Spacing="6">
                 
-                <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10" MinHeight="54">
+                <Border Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="15,10" MinHeight="54">
                 <StackPanel Spacing="0" VerticalAlignment="Center">
                     
                     <Grid ColumnDefinitions="*, Auto">
@@ -213,7 +213,7 @@
             </Border>
 
             <StackPanel Spacing="0">
-                <Border x:Name="panDirectUdpToggle" Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="0" MinHeight="54">
+                <Border x:Name="panDirectUdpToggle" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="0" MinHeight="54">
                     <Button x:Name="btnDirectUdpToggle" Classes="optBtn noHoverBg" CornerRadius="8" BorderThickness="0" Background="Transparent" Padding="15,10" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="btnDirectUdpToggle_Click">
                         <Grid ColumnDefinitions="Auto, *, Auto, Auto">
                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">

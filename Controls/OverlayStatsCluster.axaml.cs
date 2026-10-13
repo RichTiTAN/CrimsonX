@@ -465,17 +465,19 @@ namespace CrimsonX.Controls
 
         private void ApplyAppTips()
         {
-            var totals = new Dictionary<string, (int Count, double Dn, double Up)>(StringComparer.OrdinalIgnoreCase);
+            var totals = new Dictionary<string, (int Count, int Tcp, int Udp, double Dn, double Up)>(StringComparer.OrdinalIgnoreCase);
             if (_hasTelemetry)
             {
                 foreach (var app in GetRuleApps())
                 {
-                    int count = 0;
+                    int count = 0, tcp = 0, udp = 0;
                     double down = 0, up = 0;
                     foreach (var proc in _lastProcesses)
                     {
                         if (!app.Names.Contains(proc.ProcessName)) continue;
                         count += proc.ActiveConnections;
+                        tcp   += proc.TcpConnections;
+                        udp   += proc.UdpConnections;
                         if (_procSpeed.TryGetValue(proc.ProcessName, out var speed))
                         {
                             down += speed.Dn;
@@ -486,17 +488,19 @@ namespace CrimsonX.Controls
                     if (totals.TryGetValue(app.Label, out var seen))
                     {
                         count += seen.Count;
+                        tcp   += seen.Tcp;
+                        udp   += seen.Udp;
                         down  += seen.Dn;
                         up    += seen.Up;
                     }
-                    totals[app.Label] = (count, down, up);
+                    totals[app.Label] = (count, tcp, udp, down, up);
                 }
             }
             SyncTip(_countTip, BuildTipLines(totals, bySpeed: false), AppStrings.OverlayStatsNoConnections, _persian);
             SyncTip(_speedTip, BuildTipLines(totals, bySpeed: true), AppStrings.OverlayStatsNoTraffic, _persian);
         }
 
-        private static List<TipLine> BuildTipLines(Dictionary<string, (int Count, double Dn, double Up)> totals,
+        private static List<TipLine> BuildTipLines(Dictionary<string, (int Count, int Tcp, int Udp, double Dn, double Up)> totals,
                                                    bool bySpeed)
         {
             var lines = new List<TipLine>();
@@ -509,10 +513,11 @@ namespace CrimsonX.Controls
             for (int i = 0; i < shown; i++)
             {
                 var (label, value) = busy[i];
-                lines.Add(new TipLine(label, bySpeed
-                    ? "↓ " + FormatSpeed(value.Dn, false) + "   ↑ " + FormatSpeed(value.Up, false)
-                    : value.Count.ToString(CultureInfo.InvariantCulture) + " "
-                      + (value.Count == 1 ? AppStrings.OverlayStatsConnection : AppStrings.OverlayStatsConnections)));
+                lines.Add(bySpeed
+                    ? new TipLine(label, "↓ " + FormatSpeed(value.Dn, false) + "   ↑ " + FormatSpeed(value.Up, false))
+                    : new TipLine(label,
+                        "TCP " + value.Tcp.ToString(CultureInfo.InvariantCulture),
+                        extra: "UDP " + value.Udp.ToString(CultureInfo.InvariantCulture)));
             }
             if (busy.Count > shown && shown > 0)
                 lines.Add(new TipLine(
@@ -536,12 +541,15 @@ namespace CrimsonX.Controls
                 var line = lines[i];
                 if (row.Name.Text != line.Label) row.Name.Text = line.Label;
                 if (row.Value.Text != line.Value) row.Value.Text = line.Value;
+                if (row.Extra.Text != line.Extra) row.Extra.Text = line.Extra;
                 row.Name.FontFamily  = font;
                 row.Value.FontFamily = font;
+                row.Extra.FontFamily = font;
                 row.Name.FontStyle   = line.Note ? FontStyle.Italic : FontStyle.Normal;
                 row.Name.Foreground  = line.Note ? TipNote : TipName;
                 row.Name.IsVisible      = true;
                 row.Value.IsVisible     = true;
+                row.Extra.IsVisible     = line.Extra.Length > 0;
                 row.Separator.IsVisible = i < lines.Count - 1;
             }
             for (int i = lines.Count; i < box.Rows.Count; i++)
@@ -549,22 +557,25 @@ namespace CrimsonX.Controls
                 var row = box.Rows[i];
                 row.Name.IsVisible      = false;
                 row.Value.IsVisible     = false;
+                row.Extra.IsVisible     = false;
                 row.Separator.IsVisible = false;
             }
         }
 
         private readonly struct TipLine
         {
-            public TipLine(string label, string value, bool note = false)
+            public TipLine(string label, string value, bool note = false, string extra = "")
             {
                 Label = label;
                 Value = value;
                 Note  = note;
+                Extra = extra;
             }
 
             public readonly string Label;
             public readonly string Value;
             public readonly bool Note;
+            public readonly string Extra;
         }
 
         private sealed class TipBox
@@ -577,7 +588,7 @@ namespace CrimsonX.Controls
                     FontStyle  = FontStyle.Italic,
                     Foreground = TipValue
                 };
-                Table = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+                Table = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto") };
                 Root = new StackPanel { Orientation = Orientation.Vertical, Spacing = 0 };
                 Root.Children.Add(Empty);
                 Root.Children.Add(Table);
@@ -589,7 +600,7 @@ namespace CrimsonX.Controls
 
             public TextBlock Empty { get; }
 
-            public List<(TextBlock Name, TextBlock Value, Border Separator)> Rows { get; } = new();
+            public List<(TextBlock Name, TextBlock Value, TextBlock Extra, Border Separator)> Rows { get; } = new();
 
             public void AddRow()
             {
@@ -612,6 +623,14 @@ namespace CrimsonX.Controls
                     FlowDirection     = FlowDirection.LeftToRight,
                     VerticalAlignment = VerticalAlignment.Center
                 };
+                var extra = new TextBlock
+                {
+                    FontSize          = 11,
+                    Foreground        = TipValue,
+                    Margin            = new Thickness(14, 0, 0, 0),
+                    FlowDirection     = FlowDirection.LeftToRight,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
                 var separator = new Border
                 {
                     Height              = 1,
@@ -623,13 +642,16 @@ namespace CrimsonX.Controls
                 Grid.SetColumn(name, 0);
                 Grid.SetRow(value, line);
                 Grid.SetColumn(value, 1);
+                Grid.SetRow(extra, line);
+                Grid.SetColumn(extra, 2);
                 Grid.SetRow(separator, line + 1);
                 Grid.SetColumn(separator, 0);
-                Grid.SetColumnSpan(separator, 2);
+                Grid.SetColumnSpan(separator, 3);
                 Table.Children.Add(name);
                 Table.Children.Add(value);
+                Table.Children.Add(extra);
                 Table.Children.Add(separator);
-                Rows.Add((name, value, separator));
+                Rows.Add((name, value, extra, separator));
             }
 
             private void EnsureRows(int count)
@@ -652,17 +674,18 @@ namespace CrimsonX.Controls
 
         internal static string FormatSpeed(double bytesPerSec, bool compact)
         {
+            const double KiB = 1024.0;
+            const double MiB = 1024.0 * 1024.0;
+            const double GiB = 1024.0 * 1024.0 * 1024.0;
             if (bytesPerSec < 1)
-                return compact ? "0" : "0 B/s";
-            if (bytesPerSec < 1024)
-                return Math.Round(bytesPerSec).ToString("0", CultureInfo.InvariantCulture) + (compact ? "" : " B/s");
-            if (bytesPerSec < 1024 * 1024)
-            {
-                double kb = bytesPerSec / 1024.0;
-                return kb.ToString(kb >= 100 ? "0" : "0.#", CultureInfo.InvariantCulture) + (compact ? "K" : " KB/s");
-            }
-            double mb = bytesPerSec / (1024.0 * 1024.0);
-            return mb.ToString(mb >= 100 ? "0" : "0.#", CultureInfo.InvariantCulture) + (compact ? "M" : " MB/s");
+                return compact ? "0" : "0 B";
+            if (bytesPerSec < KiB)
+                return Math.Round(bytesPerSec).ToString("0", CultureInfo.InvariantCulture) + (compact ? "" : " B");
+            if (bytesPerSec < MiB)
+                return Math.Round(bytesPerSec / KiB).ToString("0", CultureInfo.InvariantCulture) + (compact ? "K" : " KB");
+            if (bytesPerSec < GiB)
+                return Math.Round(bytesPerSec / MiB).ToString("0", CultureInfo.InvariantCulture) + (compact ? "M" : " MB");
+            return (bytesPerSec / GiB).ToString("0.#", CultureInfo.InvariantCulture) + (compact ? "G" : " GB");
         }
 
         private static string Capitalize(string value)

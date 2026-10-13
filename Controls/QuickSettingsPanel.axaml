@@ -53,7 +53,7 @@
     </UserControl.Styles>
              
     <Panel>
-        <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="6">
+        <Border Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="6">
             <StackPanel Spacing="6">
                 <!-- Header -->
                 <Grid ColumnDefinitions="*, Auto">

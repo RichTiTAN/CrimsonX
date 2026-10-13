@@ -31,7 +31,7 @@
                 <Border x:Name="aboutContentCard" Background="Transparent" BorderThickness="0" Padding="6,5,6,7" Margin="0,0,10,20" HorizontalAlignment="Stretch" VerticalAlignment="Center">
                     <StackPanel Spacing="6">
                 
-                <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
+                <Border Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="15,10">
                     <Grid ColumnDefinitions="Auto, *, Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
                             <Image Source="avares://CrimsonX/Assets/CrimsonX.ico" Width="40" Height="40" RenderOptions.BitmapInterpolationMode="HighQuality"/>
@@ -53,7 +53,7 @@
                     </Grid>
                 </Border>
                 
-                <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
+                <Border Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="15,10">
                     <Grid ColumnDefinitions="Auto, *, Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -64,7 +64,7 @@
                     </Grid>
                 </Border>
 
-                <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
+                <Border Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="15,10">
                     <Grid ColumnDefinitions="Auto, *, Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <PathIcon Data="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z" Width="14" Height="14" Foreground="#8B949E"/>
@@ -77,7 +77,7 @@
                     </Grid>
                 </Border>
                 
-                <Border Classes="hoverBox" Background="#CC141414" BorderThickness="1" CornerRadius="8" Padding="15,10">
+                <Border Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="15,10">
                     <StackPanel Spacing="15">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <PathIcon Data="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" Width="14" Height="14" Foreground="#8B949E"/>

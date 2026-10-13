@@ -244,6 +244,7 @@ namespace CrimsonX.Pages
             AppStrings.Apply(T("lblDiscard"), AppStrings.UdpScannerDiscard);
             AppStrings.Apply(T("lblAdapter"), AppStrings.UdpScannerAdapter);
             AppStrings.Apply(T("lblGraphTitle"), AppStrings.UdpScannerStability);
+        AppStrings.Apply(T("lblBoxConfigs"), AppStrings.UdpScannerBoxConfigs);
             AppStrings.ApplyToolTip(T("lblAmount"), AppStrings.TtUdpScannerAmount);
             AppStrings.ApplyToolTip(T("lblConcurrency"), AppStrings.TtUdpScannerConcurrency);
             AppStrings.ApplyToolTip(T("lblDiscard"), AppStrings.TtUdpScannerDiscard);

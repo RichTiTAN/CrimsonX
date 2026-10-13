@@ -211,6 +211,20 @@
 
         <Style Selector="ScrollViewer#Scroller /template/ ScrollBar#PART_VerticalScrollBar">
             <Setter Property="Margin" Value="0,45,0,0"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar#PART_VerticalScrollBar:pointerover">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+
+        <Style Selector="ScrollViewer#Scroller.scrolling /template/ ScrollBar#PART_VerticalScrollBar">
+            <Setter Property="Opacity" Value="1"/>
         </Style>
 
     </UserControl.Styles>
@@ -254,7 +268,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                           Margin="0,0,10,0" VerticalAlignment="Center"
                                                           IsCheckedChanged="RuleEnabled_Changed"/>
                                                 <Panel Grid.Column="2" Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Center">
-                                                    <Image Source="{Binding IconBitmap}" Width="24" Height="24" Stretch="Uniform"
+                                                    <Image Source="{Binding IconBitmap}" Width="24" Height="24" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality"
                                                            IsVisible="{Binding HasIcon}"/>
                                                     <Border Background="#2D3748" CornerRadius="6" Width="24" Height="24"
                                                             IsVisible="{Binding !HasIcon}">
@@ -267,18 +281,18 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                            FontSize="11" FontWeight="SemiBold" Foreground="#A0AEC0"
                                                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                                 <Button Grid.Column="4" Tag="{Binding RuleId}"
-                                                        Click="EditRule_Click"
-                                                        Background="Transparent" BorderThickness="0"
-                                                        Padding="6,4" Cursor="Hand" ToolTip.Tip="{Binding EditTooltip}">
-                                                    <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
-                                                              Width="12" Height="12" Foreground="#606060"/>
-                                                </Button>
-                                                <Button Grid.Column="5" Tag="{Binding RuleId}"
                                                         Click="DeleteRule_Click"
                                                         Background="Transparent" BorderThickness="0"
                                                         Padding="6,4" Cursor="Hand" ToolTip.Tip="{Binding DeleteTooltip}">
                                                     <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
                                                               Width="12" Height="12" Foreground="#E53E3E"/>
+                                                </Button>
+                                                <Button Grid.Column="5" Tag="{Binding RuleId}"
+                                                        Click="EditRule_Click"
+                                                        Background="Transparent" BorderThickness="0"
+                                                        Padding="6,4" Cursor="Hand" ToolTip.Tip="{Binding EditTooltip}">
+                                                    <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                                                              Width="12" Height="12" Foreground="#606060"/>
                                                 </Button>
                                                 <Button Grid.Column="6" Tag="{Binding RuleId}"
                                                         Click="PinRule_Click"
@@ -312,7 +326,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                                                   Margin="0,0,10,0" VerticalAlignment="Center"
                                                                   IsCheckedChanged="RuleEnabled_Changed"/>
                                                         <Panel Grid.Column="2" Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Center">
-                                                            <Image Source="{Binding IconBitmap}" Width="24" Height="24" Stretch="Uniform"
+                                                            <Image Source="{Binding IconBitmap}" Width="24" Height="24" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality"
                                                                    IsVisible="{Binding HasIcon}"/>
                                                             <Border Background="#2D3748" CornerRadius="6" Width="24" Height="24"
                                                                     IsVisible="{Binding !HasIcon}">
@@ -761,7 +775,7 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                 ClipToBounds="True" Cursor="Hand"
                                 PointerPressed="ConnectBoxPress" PointerReleased="ConnectBoxRelease"
                                 PointerCaptureLost="ConnectBoxCaptureLost">
-                            <Panel x:Name="panConnectBoxInner" MinHeight="17" MinWidth="104" RenderTransformOrigin="50%,50%">
+                            <Panel x:Name="panConnectBoxInner" MinHeight="17" MinWidth="94" RenderTransformOrigin="50%,50%">
                                 <Panel.RenderTransform>
                                     <ScaleTransform ScaleX="1" ScaleY="1"/>
                                 </Panel.RenderTransform>
@@ -814,6 +828,11 @@ BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,
                                 <TextBlock x:Name="lblMasterOff" Text="OFF" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"/>
                             </Button>
                         </StackPanel>
+                    </Border>
+                    <Border x:Name="panOverlayAddBox" Classes="floatBox">
+                        <Button x:Name="btnOverlayAdd" Classes="optBtn" Click="OverlayAdd_Click" Padding="3" CornerRadius="4">
+                            <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12" Foreground="#A0AEC0"/>
+                        </Button>
                     </Border>
                     <Border x:Name="panApplyChangesBox" Classes="floatBox" BorderBrush="#DD6B20"
                             Background="#FF000000" BorderThickness="2" CornerRadius="8" Padding="4"

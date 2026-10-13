@@ -580,6 +580,8 @@ namespace CrimsonX.Localization
 
         public static string UdpScannerStability => IsPersian ? "پایداری" : "STABILITY";
 
+        public static string UdpScannerBoxConfigs => IsPersian ? "کانفیگ ها" : "CONFIGS";
+
         public static string TtUdpScannerStability => IsPersian ? "یک تست پایداری ۱۰ ثانیه ای روی این کانفیگ اجرا می کند (هر ۵۰۰ میلی ثانیه یک تست)." : "Runs a 10 second UDP stability test on this config (one probe every 500ms).";
 
         public static string TtUdpScannerCopy => IsPersian ? "کپی لینک اشتراک" : "Copy share link";
