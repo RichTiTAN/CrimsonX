@@ -723,23 +723,33 @@ var panAddToggleWrapper = this.FindControl<Avalonia.Controls.Border>("panAddTogg
     {
         var scroller = this.FindControl<ScrollViewer>("Scroller");
         if (scroller == null || scroller.Content is not Avalonia.Visual content || addToggleWrapper == null) return;
+        int version = _editorVersion;
         await System.Threading.Tasks.Task.Delay(16);
-        if (editor.Opacity <= 0) return;
-        var m = Avalonia.VisualExtensions.TransformToVisual(addToggleWrapper, content);
-        if (!m.HasValue) return;
-        double target = Math.Max(0, m.Value.Transform(new Avalonia.Point(0, 0)).Y);
-        double start = scroller.Offset.Y;
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        if (_editorVersion != version) return;
+        CrimsonX.Behaviors.SmoothScrollBehavior.Cancel(scroller);
         var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        int settled = 0;
+        double written = double.NaN;
         timer.Tick += (_, _) =>
         {
-            if (editor.Opacity <= 0) { timer.Stop(); return; }
-            double t = Math.Min(1.0, sw.Elapsed.TotalMilliseconds / 300.0);
-            double eased = 1.0 - Math.Pow(1.0 - t, 3.0);
+            if (_editorVersion != version || sw.Elapsed.TotalMilliseconds > 2000) { timer.Stop(); return; }
             double maxOffset = Math.Max(0, scroller.Extent.Height - scroller.Viewport.Height);
-            double y = start + (target - start) * eased;
-            scroller.Offset = new Avalonia.Vector(scroller.Offset.X, Math.Max(0, Math.Min(y, maxOffset)));
-            if (t >= 1.0) timer.Stop();
+            double want = maxOffset;
+            var m = Avalonia.VisualExtensions.TransformToVisual(editor, content);
+            if (m.HasValue)
+                want = Math.Min(maxOffset, Math.Max(0, m.Value.Transform(new Avalonia.Point(0, 0)).Y));
+            double y = scroller.Offset.Y;
+            if (!double.IsNaN(written) && Math.Abs(y - written) > 2.0) { timer.Stop(); return; }
+            double diff = want - y;
+            if (Math.Abs(diff) < 1.0)
+            {
+                if (++settled >= 2) timer.Stop();
+                return;
+            }
+            settled = 0;
+            written = y + diff * 0.18;
+            scroller.Offset = new Avalonia.Vector(scroller.Offset.X, written);
         };
         timer.Start();
     }

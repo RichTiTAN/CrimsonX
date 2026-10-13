@@ -39,6 +39,12 @@ namespace CrimsonX.Behaviors
         public static double GetStep(AvaloniaObject element) => element.GetValue(StepProperty);
         public static void SetStep(AvaloniaObject element, double value) => element.SetValue(StepProperty, value);
 
+        public static void Cancel(ScrollViewer scroller)
+        {
+            _activeStates.RemoveAll(s => s.Scroller == scroller);
+            if (_activeStates.Count == 0) _animTimer?.Stop();
+        }
+
         private sealed class ScrollState
         {
             public ScrollViewer Scroller = null!;
