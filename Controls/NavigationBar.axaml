@@ -145,7 +145,7 @@
         </Style>
 
         <Style Selector="Button.locOption">
-            <Setter Property="Background" Value="#CC0A0C0F"/>
+            <Setter Property="Background" Value="#F20A0C0F"/>
             <Setter Property="BorderBrush" Value="#2D3748"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
@@ -165,7 +165,7 @@
             </Setter>
         </Style>
         <Style Selector="Button.locOption /template/ ContentPresenter">
-            <Setter Property="Background" Value="#CC0A0C0F"/>
+            <Setter Property="Background" Value="#F20A0C0F"/>
             <Setter Property="BorderBrush" Value="#2D3748"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Foreground" Value="#E2E8F0"/>
@@ -183,11 +183,11 @@
             <Setter Property="Foreground" Value="#FFFFFF"/>
         </Style>
         <Style Selector="Button.locOption:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#CC0A0C0F"/>
+            <Setter Property="Background" Value="#F20A0C0F"/>
             <Setter Property="BorderBrush" Value="#99FFFFFF"/>
         </Style>
         <Style Selector="Button.locOption:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#CC0A0C0F"/>
+            <Setter Property="Background" Value="#F20A0C0F"/>
             <Setter Property="BorderBrush" Value="#99FFFFFF"/>
         </Style>
 
@@ -320,7 +320,7 @@
         <Popup x:Name="LocationsPopup" Placement="AnchorAndGravity" PlacementAnchor="TopRight"
                PlacementGravity="BottomRight" HorizontalOffset="-1" VerticalOffset="-12"
                IsLightDismissEnabled="False" Closed="LocationsPopup_Closed">
-            <Border x:Name="LocationsCard" Classes="popupContent" Background="#CC0A0C0F" BorderBrush="#2D3748"
+            <Border x:Name="LocationsCard" Classes="popupContent" Background="#F20A0C0F" BorderBrush="#2D3748"
                     BorderThickness="1" CornerRadius="6" Padding="8" Margin="12"
                     BoxShadow="0 6 18 -2 #E6000000" Width="156">
                 <StackPanel Spacing="6">

@@ -933,7 +933,7 @@
                             </Carousel>
 
                     <Popup x:Name="LanguagePopup" IsLightDismissEnabled="False">
-                        <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="90" Padding="2">
+                        <Border Classes="popupContent" Background="#F2101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="90" Padding="2">
                             <StackPanel>
                                 <Button Classes="countryControl" Tag="ENGLISH" Click="LanguageOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4">
                                     <TextBlock Text="ENGLISH" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
@@ -946,7 +946,7 @@
                     </Popup>
 
                     <Popup x:Name="LbPolicyPopup" IsLightDismissEnabled="False">
-                        <Border Classes="popupContent" Background="#E6101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="113" Padding="2">
+                        <Border Classes="popupContent" Background="#F2101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="113" Padding="2">
                             <StackPanel>
                                 <Button x:Name="btnLbLeastLoad" Classes="countryControl" Tag="leastload" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Distributes each new connection to the least-loaded proxy node. Best for mixed traffic with varying connection size.">
                                     <TextBlock Text="LEAST LOAD" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>

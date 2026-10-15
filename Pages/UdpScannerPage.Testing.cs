@@ -107,10 +107,8 @@ namespace CrimsonX.Pages
             else UpdateStatus(string.Format(AppStrings.UdpScannerFound, _items.Count));
         }
 
-        private Task<ConfigTestResult> ScanCandidateAsync(string link, string adapterIp, CancellationToken ct)
-            => UseStunUdpProbe
-                ? ConfigTester.TestUdpOnlyAsync(link, Main.Config, ct, adapterIp, stun: true)
-                : ConfigTester.TestUdpOnlyAsync(link, Main.Config, ct, adapterIp);
+        private Task<ConfigTestResult[]> ScanBatchAsync(IReadOnlyList<string> batch, string adapterIp, CancellationToken ct)
+            => ConfigTester.TestUdpBatchAsync(batch, Main.Config, ct, adapterIp, stun: UseStunUdpProbe);
 
         private async Task RunScanAsync()
         {
@@ -162,14 +160,15 @@ namespace CrimsonX.Pages
                         continue;
                     }
                     var queue = new ConcurrentQueue<string>(configs);
-                    var tasks = new List<Task<ConfigTestResult>>();
-                    while (_items.Count < goal && queue.TryDequeue(out string? cfgLink))
+                    var batch = new List<string>(concurrency);
+                    while (_items.Count < goal)
                     {
+                        batch.Clear();
+                        while (batch.Count < concurrency && _items.Count < goal && queue.TryDequeue(out string? cfgLink))
+                            batch.Add(cfgLink!);
+                        if (batch.Count == 0) break;
                         ct.ThrowIfCancellationRequested();
-                        tasks.Add(ScanCandidateAsync(cfgLink!, adapterIp, ct));
-                        if (tasks.Count < concurrency && !queue.IsEmpty) continue;
-                        var results = await Task.WhenAll(tasks);
-                        tasks.Clear();
+                        var results = await ScanBatchAsync(batch, adapterIp, ct);
                         _testedCount += results.Length;
                         UpdateScanProgress();
                         foreach (var r in results)
@@ -188,11 +187,6 @@ namespace CrimsonX.Pages
                             if (_isScanning) UpdateScanProgress();
                             if (_items.Count >= goal) break;
                         }
-                    }
-                    if (tasks.Count > 0)
-                    {
-                        try { await Task.WhenAll(tasks); } catch { }
-                        tasks.Clear();
                     }
                     sourceIndex++;
                 }

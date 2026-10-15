@@ -289,7 +289,7 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null || string.IsNullOrWhiteSpace(raw)) return;
-            switch (AppCustomConfigStore.Store(cfg, raw.Trim(), out var label))
+            switch (AppCustomConfigStore.Store(cfg, raw.Trim(), out var label, out var reason))
             {
                 case CustomConfigSaveResult.Saved:
                 case CustomConfigSaveResult.Updated:
@@ -302,7 +302,7 @@ namespace CrimsonX.Pages
                     RefreshSavedConfigs();
                     break;
                 default:
-                    MainWindow.Instance?.ShowToast(AppStrings.ToastConfigUnreadable, ToastKind.Error);
+                    MainWindow.Instance?.ShowToast(AppStrings.ToastConfigUnreadable + ConfigValidator.RefusalSuffix(reason), ToastKind.Error);
                     break;
             }
         }
@@ -321,7 +321,7 @@ namespace CrimsonX.Pages
                     box?.Focus();
                     return;
                 }
-                switch (AppCustomConfigStore.Store(cfg, raw, out var label))
+                switch (AppCustomConfigStore.Store(cfg, raw, out var label, out var reason))
                 {
                     case CustomConfigSaveResult.Saved:
                     case CustomConfigSaveResult.Updated:
@@ -333,7 +333,7 @@ namespace CrimsonX.Pages
                         MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
                         break;
                     default:
-                        MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyInvalid, ToastKind.Error);
+                        MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyInvalid + ConfigValidator.RefusalSuffix(reason), ToastKind.Error);
                         break;
                 }
                 box?.Focus();

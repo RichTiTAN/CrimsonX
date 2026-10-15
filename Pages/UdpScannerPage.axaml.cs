@@ -415,7 +415,7 @@ namespace CrimsonX.Pages
             if (cfg == null) return;
             string raw = BuildCopyText(item);
             if (string.IsNullOrWhiteSpace(raw)) return;
-            switch (AppCustomConfigStore.Store(cfg, raw, out string label))
+            switch (AppCustomConfigStore.Store(cfg, raw, out string label, out string reason))
             {
                 case CustomConfigSaveResult.Saved:
                 case CustomConfigSaveResult.Updated:
@@ -425,7 +425,7 @@ namespace CrimsonX.Pages
                     Main.ShowToast(AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
                     break;
                 default:
-                    Main.ShowToast(AppStrings.ToastCustomProxyInvalid, ToastKind.Error);
+                    Main.ShowToast(AppStrings.ToastCustomProxyInvalid + ConfigValidator.RefusalSuffix(reason), kind: ToastKind.Error);
                     break;
             }
         }

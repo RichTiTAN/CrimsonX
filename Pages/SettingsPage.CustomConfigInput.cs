@@ -192,7 +192,7 @@ namespace CrimsonX.Pages
             if (cfg == null) return;
             string text = await PickConfigFileTextAsync();
             if (text.Length == 0) return;
-            switch (AppCustomConfigStore.Store(cfg, text, out string label))
+            switch (AppCustomConfigStore.Store(cfg, text, out string label, out string reason))
             {
                 case CustomConfigSaveResult.Saved:
                 case CustomConfigSaveResult.Updated:
@@ -204,7 +204,7 @@ namespace CrimsonX.Pages
                     MainWindow.Instance?.ShowToast(AppStrings.ToastCustomProxyPoolFull, ToastKind.Error);
                     break;
                 default:
-                    MainWindow.Instance?.ShowToast(AppStrings.ToastConfigUnreadable, ToastKind.Error);
+                    MainWindow.Instance?.ShowToast(AppStrings.ToastConfigUnreadable + ConfigValidator.RefusalSuffix(reason), ToastKind.Error);
                     break;
             }
         }
