@@ -703,11 +703,7 @@ public partial class MainWindow
     {
         try
         {
-            return System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces()
-                .Any(ni => (ni.Name.IndexOf("singbox", StringComparison.OrdinalIgnoreCase) >= 0
-                         || ni.Name.IndexOf("wintun", StringComparison.OrdinalIgnoreCase) >= 0
-                         || ni.Description.IndexOf("wintun", StringComparison.OrdinalIgnoreCase) >= 0)
-                        && ni.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up);
+            return CrimsonX.Services.VpnAdapterGuard.IsInUse(CrimsonX.Services.ConnectivityService.Snapshot());
         }
         catch (Exception ex)
         {
