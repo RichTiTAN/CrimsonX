@@ -156,9 +156,17 @@ namespace CrimsonX.Services
                && TunnelConfigParser.TryParse(raw.Trim(), out var tunnel) && tunnel.Success;
 
         public static CustomConfigSaveResult Store(AppConfig cfg, string raw, out string label)
+            => Store(cfg, raw, out label, out _);
+
+        public static CustomConfigSaveResult Store(AppConfig cfg, string raw, out string label, out string reason)
         {
-            label = "";
-            if (string.IsNullOrWhiteSpace(raw)) return CustomConfigSaveResult.Invalid;
+            label  = "";
+            reason = "";
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                reason = "empty config";
+                return CustomConfigSaveResult.Invalid;
+            }
             raw = raw.Trim();
             bool usable = TunnelConfigParser.TryParse(raw, out var tunnel) && tunnel.Success;
             if (usable)
@@ -169,15 +177,26 @@ namespace CrimsonX.Services
             {
                 usable = SingboxLinkParser.TryParseLink(raw, out _, out label);
             }
-            if (!usable && ConfigConverter.IsXrayOutbound(raw) && XrayLinkParser.TryParseCustomConfig(raw, out string xrayDoc))
+            string xrayError = "";
+            if (!usable && ConfigConverter.TryXrayOutbound(raw, out string xrayDoc, out string xrayLabel, out xrayError))
             {
-                string server = XrayLinkParser.ExtractServerAddress(xrayDoc);
-                label  = server.Length > 0 ? "xray · " + server : "xray";
+                if (ConfigConverter.IsXrayOutbound(raw))
+                {
+                    string server = XrayLinkParser.ExtractServerAddress(xrayDoc);
+                    label = server.Length > 0 ? "xray · " + server : "xray";
+                }
+                else
+                {
+                    string fragment = XrayLinkParser.LinkFragment(raw);
+                    label = fragment.Length > 0 ? fragment : xrayLabel.Length > 0 ? xrayLabel : "xray";
+                }
                 usable = true;
             }
             if (!usable)
             {
-                label = "";
+                label  = "";
+                reason = xrayError.Length > 0 ? xrayError : "this config is neither an xray outbound, a share link nor a tunnel";
+                SimpleLogger.Log($"[Store] Refused a config: {reason}");
                 return CustomConfigSaveResult.Invalid;
             }
             CustomConfigSaveResult result;

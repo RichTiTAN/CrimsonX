@@ -137,6 +137,18 @@ namespace CrimsonX.Services
             return string.Empty;
         }
 
+        public static string LinkFragment(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+            string text = raw.Trim();
+            if (text.StartsWith("{")) return string.Empty;
+            int hash = text.IndexOf('#');
+            if (hash < 0 || hash == text.Length - 1) return string.Empty;
+            string fragment = text.Substring(hash + 1);
+            try { return HttpUtility.UrlDecode(fragment).Trim(); }
+            catch { return fragment.Trim(); }
+        }
+
         public static string GetSubnetOrDomain(string address)
         {
             if (string.IsNullOrWhiteSpace(address)) return string.Empty;

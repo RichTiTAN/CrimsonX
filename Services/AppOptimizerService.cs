@@ -92,15 +92,15 @@ namespace CrimsonX.Services
                 if (configs.Count == 0) return false;
 
                 var queue = new ConcurrentQueue<string>(configs);
-                var tasks = new List<Task<ConfigTestResult>>();
+                var links = new List<string>(batch);
                 int added = 0;
-                while (added < WorkingGoal && queue.TryDequeue(out string link))
+                while (added < WorkingGoal)
                 {
+                    links.Clear();
+                    while (links.Count < batch && added < WorkingGoal && queue.TryDequeue(out string link)) links.Add(link);
+                    if (links.Count == 0) break;
                     ct.ThrowIfCancellationRequested();
-                    tasks.Add(ConfigTester.TestUdpOnlyAsync(link, cfg, ct, adapterIp, measureHttpPing: false, stun: true, warmUpFirst: true));
-                    if (tasks.Count < batch && !queue.IsEmpty) continue;
-                    var results = await Task.WhenAll(tasks);
-                    tasks.Clear();
+                    var results = await ConfigTester.TestUdpBatchAsync(links, cfg, ct, adapterIp, measureHttpPing: false, stun: true, warmUpFirst: true);
                     foreach (var r in results)
                     {
                         if (r == null || !r.Success || !r.UdpOk) continue;

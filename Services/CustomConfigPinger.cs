@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using CrimsonX.Models;
@@ -44,9 +45,7 @@ namespace CrimsonX.Services
                 string hint = tunnelActive ? " (a session is up, so the probe may be captured by the active tunnel)" : "";
                 return new ConfigTestResult { Link = text, Success = false, TimedOut = tcp.TimedOut };
             }
-            string xrayJson = "";
-            if (ConfigConverter.IsXrayOutbound(text)) xrayJson = text;
-            else if (ConfigConverter.TryConvert(text, out string converted, out _, out _)) xrayJson = converted;
+            string xrayJson = XrayDocumentFor(text);
             if (xrayJson.Length > 0)
             {
                 var xrayResult = await ConfigTester.TestConfigAsync(ApplyBindAddress(xrayJson, bindIp), cfg, ct).ConfigureAwait(false);
@@ -68,6 +67,32 @@ namespace CrimsonX.Services
                 return xrayResult;
             }
             return await SingboxConfigTester.TestAsync(text, cfg, adapterName, adapterIp, ct).ConfigureAwait(false);
+        }
+
+        public static string XrayDocumentFor(string text)
+        {
+            string value = (text ?? "").Trim();
+            if (value.Length == 0) return "";
+            if (ConfigConverter.IsXrayOutbound(value)) return value;
+            string fromLink = LinkDocument(value);
+            bool singboxReads = ConfigConverter.TryConvert(value, out string converted, out _, out _);
+            if (fromLink.Length > 0 && (!singboxReads || CarriesFinalMask(fromLink))) return fromLink;
+            return singboxReads ? converted : "";
+        }
+
+        private static string LinkDocument(string value)
+            => value.StartsWith("{", StringComparison.Ordinal)
+                ? ""
+                : XrayLinkParser.TryParseCustomConfig(value, out string doc) ? doc : "";
+
+        private static bool CarriesFinalMask(string xrayDoc)
+        {
+            try
+            {
+                var outbound = JObject.Parse(xrayDoc)["outbounds"]?[0] as JObject;
+                return FinalMask.FromStream(outbound?["streamSettings"] as JObject) != null;
+            }
+            catch { return false; }
         }
 
         private static async Task<ConfigTestResult> TcpFallbackAsync(TunnelParseResult tunnel, ConfigTestResult xrayResult, string bindIp, CancellationToken ct)

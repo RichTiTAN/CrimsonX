@@ -18,6 +18,7 @@
 
 using System;
 using System.Threading.Tasks;
+using CrimsonX.Localization;
 using CrimsonX.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -95,6 +96,11 @@ namespace CrimsonX.Services
             string text = (reason ?? "").Trim();
             return text.Length <= max ? text : text.Substring(0, max).Trim() + "…";
         }
+
+        public static string RefusalSuffix(string reason)
+            => string.IsNullOrWhiteSpace(reason)
+                ? ""
+                : " " + AppStrings.InvalidConfigReason + ShortReason(reason);
 
         private static ConfigCheckResult CheckTunnelOffline(string sbDir, TunnelParseResult tunnel, ConfigCheckResult result)
         {

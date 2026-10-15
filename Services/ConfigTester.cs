@@ -958,51 +958,7 @@ namespace CrimsonX.Services
             {
                 session = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp, stun);
                 if (session == null) return res;
-                long bestPing = long.MaxValue;
-                int okCount = 0;
-                using (var probeSocket = new UdpClient())
-                {
-                    if (warmUpFirst)
-                    {
-                        if (await WarmUpAsync(session.UdpPort, probeSocket, ct, stun))
-                        {
-                            var (ok, rtt) = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
-                            if (ok)
-                            {
-                                okCount++;
-                                bestPing = rtt;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        for (int i = 0; i < UdpProbeAttempts; i++)
-                        {
-                            ct.ThrowIfCancellationRequested();
-                            var (ok, rtt) = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
-                            if (ok)
-                            {
-                                okCount++;
-                                if (rtt < bestPing) bestPing = rtt;
-                            }
-                        }
-                    }
-                }
-                res.UdpOk = okCount > 0;
-                res.Success = res.UdpOk;
-                res.UdpPing = okCount > 0 ? bestPing : 0;
-                res.Ping = res.UdpPing;
-                if (res.Success)
-                {
-                    await FetchGeoAsync(res, session.HttpPort, ct);
-                    if (string.IsNullOrWhiteSpace(res.CountryCode) && string.IsNullOrWhiteSpace(res.Country))
-                        await FetchGeoForServerAsync(res, ct);
-                    if (measureHttpPing)
-                    {
-                        long realPing = await MeasureHttpPingAsync(session.HttpPort, ct);
-                        if (realPing > 0) res.Ping = realPing;
-                    }
-                }
+                await ProbeOverUdpAsync(res, session.HttpPort, session.UdpPort, warmUpFirst, measureHttpPing, stun, ct);
                 return res;
             }
             catch (OperationCanceledException)
@@ -1024,6 +980,335 @@ namespace CrimsonX.Services
                 try { tunnelLease?.Dispose(); } catch { }
             }
         }
+        private static async Task ProbeOverUdpAsync(ConfigTestResult res, int httpPort, int udpPort, bool warmUpFirst, bool measureHttpPing, bool stun, CancellationToken ct)
+        {
+            long bestPing = long.MaxValue;
+            int okCount = 0;
+            using (var probeSocket = new UdpClient())
+            {
+                if (warmUpFirst)
+                {
+                    if (await WarmUpAsync(udpPort, probeSocket, ct, stun))
+                    {
+                        var (ok, rtt) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
+                        if (ok)
+                        {
+                            okCount++;
+                            bestPing = rtt;
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < UdpProbeAttempts; i++)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        var (ok, rtt) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
+                        if (ok)
+                        {
+                            okCount++;
+                            if (rtt < bestPing) bestPing = rtt;
+                        }
+                    }
+                }
+            }
+            res.UdpOk = okCount > 0;
+            res.Success = res.UdpOk;
+            res.UdpPing = okCount > 0 ? bestPing : 0;
+            res.Ping = res.UdpPing;
+            if (!res.Success) return;
+            await FetchGeoAsync(res, httpPort, ct);
+            if (string.IsNullOrWhiteSpace(res.CountryCode) && string.IsNullOrWhiteSpace(res.Country))
+                await FetchGeoForServerAsync(res, ct);
+            if (measureHttpPing)
+            {
+                long realPing = await MeasureHttpPingAsync(httpPort, ct);
+                if (realPing > 0) res.Ping = realPing;
+            }
+        }
+
+        private const int BatchReadyBudgetMs = 3000;
+        private const int BatchReadyPollMs = 50;
+        private const int BatchReadySettleMs = 200;
+
+        public static string BuildUdpBatchConfig(IReadOnlyList<string> outboundsJson, IReadOnlyList<(int HttpPort, int UdpPort)> slots, bool stun, string adapterIp)
+        {
+            if (outboundsJson == null || slots == null || outboundsJson.Count == 0 || outboundsJson.Count != slots.Count)
+                return "";
+            var inbounds = new JArray();
+            var outbounds = new JArray();
+            var rules = new JArray();
+            for (int i = 0; i < outboundsJson.Count; i++)
+            {
+                JArray nodes;
+                try { nodes = JObject.Parse(outboundsJson[i])["outbounds"] as JArray; }
+                catch { return ""; }
+                if (nodes == null || nodes.Count == 0 || nodes[0] is not JObject node) return "";
+                string tag = $"proxy-{i}";
+                var outbound = (JObject)node.DeepClone();
+                outbound["tag"] = tag;
+                if (!string.IsNullOrWhiteSpace(adapterIp) && !XrayLinkParser.IsLocalOutbound(outbound))
+                    outbound["sendThrough"] = adapterIp;
+                outbounds.Add(outbound);
+                string httpTag = $"in-{i}";
+                string udpTag  = $"udp-in-{i}";
+                inbounds.Add(new JObject
+                {
+                    ["port"] = slots[i].HttpPort,
+                    ["listen"] = "127.0.0.1",
+                    ["protocol"] = "http",
+                    ["tag"] = httpTag
+                });
+                inbounds.Add(new JObject
+                {
+                    ["port"] = slots[i].UdpPort,
+                    ["listen"] = "127.0.0.1",
+                    ["protocol"] = "dokodemo-door",
+                    ["tag"] = udpTag,
+                    ["settings"] = new JObject
+                    {
+                        ["address"] = stun ? StunServerIp.Value : ScanNtpServerIp,
+                        ["port"] = stun ? StunPort : NtpPort,
+                        ["network"] = "udp"
+                    }
+                });
+                rules.Add(new JObject { ["type"] = "field", ["inboundTag"] = new JArray(httpTag), ["outboundTag"] = tag });
+                rules.Add(new JObject { ["type"] = "field", ["inboundTag"] = new JArray(udpTag),  ["outboundTag"] = tag });
+            }
+            return new JObject
+            {
+                ["log"] = new JObject { ["loglevel"] = "none" },
+                ["inbounds"] = inbounds,
+                ["outbounds"] = outbounds,
+                ["routing"] = new JObject { ["rules"] = rules }
+            }.ToString();
+        }
+
+        private sealed class UdpBatchSession : IDisposable
+        {
+            public Process Proc { get; set; }
+            public string CfgPath { get; set; } = "";
+            public List<int> HttpPorts { get; } = new List<int>();
+            public List<int> UdpPorts { get; } = new List<int>();
+            public int Count => HttpPorts.Count;
+
+            public void Dispose()
+            {
+                var proc = Proc;
+                Proc = null;
+                if (proc != null)
+                {
+                    try { proc.Kill(); } catch { }
+                    try { proc.Dispose(); } catch { }
+                }
+                try { if (File.Exists(CfgPath)) File.Delete(CfgPath); } catch { }
+            }
+        }
+
+        private static int UniquePort(List<int> taken)
+        {
+            for (int attempt = 0; attempt < 64; attempt++)
+            {
+                int port = GetFreePort();
+                if (!taken.Contains(port)) return port;
+            }
+            return GetFreePort();
+        }
+
+        private static int UniqueUdpPort(List<int> taken)
+        {
+            for (int attempt = 0; attempt < 64; attempt++)
+            {
+                int port = GetFreeUdpPort();
+                if (!taken.Contains(port)) return port;
+            }
+            return GetFreeUdpPort();
+        }
+
+        private sealed class UdpBatchStart
+        {
+            public UdpBatchSession Session { get; set; }
+            public string Error { get; set; } = "";
+        }
+
+        private static async Task<UdpBatchStart> StartUdpBatchSessionAsync(IReadOnlyList<string> outboundsJson, AppConfig cfg, CancellationToken ct, string? sendThroughIp, bool stun)
+        {
+            var session = new UdpBatchSession();
+            var slots = new List<(int HttpPort, int UdpPort)>();
+            for (int i = 0; i < outboundsJson.Count; i++)
+            {
+                int httpPort = UniquePort(session.HttpPorts);
+                int udpPort  = UniqueUdpPort(session.UdpPorts);
+                session.HttpPorts.Add(httpPort);
+                session.UdpPorts.Add(udpPort);
+                slots.Add((httpPort, udpPort));
+            }
+            string adapterIp = !string.IsNullOrWhiteSpace(sendThroughIp) ? sendThroughIp! : XrayConfigWriter.ProbeSendThrough(cfg);
+            if (!string.IsNullOrWhiteSpace(adapterIp) && !IsAvailableAdapterAddress(adapterIp))
+            {
+                LogBindNoticeOnce($"[UdpScanner] Adapter {adapterIp} is not up right now - testing without binding");
+                adapterIp = "";
+            }
+            string config = BuildUdpBatchConfig(outboundsJson, slots, stun, adapterIp);
+            if (config.Length == 0)
+                return new UdpBatchStart { Error = "the batch cannot be expressed as one xray config" };
+            session.CfgPath = Path.Combine(cfg.XrayDir, $"test_{Guid.NewGuid().ToString("N")}.json");
+            Process proc = null;
+            try
+            {
+                File.WriteAllText(session.CfgPath, config);
+                proc = new Process();
+                proc.StartInfo.FileName = Path.Combine(cfg.XrayDir, "xray.exe");
+                proc.StartInfo.Arguments = $"run -c \"{session.CfgPath}\"";
+                proc.StartInfo.UseShellExecute = false;
+                proc.StartInfo.CreateNoWindow = true;
+                var started = proc;
+                await Task.Run(() => { started.Start(); }, ct);
+                JobManager.AddProcess(proc);
+                var watch = Stopwatch.StartNew();
+                if (!await WaitForUdpBatchReadyAsync(proc, session.HttpPorts, ct))
+                {
+                    string reason = proc.HasExited
+                        ? "xray exited while the batch was starting"
+                        : $"xray did not open the batch inbounds within {BatchReadyBudgetMs} ms";
+                    try { proc.Kill(); } catch { }
+                    try { proc.Dispose(); } catch { }
+                    try { if (File.Exists(session.CfgPath)) File.Delete(session.CfgPath); } catch { }
+                    return new UdpBatchStart { Error = reason };
+                }
+                session.Proc = proc;
+                SimpleLogger.Log($"[Batch] {session.Count} configs: one xray instance (pid {proc.Id}) ready in {watch.ElapsedMilliseconds} ms");
+                return new UdpBatchStart { Session = session };
+            }
+            catch (OperationCanceledException)
+            {
+                if (proc != null) { try { proc.Kill(); } catch { } try { proc.Dispose(); } catch { } }
+                try { if (File.Exists(session.CfgPath)) File.Delete(session.CfgPath); } catch { }
+                throw;
+            }
+            catch (Exception ex)
+            {
+                if (proc != null) { try { proc.Kill(); } catch { } try { proc.Dispose(); } catch { } }
+                try { if (File.Exists(session.CfgPath)) File.Delete(session.CfgPath); } catch { }
+                return new UdpBatchStart { Error = ex.Message };
+            }
+        }
+
+        private static async Task<bool> WaitForUdpBatchReadyAsync(Process proc, List<int> httpPorts, CancellationToken ct)
+        {
+            var watch = Stopwatch.StartNew();
+            while (watch.ElapsedMilliseconds < BatchReadyBudgetMs)
+            {
+                ct.ThrowIfCancellationRequested();
+                try { if (proc.HasExited) return false; } catch { return false; }
+                bool allOpen = true;
+                foreach (int port in httpPorts)
+                {
+                    if (await IsTcpPortOpenAsync(port)) continue;
+                    allOpen = false;
+                    break;
+                }
+                if (allOpen && watch.ElapsedMilliseconds >= BatchReadySettleMs) return true;
+                await Task.Delay(BatchReadyPollMs, ct);
+            }
+            return false;
+        }
+
+        private static async Task<bool> IsTcpPortOpenAsync(int port)
+        {
+            try
+            {
+                using var client = new TcpClient();
+                using var timeout = new CancellationTokenSource(200);
+                await client.ConnectAsync(IPAddress.Loopback, port, timeout.Token);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        public static bool BatchCarriesThisLink(string link)
+        {
+            if (string.IsNullOrWhiteSpace(link)) return false;
+            if (ConfigConverter.TryTunnel(link, out _, out _)) return false;
+            return XrayLinkParser.TryParseCustomConfig(link, out _);
+        }
+
+        public static async Task<ConfigTestResult[]> TestUdpBatchAsync(IReadOnlyList<string> links, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool measureHttpPing = true, bool stun = false, bool warmUpFirst = false)
+        {
+            var results = new ConfigTestResult[links.Count];
+            var outbounds = new List<string>();
+            var indexes = new List<int>();
+            var stragglers = new List<int>();
+            for (int i = 0; i < links.Count; i++)
+            {
+                results[i] = new ConfigTestResult { Link = links[i] };
+                if (!BatchCarriesThisLink(links[i]))
+                {
+                    stragglers.Add(i);
+                    continue;
+                }
+                XrayLinkParser.TryParseCustomConfig(links[i], out string outboundJson);
+                results[i].OutboundJson = outboundJson;
+                outbounds.Add(outboundJson);
+                indexes.Add(i);
+            }
+
+            Task RunSingleAsync(int index)
+                => Task.Run(async () => results[index] = await TestUdpOnlyAsync(links[index], cfg, ct, sendThroughIp, measureHttpPing, stun, warmUpFirst), ct);
+
+            var running = new List<Task>();
+            foreach (int index in stragglers) running.Add(RunSingleAsync(index));
+
+            if (outbounds.Count == 0)
+            {
+                await AwaitAllAsync(running, ct);
+                return results;
+            }
+
+            UdpBatchStart start = await StartUdpBatchSessionAsync(outbounds, cfg, ct, sendThroughIp, stun);
+            UdpBatchSession session = start.Session;
+            if (session == null)
+            {
+                SimpleLogger.Log($"[Batch] {outbounds.Count} configs: one shared instance failed ({start.Error}) - testing one instance per config instead");
+                foreach (int index in indexes) running.Add(RunSingleAsync(index));
+                await AwaitAllAsync(running, ct);
+                return results;
+            }
+            try
+            {
+                for (int slot = 0; slot < indexes.Count; slot++)
+                {
+                    var result = results[indexes[slot]];
+                    int httpPort = session.HttpPorts[slot];
+                    int udpPort  = session.UdpPorts[slot];
+                    running.Add(Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await ProbeOverUdpAsync(result, httpPort, udpPort, warmUpFirst, measureHttpPing, stun, ct);
+                        }
+                        catch (OperationCanceledException) { result.Success = false; result.UdpOk = false; }
+                        catch { result.Success = false; result.UdpOk = false; }
+                    }, ct));
+                }
+                await AwaitAllAsync(running, ct);
+                return results;
+            }
+            finally
+            {
+                session.Dispose();
+            }
+        }
+
+        private static async Task AwaitAllAsync(List<Task> running, CancellationToken ct)
+        {
+            if (running.Count == 0) return;
+            try { await Task.WhenAll(running); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (OperationCanceledException) { }
+            catch { }
+        }
+
         public static async Task<UdpStabilityResult> TestUdpStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, int durationMs = StabilityDurationMs, int intervalMs = StabilityIntervalMs, Action<bool, long>? onSample = null, string? sendThroughIp = null, bool stun = false)
         {
             var result = new UdpStabilityResult();

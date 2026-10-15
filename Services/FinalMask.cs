@@ -44,13 +44,18 @@ namespace CrimsonX.Services
         public static JToken FromStream(JToken streamOrOutbound)
         {
             if (streamOrOutbound is not JObject obj) return null;
+            return MaskOn(obj) ?? (obj["streamSettings"] is JObject stream ? MaskOn(stream) : null);
+        }
+
+        private static JToken MaskOn(JObject owner)
+        {
             foreach (string key in Keys)
             {
-                if (obj[key] is JToken direct) return direct;
+                if (owner[key] is JToken direct) return direct;
             }
             foreach (string security in new[] { "tlsSettings", "realitySettings" })
             {
-                if (obj[security] is not JObject settings) continue;
+                if (owner[security] is not JObject settings) continue;
                 foreach (string key in Keys)
                 {
                     if (settings[key] is JToken nested) return nested;
