@@ -19,6 +19,8 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -119,6 +121,13 @@ namespace CrimsonX.Pages
         private string _statusBase = "";
         private const double EmptyDotsWidth = 14;
 
+        private string _graphText = "";
+        private string _routeText = "";
+
+        private string _scanProtocol = "UDP";
+
+        private bool TcpMode => string.Equals(_scanProtocol, "TCP", StringComparison.OrdinalIgnoreCase);
+
         private static MainWindow Main => MainWindow.Instance;
 
         public UdpScannerPage()
@@ -180,6 +189,7 @@ namespace CrimsonX.Pages
                 SetComboIndex("cmbAmount", cfg.UdpScanAmount == 5 ? 0 : cfg.UdpScanAmount == 15 ? 2 : 1);
                 SetComboIndex("cmbConcurrency", cfg.UdpScanConcurrency >= 10 ? 1 : 0);
                 SetComboIndex("cmbDiscard", cfg.UdpScanDiscardMs <= 0 ? 0 : Math.Clamp(cfg.UdpScanDiscardMs / 100, 1, 9));
+                SetProtocol(cfg.UdpScanProtocol, save: false);
             }
             finally
             {
@@ -208,6 +218,39 @@ namespace CrimsonX.Pages
             if (cfg.UdpScanDiscardMs != previousDiscard) _lastPadded = 0;
             if (!_isScanning && !_isStabilityRunning) RefreshStatusText();
         }
+
+        private void ScanProtocol_Click(object? sender, RoutedEventArgs e)
+        {
+            string wanted = ReferenceEquals(sender, this.FindControl<Button>("btnScanTcp")) ? "TCP" : "UDP";
+            SetProtocol(wanted, save: true);
+        }
+
+        private void SetProtocol(string protocol, bool save)
+        {
+            _scanProtocol = string.Equals(protocol, "TCP", StringComparison.OrdinalIgnoreCase) ? "TCP" : "UDP";
+            ApplyProtocolPill();
+            if (!save) return;
+            Main.Config.UdpScanProtocol = _scanProtocol;
+            Main.RequestConfigSave();
+            if (!_isScanning && !_isStabilityRunning) RefreshStatusText();
+        }
+
+        private void ApplyProtocolPill()
+        {
+            SetActive(this.FindControl<Button>("btnScanTcp"), TcpMode);
+            SetActive(this.FindControl<Button>("btnScanUdp"), !TcpMode);
+        }
+
+        private static void SetActive(Button? button, bool active)
+        {
+            if (button == null) return;
+            if (active)
+            {
+                if (!button.Classes.Contains("activeOpt")) button.Classes.Add("activeOpt");
+            }
+            else button.Classes.Remove("activeOpt");
+        }
+
         internal void OnEnter()
         {
             LoadAdapters();
@@ -250,12 +293,14 @@ namespace CrimsonX.Pages
             AppStrings.ApplyToolTip(T("lblDiscard"), AppStrings.TtUdpScannerDiscard);
             AppStrings.ApplyToolTip(T("lblAdapter"), AppStrings.TtUdpScannerAdapter);
             AppStrings.ApplyToolTip(B("btnStart"), AppStrings.TtUdpScanner);
+            AppStrings.ApplyToolTip(B("btnScanTcp"), AppStrings.TtUdpScannerProtocol);
+            AppStrings.ApplyToolTip(B("btnScanUdp"), AppStrings.TtUdpScannerProtocol);
             var cbiNoLimit = this.FindControl<ComboBoxItem>("cbiDiscardNone");
             if (cbiNoLimit != null) cbiNoLimit.Content = AppStrings.UdpScannerNoLimit;
             var cbiAdapterDefault = this.FindControl<ComboBoxItem>("cbiAdapterDefault");
             if (cbiAdapterDefault != null) cbiAdapterDefault.Content = AppStrings.AdapterDefault;
-            if (!_isStabilityRunning && !_hasStabilityResult)
-                UpdateGraphInfo(AppStrings.UdpScannerGraphIdle);
+            if (!_isStabilityRunning && !_hasStabilityResult) _graphText = AppStrings.UdpScannerGraphIdle;
+            RefreshIdleRoute();
             if (B("btnStart") is Button startBtn)
                 AppStrings.ApplyBtn(startBtn, _isScanning ? AppStrings.UdpScannerStop : AppStrings.UdpScannerStart);
             if (!_isScanning && !_isStabilityRunning)
@@ -501,8 +546,84 @@ namespace CrimsonX.Pages
 
         private void UpdateGraphInfo(string text)
         {
+            _graphText = text;
+            RenderGraphLine();
+        }
+
+        private void RenderGraphLine()
+        {
             var lbl = this.FindControl<TextBlock>("lblGraphInfo");
-            if (lbl != null) AppStrings.Apply(lbl, text);
+            if (lbl == null) return;
+            AppStrings.Apply(lbl, _graphText);
+            string full = _graphText.Length == 0 ? _routeText
+                        : _routeText.Length == 0 ? _graphText
+                        : $"{_graphText} • {_routeText}";
+            if (full.Length > 0) AppStrings.ApplyToolTip(lbl, full);
+        }
+
+        private void ShowRoute(string what, string adapterName, string adapterIp, (long Sent, long Received)? before)
+            => SetRoute(adapterName, adapterIp, before, what);
+
+        private void RefreshIdleRoute()
+        {
+            var (name, ip) = PickedAdapter();
+            SetRoute(name, ip, before: null, what: "");
+        }
+
+        private void SetRoute(string adapterName, string adapterIp, (long Sent, long Received)? before, string what)
+        {
+            string route;
+            if (adapterIp.Length == 0) route = AppStrings.ScannerDefaultRoute;
+            else if (!ConfigTester.IsAvailableAdapterAddress(adapterIp))
+                route = $"{AppStrings.ScannerDefaultRoute} • {AppStrings.ScannerAdapterNotUp}";
+            else route = $"{adapterName} ({adapterIp})";
+
+            string traffic = "";
+            if (before.HasValue && adapterIp.Length > 0)
+            {
+                var now = AdapterCounters(adapterIp);
+                long sent = Math.Max(0, now.Sent - before.Value.Sent);
+                long received = Math.Max(0, now.Received - before.Value.Received);
+                traffic = $" • ▲ {ByteText(sent)} / ▼ {ByteText(received)}";
+            }
+            _routeText = $"{what}{(what.Length > 0 ? " " : "")}{AppStrings.ScannerVia} {route}{traffic}";
+            RenderGraphLine();
+        }
+
+        private (string Name, string Ip) PickedAdapter()
+        {
+            int index = this.FindControl<ComboBox>("cmbAdapter")?.SelectedIndex ?? 0;
+            return index > 0 && index < _adapterIps.Count ? (_adapterNames[index], _adapterIps[index]) : ("", "");
+        }
+
+        private static (long Sent, long Received) AdapterCounters(string ip)
+        {
+            if (ip.Length == 0) return (0, 0);
+            try
+            {
+                foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    foreach (var unicast in adapter.GetIPProperties().UnicastAddresses)
+                    {
+                        if (unicast.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                        if (unicast.Address.ToString() != ip) continue;
+                        var stats = adapter.GetIPv4Statistics();
+                        return (stats.BytesSent, stats.BytesReceived);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log($"[UdpScanner] Adapter counters failed: {ex.Message}");
+            }
+            return (0, 0);
+        }
+
+        private static string ByteText(long bytes)
+        {
+            if (bytes < 1024) return bytes + " B";
+            if (bytes < 1024 * 1024) return (bytes / 1024.0).ToString("0.#") + " KB";
+            return (bytes / (1024.0 * 1024.0)).ToString("0.#") + " MB";
         }
 
         // ── Stability test ──
@@ -518,6 +639,9 @@ namespace CrimsonX.Pages
             if (btn != null) btn.IsEnabled = false;
             var graph = this.FindControl<CrimsonX.Controls.StabilityGraph>("graphStability");
             graph?.Reset();
+            var (routeName, routeIp) = PickedAdapter();
+            var routeBefore = AdapterCounters(routeIp);
+            ShowRoute(AppStrings.UdpScannerStability, routeName, routeIp, before: null);
             var cts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
             cts.CancelAfter(TimeSpan.FromSeconds(40));
             _stabilityCts = cts;
@@ -527,26 +651,25 @@ namespace CrimsonX.Pages
             try
             {
                 UpdateStatus(AppStrings.UdpScannerStabilityTesting);
+                bool tcp = TcpMode;
                 int sent = 0;
                 int loss = 0;
-                var res = await ConfigTester.TestUdpStabilityAsync(
-                    item.OutboundJson,
-                    Main.Config,
-                    cts.Token,
-                    onSample: (ok, ping) =>
+                Action<bool, long> onSample = (ok, ping) =>
+                {
+                    sent++;
+                    if (!ok) loss++;
+                    int probes = sent;
+                    int losses = loss;
+                    Dispatcher.UIThread.Post(() =>
                     {
-                        sent++;
-                        if (!ok) loss++;
-                        int probes = sent;
-                        int losses = loss;
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            if (!ReferenceEquals(_stabilityCts, cts)) return;
-                            graph?.AddSample(ok, ping);
-                            UpdateGraphInfo(string.Format(AppStrings.UdpScannerGraphLive, probes, losses, ok ? ping.ToString() : "-"));
-                        });
-                    },
-                    sendThroughIp: SelectedAdapterIp());
+                        if (!ReferenceEquals(_stabilityCts, cts)) return;
+                        graph?.AddSample(ok, ping);
+                        UpdateGraphInfo(string.Format(AppStrings.UdpScannerGraphLive, probes, losses, ok ? ping.ToString() : "-"));
+                    });
+                };
+                var res = tcp
+                    ? await ConfigTester.TestTcpStabilityAsync(item.OutboundJson, Main.Config, cts.Token, onSample: onSample, sendThroughIp: SelectedAdapterIp())
+                    : await ConfigTester.TestUdpStabilityAsync(item.OutboundJson, Main.Config, cts.Token, onSample: onSample, sendThroughIp: SelectedAdapterIp());
                 if (!ReferenceEquals(_stabilityCts, cts)) return;
                 if (!res.HasSamples)
                 {
@@ -558,7 +681,9 @@ namespace CrimsonX.Pages
                 int rate = (int)Math.Round(res.SuccessRate * 100);
                 item.StabilityText = $"{rate}% • {res.AvgPingMs} ms";
                 item.StabilityBrush = rate >= 90 ? UdpScanItem.Good : rate >= 60 ? UdpScanItem.Weak : UdpScanItem.Bad;
-                item.StabilityDetail = string.Format(AppStrings.UdpScannerStabilityDetail, rate, res.Ok, res.Sent, res.AvgPingMs, res.MinPingOrZero, res.MaxPingMs);
+                item.StabilityDetail = string.Format(
+                    tcp ? AppStrings.UdpScannerStabilityDetailTcp : AppStrings.UdpScannerStabilityDetail,
+                    rate, res.Ok, res.Sent, res.AvgPingMs, res.MinPingOrZero, res.MaxPingMs);
                 UpdateGraphInfo(string.Format(AppStrings.UdpScannerStabilityResult, rate, res.AvgPingMs));
             }
             catch (OperationCanceledException)
@@ -577,6 +702,7 @@ namespace CrimsonX.Pages
                 {
                     _stabilityCts = null;
                     _isStabilityRunning = false;
+                    ShowRoute(AppStrings.UdpScannerStability, routeName, routeIp, routeBefore);
                     RefreshStatusText();
                 }
                 cts.Dispose();

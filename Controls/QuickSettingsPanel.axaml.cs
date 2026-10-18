@@ -388,8 +388,6 @@ namespace CrimsonX.Controls
             return null;
         }
 
-        // Custom Configs view (the tab beside QUICK SETTINGS)
-
         public void OpenCustomConfigsView() => ShowCustomView(true);
 
         public void SyncCustomConfigsView()

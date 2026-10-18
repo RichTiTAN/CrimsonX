@@ -45,6 +45,12 @@ namespace CrimsonX.Pages
         {
             InitializeComponent();
             Instance = this;
+            CrimsonX.Services.CountryExitFeed.Changed += OnCountryFeedChanged;
+        }
+
+        private void OnCountryFeedChanged()
+        {
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(RefreshExitNodePane);
         }
 
         internal void ShowSettingsPage()
@@ -111,6 +117,7 @@ namespace CrimsonX.Pages
             if (chkAllowOneCustomConfig != null) chkAllowOneCustomConfig.IsChecked = _cfg.FetchConfigWhenOneProvided;
             var togXrayExitNode = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
             if (togXrayExitNode != null) togXrayExitNode.IsChecked = _cfg.EnableV2rayChain;
+            RefreshExitNodePane();
             var togAdapterBinding = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togAdapterBinding");
             if (togAdapterBinding != null) togAdapterBinding.IsChecked = _cfg.EnableAdapterBinding;
             if (_cfg.EnableLoadBalanceAdapters
@@ -223,8 +230,6 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnSysDnsSave"), CrimsonX.Localization.AppStrings.Save);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnLanAuthSave"), CrimsonX.Localization.AppStrings.Save);
             CrimsonX.Localization.AppStrings.Apply(F("lblSectionConnection"), CrimsonX.Localization.AppStrings.SectionConnection);
-
-            // the LEGACY CONNECTION MODES row (mode labels + their tooltips, moved out of the connect box)
             CrimsonX.Localization.AppStrings.Apply(F("lblLegacyModes"),    CrimsonX.Localization.AppStrings.SectionLegacyModes);
             CrimsonX.Localization.AppStrings.Apply(F("lblSetProxyMode"),   CrimsonX.Localization.AppStrings.ProxyMode);
             CrimsonX.Localization.AppStrings.Apply(F("lblSetVpnMode"),     CrimsonX.Localization.AppStrings.VpnMode);
@@ -235,6 +240,11 @@ namespace CrimsonX.Pages
             var tbCustomXray = this.FindControl<TextBlock>("lblCustomXrayExit");
             CrimsonX.Localization.AppStrings.Apply(tbCustomXray, CrimsonX.Localization.AppStrings.CustomXrayExit);
             CrimsonX.Localization.AppStrings.ApplyToolTip(tbCustomXray, CrimsonX.Localization.AppStrings.TtCustomXray);
+            var lblExitDefault = this.FindControl<TextBlock>("lblExitNodeDefault");
+            if (lblExitDefault != null) lblExitDefault.Text = CrimsonX.Localization.AppStrings.ExitNodeDefault;
+            var lblExitCustom = this.FindControl<TextBlock>("lblExitNodeCustom");
+            if (lblExitCustom != null) lblExitCustom.Text = CrimsonX.Localization.AppStrings.ExitNodeCustom;
+            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnExitNodeSubmit"), CrimsonX.Localization.AppStrings.ExitNodeSubmit);
             var tbAdapterBinding = this.FindControl<TextBlock>("lblAdapterBindingTitle");
             CrimsonX.Localization.AppStrings.Apply(tbAdapterBinding, CrimsonX.Localization.AppStrings.AdapterBinding);
             CrimsonX.Localization.AppStrings.ApplyToolTip(tbAdapterBinding, CrimsonX.Localization.AppStrings.TtAdapterBinding);
@@ -1344,7 +1354,7 @@ namespace CrimsonX.Pages
             {
                 ShowExitNodeRaw(MainWindow.Instance.Config.V2rayChainJson);
                 tog.IsChecked = MainWindow.Instance.Config.EnableV2rayChain;
-                pan.MaxHeight = 120;
+                pan.MaxHeight = 200;
                 pan.Opacity = 1;
                 var transform = new global::Avalonia.Media.RotateTransform(180);
                 ico.RenderTransform = transform;
@@ -1815,17 +1825,25 @@ namespace CrimsonX.Pages
                 else if (!MainWindow.Instance.Config.EnableV2rayChain)
                 {
                     MainWindow.Instance.Config.EnableV2rayChain = true;
+                    MainWindow.Instance.Config.ExitNodeSuspended = false;
+                    MainWindow.Instance.Config.ExitNodeAuto = false;
                     MainWindow.Instance.RequestConfigSave();
                     if (MainWindow.Instance.State.IsEngineRunning) MainWindow.Instance.SmartRestartXray();
                 }
             }
             else
             {
+                MainWindow.Instance.Config.ExitNodeSuspended = false;
+                MainWindow.Instance.Config.ExitNodeAuto = true;
                 if (MainWindow.Instance.Config.EnableV2rayChain)
                 {
                     MainWindow.Instance.Config.EnableV2rayChain = false;
                     MainWindow.Instance.RequestConfigSave();
                     if (MainWindow.Instance.State.IsEngineRunning) MainWindow.Instance.SmartRestartXray();
+                }
+                else
+                {
+                    MainWindow.Instance.RequestConfigSave();
                 }
             }
         }

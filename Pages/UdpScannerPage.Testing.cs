@@ -108,7 +108,9 @@ namespace CrimsonX.Pages
         }
 
         private Task<ConfigTestResult[]> ScanBatchAsync(IReadOnlyList<string> batch, string adapterIp, CancellationToken ct)
-            => ConfigTester.TestUdpBatchAsync(batch, Main.Config, ct, adapterIp, stun: UseStunUdpProbe);
+            => TcpMode
+                ? ConfigTester.TestTcpBatchAsync(batch, Main.Config, ct, adapterIp, stun: UseStunUdpProbe)
+                : ConfigTester.TestUdpBatchAsync(batch, Main.Config, ct, adapterIp, measureHttpPing: false, stun: UseStunUdpProbe);
 
         private async Task RunScanAsync()
         {
@@ -116,6 +118,9 @@ namespace CrimsonX.Pages
             int concurrency = SelectedConcurrency();
             int discardPing = SelectedDiscardPing();
             string adapterIp = SelectedAdapterIp();
+            string routeName = SelectedAdapterName();
+            var routeBefore = AdapterCounters(adapterIp);
+            ShowRoute(AppStrings.ScannerScan, routeName, adapterIp, before: null);
             _lastGoal = goal;
             _items.Clear();
             _seen.Clear();
@@ -173,7 +178,8 @@ namespace CrimsonX.Pages
                         UpdateScanProgress();
                         foreach (var r in results)
                         {
-                            if (!r.Success || !r.UdpOk) continue;
+                            if (!r.Success) continue;
+                            if (!TcpMode && !r.UdpOk) continue;
                             if (string.IsNullOrWhiteSpace(r.OutboundJson) || _seen.Contains(r.OutboundJson)) continue;
                             if (!Main.IsConfigAllowedForScan(r)) continue;
                             if (discardPing > 0 && r.Ping > discardPing)
@@ -239,6 +245,7 @@ namespace CrimsonX.Pages
             else if (padded > 0) UpdateStatus(string.Format(AppStrings.UdpScannerFoundPadded, _items.Count, _items.Count - padded));
             else if (goalReached) UpdateStatus(string.Format(AppStrings.UdpScannerFound, _items.Count));
             else UpdateStatus(string.Format(AppStrings.UdpScannerGoalNotReached, _items.Count, _lastGoal));
+            ShowRoute(AppStrings.ScannerScan, routeName, adapterIp, routeBefore);
         }
 
         // ── Options ──

@@ -19,6 +19,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:CrimsonX.Controls"
+             xmlns:behaviors="clr-namespace:CrimsonX.Behaviors"
              x:Class="CrimsonX.Controls.NavigationBar">
     <UserControl.Styles>
         <Style Selector="RadioButton.navBtn">
@@ -149,7 +150,7 @@
             <Setter Property="BorderBrush" Value="#2D3748"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Padding" Value="8,6"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#E2E8F0"/>
@@ -208,6 +209,16 @@
             <Setter Property="BorderBrush" Value="#FFFFFF"/>
         </Style>
 
+        <Style Selector="Button.locOption PathIcon">
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+        </Style>
+        <Style Selector="Button.locOption:pointerover PathIcon">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="Button.locOption.selected PathIcon">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
         <Style Selector="Button.locClose">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -245,6 +256,63 @@
         </Style>
         <Style Selector="Button.locClose:pressed /template/ ContentPresenter">
             <Setter Property="Background" Value="#26FFFFFF"/>
+        </Style>
+
+        <Style Selector="Button.locMode">
+            <Setter Property="Background" Value="#F20A0C0F"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="1"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.locMode /template/ ContentPresenter">
+            <Setter Property="Background" Value="#F20A0C0F"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.locMode:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#F20A0C0F"/>
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="Button.locMode:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#F20A0C0F"/>
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+        </Style>
+        <Style Selector="Button.locMode.selected">
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+        <Style Selector="Button.locMode.selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="#F20A0C0F"/>
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <Style Selector="ScrollViewer#LocationsScroller /template/ ScrollBar#PART_VerticalScrollBar">
+            <Setter Property="Width" Value="8"/>
         </Style>
 
         <!-- ── The rail ── -->
@@ -291,7 +359,7 @@
                     <PathIcon x:Name="themeNavIcon" Data="M17.5,12A1.5,1.5 0 0,1 16,10.5A1.5,1.5 0 0,1 17.5,9A1.5,1.5 0 0,1 19,10.5A1.5,1.5 0 0,1 17.5,12M14.5,8A1.5,1.5 0 0,1 13,6.5A1.5,1.5 0 0,1 14.5,5A1.5,1.5 0 0,1 16,6.5A1.5,1.5 0 0,1 14.5,8M9.5,8A1.5,1.5 0 0,1 8,6.5A1.5,1.5 0 0,1 9.5,5A1.5,1.5 0 0,1 11,6.5A1.5,1.5 0 0,1 9.5,8M6.5,12A1.5,1.5 0 0,1 5,10.5A1.5,1.5 0 0,1 6.5,9A1.5,1.5 0 0,1 8,10.5A1.5,1.5 0 0,1 6.5,12M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21A1.5,1.5 0 0,0 13.5,19.5C13.5,19.11 13.35,18.76 13.11,18.5C12.88,18.23 12.73,17.88 12.73,17.5A1.5,1.5 0 0,1 14.23,16H16A5,5 0 0,0 21,11C21,6.58 16.97,3 12,3Z" Width="17" Height="17"/>
                 </RadioButton>
                 <RadioButton x:Name="btnNavUdp" Classes="navBtn" GroupName="NavGroup" Tag="UdpScanner" IsCheckedChanged="NavButton_Checked"
-                             ToolTip.Tip="UDP SCANNER">
+                             ToolTip.Tip="SCANNER">
                     <PathIcon Data="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z" Width="17" Height="17"/>
                 </RadioButton>
 
@@ -321,19 +389,20 @@
                PlacementGravity="BottomRight" HorizontalOffset="-1" VerticalOffset="-12"
                IsLightDismissEnabled="False" Closed="LocationsPopup_Closed">
             <Border x:Name="LocationsCard" Classes="popupContent" Background="#F20A0C0F" BorderBrush="#2D3748"
-                    BorderThickness="1" CornerRadius="6" Padding="8" Margin="12"
-                    BoxShadow="0 6 18 -2 #E6000000" Width="156">
+                    BorderThickness="1" CornerRadius="6" Padding="8,8,0,8" Margin="12"
+                    BoxShadow="0 6 18 -2 #E6000000">
                 <StackPanel Spacing="6">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock x:Name="lblLocationsTitle" Grid.Column="0" Text="LOCATIONS" FontSize="10"
-                                   FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1" VerticalAlignment="Center"
-                                   Margin="3,0,0,0"/>
-                        <Button x:Name="btnLocationsClose" Grid.Column="1" Classes="locClose" Click="LocationsClose_Click"
-                                HorizontalAlignment="Right">
-                            <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41z" Width="9" Height="9"/>
+                    <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="4" Margin="0,0,8,0">
+                        <Button x:Name="btnLocModeRegions" Grid.Column="0" Classes="locMode" Click="LocModeRegions_Click">
+                            <TextBlock x:Name="lblLocModeRegions" Text="REGIONS" FontSize="9" FontWeight="Bold"/>
+                        </Button>
+                        <Button x:Name="btnLocModeCountries" Grid.Column="1" Classes="locMode" Click="LocModeCountries_Click">
+                            <TextBlock x:Name="lblLocModeCountries" Text="COUNTRIES" FontSize="9" FontWeight="Bold"/>
                         </Button>
                     </Grid>
-                    <ItemsControl x:Name="lstLocations">
+                    <ScrollViewer x:Name="LocationsScroller" Height="218" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  behaviors:SmoothScrollBehavior.Step="85">
+                        <ItemsControl x:Name="lstLocations" Margin="0,0,8,0">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <StackPanel Spacing="6"/>
@@ -343,15 +412,32 @@
                             <DataTemplate x:DataType="controls:LocationOption">
                                 <Grid>
                                     <Button Classes="locOption" IsVisible="{Binding IsNotSelected}" Click="LocationOption_Click">
-                                        <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"/>
+                                        <Grid ColumnDefinitions="20,6,*" VerticalAlignment="Center">
+                                            <Image Grid.Column="0" Source="{Binding FlagImage}" IsVisible="{Binding HasFlag}"
+                                                   Width="18" Height="12" Stretch="Uniform" VerticalAlignment="Center"
+                                                   RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                            <PathIcon Grid.Column="0" Data="{Binding IconGeometry}" IsVisible="{Binding HasIcon}"
+                                                      Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
                                     </Button>
                                     <Button Classes="locOption selected" IsVisible="{Binding IsSelected}" Click="LocationOption_Click">
-                                        <TextBlock Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"/>
+                                        <Grid ColumnDefinitions="20,6,*" VerticalAlignment="Center">
+                                            <Image Grid.Column="0" Source="{Binding FlagImage}" IsVisible="{Binding HasFlag}"
+                                                   Width="18" Height="12" Stretch="Uniform" VerticalAlignment="Center"
+                                                   RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                            <PathIcon Grid.Column="0" Data="{Binding IconGeometry}" IsVisible="{Binding HasIcon}"
+                                                      Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="11" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
                                     </Button>
                                 </Grid>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </StackPanel>
             </Border>
         </Popup>

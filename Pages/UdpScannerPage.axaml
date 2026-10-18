@@ -86,6 +86,18 @@
         <Style Selector="Border.scanRow.pressed > Grid">
             <Setter Property="RenderTransform" Value="scale(0.94)"/>
         </Style>
+
+        <Style Selector="TextBlock#lblGraphInfo">
+            <Setter Property="Foreground" Value="#5A6270"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="TextBlock#lblGraphInfo:pointerover">
+            <Setter Property="Foreground" Value="#8B949E"/>
+        </Style>
     </UserControl.Styles>
 
     <UserControl.Resources>
@@ -221,14 +233,16 @@
                 </Border>
 
                 <Border x:Name="panTestingBox" Grid.Column="0" Classes="scanCard" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,10">
-
-                    <!-- Status and START TESTING, then the graph, then the stability caption. -->
                     <Grid RowDefinitions="Auto, *, Auto">
 
-                        <Grid Grid.Row="2" ColumnDefinitions="Auto, *, Auto" Margin="0,6,0,0">
+                        <Grid Grid.Row="2" ColumnDefinitions="Auto, *" Margin="0,6,0,0">
                             <TextBlock Name="lblGraphTitle" Text="STABILITY" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
-                            <TextBlock Name="lblGraphInfo" Grid.Column="2" Text="" FontSize="10" FontWeight="SemiBold" Foreground="#5A6270" FlowDirection="LeftToRight"
-                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            <Border Name="boxGraphInfo" Grid.Column="1" ClipToBounds="True" HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Center" Margin="10,0,0,0">
+                                <TextBlock Name="lblGraphInfo" Text="" FontSize="10" FontWeight="SemiBold"
+                                           FlowDirection="LeftToRight" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center" Padding="6,1,0,1"/>
+                            </Border>
                         </Grid>
 
                         <Border Grid.Row="1" Classes="graphBox" CornerRadius="4" Padding="6,4" MinHeight="48"
@@ -236,11 +250,20 @@
                             <cx:StabilityGraph Name="graphStability" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
                         </Border>
 
-                        <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,8">
-                            <TextBlock Grid.Column="0" Name="lblScanStatus" Text="READY" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,8">
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Button Name="btnScanTcp" Content="TCP" Click="ScanProtocol_Click"
+                                        Classes="optBtn" FontSize="9" FontWeight="Bold" Height="20" MinHeight="0" Padding="9,0"
+                                        CornerRadius="4,0,0,4" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                                <Button Name="btnScanUdp" Content="UDP" Click="ScanProtocol_Click"
+                                        Classes="optBtn activeOpt" FontSize="9" FontWeight="Bold" Height="20" MinHeight="0" Padding="9,0"
+                                        CornerRadius="0,4,4,0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="1" Name="lblScanStatus" Text="READY" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"
                                        TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight" VerticalAlignment="Center" Margin="0,0,10,0"/>
 
-                            <Border Grid.Column="1" Background="#0A0C0F" CornerRadius="3" BorderBrush="#2D3748" BorderThickness="1"
+                            <Border Grid.Column="2" Background="#0A0C0F" CornerRadius="3" BorderBrush="#2D3748" BorderThickness="1"
                                     HorizontalAlignment="Right" VerticalAlignment="Center" Height="24">
                                 <Button Name="btnStart" Content="START TESTING" Click="Start_Click"
                                         FontSize="10" FontWeight="Bold" Foreground="#E2E8F0" Background="Transparent"

@@ -18,10 +18,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 
 namespace CrimsonX.Pages
 {
@@ -113,44 +115,15 @@ namespace CrimsonX.Pages
 
         // ── paste: the one copy of the gesture and the clipboard read ───────────────────────────
 
-        public static bool IsPasteGesture(KeyEventArgs e)
-            => (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.V)
-            || (e.KeyModifiers.HasFlag(KeyModifiers.Shift) && e.Key == Key.Insert);
+        public static bool IsPasteGesture(KeyEventArgs e) => PasteRouter.IsPasteGesture(e);
 
-        public static async Task<string> ReadClipboardAsync(Control anchor)
-        {
-            try
-            {
-                var top = TopLevel.GetTopLevel(anchor);
-                if (top?.Clipboard == null) return "";
-                var transfer = await top.Clipboard.TryGetDataAsync();
-                if (transfer == null) return "";
-                try { return (await transfer.TryGetTextAsync()) ?? ""; }
-                finally
-                {
-                    if (transfer is IDisposable disposable) disposable.Dispose();
-                    else if (transfer is IAsyncDisposable asyncDisposable) await asyncDisposable.DisposeAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                CrimsonX.Services.SimpleLogger.Log(ex);
-                return "";
-            }
-        }
+        public static Task<string> ReadClipboardAsync(Control anchor) => PasteRouter.ReadClipboardAsync(anchor);
 
         public void AttachPaste(string key, Func<string, Task> onPasted)
         {
             var box = Box(key);
             if (box == null) return;
-            box.AddHandler(InputElement.KeyDownEvent, async (object? sender, KeyEventArgs e) =>
-            {
-                if (!IsPasteGesture(e)) return;
-                e.Handled = true;
-                string text = (await ReadClipboardAsync(box)).Trim();
-                if (text.Length == 0) return;
-                await onPasted(text);
-            }, RoutingStrategies.Tunnel);
+            PasteRouter.Attach(box, onPasted);
         }
 
         private static string GetText(Control? box)

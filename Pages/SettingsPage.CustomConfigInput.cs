@@ -63,25 +63,11 @@ namespace CrimsonX.Pages
 
         private Task OnSlotPasteAsync(int slot, string text) => ApplyCustomConfigRawAsync(slot, text);
 
-        private async Task OnSavedImportPasteAsync(string text)
+        private Task OnSavedImportPasteAsync(string text)
         {
-            var cfg = MainWindow.Instance?.Config;
-            if (cfg == null) return;
-            var verdict = await ConfigIntake.AcceptAsync(text, cfg, ConfigTarget.Pool, AppStrings.SavedConfigsTitle);
-            if (!verdict.Accepted)
-            {
-                MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
-                return;
-            }
-            if (verdict.Toast.Length > 0) MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
-            text = verdict.Raw;
-            if (text.Contains('\n') || text.Contains('\r'))
-            {
-                StoreSavedConfigRaw(text);
-                return;
-            }
             var box = this.FindControl<TextBox>("txtSavedConfigImport");
-            if (box != null) box.Text = text;
+            if (box != null) box.Text = (text ?? "").Trim();
+            return Task.CompletedTask;
         }
 
         internal void ApplyCustomConfigTitles() => ApplyCustomConfigTitles(false);
@@ -102,11 +88,12 @@ namespace CrimsonX.Pages
             var verdict = await ConfigIntake.AcceptAsync(raw, cfg, ConfigTarget.Xray, AppStrings.PaneCustomConfig);
             if (!verdict.Accepted)
             {
+                CrimsonX.Services.SimpleLogger.Log($"[Paste] {AppStrings.PaneCustomConfig}: {verdict.Reason}");
                 MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
                 return false;
             }
             if (verdict.Toast.Length > 0) MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
-            raw = verdict.Raw;
+            if (verdict.Raw.Length > 0) raw = verdict.Raw;
             SetConfigRaw(cfg, slot, raw);
             RefreshConfigCombos();
             RefreshSavedConfigs();

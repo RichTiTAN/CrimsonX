@@ -195,7 +195,6 @@ namespace CrimsonX.Pages
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null || raw.Length == 0) return;
 
-            // OpenVPN / WireGuard are dialed by sing-box
             if (ConfigConverter.TryTunnel(raw, out _, out _)) return;
             string xrayError = await XrayConfigValidator.CheckAsync(cfg, raw);
             if (xrayError.Length == 0) return;
@@ -236,10 +235,11 @@ namespace CrimsonX.Pages
                 {
                     if (entry == null || string.IsNullOrWhiteSpace(entry.Raw)) continue;
                     string raw = entry.Raw.Trim();
+                    string label = string.IsNullOrWhiteSpace(entry.Label) ? ConfigConverter.LabelFor(raw) : entry.Label;
                     _savedConfigs.Add(new SavedConfigItem
                     {
                         Raw = raw,
-                        Label = string.IsNullOrWhiteSpace(entry.Label) ? SingboxLinkParser.LabelOf(raw) : entry.Label,
+                        Label = label,
                         Detail = raw.Length > 300 ? raw.Substring(0, 300) + "..." : raw,
                         CopyTip = AppStrings.TtSavedConfigsCopy,
                         DeleteTip = AppStrings.TtSavedConfigsDelete,
@@ -494,6 +494,7 @@ namespace CrimsonX.Pages
                 var entry = entries.FirstOrDefault(en => string.Equals(en.Raw.Trim(), item.Raw, StringComparison.Ordinal));
                 if (entry == null) return;
                 entry.Label = name;
+                entry.LabelEdited = true;
                 AppCustomConfigStore.Save(entries);
                 item.Label = name;
                 RefreshConfigCombos();

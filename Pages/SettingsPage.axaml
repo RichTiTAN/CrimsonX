@@ -31,8 +31,10 @@
             <Setter Property="Foreground" Value="#8B949E"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="14,8,14,8"/>
-            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MinHeight" Value="0"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -472,8 +474,36 @@
                                                         <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
                                                     </Transitions>
                                                 </Border.Transitions>
-                                                <StackPanel Margin="15,15,15,15" Spacing="10">
-                                                    <Grid ColumnDefinitions="*, Auto, Auto, Auto">
+                                                <StackPanel Margin="15,9,15,12" Spacing="6">
+                                                    <Grid ColumnDefinitions="Auto, Auto, *">
+                                                        <ToggleButton x:Name="btnExitNodeDefault" Grid.Column="0" Classes="pillToggle" Click="ExitNodeModeDefault_Click">
+                                                            <TextBlock x:Name="lblExitNodeDefault" Text="DEFAULT" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
+                                                        </ToggleButton>
+                                                        <ToggleButton x:Name="btnExitNodeCustom" Grid.Column="1" Classes="pillToggle" Click="ExitNodeModeCustom_Click">
+                                                            <TextBlock x:Name="lblExitNodeCustom" Text="CUSTOM" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
+                                                        </ToggleButton>
+                                                    </Grid>
+                                                    <Grid x:Name="panExitNodeDefault" ColumnDefinitions="*, Auto" IsVisible="False">
+                                                        <ComboBox x:Name="cbExitNodeCountry" Grid.Column="0" Classes="customProxy" MaxDropDownHeight="218" SelectedIndex="-1" MinHeight="28" Height="28" PlaceholderText="{x:Static loc:AppStrings.ExitNodeSelectHint}" Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" FontSize="11" CornerRadius="4,0,0,4" Padding="8,3,4,5" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0" SelectionChanged="ExitNodeCountry_SelectionChanged">
+                                                            <ComboBox.ItemTemplate>
+                                                                <DataTemplate x:DataType="pages:CountryComboItem">
+                                                                    <Grid ColumnDefinitions="20,6,*" VerticalAlignment="Center">
+                                                                        <Image Grid.Column="0" Source="{Binding FlagImage}" IsVisible="{Binding HasFlag}" Width="18" Height="12" Stretch="Uniform" VerticalAlignment="Center" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                                        <TextBlock Grid.Column="2" Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center"/>
+                                                                    </Grid>
+                                                                </DataTemplate>
+                                                            </ComboBox.ItemTemplate>
+                                                        </ComboBox>
+                                                        <Button x:Name="btnExitNodeSubmit" Grid.Column="1" Click="btnExitNodeSubmit_Click" Content="{x:Static loc:AppStrings.ExitNodeSubmit}" FontSize="9" FontWeight="Bold" Foreground="#A0AEC0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="62" MinWidth="0" Height="28" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Cursor="Hand" CornerRadius="0,4,4,0" Padding="0" ToolTip.Tip="{x:Static loc:AppStrings.ExitNodeSubmit}">
+                                                            <Button.Styles>
+                                                                <Style Selector="Button:pointerover /template/ ContentPresenter">
+                                                                    <Setter Property="Background" Value="#2AFFFFFF"/>
+                                                                    <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                                                                </Style>
+                                                            </Button.Styles>
+                                                        </Button>
+                                                    </Grid>
+                                                    <Grid x:Name="panExitNodeCustom" ColumnDefinitions="*, Auto, Auto, Auto">
                                                         <ComboBox x:Name="cbXrayExitNode" Grid.Column="0" Classes="customProxy" IsEditable="True" SelectedIndex="-1" MinHeight="28" Height="28" PlaceholderText="{x:Static loc:AppStrings.ExitNodePlaceholder}" Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" FontFamily="Consolas" FontSize="11" CornerRadius="4,0,0,4" Padding="8,5,4,3" VerticalAlignment="Stretch" VerticalContentAlignment="Center" Margin="0" SelectionChanged="XrayExitNode_SelectionChanged"/>
                                                         <Button x:Name="btnXrayExitImport" Grid.Column="1" Classes="plusBtn" Click="btnXrayExitImport_Click" Foreground="#A0AEC0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" Width="34" MinWidth="0" Height="28" MinHeight="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Cursor="Hand" CornerRadius="0" Padding="0" ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}">
                                                             <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12"/>

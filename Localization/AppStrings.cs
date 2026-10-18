@@ -147,7 +147,7 @@ namespace CrimsonX.Localization
 
         public static string StatusConnect => IsPersian ? "اتصال" : "CONNECT";
 
-        public static string ApplyChanges => IsPersian ? "اعمال تغییرات" : "APPLY CHANGES";
+        public static string ApplyChanges => IsPersian ? "اعمال" : "APPLY";
 
         public static string ToastRulesApplied => IsPersian ? "قوانین برنامه اعمال شد." : "App rules applied.";
 
@@ -233,8 +233,6 @@ namespace CrimsonX.Localization
 
         public static string LocationsTitle => IsPersian ? "مکان ها" : "LOCATIONS";
 
-        public static string LocationsClose => IsPersian ? "بستن" : "CLOSE";
-
         public static string ExcludeContinentAsia => IsPersian ? "آسیا" : "Asia";
 
         public static string ExcludeContinentEurope => IsPersian ? "اروپا" : "Europe";
@@ -262,6 +260,32 @@ namespace CrimsonX.Localization
         public static string AdvancedRulesVpnOnlyMsg => IsPersian ? "قوانین پیشرفته فقط در حالت VPN قابل فعال سازی هستند. آیا مایل به تغییر به حالت VPN و ادامه هستید؟" : "ADVANCED RULES CAN ONLY BE ENABLED IN VPN MODE, DO YOU WISH TO SWITCH TO VPN MODE AND CONTINUE?";
 
         public static string FilterAll => IsPersian ? "همه" : "All";
+
+        public static string LocationsRegions => IsPersian ? "مناطق" : "REGIONS";
+
+        public static string LocationsCountries => IsPersian ? "کشورها" : "COUNTRIES";
+
+        public static string ExitNodeDefault => IsPersian ? "پیش فرض" : "DEFAULT";
+
+        public static string ExitNodeCustom => IsPersian ? "سفارشی" : "CUSTOM";
+
+        public static string ExitNodeCustomRow => IsPersian ? "سفارشی" : "Custom";
+
+        public static string ExitNodeAutoRow => IsPersian ? "خودکار" : "Auto";
+
+        public static string ExitNodeFetching => IsPersian ? "در حال دریافت..." : "FETCHING...";
+
+        public static string ExitNodeSourceUnavailable => IsPersian ? "منبع در دسترس نیست" : "SOURCE UNAVAILABLE";
+
+        public static string ExitNodeNoCountries => IsPersian ? "کشوری یافت نشد" : "NO COUNTRIES";
+
+        public static string ExitNodeSubmit => IsPersian ? "ثبت" : "SUBMIT";
+
+        public static string ExitNodeSelectHint => IsPersian ? "یک کشور انتخاب کنید" : "Pick a country";
+
+        public static string ToastExitNodeCountryUpdated => IsPersian ? "کانفیگ نود خروجی به روز شد." : "The exit node's config was updated.";
+
+        public static string ToastExitNodeCountryRemoved => IsPersian ? "این کشور دیگر ارائه نمی شود؛ نود خروجی خاموش شد." : "That country is no longer offered - the exit node was turned off.";
 
         public static string FilterGames => IsPersian ? "بازی ها" : "Games";
 
@@ -417,8 +441,8 @@ namespace CrimsonX.Localization
         public static string PinUnpin => IsPersian ? "سنجاق / برداشتن سنجاق" : "Pin / Unpin";
 
         public static string PinTopBar => IsPersian
-            ? "نوار بالا را روی تب های اسپلیت تانلینگ، تم ها، اسکنر UDP و درباره نگه می دارد"
-            : "Keeps the readout bar on the split tunneling, themes, UDP scanner and about tabs";
+            ? "نوار بالا را روی تب های اسپلیت تانلینگ، تم ها، اسکنر و درباره نگه می دارد"
+            : "Keeps the readout bar on the split tunneling, themes, scanner and about tabs";
 
         public static string EditAdapters => IsPersian ? "ویرایش آداپتورها" : "Edit Adapters";
 
@@ -550,11 +574,11 @@ namespace CrimsonX.Localization
 
         public static string WarningCaseSensitive => IsPersian ? "هشدار: به حروف بزرگ و کوچک حساس است" : "Warning: Case sensitive";
 
-        // ── Settings - Connection - UDP Scanner ──
+        public static string UdpScannerTitle => IsPersian ? "اسکنر" : "SCANNER";
 
-        public static string UdpScannerTitle => IsPersian ? "اسکنر UDP" : "UDP SCANNER";
+        public static string TtUdpScanner => IsPersian ? "کانفیگ ها را با پروتکل انتخابی (TCP یا UDP) بررسی می کند تا بهترین نودها برای بازی و تماس صوتی پیدا شوند." : "Tests configs with the probe you pick - TCP or UDP - to find the best nodes for gaming and voice traffic.";
 
-        public static string TtUdpScanner => IsPersian ? "کانفیگ ها را فقط با تست UDP بررسی می کند تا بهترین نودها برای بازی و تماس صوتی پیدا شوند." : "Tests configs with the UDP probe only, to find the best nodes for gaming and voice traffic.";
+        public static string TtUdpScannerProtocol => IsPersian ? "TCP تاخیر واقعی را از طریق رله اندازه می گیرد؛ UDP مسیر UDP خود کانفیگ را بررسی می کند." : "TCP measures the real delay through the relay; UDP checks the config's own UDP path.";
 
         public static string UdpScannerAmount => IsPersian ? "تعداد کانفیگ ها" : "AMOUNT OF CONFIGS";
 
@@ -582,7 +606,7 @@ namespace CrimsonX.Localization
 
         public static string UdpScannerBoxConfigs => IsPersian ? "کانفیگ ها" : "CONFIGS";
 
-        public static string TtUdpScannerStability => IsPersian ? "یک تست پایداری ۱۰ ثانیه ای روی این کانفیگ اجرا می کند (هر ۵۰۰ میلی ثانیه یک تست)." : "Runs a 10 second UDP stability test on this config (one probe every 500ms).";
+        public static string TtUdpScannerStability => IsPersian ? "یک تست پایداری ۱۰ ثانیه ای روی این کانفیگ اجرا می کند (هر ۵۰۰ میلی ثانیه یک تست)، با همان پروتکلی که در بالا انتخاب شده است." : "Runs a 10 second stability test on this config (one probe every 500ms), over whichever protocol is picked above.";
 
         public static string TtUdpScannerCopy => IsPersian ? "کپی لینک اشتراک" : "Copy share link";
 
@@ -618,7 +642,17 @@ namespace CrimsonX.Localization
 
         public static string UdpScannerStabilityDetail => IsPersian ? "UDP {0}٪ سالم • {1}/{2} • میانگین {3} • کمینه {4} • بیشینه {5} میلی ثانیه" : "UDP {0}% OK • {1}/{2} • AVG {3} ms • MIN {4} ms • MAX {5} ms";
 
+        public static string UdpScannerStabilityDetailTcp => IsPersian ? "TCP {0}٪ سالم • {1}/{2} • میانگین {3} • کمینه {4} • بیشینه {5} میلی ثانیه" : "TCP {0}% OK • {1}/{2} • AVG {3} ms • MIN {4} ms • MAX {5} ms";
+
         public static string UdpScannerStabilityFailed => IsPersian ? "تست پایداری ناموفق بود" : "STABILITY TEST FAILED";
+
+        public static string ScannerScan => IsPersian ? "اسکن" : "SCAN";
+
+        public static string ScannerVia => IsPersian ? "از طریق" : "VIA";
+
+        public static string ScannerDefaultRoute => IsPersian ? "مسیر پیش فرض" : "DEFAULT ROUTE";
+
+        public static string ScannerAdapterNotUp => IsPersian ? "آداپتور بالا نیست" : "ADAPTER NOT UP";
 
         public static string UdpScannerGraphIdle => IsPersian ? "یک تست پایداری اجرا کنید" : "RUN A STABILITY TEST";
 
@@ -632,6 +666,8 @@ namespace CrimsonX.Localization
 
         public static string OptimizeOnConnect => IsPersian ? "بهینه سازی هنگام اتصال" : "OPTIMIZE ON CONNECT";
 
+        public static string OptimizeAlternateMode => IsPersian ? "حالت جایگزین" : "ALTERNATE MODE";
+
         public static string OptimizeAdapter => IsPersian ? "آداپتور" : "ADAPTER";
 
         public static string TtOptimizeAdapter => IsPersian ? "تست ها و اتصال برنامه های بهینه شده از این آداپتور انجام می شوند." : "Which adapter the tests and the optimized apps' connection should use.";
@@ -641,6 +677,8 @@ namespace CrimsonX.Localization
         public static string TtOptimizeGear => IsPersian ? "تنظیمات بهینه سازی" : "Optimization settings";
 
         public static string TtOptimizeOnConnect => IsPersian ? "هر بار که برنامه متصل می شود، بهینه سازی خودکار انجام شود." : "Start optimizing automatically every time the app connects.";
+
+        public static string TtOptimizeAlternateMode => IsPersian ? "تست ها با تاخیر واقعی انجام می شوند، و برنده از طریق همان لوکیشن در نودهای خروجی زنجیره می شود." : "Tests with real delay instead of UDP, then chains the winner through that location in your exit nodes.";
 
         public static string TtOptimizeItem => IsPersian ? "ترافیک این برنامه از کانفیگ بهینه شده عبور کند (TCP و UDP)." : "Route this app through the optimized config (TCP and UDP).";
 

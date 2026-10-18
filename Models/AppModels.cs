@@ -67,6 +67,20 @@ namespace CrimsonX.Models
         public string V2rayChainJson { get; set; } = "";
         public bool EnableV2rayChain { get; set; } = false;
 
+        public string LocationsMode { get; set; } = "REGIONS";
+
+        public string ExitNodeSource { get; set; } = "CUSTOM";
+
+        public string ExitNodeCountry { get; set; } = "";
+
+        public string ExitNodeCustomJson { get; set; } = "";
+
+        public bool ExitNodeCustomEnabled { get; set; } = false;
+
+        public bool ExitNodeSuspended { get; set; } = false;
+
+        public bool ExitNodeAuto { get; set; } = false;
+
         public string QuickSetting1 { get; set; } = "CUSTOM CONFIGS";
         public string QuickSetting2 { get; set; } = "AUTO-CONNECT";
 
@@ -107,6 +121,8 @@ namespace CrimsonX.Models
         public int UdpScanDiscardMs { get; set; } = 500;
         public string UdpScanAdapterName { get; set; } = "";
         public string UdpScanAdapterIp { get; set; } = "";
+
+        public string UdpScanProtocol { get; set; } = "UDP";
 
         public List<DnsRestoreEntry> DnsRestore { get; set; } = new List<DnsRestoreEntry>();
     }

@@ -328,12 +328,14 @@ public partial class AppsGamesOverlay : UserControl
         this.AttachedToVisualTree += (s, e) =>
         {
             CrimsonX.Services.UiEventBus.Instance.ConnectionProgress += OnConnectionProgress;
+            CrimsonX.Services.UiEventBus.Instance.RulesApplied += OnRulesApplied;
             UpdateOverlayConnectUI();
             _connectUiTimer?.Start();
         };
         this.DetachedFromVisualTree += (s, e) =>
         {
             CrimsonX.Services.UiEventBus.Instance.ConnectionProgress -= OnConnectionProgress;
+            CrimsonX.Services.UiEventBus.Instance.RulesApplied -= OnRulesApplied;
             StopOverlayActivity();
         };
         if (this.FindControl<ScrollViewer>("Scroller") is { } scroller)
@@ -392,7 +394,6 @@ public partial class AppsGamesOverlay : UserControl
         using var _busy = CrimsonX.Services.UiBusy.Scope("apps & games rules");
         _rules = AppRulesService.Load();
         EnsureDefaultRules();
-        _hasPendingRuleChanges = false;
         if (RulesSignature(_rules) != _renderedSignature || FilterKey() != _renderedFilterKey)
             RefreshList(stream: true);
         CloseEditor(); 
@@ -1975,6 +1976,13 @@ catch (Exception ex)
         private void OnConnectionProgress(int percent)
         {
             global::Avalonia.Threading.Dispatcher.UIThread.Post(() => SetOverlayConnectProgress(percent));
+        }
+
+        private void OnRulesApplied()
+        {
+            if (!_hasPendingRuleChanges) return;
+            _hasPendingRuleChanges = false;
+            UpdateOverlayConnectUI();
         }
 
         private void SetOverlayConnectProgress(int percent)

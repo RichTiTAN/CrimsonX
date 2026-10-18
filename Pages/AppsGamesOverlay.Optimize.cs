@@ -29,6 +29,7 @@ using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -43,8 +44,13 @@ namespace CrimsonX.Pages
 {
     public partial class AppsGamesOverlay
     {
-        private const int OptimizeRowRevealWidth = 70;
+        private const int OptimizeRowRevealWidth = 24;
         private const int OptimizeRowGap = 10;
+        private const int RuleDeleteColumn = 4;
+        private const int DefaultPencilColumn = 8;
+        private static readonly IBrush OptimizeRowIdleIconBrush = new SolidColorBrush(Color.Parse("#606060"));
+        private static readonly IBrush OptimizeRowActiveIconBrush = new SolidColorBrush(Color.Parse("#E2E8F0"));
+        private const string ScannerIconPath = "M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z";
         private const int OptimizePillBodyHeight = 17;
 
         private const string OptimizeGearPath = "M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z";
@@ -79,6 +85,10 @@ namespace CrimsonX.Pages
         private Button _optToggleButton;
         private Border _optTogglePill;
         private TextBlock _optToggleText;
+        private Border _optAlternatePill;
+        private Button _optAlternateButton;
+        private TextBlock _optAlternateText;
+        private bool _optAlternate;
         private TextBlock _optAdapterLabel;
         private ComboBox _optAdapterCombo;
         private Border _optAdapterPill;
@@ -151,6 +161,7 @@ namespace CrimsonX.Pages
         {
             _optState = AppOptimizeStore.Load();
             _optOnConnect = _optState.OnConnect;
+            _optAlternate = _optState.AlternateMode;
             _optFoundRaw = _optState.FoundRaw ?? "";
             _optFoundLabel = _optState.FoundLabel ?? "";
             _optFoundPingMs = _optState.FoundPingMs;
@@ -408,17 +419,20 @@ namespace CrimsonX.Pages
             };
 
             var masterBox = this.FindControl<Border>("panMasterBox");
-            int index = masterBox != null ? bar.Children.IndexOf(masterBox) : -1;
-            if (index < 0) bar.Children.Add(_optBox);
-            else bar.Children.Insert(index, _optBox);
-
             _optCanvas = new Canvas
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 VerticalAlignment = VerticalAlignment.Stretch
             };
             _optCanvas.Children.Add(_optMenu);
-            _optInner.Children.Add(_optCanvas);
+
+            var wrap = new Grid { ClipToBounds = false };
+            wrap.Children.Add(_optBox);
+            wrap.Children.Add(_optCanvas);
+
+            int index = masterBox != null ? bar.Children.IndexOf(masterBox) : -1;
+            if (index < 0) bar.Children.Add(wrap);
+            else bar.Children.Insert(index, wrap);
 
             WireOptimizePress(press);
             SetApplyChangesBoxVisible(_applyChangesBoxVisible);
@@ -429,6 +443,7 @@ namespace CrimsonX.Pages
             var menu = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             menu.Children.Add(BuildOptimizeAdapterPill());
             menu.Children.Add(BuildOptimizeOnConnectPill());
+            menu.Children.Add(BuildOptimizeAlternatePill());
             LoadOptimizeAdapters();
             return menu;
         }
@@ -527,6 +542,33 @@ namespace CrimsonX.Pages
             pill.Classes.Add("floatBox");
             pill.Classes.Add("optOnPill");
             _optTogglePill = pill;
+            return pill;
+        }
+
+        private Border BuildOptimizeAlternatePill()
+        {
+            _optAlternateText = new TextBlock
+            {
+                Text = AS.OptimizeAlternateMode,
+                FontSize = 9,
+                FontWeight = FontWeight.Bold,
+                LetterSpacing = 0.5,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _optAlternateButton = new Button
+            {
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Content = _optAlternateText
+            };
+            _optAlternateButton.Classes.Add("pillBtn");
+            ToolTip.SetTip(_optAlternateButton, AS.TtOptimizeAlternateMode);
+            _optAlternateButton.Click += OptimizeAlternate_Click;
+
+            var pill = new Border { Child = _optAlternateButton };
+            pill.Classes.Add("floatBox");
+            pill.Classes.Add("optOnPill");
+            _optAlternatePill = pill;
             return pill;
         }
 
@@ -713,11 +755,20 @@ namespace CrimsonX.Pages
             SyncOptimizeToggleVisual();
         }
 
+        private void OptimizeAlternate_Click(object? sender, RoutedEventArgs e)
+        {
+            _optAlternate = !_optAlternate;
+            _optState.AlternateMode = _optAlternate;
+            AppOptimizeStore.Save(_optState);
+            SyncOptimizeToggleVisual();
+        }
+
         private void ApplyOptimizeLanguage()
         {
             if (_optMainButton != null) ToolTip.SetTip(_optMainButton, AS.TtOptimize);
             if (_optGearButton != null) ToolTip.SetTip(_optGearButton, AS.TtOptimizeGear);
             if (_optToggleButton != null) ToolTip.SetTip(_optToggleButton, AS.TtOptimizeOnConnect);
+            if (_optAlternateButton != null) ToolTip.SetTip(_optAlternateButton, AS.TtOptimizeAlternateMode);
             if (_optAdapterCombo != null) ToolTip.SetTip(_optAdapterCombo, AS.TtOptimizeAdapter);
             SyncOptimizeText();
             SyncOptimizeToggleVisual();
@@ -726,7 +777,9 @@ namespace CrimsonX.Pages
         private void SyncOptimizeText()
         {
             if (_optText == null) return;
-            AS.Apply(_optText, IsOptimizingVisual ? AS.OptimizingLabel : _optReady ? AS.OptimizeReady : AS.OptimizeLabel);
+            string label = IsOptimizingVisual ? AS.OptimizingLabel
+                : _optReady ? AS.OptimizeReady : AS.OptimizeLabel;
+            AS.Apply(_optText, label);
             var brush = _optReady ? _optReadyTextBrush : _optIdleTextBrush;
             if (brush != null && !ReferenceEquals(_optText.Foreground, brush)) _optText.Foreground = brush;
         }
@@ -755,6 +808,29 @@ namespace CrimsonX.Pages
                     _optTogglePill.Classes.Remove("on");
                 }
             }
+            if (_optAlternateButton != null)
+            {
+                if (_optAlternate)
+                {
+                    if (!_optAlternateButton.Classes.Contains("on")) _optAlternateButton.Classes.Add("on");
+                }
+                else
+                {
+                    _optAlternateButton.Classes.Remove("on");
+                }
+            }
+            if (_optAlternatePill != null)
+            {
+                if (_optAlternate)
+                {
+                    if (!_optAlternatePill.Classes.Contains("on")) _optAlternatePill.Classes.Add("on");
+                }
+                else
+                {
+                    _optAlternatePill.Classes.Remove("on");
+                }
+            }
+            if (_optAlternateText != null) AS.Apply(_optAlternateText, AS.OptimizeAlternateMode);
             if (_optToggleText != null) AS.Apply(_optToggleText, AS.OptimizeOnConnect);
             if (_optAdapterLabel != null) AS.Apply(_optAdapterLabel, AS.OptimizeAdapter);
         }
@@ -890,7 +966,7 @@ namespace CrimsonX.Pages
                     : AppOptimizerService.ConnectedConcurrency;
                 string adapterIp = _optAdapterIp ?? "";
                 var result = await Task.Run(
-                    () => AppOptimizerService.RunAsync(_cfg, adapterIp, concurrency, progress, ct), ct);
+                    () => AppOptimizerService.RunAsync(_cfg, adapterIp, concurrency, progress, ct, _optState.AlternateMode), ct);
                 if (runId != _optRunId || ct.IsCancellationRequested) return;
                 if (result == null || string.IsNullOrEmpty(result.Raw))
                 {
@@ -956,17 +1032,18 @@ namespace CrimsonX.Pages
                 {
                     double maxWidth = _optReady ? OptimizeRowRevealWidth : 0;
                     if (Math.Abs(button.MaxWidth - maxWidth) > 0.5) button.MaxWidth = maxWidth;
-                    double leftMargin = _optReady && button.Classes.Contains("optRowSpaced") ? OptimizeRowGap : 0;
+                    double leftMargin = button.Classes.Contains("optRowSpaced") ? OptimizeRowGap : 0;
                     if (Math.Abs(button.Margin.Left - leftMargin) > 0.5)
                         button.Margin = new Thickness(leftMargin, 0, 0, 0);
-                    if (button.Content is TextBlock label && label.Text != AS.OptimizeLabel) AS.Apply(label, AS.OptimizeLabel);
                     if (on)
                     {
-                        if (!button.Classes.Contains("activeOpt")) button.Classes.Add("activeOpt");
+                        button.Classes.Remove("activeOpt");
+                        if (button.Content is PathIcon onIcon) onIcon.Foreground = OptimizeRowActiveIconBrush;
                     }
                     else
                     {
                         button.Classes.Remove("activeOpt");
+                        if (button.Content is PathIcon offIcon) offIcon.Foreground = OptimizeRowIdleIconBrush;
                     }
                 }
             }
@@ -982,30 +1059,35 @@ namespace CrimsonX.Pages
             {
                 if (handle.Parent is not Grid grid) continue;
                 if (grid.Children.OfType<Button>().Any(b => b.Name == "btnOptimizeItem")) continue;
-                int pencilColumn = handle.Name == "DragHandleDefault" ? 8 : 4;
-                if (grid.ColumnDefinitions.Count <= pencilColumn) continue;
+                int insertColumn = handle.Name == "DragHandleDefault" ? DefaultPencilColumn : RuleDeleteColumn + 1;
+                if (grid.ColumnDefinitions.Count <= insertColumn) continue;
+                foreach (var child in grid.Children.ToList())
+                {
+                    if (Grid.GetColumn(child) != insertColumn) continue;
+                    if (child.Margin.Left > 0) child.Margin = new Thickness(0, child.Margin.Top, 0, child.Margin.Bottom);
+                }
                 foreach (var child in grid.Children.ToList())
                 {
                     int column = Grid.GetColumn(child);
-                    if (column >= pencilColumn) Grid.SetColumn(child, column + 1);
+                    if (column >= insertColumn) Grid.SetColumn(child, column + 1);
                 }
-                grid.ColumnDefinitions.Insert(pencilColumn, new ColumnDefinition { Width = GridLength.Auto });
+                grid.ColumnDefinitions.Insert(insertColumn, new ColumnDefinition { Width = GridLength.Auto });
                 bool spaced = handle.Name == "DragHandleDefault";
                 var button = BuildOptimizeRowButton(ruleId, spaced);
                 if (spaced) button.Classes.Add("optRowSpaced");
-                Grid.SetColumn(button, pencilColumn);
+                Grid.SetColumn(button, insertColumn);
                 grid.Children.Add(button);
             }
         }
 
         private Button BuildOptimizeRowButton(string ruleId, bool spaced)
         {
-            var label = new TextBlock
+            var icon = new PathIcon
             {
-                Text = AS.OptimizeLabel,
-                FontSize = 8,
-                FontWeight = FontWeight.Bold,
-                LetterSpacing = 0.5
+                Data = Geometry.Parse(ScannerIconPath),
+                Width = 12,
+                Height = 12,
+                Foreground = OptimizeRowIdleIconBrush
             };
             var button = new Button
             {
@@ -1013,22 +1095,18 @@ namespace CrimsonX.Pages
                 Tag = ruleId,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
-                Padding = new Thickness(7, 3),
-                CornerRadius = new CornerRadius(4),
-                Margin = new Thickness(spaced && _optReady ? OptimizeRowGap : 0, 0, 0, 0),
+                Padding = new Thickness(6, 4),
+                Margin = new Thickness(spaced ? OptimizeRowGap : 0, 0, 0, 0),
                 Cursor = new Cursor(StandardCursorType.Hand),
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalContentAlignment = HorizontalAlignment.Left,
                 ClipToBounds = true,
                 MaxWidth = _optReady ? OptimizeRowRevealWidth : 0,
-                Content = label
+                Content = icon
             };
             button.Transitions = new Transitions
             {
                 new DoubleTransition { Property = Layoutable.MaxWidthProperty, Duration = TimeSpan.FromMilliseconds(200) },
                 new ThicknessTransition { Property = Layoutable.MarginProperty, Duration = TimeSpan.FromMilliseconds(200) }
             };
-            button.Classes.Add("optBtn");
             ToolTip.SetTip(button, AS.TtOptimizeItem);
             button.Click += OptimizeRow_Click;
             return button;
