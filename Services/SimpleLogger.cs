@@ -143,6 +143,18 @@ namespace CrimsonX.Services
 
         private static readonly object _onceLock = new object();
         private static readonly Dictionary<string, int> _onceCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        private static readonly HashSet<string> _firstKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        public static void LogFirst(string key, string message)
+        {
+            if (!EnableLogging) return;
+            lock (_onceLock)
+            {
+                if (_firstKeys.Count >= LogDedupe.MaxKeys) _firstKeys.Clear();
+                if (!_firstKeys.Add(key ?? "")) return;
+            }
+            Log(message);
+        }
 
         public static void LogOnce(string key, string message)
         {

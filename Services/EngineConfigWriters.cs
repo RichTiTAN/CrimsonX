@@ -29,8 +29,21 @@ namespace CrimsonX.Services
     {
         public static bool Write(AppConfig config, string xrayDir, System.Collections.Generic.List<JObject>? activeOutbounds = null)
         {
+            var chains = new System.Collections.Generic.List<System.Collections.Generic.List<JObject>>();
+            if (activeOutbounds != null)
+            {
+                foreach (var outbound in activeOutbounds)
+                {
+                    chains.Add(new System.Collections.Generic.List<JObject> { outbound });
+                }
+            }
+            return Write(config, xrayDir, chains);
+        }
+
+        public static bool Write(AppConfig config, string xrayDir, System.Collections.Generic.List<System.Collections.Generic.List<JObject>> activeChains)
+        {
             int nodeCount = 1;
-            if (activeOutbounds != null && activeOutbounds.Count > 0) nodeCount = activeOutbounds.Count;
+            if (activeChains != null && activeChains.Count > 0) nodeCount = activeChains.Count;
             bool exitIsSingboxExit = ExitNodeChain.IsSingboxExit(config);
             bool useCustomChain = config.EnableV2rayChain
                 && !string.IsNullOrWhiteSpace(config.V2rayChainJson)
@@ -132,23 +145,28 @@ namespace CrimsonX.Services
             {
                 try
                 {
-                    JObject? v2ob = ResolveExitNodeOutbound(config.V2rayChainJson);
-                    if (v2ob != null)
+                    var exitHops = ResolveExitNodeHops(config.V2rayChainJson);
+                    if (exitHops.Count > 0)
                     {
                         int chainCopies = loadBalanceIps.Count > 0 ? loadBalanceIps.Count : 1;
                         for (int slot = 0; slot < nodeCount * chainCopies; slot++)
                         {
                             int node = slot / chainCopies + 1;
                             int copy = slot % chainCopies + 1;
-                            bool localEntry = activeOutbounds != null && node - 1 < activeOutbounds.Count
-                                && XrayLinkParser.IsLocalOutbound(activeOutbounds[node - 1]);
+                            bool localEntry = activeChains != null && node - 1 < activeChains.Count
+                                && activeChains[node - 1] != null && activeChains[node - 1].Count > 0
+                                && XrayLinkParser.IsLocalOutbound(activeChains[node - 1][0]);
                             if (localEntry && copy > 1) continue;
-                            string cloneTag = CloneTag(sessionSuffix, node, copy, chainCopies);
-                            proxyCloneTags.Add(cloneTag);
-                            var clone = (JObject)v2ob.DeepClone();
-                            clone["tag"] = cloneTag;
-                            ChainThroughDialer(clone, NodeTag(sessionSuffix, node, copy, chainCopies));
-                            outbounds.Add(clone);
+                            string nodeTag = NodeTag(sessionSuffix, node, copy, chainCopies);
+                            string baseTag = CloneTag(sessionSuffix, node, copy, chainCopies);
+                            for (int h = 0; h < exitHops.Count; h++)
+                            {
+                                var clone = (JObject)exitHops[h].DeepClone();
+                                clone["tag"] = ExitHopTag(baseTag, h);
+                                ChainThroughDialer(clone, h + 1 < exitHops.Count ? ExitHopTag(baseTag, h + 1) : nodeTag);
+                                if (h == 0) proxyCloneTags.Add(clone["tag"]!.ToString());
+                                outbounds.Add(clone);
+                            }
                         }
                     }
                     else
@@ -162,25 +180,41 @@ namespace CrimsonX.Services
                 }
             }
             var nodeOutboundTags = new List<string>();
-            if (activeOutbounds != null && activeOutbounds.Count > 0)
+            if (activeChains != null && activeChains.Count > 0)
             {
                 int nodeCopies = loadBalanceIps.Count > 0 ? loadBalanceIps.Count : 1;
-                for (int slot = 0; slot < activeOutbounds.Count * nodeCopies; slot++)
+                for (int slot = 0; slot < activeChains.Count * nodeCopies; slot++)
                 {
                     int node = slot / nodeCopies;
                     int copy = slot % nodeCopies + 1;
-                    var ob = (JObject)activeOutbounds[node].DeepClone();
-                    bool local = XrayLinkParser.IsLocalOutbound(ob);
+                    var chain = activeChains[node];
+                    if (chain == null || chain.Count == 0) continue;
+                    bool local = XrayLinkParser.IsLocalOutbound(chain[0]);
                     if (local && copy > 1) continue;
                     string tag = NodeTag(sessionSuffix, node + 1, copy, nodeCopies);
                     nodeOutboundTags.Add(tag);
-                    ob["tag"] = tag;
                     string sendThroughIp = loadBalanceIps.Count > 0 ? loadBalanceIps[copy - 1] : pinnedIp;
-                    if (sendThroughIp.Length > 0 && !local)
+                    for (int h = 0; h < chain.Count; h++)
                     {
-                        ob["sendThrough"] = sendThroughIp;
+                        var ob = (JObject)chain[h].DeepClone();
+                        ob["tag"] = h == 0 ? tag : ExitHopTag(tag, h);
+                        if (h == chain.Count - 1 && sendThroughIp.Length > 0 && !local)
+                        {
+                            ob["sendThrough"] = sendThroughIp;
+                        }
+                        if (h + 1 < chain.Count) ChainThroughDialer(ob, ExitHopTag(tag, h + 1));
+                        else
+                        {
+                            ob.Remove("proxySettings");
+                            if (ob["streamSettings"] is JObject lastStream && lastStream["sockopt"] is JObject lastSockopt)
+                            {
+                                lastSockopt.Remove("dialerProxy");
+                                if (lastSockopt.Count == 0) lastStream.Remove("sockopt");
+                                if (lastStream.Count == 0) ob.Remove("streamSettings");
+                            }
+                        }
+                        outbounds.Add(ob);
                     }
-                    outbounds.Add(ob);
                 }
             }
             if (config.EnableAdBlock || (config.EnableDirect && !string.IsNullOrWhiteSpace(config.LastBlockSplit)))
@@ -391,36 +425,31 @@ namespace CrimsonX.Services
             sockopt["dialerProxy"] = dialerTag.Trim();
         }
 
-        private static JObject? ResolveExitNodeOutbound(string raw)
+        private static List<JObject> ResolveExitNodeHops(string raw)
         {
-            if (string.IsNullOrWhiteSpace(raw)) return null;
-            if (ExitNodeChain.IsPlainTcpVless(raw)) return null;
+            var hops = new List<JObject>();
+            if (string.IsNullOrWhiteSpace(raw)) return hops;
+            if (ExitNodeChain.IsPlainTcpVless(raw)) return hops;
+            if (TunnelConfigParser.LooksLikeTunnel(raw)) return hops;
             try
             {
-                if (ConfigConverter.IsXrayOutbound(raw))
+                if (!ConfigConverter.TryXrayChain(raw, out var chain, out _, out _) || chain.Count == 0)
                 {
-                    var parsed = JObject.Parse(raw);
-                    if (parsed["outbounds"] is JArray arr)
-                    {
-                        return arr.OfType<JObject>()
-                            .FirstOrDefault(o => o["protocol"]?.ToString() != "freedom" && o["protocol"]?.ToString() != "blackhole");
-                    }
-                    return parsed;
+                    CrimsonX.Services.SimpleLogger.Log("[ExitNode] The custom exit node could not be used by xray.");
+                    return hops;
                 }
-                if (TunnelConfigParser.LooksLikeTunnel(raw)) return null;
-                if (ConfigConverter.TryConvert(raw, out string converted, out _, out string error))
+                foreach (var hop in chain)
                 {
-                    CrimsonX.Services.SimpleLogger.Log("[ExitNode] Converted a sing-box exit config to an xray outbound.");
-                    return (JObject.Parse(converted)["outbounds"] as JArray)?.OfType<JObject>().FirstOrDefault();
+                    string protocol = hop["protocol"]?.ToString() ?? "";
+                    if (protocol == "freedom" || protocol == "blackhole") continue;
+                    hops.Add(hop);
                 }
-                CrimsonX.Services.SimpleLogger.Log($"[ExitNode] The custom exit node could not be used by xray: {error}");
-                return null;
             }
             catch (Exception ex)
             {
                 CrimsonX.Services.SimpleLogger.Log(ex);
-                return null;
             }
+            return hops;
         }
 
         public static string NodeTag(string session, int node, int copy, int copies) =>
@@ -428,6 +457,11 @@ namespace CrimsonX.Services
 
         public static string CloneTag(string session, int node, int copy, int copies) =>
             copies > 1 ? $"proxy-clone-{session}-{node}-{copy}" : $"proxy-clone-{session}-{node}";
+
+    public static string ExitHopTag(string baseTag, int index) =>
+        index == 0
+            ? baseTag
+            : baseTag.Replace("proxy-clone-", "proxy-hop-").Replace("proxy-node-", "proxy-hop-") + "-h" + (index + 1);
 
         public static string ProbeSendThrough(AppConfig config)
         {
@@ -505,9 +539,9 @@ namespace CrimsonX.Services
             bool   exitChained  = false;
             string exitError    = "";
             ExitNodeChain.ExitNodePlane exitPlane = ExitNodeChain.ExitNodePlane.None;
-            JObject? exitObject = null;
+            System.Collections.Generic.List<JObject> exitHops = null;
             if (!skipExitNode)
-                exitObject = ExitNodeChain.BuildExit(config, out exitPlane, out exitChained, out exitError);
+                exitHops = ExitNodeChain.BuildExitChain(config, out exitPlane, out exitChained, out exitError);
             if (exitChained) ExitNodeChain.AllocateProxyPort();
             if (exitError.Length > 0) CrimsonX.Services.SimpleLogger.Log($"[ExitNode] {exitError}");
             string proxyTag = exitChained ? ExitNodeChain.EndpointTag : ExitNodeChain.TransportTag;
@@ -550,7 +584,6 @@ namespace CrimsonX.Services
                 {
                     sbRules.Add(new { network = "udp", action = "route", outbound = !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp) ? "direct-udp" : "direct" });
                 }
-                sbRules.Add(new { network = "udp", port = new[] { 3478, 5349 }, action = "route", outbound = "direct" });
                 sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
 
                 // ── Upstream resolvers ───────────────────────────────────────────────────────────────
@@ -667,7 +700,7 @@ namespace CrimsonX.Services
                 };
                 if (!exitChained) return sbConfig;
                 var document = JObject.FromObject(sbConfig);
-                ExitNodeChain.PlaceInto(document, exitObject!, exitPlane);
+                ExitNodeChain.PlaceInto(document, exitHops, exitPlane);
                 ExitNodeChain.AddProxyInbound(document, config);
                 return document;
             }

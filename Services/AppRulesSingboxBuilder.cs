@@ -253,17 +253,35 @@ namespace CrimsonX.Services
                 });
                 return tunnelTag;
             }
-            if (!ConfigConverter.TrySingboxOutbound(raw, out string outboundJson, out string label, out _))
+            if (!ConfigConverter.TrySingboxChain(raw, out var hops, out string label, out _) || hops.Count == 0)
             {
                 return "";
             }
-            try { outbound = JObject.Parse(outboundJson); }
-            catch { return ""; }
             string tag = "custom-" + result.CustomProxies.Count;
-            SingboxLinkParser.WithTagAndDial(outbound, tag, adapter, CachedAdapterIp(adapterIps, adapter));
-            string normalized = outbound.ToString(Formatting.None);
-            result.Outbounds.Add(outbound);
-            result.CustomProxies.Add(new CustomOutboundProbe { Key = key, OutboundJson = normalized });
+            var tags = new List<string>();
+            for (int i = 0; i < hops.Count; i++) tags.Add(i == 0 ? tag : tag + "-" + i);
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            for (int i = 0; i < hops.Count; i++) map[hops[i]["tag"]?.ToString() ?? ""] = tags[i];
+            JObject head = null;
+            var chain = new JArray();
+            for (int i = 0; i < hops.Count; i++)
+            {
+                var hop = (JObject)hops[i].DeepClone();
+                hop["tag"] = tags[i];
+                string detour = hops[i]["detour"]?.ToString() ?? "";
+                if (detour.Length > 0 && map.TryGetValue(detour, out string mappedDetour)) hop["detour"] = mappedDetour;
+                if (i == 0) head = hop;
+                else chain.Add(hop);
+                if (i == hops.Count - 1)
+                    SingboxLinkParser.WithTagAndDial(hop, tags[i], adapter, CachedAdapterIp(adapterIps, adapter));
+                result.Outbounds.Add(hop);
+            }
+            result.CustomProxies.Add(new CustomOutboundProbe
+            {
+                Key = key,
+                OutboundJson = head.ToString(Formatting.None),
+                ChainJson = chain.Count > 0 ? chain.ToString(Formatting.None) : ""
+            });
             result.CustomTags[key] = tag;
             result.CustomLabels[tag] = label;
             result.DnsServers.Add(new

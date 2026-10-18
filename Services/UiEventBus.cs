@@ -41,9 +41,16 @@ namespace CrimsonX.Services
 
         public event System.Action<int>? ConnectionProgress;
 
+        public event System.Action? RulesApplied;
+
         public void PublishConnectionProgress(int percent)
         {
             Dispatcher.UIThread.Post(() => ConnectionProgress?.Invoke(percent));
+        }
+
+        public void PublishRulesApplied()
+        {
+            Dispatcher.UIThread.Post(() => RulesApplied?.Invoke());
         }
     }
 }

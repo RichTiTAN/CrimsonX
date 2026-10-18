@@ -32,6 +32,8 @@ namespace CrimsonX.Services
         public string Key { get; set; } = "";
 
         public string OutboundJson { get; set; } = "";
+
+        public string ChainJson { get; set; } = "";
     }
 
     public enum CustomProxyCheckResult
@@ -120,13 +122,15 @@ namespace CrimsonX.Services
             if (string.IsNullOrWhiteSpace(sbDir) || !Directory.Exists(sbDir)) return invalid;
             SweepStaleProbeDirs();
             var usable = new List<JObject>();
-            var keys   = new List<string>();
+            var tails   = new List<List<JObject>>();
+            var keys    = new List<string>();
             foreach (var probe in probes)
             {
                 if (probe == null || string.IsNullOrWhiteSpace(probe.OutboundJson)) continue;
                 try
                 {
                     usable.Add(JObject.Parse(probe.OutboundJson));
+                    tails.Add(ParseChain(probe.ChainJson));
                     keys.Add(probe.Key);
                 }
                 catch
@@ -140,11 +144,12 @@ namespace CrimsonX.Services
             {
                 Directory.CreateDirectory(probeDir);
                 string probePath = Path.Combine(probeDir, "probe.json");
-                if (!WriteAndCheck(sbDir, probePath, usable, batch: true))
+                if (!WriteAndCheck(sbDir, probePath, usable, tails, batch: true))
                 {
                     for (int i = 0; i < usable.Count; i++)
                     {
-                        if (!WriteAndCheck(sbDir, probePath, new List<JObject> { usable[i] }, batch: false))
+                        if (!WriteAndCheck(sbDir, probePath, new List<JObject> { usable[i] },
+                                new List<List<JObject>> { tails[i] }, batch: false))
                             invalid.Add(keys[i]);
                     }
                 }
@@ -159,13 +164,55 @@ namespace CrimsonX.Services
             }
             return invalid;
         }
-        private static bool WriteAndCheck(string sbDir, string probePath, List<JObject> outbounds, bool batch)
+
+        private static List<JObject> ParseChain(string chainJson)
+        {
+            var hops = new List<JObject>();
+            if (string.IsNullOrWhiteSpace(chainJson)) return hops;
+            try
+            {
+                if (JToken.Parse(chainJson) is JArray array)
+                {
+                    foreach (var hop in array.OfType<JObject>()) hops.Add((JObject)hop.DeepClone());
+                }
+            }
+            catch { }
+            return hops;
+        }
+
+        private static void RewriteDetour(JObject outbound, Dictionary<string, string> map)
+        {
+            string detour = outbound["detour"]?.ToString() ?? "";
+            if (detour.Length == 0) return;
+            if (map.TryGetValue(detour, out string mapped)) outbound["detour"] = mapped;
+        }
+
+        private static bool WriteAndCheck(string sbDir, string probePath, List<JObject> heads, List<List<JObject>> tails, bool batch)
         {
             var list = new JArray();
-            for (int i = 0; i < outbounds.Count; i++)
+            for (int i = 0; i < heads.Count; i++)
             {
-                outbounds[i]["tag"] = batch ? "probe-" + i : "probe";
-                list.Add(outbounds[i]);
+                var head = (JObject)heads[i].DeepClone();
+                var hops = tails != null && i < tails.Count && tails[i] != null ? tails[i] : new List<JObject>();
+                string headTag = batch ? "probe-" + i : "probe";
+                var map = new Dictionary<string, string>(StringComparer.Ordinal);
+                var copies = new List<JObject>();
+                for (int h = 0; h < hops.Count; h++)
+                {
+                    var copy = (JObject)hops[h].DeepClone();
+                    string original = copy["tag"]?.ToString() ?? "";
+                    string tag = headTag + "-" + (h + 1);
+                    if (original.Length > 0) map[original] = tag;
+                    copy["tag"] = tag;
+                    copies.Add(copy);
+                }
+                string originalHead = head["tag"]?.ToString() ?? "";
+                if (originalHead.Length > 0) map[originalHead] = headTag;
+                head["tag"] = headTag;
+                RewriteDetour(head, map);
+                foreach (var copy in copies) RewriteDetour(copy, map);
+                list.Add(head);
+                foreach (var copy in copies) list.Add(copy);
             }
             list.Add(new JObject { ["type"] = "direct", ["tag"] = "direct" });
             var config = new JObject
@@ -191,11 +238,14 @@ namespace CrimsonX.Services
         }
 
         public static bool CheckOutbound(string sbDir, string outboundJson)
+            => CheckChainOutbound(sbDir, outboundJson, "");
+
+        public static bool CheckChainOutbound(string sbDir, string outboundJson, string chainJson)
         {
             if (string.IsNullOrWhiteSpace(outboundJson)) return false;
             try { JObject.Parse(outboundJson); }
             catch { return false; }
-            var probe = new CustomOutboundProbe { Key = SingleProbeKey, OutboundJson = outboundJson };
+            var probe = new CustomOutboundProbe { Key = SingleProbeKey, OutboundJson = outboundJson, ChainJson = chainJson ?? "" };
             var invalid = FindInvalidOutbounds(sbDir, new[] { probe });
             return !invalid.Contains(SingleProbeKey);
         }

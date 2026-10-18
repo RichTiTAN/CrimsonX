@@ -67,6 +67,8 @@ namespace CrimsonX
             _state.AbortBoot = false;
             _state.IsConnected = false;
             _backgroundSeedSourceIndex = 0;
+            CrimsonX.Services.SimpleLogger.Log(
+                $"[Connect] exit node: source={_cfg.ExitNodeSource}, enabled={_cfg.EnableV2rayChain}, auto={_cfg.ExitNodeAuto}, country={_cfg.ExitNodeCountry}, chain={(_cfg.V2rayChainJson ?? "").Length} chars, custom={(_cfg.ExitNodeCustomJson ?? "").Length} chars");
             CrimsonX.Services.SimpleLogger.Log($"[Connect] Starting connection sequence in {_cfg.LastXrayMode}...");
             Dispatcher.UIThread.Post(() =>
             {
@@ -100,6 +102,14 @@ namespace CrimsonX
                             return;
                         }
                         customTunnels.Add(tunnel);
+                        return;
+                    }
+                    if (CrimsonX.Services.ConfigConverter.TryXrayChain(raw, out var chainHops, out string chainLabel, out _) && chainHops.Count > 1)
+                    {
+                        string chainDoc = CrimsonX.Services.ConfigConverter.BuildXrayChain(chainHops);
+                        customTopConfigs.Add(chainDoc);
+                        _customOutboundJsons.Add(chainDoc);
+                        CrimsonX.Services.SimpleLogger.Log($"[Connect] Custom config '{chainLabel}' is dialed by xray as a chain of {chainHops.Count} hops.");
                         return;
                     }
                     if (CrimsonX.Services.ConfigConverter.TryXrayOutbound(raw, out string xrayDoc, out string configLabel, out _))
@@ -197,9 +207,10 @@ namespace CrimsonX
             {
                 CrimsonX.Services.TunnelEngine.Stop(CrimsonX.Services.TunnelEngine.GroupRules);
             }
-            CrimsonX.Services.SimpleLogger.Log(
+            string engineLayout =
                 $"[Tunnel] engines: custom({CrimsonX.Services.TunnelEngine.Describe(CrimsonX.Services.TunnelEngine.GroupCustom)}) " +
-                $"rules({CrimsonX.Services.TunnelEngine.Describe(CrimsonX.Services.TunnelEngine.GroupRules)})");
+                $"rules({CrimsonX.Services.TunnelEngine.Describe(CrimsonX.Services.TunnelEngine.GroupRules)})";
+            CrimsonX.Services.SimpleLogger.LogFirst(engineLayout, engineLayout);
             ct.ThrowIfCancellationRequested();
             if (customConfigApplied)
             {
@@ -526,7 +537,7 @@ namespace CrimsonX
                 }
                 catch (Exception ex)
                 {
-                    CrimsonX.Services.SimpleLogger.Log($"[Fetch] Data worker#{wi}/{index} error: {ex.Message}");
+                    CrimsonX.Services.SimpleLogger.LogFirst($"fetch-error|{ex.Message}", $"[Fetch] Data worker#{wi}/{index} error: {ex.Message}");
                 }
             }
             return new List<string>();

@@ -457,6 +457,172 @@ namespace CrimsonX.Services
             return false;
         }
 
+        public static bool TrySingboxChain(string raw, out List<JObject> hops, out string label, out string error)
+        {
+            if (TrySingboxChainStrict(raw, out hops, out label, out error)) return true;
+            if (TryXrayChainStrict(raw, out var xrayHops, out _, out _) && xrayHops.Count > 1)
+                return ToSingboxHops(xrayHops, hops, out label, out error);
+            hops = new List<JObject>();
+            label = "";
+            return false;
+        }
+
+        private static bool TrySingboxChainStrict(string raw, out List<JObject> hops, out string label, out string error)
+        {
+            hops = new List<JObject>();
+            label = "";
+            error = "";
+            string text = (raw ?? "").Trim();
+            if (text.Length == 0)
+            {
+                error = "empty config";
+                return false;
+            }
+            if (text.StartsWith("{", StringComparison.Ordinal))
+            {
+                JObject root = null;
+                try { root = JObject.Parse(text); } catch { root = null; }
+                if (root != null && root["endpoints"] == null && root["outbounds"] is JArray chain && chain.Count > 0)
+                {
+                    int xrayHops = chain.OfType<JObject>().Count(hop => IsDialableProtocol(hop["protocol"]?.ToString() ?? ""));
+                    if (xrayHops > 1)
+                    {
+                        error = "this chain is an xray chain";
+                        return false;
+                    }
+                    if (ReadChain(chain, hops, out label, out error)) return true;
+                    hops.Clear();
+                    label = "";
+                    string chainError = error;
+                    error = "";
+                    int proxyHops = chain.OfType<JObject>().Count(hop => IsProxyType(TypeOf(hop)));
+                    bool anyDetour = chain.OfType<JObject>().Any(hop => (hop["detour"]?.ToString() ?? "").Length > 0);
+                    if (proxyHops <= 1 && !anyDetour && TrySingboxOutbound(text, out string wrapped, out string wrappedLabel, out _))
+                    {
+                        try { hops.Add(JObject.Parse(wrapped)); }
+                        catch { error = "invalid JSON"; return false; }
+                        label = wrappedLabel;
+                        return true;
+                    }
+                    error = chainError;
+                    return false;
+                }
+            }
+            if (TrySingboxOutbound(text, out string single, out string singleLabel, out string singleError))
+            {
+                try { hops.Add(JObject.Parse(single)); }
+                catch { error = "invalid JSON"; return false; }
+                label = singleLabel;
+                return true;
+            }
+            error = singleError;
+            return false;
+        }
+
+        private static bool ReadChain(JArray array, List<JObject> hops, out string label, out string error)
+        {
+            label = "";
+            error = "";
+            var byTag = new Dictionary<string, JObject>(StringComparer.Ordinal);
+            var order = new List<JObject>();
+            foreach (var token in array.OfType<JObject>())
+            {
+                var hop = (JObject)token.DeepClone();
+                if (!IsProxyType(TypeOf(hop))) continue;
+                string tag = hop["tag"]?.ToString() ?? "";
+                if (tag.Length == 0) tag = "hop" + order.Count;
+                hop["tag"] = tag;
+                if (byTag.ContainsKey(tag))
+                {
+                    error = "two outbounds share one tag";
+                    return false;
+                }
+                byTag[tag] = hop;
+                order.Add(hop);
+            }
+            if (order.Count == 0)
+            {
+                error = "this sing-box config holds no dialable outbound";
+                return false;
+            }
+            JObject head = null;
+            foreach (var hop in order)
+            {
+                string tag = hop["tag"]?.ToString() ?? "";
+                bool referenced = false;
+                foreach (var other in order)
+                {
+                    if (ReferenceEquals(other, hop)) continue;
+                    if (!string.Equals(other["detour"]?.ToString(), tag, StringComparison.Ordinal)) continue;
+                    referenced = true;
+                    break;
+                }
+                if (referenced) continue;
+                head = hop;
+                break;
+            }
+            if (head == null)
+            {
+                error = "the chain loops back on itself";
+                return false;
+            }
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            JObject current = head;
+            while (current != null)
+            {
+                string tag = current["tag"]?.ToString() ?? "";
+                if (!seen.Add(tag))
+                {
+                    error = "the chain loops back on itself";
+                    return false;
+                }
+                hops.Add(current);
+                string next = current["detour"]?.ToString() ?? "";
+                if (next.Length == 0) break;
+                if (!byTag.TryGetValue(next, out current))
+                {
+                    error = $"the chain points at a missing outbound '{next}'";
+                    return false;
+                }
+            }
+            label = DescribeChain(hops);
+            return true;
+        }
+
+        private static string DescribeChain(List<JObject> hops)
+        {
+            if (hops == null || hops.Count == 0) return "";
+            if (hops.Count == 1) return SingboxLinkParser.DescribeOutbound(hops[0]);
+            string exit = SingboxLinkParser.DescribeOutbound(hops[0]);
+            return exit.Length > 0 ? "CHAINED " + exit : "CHAINED";
+        }
+
+        public static string BuildChain(string headRaw, string exitRaw)
+        {
+            string fallback = headRaw ?? "";
+            if (!TrySingboxChainStrict(headRaw, out var headHops, out _, out _) || headHops.Count == 0) return fallback;
+            if (!TrySingboxChainStrict(exitRaw, out var exitHops, out _, out _) || exitHops.Count == 0) return fallback;
+            var hops = new List<JObject>();
+            hops.AddRange(exitHops);
+            hops.Add(headHops[0]);
+            return BuildChainFromHops(hops);
+        }
+
+        internal static string BuildChainFromHops(IReadOnlyList<JObject> hops)
+        {
+            var list = new JArray();
+            if (hops == null) return new JObject { ["outbounds"] = list }.ToString(Newtonsoft.Json.Formatting.None);
+            for (int i = 0; i < hops.Count; i++)
+            {
+                var hop = (JObject)hops[i].DeepClone();
+                hop["tag"] = "hop-" + i;
+                if (i + 1 < hops.Count) hop["detour"] = "hop-" + (i + 1);
+                else hop.Remove("detour");
+                list.Add(hop);
+            }
+            return new JObject { ["outbounds"] = list }.ToString(Newtonsoft.Json.Formatting.None);
+        }
+
         private static string LinkRefusalNote(string text)
         {
             int colon = text.IndexOf("://", StringComparison.Ordinal);
@@ -465,6 +631,347 @@ namespace CrimsonX.Services
             if (colon > 0 && TryXrayOutbound(text, out _, out _, out _))
                 return $"this {kind} has no sing-box form (the xray panes would take it, an Apps & Games proxy cannot)";
             return $"this {kind} cannot be read (its scheme or parameters are not supported)";
+        }
+
+        public enum ChainEngine
+        {
+            None,
+            Xray,
+            Singbox
+        }
+
+        public static bool TryXrayChain(string raw, out List<JObject> hops, out string label, out string error)
+        {
+            if (TryXrayChainStrict(raw, out hops, out label, out error)) return true;
+            string xrayError = error;
+            if (TrySingboxChainStrict(raw, out var singboxHops, out _, out _) && singboxHops.Count > 1)
+                return ToXrayHops(singboxHops, hops, out label, out error);
+            hops = new List<JObject>();
+            label = "";
+            error = xrayError.Length > 0 ? xrayError : error;
+            return false;
+        }
+
+        private static bool TryXrayChainStrict(string raw, out List<JObject> hops, out string label, out string error)
+        {
+            hops = new List<JObject>();
+            label = "";
+            error = "";
+            string text = (raw ?? "").Trim();
+            if (text.Length == 0)
+            {
+                error = "empty config";
+                return false;
+            }
+            if (text.StartsWith("{", StringComparison.Ordinal))
+            {
+                JObject root = null;
+                try { root = JObject.Parse(text); } catch { root = null; }
+                if (root != null && root["outbounds"] is JArray chain && chain.Count > 0)
+                {
+                    var found = new List<JObject>();
+                    foreach (var hop in chain.OfType<JObject>())
+                    {
+                        if (!IsDialableProtocol(hop["protocol"]?.ToString() ?? "")) continue;
+                        found.Add((JObject)hop.DeepClone());
+                    }
+                    if (found.Count > 0) return ReadXrayChain(found, hops, out label, out error);
+                    int foreign = chain.OfType<JObject>().Count(hop => IsProxyType(TypeOf(hop)));
+                    if (foreign > 1)
+                    {
+                        error = "this chain is a sing-box chain";
+                        return false;
+                    }
+                }
+            }
+            if (TryXrayOutbound(text, out string doc, out _, out string singleError))
+            {
+                try
+                {
+                    var root = JObject.Parse(doc);
+                    var single = (root["outbounds"] as JArray)?.OfType<JObject>().FirstOrDefault();
+                    if (single == null)
+                    {
+                        error = "this xray config holds no outbound";
+                        return false;
+                    }
+                    hops.Add((JObject)single.DeepClone());
+                }
+                catch
+                {
+                    error = "invalid JSON";
+                    return false;
+                }
+                label = DescribeXrayChain(hops);
+                return true;
+            }
+            error = singleError;
+            return false;
+        }
+
+        private static string XrayDialerTag(JObject outbound)
+        {
+            if (outbound == null) return "";
+            string dialer = (outbound["streamSettings"] as JObject)?["sockopt"]?["dialerProxy"]?.ToString() ?? "";
+            if (dialer.Length > 0) return dialer;
+            return (outbound["proxySettings"] as JObject)?["tag"]?.ToString() ?? "";
+        }
+
+        private static bool ReadXrayChain(List<JObject> source, List<JObject> hops, out string label, out string error)
+        {
+            label = "";
+            error = "";
+            var byTag = new Dictionary<string, JObject>(StringComparer.Ordinal);
+            var order = new List<JObject>();
+            foreach (var rawHop in source)
+            {
+                var hop = (JObject)rawHop.DeepClone();
+                string tag = hop["tag"]?.ToString() ?? "";
+                if (tag.Length == 0) tag = "hop" + order.Count;
+                hop["tag"] = tag;
+                if (byTag.ContainsKey(tag))
+                {
+                    error = "two outbounds share one tag";
+                    return false;
+                }
+                byTag[tag] = hop;
+                order.Add(hop);
+            }
+            JObject head = null;
+            foreach (var hop in order)
+            {
+                string tag = hop["tag"]?.ToString() ?? "";
+                bool referenced = false;
+                foreach (var other in order)
+                {
+                    if (ReferenceEquals(other, hop)) continue;
+                    if (!string.Equals(XrayDialerTag(other), tag, StringComparison.Ordinal)) continue;
+                    referenced = true;
+                    break;
+                }
+                if (referenced) continue;
+                head = hop;
+                break;
+            }
+            if (head == null)
+            {
+                error = "the chain loops back on itself";
+                return false;
+            }
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            JObject current = head;
+            while (current != null)
+            {
+                string tag = current["tag"]?.ToString() ?? "";
+                if (!seen.Add(tag))
+                {
+                    error = "the chain loops back on itself";
+                    return false;
+                }
+                hops.Add(current);
+                string next = XrayDialerTag(current);
+                if (next.Length == 0) break;
+                if (!byTag.TryGetValue(next, out current))
+                {
+                    error = $"the chain points at a missing outbound '{next}'";
+                    return false;
+                }
+            }
+            label = DescribeXrayChain(hops);
+            return true;
+        }
+
+        private static string DescribeXrayHop(JObject hop)
+        {
+            var converted = ConvertToSingbox(hop, out _);
+            if (converted != null) return SingboxLinkParser.DescribeOutbound(converted);
+            return hop?["protocol"]?.ToString() ?? "";
+        }
+
+        private static string DescribeXrayChain(List<JObject> hops)
+        {
+            if (hops == null || hops.Count == 0) return "";
+            if (hops.Count == 1) return DescribeXrayHop(hops[0]);
+            string exit = DescribeXrayHop(hops[0]);
+            return exit.Length > 0 ? "CHAINED " + exit : "CHAINED";
+        }
+
+        public static string BuildXrayChain(IReadOnlyList<JObject> hops)
+        {
+            var list = new JArray();
+            if (hops == null) return new JObject { ["outbounds"] = list }.ToString(Newtonsoft.Json.Formatting.None);
+            for (int i = 0; i < hops.Count; i++)
+            {
+                var hop = (JObject)hops[i].DeepClone();
+                hop["tag"] = "hop-" + i;
+                hop.Remove("proxySettings");
+                if (hop["streamSettings"] is not JObject stream)
+                {
+                    stream = new JObject();
+                    hop["streamSettings"] = stream;
+                }
+                if (stream["sockopt"] is not JObject sockopt)
+                {
+                    sockopt = new JObject();
+                    stream["sockopt"] = sockopt;
+                }
+                if (i + 1 < hops.Count) sockopt["dialerProxy"] = "hop-" + (i + 1);
+                else sockopt.Remove("dialerProxy");
+                if (sockopt.Count == 0) stream.Remove("sockopt");
+                if (stream.Count == 0) hop.Remove("streamSettings");
+                list.Add(hop);
+            }
+            return new JObject { ["outbounds"] = list }.ToString(Newtonsoft.Json.Formatting.None);
+        }
+
+        private static bool ToSingboxHops(List<JObject> xrayHops, List<JObject> hops, out string label, out string error)
+        {
+            hops.Clear();
+            label = "";
+            error = "";
+            foreach (var hop in xrayHops)
+            {
+                var converted = ConvertToSingbox(hop, out string hopError);
+                if (converted == null)
+                {
+                    error = hopError.Length > 0 ? hopError : "one hop has no sing-box form";
+                    hops.Clear();
+                    return false;
+                }
+                string transport = (converted["transport"] as JObject)?["type"]?.ToString() ?? "";
+                if (string.Equals(transport, "xhttp", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(transport, "splithttp", StringComparison.OrdinalIgnoreCase))
+                {
+                    error = "sing-box has no xhttp transport, so this chain can only stay an xray chain";
+                    hops.Clear();
+                    return false;
+                }
+                hops.Add(converted);
+            }
+            if (hops.Count == 0) return false;
+            if (!TrySingboxChainStrict(BuildChainFromHops(hops), out var wired, out _, out error) || wired.Count == 0)
+            {
+                hops.Clear();
+                return false;
+            }
+            hops.Clear();
+            hops.AddRange(wired);
+            label = DescribeChain(hops);
+            return true;
+        }
+
+        private static bool ToXrayHops(List<JObject> singboxHops, List<JObject> hops, out string label, out string error)
+        {
+            hops.Clear();
+            label = "";
+            error = "";
+            foreach (var hop in singboxHops)
+            {
+                var converted = ConvertOutbound(hop, out string hopError);
+                if (converted == null)
+                {
+                    error = hopError.Length > 0 ? hopError : "one hop has no xray form";
+                    hops.Clear();
+                    return false;
+                }
+                hops.Add(converted);
+            }
+            if (hops.Count == 0) return false;
+            if (!TryXrayChainStrict(BuildXrayChain(hops), out var wired, out _, out error) || wired.Count == 0)
+            {
+                hops.Clear();
+                return false;
+            }
+            hops.Clear();
+            hops.AddRange(wired);
+            label = DescribeXrayChain(wired);
+            return true;
+        }
+
+        public static bool TryDetectChain(string raw, out ChainEngine engine, out List<JObject> hops, out string label, out string error)
+        {
+            engine = ChainEngine.None;
+            hops = new List<JObject>();
+            label = "";
+            error = "";
+            if (TryXrayChainStrict(raw, out var xrayHops, out label, out error) && xrayHops.Count > 0)
+            {
+                engine = ChainEngine.Xray;
+                hops = xrayHops;
+                return true;
+            }
+            string xrayError = error;
+            if (TrySingboxChainStrict(raw, out var singboxHops, out label, out error) && singboxHops.Count > 0)
+            {
+                engine = ChainEngine.Singbox;
+                hops = singboxHops;
+                return true;
+            }
+            hops = new List<JObject>();
+            label = "";
+            error = error.Length > 0 ? error : xrayError;
+            return false;
+        }
+
+        public static bool TryConvertChain(string raw, ConfigTarget target, out string chainJson, out string label, out string error)
+        {
+            chainJson = "";
+            label = "";
+            error = "";
+            if (!TryDetectChain(raw, out var engine, out var hops, out _, out error)) return false;
+            if (hops.Count == 0)
+            {
+                error = "this config holds no outbound";
+                return false;
+            }
+            if (target == ConfigTarget.Xray)
+            {
+                if (engine == ChainEngine.Xray)
+                {
+                    chainJson = BuildXrayChain(hops);
+                    label = DescribeXrayChain(hops);
+                    return true;
+                }
+                var converted = new List<JObject>();
+                foreach (var hop in hops)
+                {
+                    var one = ConvertOutbound(hop, out string hopError);
+                    if (one == null)
+                    {
+                        error = hopError.Length > 0 ? hopError : "one hop has no xray form";
+                        return false;
+                    }
+                    converted.Add(one);
+                }
+                chainJson = BuildXrayChain(converted);
+                label = DescribeXrayChain(converted);
+                return true;
+            }
+            if (target == ConfigTarget.Singbox)
+            {
+                if (engine == ChainEngine.Singbox)
+                {
+                    chainJson = BuildChainFromHops(hops);
+                    label = DescribeChain(hops);
+                    return true;
+                }
+                var converted = new List<JObject>();
+                foreach (var hop in hops)
+                {
+                    var one = ConvertToSingbox(hop, out string hopError);
+                    if (one == null)
+                    {
+                        error = hopError.Length > 0 ? hopError : "one hop has no sing-box form";
+                        return false;
+                    }
+                    converted.Add(one);
+                }
+                chainJson = BuildChainFromHops(converted);
+                label = DescribeChain(converted);
+                return true;
+            }
+            error = "chains only exist for the xray and sing-box targets";
+            return false;
         }
 
         public static bool TryTunnel(string raw, out TunnelParseResult tunnel, out string error)
@@ -492,8 +999,8 @@ namespace CrimsonX.Services
             if (TryTunnel(text, out _, out _)) return true;
             return target switch
             {
-                ConfigTarget.Xray => TryXrayOutbound(text, out _, out _, out error),
-                ConfigTarget.Singbox => TrySingboxOutbound(text, out _, out _, out error),
+                ConfigTarget.Xray => TryXrayChain(text, out _, out _, out error),
+                ConfigTarget.Singbox => TrySingboxChain(text, out _, out _, out error),
                 _ => TryAcceptAnywhere(text, out error),
             };
         }
@@ -501,8 +1008,8 @@ namespace CrimsonX.Services
         private static bool TryAcceptAnywhere(string text, out string error)
         {
             error = "";
-            if (TryXrayOutbound(text, out _, out _, out string xrayError)) return true;
-            if (TrySingboxOutbound(text, out _, out _, out _)) return true;
+            if (TryXrayChain(text, out _, out _, out string xrayError)) return true;
+            if (TrySingboxChain(text, out _, out _, out _)) return true;
             error = xrayError;
             return false;
         }
@@ -512,6 +1019,8 @@ namespace CrimsonX.Services
             string text = (raw ?? "").Trim();
             if (text.Length == 0) return "";
             if (TryTunnel(text, out var tunnel, out _)) return tunnel.Label ?? "";
+            if (TryXrayChain(text, out var xrayChain, out string xrayChainLabel, out _) && xrayChain.Count > 1) return xrayChainLabel;
+            if (TrySingboxChain(text, out var chainHops, out string chainLabel, out _) && chainHops.Count > 1) return chainLabel;
             if (TryXrayOutbound(text, out _, out string xrayLabel, out _) && xrayLabel.Length > 0) return xrayLabel;
             if (TrySingboxOutbound(text, out _, out string singboxLabel, out _) && singboxLabel.Length > 0) return singboxLabel;
             return text.Length <= 40 ? text : text.Substring(0, 40) + "…";
@@ -524,6 +1033,10 @@ namespace CrimsonX.Services
             string suffix = "|" + adapterName;
             if (text.Length == 0) return suffix;
             if (TunnelConfigParser.LooksLikeTunnel(text)) return TunnelConfigParser.KeyOf(text, adapterName);
+            if (TryXrayChain(text, out var xrayChain, out _, out _) && xrayChain.Count > 1)
+                return "xraychain|" + Compact(BuildXrayChain(xrayChain)) + suffix;
+            if (TrySingboxChain(text, out var chainHops, out _, out _) && chainHops.Count > 1)
+                return "chain|" + Compact(new JArray(chainHops).ToString(Newtonsoft.Json.Formatting.None)) + suffix;
             if (TryXrayOutbound(text, out string xrayDoc, out _, out _)) return "xray|" + Compact(xrayDoc) + suffix;
             if (TrySingboxOutbound(text, out string singboxJson, out _, out _)) return "singbox|" + Compact(singboxJson) + suffix;
             return "raw|" + Compact(text) + suffix;

@@ -84,6 +84,7 @@ public partial class MainWindow : Window
         CrimsonX.Services.SimpleLogger.EnableLogging = _cfg.DebugMode;
         CrimsonX.Services.SimpleLogger.Log($"[Startup] CrimsonX v{Services.UpdateService.AppVersion} — Mode={_cfg.LastXrayMode}");
         CrimsonX.Services.BackgroundTask.Run("engine report", () => CrimsonX.Services.EngineReport.AnnounceAsync(_cfg));
+        CrimsonX.Services.BackgroundTask.Run("country exit feed", () => RefreshCountryExitFeedAsync());
         CrimsonX.Services.GeneratedArtifacts.RunStartupCleanup();
         CrimsonX.Services.SecureJsonStore.MigrateLegacyStores();
         CrimsonX.Services.BackgroundTask.Run("dns heal", () => CrimsonX.Services.SystemDnsService.HealFromDiskAsync());
@@ -160,6 +161,31 @@ public partial class MainWindow : Window
             _autoBootTimer.Start();
         }
         CrimsonX.Services.BackgroundTask.Run("update check", () => CheckUpdateSilentAsync());
+    }
+
+    private async Task RefreshCountryExitFeedAsync()
+    {
+        try
+        {
+            if (!await CountryExitFeed.EnsureFreshAsync(_cfg)) return;
+            if (CountryExitFeed.Reconcile(_cfg))
+            {
+                RequestConfigSave();
+                bool stillOffered = CountryExitFeed.NodeFor(_cfg.ExitNodeCountry) != null;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    Pages.SettingsPage.Instance?.RefreshExitNodePane();
+                    ShowToast(stillOffered
+                        ? AppStrings.ToastExitNodeCountryUpdated
+                        : AppStrings.ToastExitNodeCountryRemoved,
+                        stillOffered ? ToastKind.Info : ToastKind.Error);
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            SimpleLogger.Log(ex);
+        }
     }
 
     // ── Overlay & Popup Dismissal ──

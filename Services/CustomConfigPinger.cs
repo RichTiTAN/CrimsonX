@@ -17,6 +17,7 @@
  */
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CrimsonX.Models;
@@ -44,6 +45,13 @@ namespace CrimsonX.Services
                 bool tunnelActive = XrayPipelineManager.ActiveOutbounds.Count > 0;
                 string hint = tunnelActive ? " (a session is up, so the probe may be captured by the active tunnel)" : "";
                 return new ConfigTestResult { Link = text, Success = false, TimedOut = tcp.TimedOut };
+            }
+            if (ConfigConverter.TryXrayChain(text, out var chainHops, out _, out _) && chainHops.Count > 1)
+            {
+                string chainDoc = ApplyBindAddress(ConfigConverter.BuildXrayChain(chainHops), bindIp);
+                var chainResult = await ConfigTester.TestConfigAsync(chainDoc, cfg, ct).ConfigureAwait(false);
+                chainResult.Link = text;
+                return chainResult;
             }
             string xrayJson = XrayDocumentFor(text);
             if (xrayJson.Length > 0)
@@ -125,7 +133,8 @@ namespace CrimsonX.Services
             try
             {
                 var root = JObject.Parse(xrayJson);
-                var outbound = (root["outbounds"] as JArray)?[0] as JObject;
+                var list = root["outbounds"] as JArray;
+                var outbound = list?.OfType<JObject>().LastOrDefault();
                 if (outbound == null || XrayLinkParser.IsLocalOutbound(outbound)) return xrayJson;
                 outbound["sendThrough"] = bindIp;
                 return root.ToString(Newtonsoft.Json.Formatting.None);

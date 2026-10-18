@@ -44,15 +44,30 @@ namespace CrimsonX.Services
         public const int ConnectedConcurrency = 10;
 
         private const long PingToleranceMs = 20;
-        private const int MinStabilityPercent = 90;
+        private const int MinStabilityPercent = 80;
         private const int StabilityDurationMs = 10000;
         private const int StabilityIntervalMs = 500;
 
-        public static async Task<AppOptimizeResult> RunAsync(AppConfig cfg, string adapterIp, int concurrency, IProgress<double> progress, CancellationToken ct)
+        public static async Task<AppOptimizeResult> RunAsync(AppConfig cfg, string adapterIp, int concurrency, IProgress<double> progress, CancellationToken ct, bool alternate = false)
         {
             int batch = Math.Max(1, concurrency);
             var main = MainWindow.Instance;
             if (main == null || cfg == null) return null;
+            if (alternate)
+            {
+                try
+                {
+                    await CountryExitFeed.EnsureFreshAsync(cfg, ct);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    SimpleLogger.Log($"[Optimize] alternate: the exit node feed could not be refreshed ({ex.Message})");
+                }
+            }
 
             var collected = new List<ConfigTestResult>();
             var tried = new HashSet<string>(StringComparer.Ordinal);
@@ -71,6 +86,22 @@ namespace CrimsonX.Services
                 try { progress?.Report(value); } catch { }
             }
 
+            string prefix = alternate ? "alt " : "";
+
+            void LogLine(string text) => SimpleLogger.Log($"[Optimize] {prefix}{text}");
+
+            void LogFound()
+            {
+                if (collected.Count == 0) return;
+                var best = collected.OrderBy(SortPing).FirstOrDefault();
+                if (best == null) return;
+                string place = !string.IsNullOrWhiteSpace(best.CountryCode) ? best.CountryCode
+                             : !string.IsNullOrWhiteSpace(best.Country) ? best.Country
+                             : "?";
+                string count = collected.Count == 1 ? "1 working config found" : $"{collected.Count} working configs found";
+                LogLine($"{count} - best {SortPing(best)} ms ({place})");
+            }
+
             async Task<bool> FetchFromSourceAsync()
             {
                 List<string> configs;
@@ -84,7 +115,7 @@ namespace CrimsonX.Services
                 }
                 catch (Exception ex)
                 {
-                    SimpleLogger.Log($"[Optimize] Source {sourceIndex} failed: {ex.Message}");
+                    SimpleLogger.LogFirst($"opt-source|{sourceIndex}", $"[Optimize] Source {sourceIndex} failed: {ex.Message}");
                     return false;
                 }
                 if (configs == null || configs.Count == 0) return false;
@@ -94,22 +125,26 @@ namespace CrimsonX.Services
                 var queue = new ConcurrentQueue<string>(configs);
                 var links = new List<string>(batch);
                 int added = 0;
-                while (added < WorkingGoal)
+                while (added < WorkingGoal && collected.Count < WorkingGoal)
                 {
                     links.Clear();
-                    while (links.Count < batch && added < WorkingGoal && queue.TryDequeue(out string link)) links.Add(link);
+                    while (links.Count < batch && collected.Count < WorkingGoal && queue.TryDequeue(out string link)) links.Add(link);
                     if (links.Count == 0) break;
                     ct.ThrowIfCancellationRequested();
-                    var results = await ConfigTester.TestUdpBatchAsync(links, cfg, ct, adapterIp, measureHttpPing: false, stun: true, warmUpFirst: true);
+                    var results = alternate
+                        ? await ConfigTester.TestTcpBatchAsync(links, cfg, ct, adapterIp, measureHttpPing: false, warmUpFirst: true)
+                        : await ConfigTester.TestUdpBatchAsync(links, cfg, ct, adapterIp, measureHttpPing: false, stun: true, warmUpFirst: true);
                     foreach (var r in results)
                     {
-                        if (r == null || !r.Success || !r.UdpOk) continue;
+                        if (r == null || !r.Success) continue;
+                        if (!alternate && !r.UdpOk) continue;
                         if (string.IsNullOrWhiteSpace(r.OutboundJson)) continue;
                         if (!main.IsConfigAllowedForScan(r)) continue;
                         if (SingboxCannotDial(r.Link) || SingboxCannotDial(r.OutboundJson)) continue;
                         if (collected.Any(f => string.Equals(f.OutboundJson, r.OutboundJson, StringComparison.Ordinal))) continue;
                         collected.Add(r);
                         added++;
+                        LogFound();
                     }
                     Report(0.6 * Math.Min(1.0, (sourcesRead + Math.Min(1.0, added / (double)WorkingGoal)) / sourceCount));
                 }
@@ -142,17 +177,61 @@ namespace CrimsonX.Services
                     if (ct.IsCancellationRequested) return null;
                     string key = candidate.OutboundJson;
                     if (string.IsNullOrEmpty(key) || !tried.Add(key)) continue;
-                    var stability = await ConfigTester.TestUdpStabilityAsync(
-                        key, cfg, ct, StabilityDurationMs, StabilityIntervalMs, null, adapterIp, stun: true);
+                    string testingPlace = !string.IsNullOrWhiteSpace(candidate.CountryCode) ? candidate.CountryCode
+                                        : !string.IsNullOrWhiteSpace(candidate.Country) ? candidate.Country
+                                        : "?";
+                    LogLine($"testing {SortPing(candidate)} ms ({testingPlace})");
+                    var stability = alternate
+                        ? await ConfigTester.TestTcpStabilityAsync(
+                            key, cfg, ct, StabilityDurationMs, StabilityIntervalMs, null, adapterIp)
+                        : await ConfigTester.TestUdpStabilityAsync(
+                            key, cfg, ct, StabilityDurationMs, StabilityIntervalMs, null, adapterIp, stun: true);
                     Report(Math.Min(0.95, 0.6 + 0.35 * tried.Count / (double)Math.Max(1, collected.Count)));
                     if (!PassesStability(candidate, stability)) continue;
                     string raw = string.IsNullOrWhiteSpace(candidate.Link) ? candidate.OutboundJson : candidate.Link;
-                    if (!AppRulesCanCarry(cfg, raw)) continue;
+                    string chained = raw;
+                    if (alternate)
+                    {
+                        string where = string.IsNullOrWhiteSpace(candidate.CountryCode) ? "no country" : candidate.CountryCode;
+                        string exitRaw = PickExit(candidate.CountryCode, out bool exactExit, out string exitReason, out string exitCode);
+                        if (exitRaw.Length == 0)
+                        {
+                            LogLine($"{where} -> kept the plain config ({exitReason})");
+                        }
+                        else
+                        {
+                            chained = ConfigConverter.BuildChain(raw, exitRaw);
+                            LogLine(exactExit
+                                ? $"{where} -> exit node {exitCode} (chained)"
+                                : $"{where} -> no {where} exit node, nearest is {exitCode} (chained)");
+                        }
+                    }
+                    bool carries = AppRulesCanCarry(cfg, chained);
+                    if (!carries && !string.Equals(chained, raw, StringComparison.Ordinal))
+                    {
+                        LogLine("the chain was refused by sing-box, kept the plain config");
+                        chained = raw;
+                        carries = AppRulesCanCarry(cfg, raw);
+                    }
+                    if (!carries) continue;
+                    LogLine($"accepted {SortPing(candidate)} ms ({testingPlace}) - {(int)Math.Round(stability.SuccessRate * 100)}% stable");
                     Report(1.0);
-                    return BuildResult(candidate, stability);
+                    return BuildResult(candidate, stability, chained);
                 }
 
-                if (exhausted) return null;
+                if (collected.Count >= WorkingGoal)
+                {
+                    LogLine($"no stable config in {collected.Count}, abandoned");
+                    return null;
+                }
+
+                if (exhausted)
+                {
+                    LogLine(collected.Count == 0
+                        ? $"no working config found ({sourcesRead} source(s) read)"
+                        : $"no stable config in {collected.Count} found");
+                    return null;
+                }
             }
             return null;
         }
@@ -205,13 +284,69 @@ namespace CrimsonX.Services
         {
             if (string.IsNullOrWhiteSpace(raw)) return false;
             if (SingboxCannotDial(raw)) return false;
-            if (!ConfigConverter.TrySingboxOutbound(raw, out string singboxJson, out _, out _)) return false;
-            return SingboxConfigValidator.CheckOutbound(cfg?.SbDir ?? "", singboxJson);
+            if (!ConfigConverter.TrySingboxChain(raw, out var hops, out _, out _) || hops.Count == 0) return false;
+            string head = hops[0].ToString(Newtonsoft.Json.Formatting.None);
+            string chain = "";
+            if (hops.Count > 1)
+            {
+                var tail = new Newtonsoft.Json.Linq.JArray();
+                for (int i = 1; i < hops.Count; i++) tail.Add(hops[i]);
+                chain = tail.ToString(Newtonsoft.Json.Formatting.None);
+            }
+            return SingboxConfigValidator.CheckChainOutbound(cfg?.SbDir ?? "", head, chain);
         }
 
-        public static AppOptimizeResult BuildResult(ConfigTestResult candidate, UdpStabilityResult stability)
+        internal static string PickExit(string countryCode, out bool exact, out string reason, out string exitCode)
         {
-            string raw = string.IsNullOrWhiteSpace(candidate.Link) ? candidate.OutboundJson : candidate.Link;
+            exact = false;
+            reason = "";
+            exitCode = "";
+            if (string.IsNullOrWhiteSpace(countryCode))
+            {
+                reason = "the test reported no country";
+                return "";
+            }
+            var nodes = CountryExitFeed.Nodes;
+            if (nodes == null || nodes.Count == 0)
+            {
+                reason = "no exit nodes loaded";
+                return "";
+            }
+            var match = CountryExitFeed.NodeFor(countryCode);
+            if (match != null && !string.IsNullOrWhiteSpace(match.Link))
+            {
+                exact = true;
+                exitCode = match.Code;
+                return match.Link;
+            }
+            var codes = new List<string>();
+            foreach (var node in nodes)
+            {
+                if (node == null || string.IsNullOrWhiteSpace(node.Code) || string.IsNullOrWhiteSpace(node.Link)) continue;
+                codes.Add(node.Code);
+            }
+            string nearest = CrimsonX.Localization.CountryGeo.Nearest(countryCode, codes);
+            if (string.IsNullOrWhiteSpace(nearest))
+            {
+                reason = $"no exit country could be ranked against {countryCode}";
+                return "";
+            }
+            foreach (var node in nodes)
+            {
+                if (node == null) continue;
+                if (!string.Equals(node.Code, nearest, StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.IsNullOrWhiteSpace(node.Link)) continue;
+                exitCode = node.Code;
+                return node.Link;
+            }
+            reason = "the nearest exit node carried no link";
+            return "";
+        }
+
+        public static AppOptimizeResult BuildResult(ConfigTestResult candidate, UdpStabilityResult stability, string raw = "")
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                raw = string.IsNullOrWhiteSpace(candidate.Link) ? candidate.OutboundJson : candidate.Link;
             return new AppOptimizeResult
             {
                 Raw = raw,

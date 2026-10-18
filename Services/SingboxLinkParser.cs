@@ -282,12 +282,12 @@ namespace CrimsonX.Services
             if (fm.Length > 0)
             {
                 var mask = FinalMask.Read(fm, out string maskWarning);
-                if (maskWarning.Length > 0) SimpleLogger.Log($"[FinalMask] {maskWarning}");
+                if (maskWarning.Length > 0) SimpleLogger.LogFirst("mask-json-invalid", $"[FinalMask] {maskWarning}");
                 if (FinalMask.HasTcpFragment(mask))
                 {
                     tls["fragment"] = true;
-                    SimpleLogger.LogOnce(
-                        $"mask-singbox|{p.Host}|{fm.Length}:{fm.GetHashCode()}",
+                    SimpleLogger.LogFirst(
+                        "mask-singbox",
                         "[FinalMask] sing-box cannot carry the packet rules of the mask; plain TLS fragmentation was kept.");
                 }
             }

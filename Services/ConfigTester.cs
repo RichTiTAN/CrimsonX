@@ -126,7 +126,7 @@ namespace CrimsonX.Services
     public static class ConfigTester
     {
         internal static readonly string[] TestTargets = {
-            "http://clients3.google.com/generate_204"
+            "https://www.gstatic.com/generate_204"
         };
         private const int TimeoutMs = 3000;
         private const int SpeedTestDurationMs = 7000;
@@ -141,7 +141,7 @@ namespace CrimsonX.Services
         private const double SpeedMinStableMbps = 1.0;
         private const string SpeedTestUrl = "https://proof.ovh.net/files/100Mb.dat";
         private const int NtpPort = 123;
-        private const int UdpProbeAttempts = 3;
+        private const int ProbeAttempts = 3;
         private const string ScanNtpServerIp = "162.159.200.1";
         private const int StunPort = 19302;
         private static readonly Lazy<string> StunServerIp = new Lazy<string>(() =>
@@ -317,10 +317,7 @@ namespace CrimsonX.Services
                             }
                         }
                     },
-                    ["outbounds"] = new JArray
-                    {
-                        outboundJson["outbounds"][0]
-                    },
+                    ["outbounds"] = BuildSessionOutbounds(outboundJson),
                     ["routing"] = new JObject
                     {
                         ["rules"] = new JArray
@@ -481,10 +478,7 @@ namespace CrimsonX.Services
                             ["tag"] = "in"
                         }
                     },
-                    ["outbounds"] = new JArray
-                    {
-                        outboundJson["outbounds"][0]
-                    },
+                    ["outbounds"] = BuildSessionOutbounds(outboundJson),
                     ["routing"] = new JObject
                     {
                         ["rules"] = new JArray
@@ -809,17 +803,39 @@ namespace CrimsonX.Services
             }
         }
 
-        private static readonly HashSet<string> _bindNotices = new HashSet<string>();
-        private static readonly object _bindNoticesLock = new object();
-
-        private static void LogBindNoticeOnce(string message)
+        internal static JArray BuildSessionOutbounds(JObject outboundJson)
         {
-            lock (_bindNoticesLock)
+            var list = new JArray();
+            var hops = new List<JObject>();
+            string text = outboundJson?.ToString(Newtonsoft.Json.Formatting.None) ?? "";
+            if (ConfigConverter.TryXrayChain(text, out var chain, out _, out _) && chain.Count > 0)
             {
-                if (!_bindNotices.Add(message)) return;
+                hops.AddRange(chain);
             }
-            SimpleLogger.Log(message);
+            else if (outboundJson != null) hops.Add((JObject)outboundJson.DeepClone());
+            for (int i = 0; i < hops.Count; i++)
+            {
+                var hop = hops[i];
+                hop["tag"] = i == 0 ? "proxy" : "proxy-" + (i + 1);
+                if (i + 1 < hops.Count)
+                {
+                    XrayConfigWriter.ChainThroughDialer(hop, "proxy-" + (i + 2));
+                    list.Add(hop);
+                    continue;
+                }
+                hop.Remove("proxySettings");
+                if (hop["streamSettings"] is JObject stream && stream["sockopt"] is JObject sockopt)
+                {
+                    sockopt.Remove("dialerProxy");
+                    if (sockopt.Count == 0) stream.Remove("sockopt");
+                    if (stream.Count == 0) hop.Remove("streamSettings");
+                }
+                list.Add(hop);
+            }
+            return list;
         }
+
+        private static void LogBindNotice(string message) => SimpleLogger.LogFirst($"bind|{message}", message);
         private static async Task<UdpTestSession> StartUdpTestSessionAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool stun = false)
         {
             var session = new UdpTestSession
@@ -843,19 +859,19 @@ namespace CrimsonX.Services
                     {
                         if (!IsAvailableAdapterAddress(adapterIp))
                         {
-                            LogBindNoticeOnce($"[UdpScanner] Adapter {adapterIp} is not up right now - testing without binding");
+                            LogBindNotice($"[UdpScanner] Adapter {adapterIp} is not up right now - testing without binding");
                             adapterIp = "";
                         }
                         else if (XrayLinkParser.IsLocalOutbound(outb))
                         {
-                            LogBindNoticeOnce("[UdpScanner] Adapter binding skipped: the node itself is a local address");
+                            LogBindNotice("[UdpScanner] Adapter binding skipped: the node itself is a local address");
                             adapterIp = "";
                         }
                     }
                     if (!string.IsNullOrWhiteSpace(adapterIp))
                     {
                         outb["sendThrough"] = adapterIp;
-                        LogBindNoticeOnce($"[UdpScanner] Test traffic bound to adapter address {adapterIp}");
+                        SimpleLogger.LogFirst($"bind-perconfig|{adapterIp}", $"[UdpScanner] Test traffic bound to adapter address {adapterIp}");
                     }
                 }
                 var fullConfig = new JObject
@@ -884,10 +900,7 @@ namespace CrimsonX.Services
                             }
                         }
                     },
-                    ["outbounds"] = new JArray
-                    {
-                        outboundJson["outbounds"][0]
-                    },
+                    ["outbounds"] = BuildSessionOutbounds(outboundJson),
                     ["routing"] = new JObject
                     {
                         ["rules"] = new JArray
@@ -929,13 +942,25 @@ namespace CrimsonX.Services
                 return null;
             }
         }
-        public static async Task<ConfigTestResult> TestUdpOnlyAsync(string link, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool measureHttpPing = true, bool stun = false, bool warmUpFirst = false)
+        public static Task<ConfigTestResult> TestUdpOnlyAsync(string link, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool measureHttpPing = true, bool stun = false, bool warmUpFirst = false)
+            => TestRelayOnlyAsync(link, cfg, ct, sendThroughIp, measureHttpPing, stun, warmUpFirst, tcp: false);
+
+        public static Task<ConfigTestResult> TestTcpOnlyAsync(string link, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool measureHttpPing = true, bool stun = false, bool warmUpFirst = false)
+            => TestRelayOnlyAsync(link, cfg, ct, sendThroughIp, measureHttpPing, stun, warmUpFirst, tcp: true);
+
+        private static async Task<ConfigTestResult> TestRelayOnlyAsync(string link, AppConfig cfg, CancellationToken ct, string? sendThroughIp, bool measureHttpPing, bool stun, bool warmUpFirst, bool tcp)
         {
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr;
             var adapter = TestAdapter(cfg);
             string testAdapterName = adapter.Name;
             string testAdapterIp   = adapter.Ip;
+            if (!string.IsNullOrWhiteSpace(sendThroughIp) && IsAvailableAdapterAddress(sendThroughIp!))
+            {
+                testAdapterIp = sendThroughIp!;
+                string pickedName = AdapterNameForIp(sendThroughIp!);
+                if (pickedName.Length > 0) testAdapterName = pickedName;
+            }
             IDisposable tunnelLease = null;
             var tunnelPrep = await TunnelEngine.PrepareTestAsync(link, cfg, testAdapterName, testAdapterIp);
             if (tunnelPrep.State == TunnelTestState.Failed)
@@ -948,17 +973,19 @@ namespace CrimsonX.Services
                 outboundJsonStr = tunnelPrep.OutboundJson;
                 tunnelLease = tunnelPrep.Lease;
             }
-            else if (!XrayLinkParser.TryParseCustomConfig(link, out outboundJsonStr))
+            else if (!ConfigConverter.TryXrayChain(link, out var linkHops, out _, out _) || linkHops.Count == 0)
             {
                 return res;
             }
+            else outboundJsonStr = ConfigConverter.BuildXrayChain(linkHops);
             res.OutboundJson = outboundJsonStr;
             UdpTestSession session = null;
             try
             {
                 session = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp, stun);
                 if (session == null) return res;
-                await ProbeOverUdpAsync(res, session.HttpPort, session.UdpPort, warmUpFirst, measureHttpPing, stun, ct);
+                if (tcp) await ProbeOverTcpAsync(res, session.HttpPort, ct);
+                else await ProbeOverUdpAsync(res, session.HttpPort, session.UdpPort, warmUpFirst, measureHttpPing, stun, ct);
                 return res;
             }
             catch (OperationCanceledException)
@@ -1000,7 +1027,7 @@ namespace CrimsonX.Services
                 }
                 else
                 {
-                    for (int i = 0; i < UdpProbeAttempts; i++)
+                    for (int i = 0; i < ProbeAttempts; i++)
                     {
                         ct.ThrowIfCancellationRequested();
                         var (ok, rtt) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
@@ -1024,6 +1051,74 @@ namespace CrimsonX.Services
             {
                 long realPing = await MeasureHttpPingAsync(httpPort, ct);
                 if (realPing > 0) res.Ping = realPing;
+            }
+        }
+
+        private static async Task ProbeOverTcpAsync(ConfigTestResult res, int httpPort, CancellationToken ct)
+        {
+            res.UdpOk = false;
+            res.UdpPing = 0;
+            long bestPing = 0;
+            using (var client = RelayDelayClient(httpPort))
+            {
+                await MeasureRelayDelaySampleAsync(client, ct);
+                for (int i = 0; i < ProbeAttempts; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var (ok, rtt) = await MeasureRelayDelaySampleAsync(client, ct);
+                    if (!ok) continue;
+                    if (bestPing == 0 || rtt < bestPing) bestPing = rtt;
+                }
+            }
+            res.Success = bestPing > 0;
+            res.Ping = bestPing;
+            res.Kind = bestPing > 0 ? ConfigPingKind.Ok : ConfigPingKind.TimedOut;
+            if (!res.Success) return;
+            await FetchGeoAsync(res, httpPort, ct);
+            if (string.IsNullOrWhiteSpace(res.CountryCode) && string.IsNullOrWhiteSpace(res.Country))
+                await FetchGeoForServerAsync(res, ct);
+        }
+
+        private static HttpClient RelayDelayClient(int httpPort)
+        {
+            var handler = new HttpClientHandler
+            {
+                Proxy = new WebProxy($"http://127.0.0.1:{httpPort}"),
+                UseProxy = true,
+                ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+            };
+            return new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(TimeoutMs) };
+        }
+
+        private static async Task<(bool Ok, long RttMs)> MeasureRelayDelaySampleAsync(HttpClient client, CancellationToken ct, bool capPing = true)
+        {
+            try
+            {
+                long total = 0;
+                foreach (var target in TestTargets)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var sw = Stopwatch.StartNew();
+                    using var req = new HttpRequestMessage(HttpMethod.Get, target);
+                    using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                    if (!resp.IsSuccessStatusCode && resp.StatusCode != HttpStatusCode.NoContent && resp.StatusCode != HttpStatusCode.Found)
+                        return (false, 0);
+                    sw.Stop();
+                    long ping = sw.ElapsedMilliseconds;
+                    if (capPing && ping > MaxAcceptedPingMs) return (false, 0);
+                    total += ping;
+                }
+                long avg = total / TestTargets.Length;
+                return (avg > 0, avg);
+            }
+            catch (OperationCanceledException)
+            {
+                if (ct.IsCancellationRequested) throw;
+                return (false, 0);
+            }
+            catch
+            {
+                return (false, 0);
             }
         }
 
@@ -1146,7 +1241,7 @@ namespace CrimsonX.Services
             string adapterIp = !string.IsNullOrWhiteSpace(sendThroughIp) ? sendThroughIp! : XrayConfigWriter.ProbeSendThrough(cfg);
             if (!string.IsNullOrWhiteSpace(adapterIp) && !IsAvailableAdapterAddress(adapterIp))
             {
-                LogBindNoticeOnce($"[UdpScanner] Adapter {adapterIp} is not up right now - testing without binding");
+                LogBindNotice($"[UdpScanner] Adapter {adapterIp} is not up right now - testing without binding");
                 adapterIp = "";
             }
             string config = BuildUdpBatchConfig(outboundsJson, slots, stun, adapterIp);
@@ -1177,7 +1272,8 @@ namespace CrimsonX.Services
                     return new UdpBatchStart { Error = reason };
                 }
                 session.Proc = proc;
-                SimpleLogger.Log($"[Batch] {session.Count} configs: one xray instance (pid {proc.Id}) ready in {watch.ElapsedMilliseconds} ms");
+                string via = adapterIp.Length > 0 ? $" via {adapterIp}" : "";
+                SimpleLogger.LogOnce($"batch-ready|{session.Count}|{adapterIp}", $"[Batch] {session.Count} configs{via}: one xray instance ready in {watch.ElapsedMilliseconds} ms");
                 return new UdpBatchStart { Session = session };
             }
             catch (OperationCanceledException)
@@ -1233,7 +1329,13 @@ namespace CrimsonX.Services
             return XrayLinkParser.TryParseCustomConfig(link, out _);
         }
 
-        public static async Task<ConfigTestResult[]> TestUdpBatchAsync(IReadOnlyList<string> links, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool measureHttpPing = true, bool stun = false, bool warmUpFirst = false)
+        public static Task<ConfigTestResult[]> TestUdpBatchAsync(IReadOnlyList<string> links, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool measureHttpPing = true, bool stun = false, bool warmUpFirst = false)
+            => TestRelayBatchAsync(links, cfg, ct, sendThroughIp, measureHttpPing, stun, warmUpFirst, tcp: false);
+
+        public static Task<ConfigTestResult[]> TestTcpBatchAsync(IReadOnlyList<string> links, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool measureHttpPing = true, bool stun = false, bool warmUpFirst = false)
+            => TestRelayBatchAsync(links, cfg, ct, sendThroughIp, measureHttpPing, stun, warmUpFirst, tcp: true);
+
+        private static async Task<ConfigTestResult[]> TestRelayBatchAsync(IReadOnlyList<string> links, AppConfig cfg, CancellationToken ct, string? sendThroughIp, bool measureHttpPing, bool stun, bool warmUpFirst, bool tcp)
         {
             var results = new ConfigTestResult[links.Count];
             var outbounds = new List<string>();
@@ -1254,7 +1356,7 @@ namespace CrimsonX.Services
             }
 
             Task RunSingleAsync(int index)
-                => Task.Run(async () => results[index] = await TestUdpOnlyAsync(links[index], cfg, ct, sendThroughIp, measureHttpPing, stun, warmUpFirst), ct);
+                => Task.Run(async () => results[index] = await TestRelayOnlyAsync(links[index], cfg, ct, sendThroughIp, measureHttpPing, stun, warmUpFirst, tcp), ct);
 
             var running = new List<Task>();
             foreach (int index in stragglers) running.Add(RunSingleAsync(index));
@@ -1269,7 +1371,7 @@ namespace CrimsonX.Services
             UdpBatchSession session = start.Session;
             if (session == null)
             {
-                SimpleLogger.Log($"[Batch] {outbounds.Count} configs: one shared instance failed ({start.Error}) - testing one instance per config instead");
+                SimpleLogger.LogFirst("batch-fallback", $"[Batch] {outbounds.Count} configs: one shared instance failed ({start.Error}) - testing one instance per config instead");
                 foreach (int index in indexes) running.Add(RunSingleAsync(index));
                 await AwaitAllAsync(running, ct);
                 return results;
@@ -1285,7 +1387,8 @@ namespace CrimsonX.Services
                     {
                         try
                         {
-                            await ProbeOverUdpAsync(result, httpPort, udpPort, warmUpFirst, measureHttpPing, stun, ct);
+                            if (tcp) await ProbeOverTcpAsync(result, httpPort, ct);
+                            else await ProbeOverUdpAsync(result, httpPort, udpPort, warmUpFirst, measureHttpPing, stun, ct);
                         }
                         catch (OperationCanceledException) { result.Success = false; result.UdpOk = false; }
                         catch { result.Success = false; result.UdpOk = false; }
@@ -1309,10 +1412,17 @@ namespace CrimsonX.Services
             catch { }
         }
 
-        public static async Task<UdpStabilityResult> TestUdpStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, int durationMs = StabilityDurationMs, int intervalMs = StabilityIntervalMs, Action<bool, long>? onSample = null, string? sendThroughIp = null, bool stun = false)
+        public static Task<UdpStabilityResult> TestUdpStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, int durationMs = StabilityDurationMs, int intervalMs = StabilityIntervalMs, Action<bool, long>? onSample = null, string? sendThroughIp = null, bool stun = false)
+            => TestRelayStabilityAsync(outboundJsonStr, cfg, ct, durationMs, intervalMs, onSample, sendThroughIp, stun, tcp: false);
+
+        public static Task<UdpStabilityResult> TestTcpStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, int durationMs = StabilityDurationMs, int intervalMs = StabilityIntervalMs, Action<bool, long>? onSample = null, string? sendThroughIp = null, bool stun = false)
+            => TestRelayStabilityAsync(outboundJsonStr, cfg, ct, durationMs, intervalMs, onSample, sendThroughIp, stun, tcp: true);
+
+        private static async Task<UdpStabilityResult> TestRelayStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, int durationMs, int intervalMs, Action<bool, long>? onSample, string? sendThroughIp, bool stun, bool tcp)
         {
             var result = new UdpStabilityResult();
             UdpTestSession session = null;
+            HttpClient relayClient = null;
             try
             {
                 using var probeSocket = new UdpClient();
@@ -1320,7 +1430,15 @@ namespace CrimsonX.Services
                 {
                     var candidate = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp, stun);
                     if (candidate == null) continue;
-                    if (await WarmUpAsync(candidate.UdpPort, probeSocket, ct, stun)) session = candidate;
+                    bool ready;
+                    if (tcp)
+                    {
+                        relayClient?.Dispose();
+                        relayClient = RelayDelayClient(candidate.HttpPort);
+                        ready = await WarmUpRelayAsync(relayClient, ct);
+                    }
+                    else ready = await WarmUpAsync(candidate.UdpPort, probeSocket, ct, stun);
+                    if (ready) session = candidate;
                     else candidate.Dispose();
                 }
                 if (session == null) return result;
@@ -1328,7 +1446,11 @@ namespace CrimsonX.Services
                 while (elapsed.ElapsedMilliseconds < durationMs)
                 {
                     ct.ThrowIfCancellationRequested();
-                    var (ok, rtt) = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
+                    (bool Ok, long RttMs) sample;
+                    if (tcp && relayClient != null) sample = await MeasureRelayDelaySampleAsync(relayClient, ct, capPing: false);
+                    else if (tcp) sample = (false, 0);
+                    else sample = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
+                    var (ok, rtt) = sample;
                     result.Sent++;
                     if (ok)
                     {
@@ -1352,6 +1474,7 @@ namespace CrimsonX.Services
             finally
             {
                 session?.Dispose();
+                relayClient?.Dispose();
             }
             return result;
         }
@@ -1394,7 +1517,7 @@ namespace CrimsonX.Services
                 return 0;
             }
         }
-        private static bool IsAvailableAdapterAddress(string ip)
+        internal static bool IsAvailableAdapterAddress(string ip)
         {
             if (string.IsNullOrWhiteSpace(ip)) return false;
             if (!IPAddress.TryParse(ip, out _)) return false;
@@ -1416,6 +1539,27 @@ namespace CrimsonX.Services
             }
             return false;
         }
+
+        private static string AdapterNameForIp(string ip)
+        {
+            try
+            {
+                foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (adapter.OperationalStatus != OperationalStatus.Up) continue;
+                    foreach (var unicast in adapter.GetIPProperties().UnicastAddresses)
+                    {
+                        if (unicast.Address.AddressFamily == AddressFamily.InterNetwork && unicast.Address.ToString() == ip)
+                            return adapter.Name;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log($"[UdpScanner] Adapter name lookup failed: {ex.Message}");
+            }
+            return "";
+        }
         private static async Task<bool> WarmUpAsync(int udpPort, UdpClient socket, CancellationToken ct, bool stun = false)
         {
             var budget = Stopwatch.StartNew();
@@ -1423,6 +1567,17 @@ namespace CrimsonX.Services
             {
                 ct.ThrowIfCancellationRequested();
                 var (ok, _) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, socket, requireNtpReply: !stun, stun: stun);
+                if (ok) return true;
+            }
+            return false;
+        }
+        private static async Task<bool> WarmUpRelayAsync(HttpClient client, CancellationToken ct)
+        {
+            var budget = Stopwatch.StartNew();
+            while (budget.ElapsedMilliseconds < WarmupBudgetMs)
+            {
+                ct.ThrowIfCancellationRequested();
+                var (ok, _) = await MeasureRelayDelaySampleAsync(client, ct, capPing: false);
                 if (ok) return true;
             }
             return false;

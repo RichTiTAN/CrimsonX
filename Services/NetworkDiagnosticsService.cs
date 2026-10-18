@@ -46,7 +46,12 @@ namespace CrimsonX.Services
             try { _geoPingClient?.Dispose(); } catch { }
             var proxy = new System.Net.WebProxy("http://127.0.0.1:" + port);
             if (auth) proxy.Credentials = new System.Net.NetworkCredential(cfg!.LanAuthUsername, cfg.LanAuthPassword);
-            _geoPingClient = new HttpClient(new HttpClientHandler { Proxy = proxy, UseProxy = true })
+            _geoPingClient = new HttpClient(new SocketsHttpHandler
+            {
+                Proxy          = proxy,
+                UseProxy       = true,
+                ConnectTimeout = TimeSpan.FromSeconds(8)
+            })
             {
                 Timeout = TimeSpan.FromSeconds(30)
             };
@@ -98,24 +103,36 @@ namespace CrimsonX.Services
 
         // Geo-trace
 
+        private int _geoRun;
+
         public void StartGeoTrace()
         {
+            int run = ++_geoRun;
             if (_geoCts != null)
             {
                 try { _geoCts.Cancel(); _geoCts.Dispose(); } catch { }
             }
-            _geoCts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            var token = _geoCts.Token;
+            var cts = new CancellationTokenSource();
+            _geoCts = cts;
+            var token = cts.Token;
             var sw    = Stopwatch.StartNew();
             CrimsonX.Services.BackgroundTask.Run("geo trace", async () =>
             {
                 try
                 {
-                    var json = await GeoClient()
-                        .GetStringAsync("https://get.geojs.io/v1/ip/geo.json", token)
-                        .ConfigureAwait(false);
+                    var request = GeoClient().GetStringAsync("https://get.geojs.io/v1/ip/geo.json", token);
+                    var finished = await Task.WhenAny(request, Task.Delay(TimeSpan.FromSeconds(20), token)).ConfigureAwait(false);
+                    if (finished != request)
+                    {
+                        try { cts.Cancel(); } catch { }
+                        if (run != _geoRun) return;
+                        SimpleLogger.Log($"[Geo] run {run}: timeout, the request was abandoned.");
+                        GeoTraceCompleted?.Invoke(new GeoTraceResult());
+                        return;
+                    }
+                    string json = await request.ConfigureAwait(false);
                     sw.Stop();
-                    if (token != _geoCts?.Token) return; 
+                    if (run != _geoRun) return;
                     var data          = JObject.Parse(json);
                     var continentCode = data["continent_code"]?.ToString() ?? "";
                     var countryCode   = data["country_code"]?.ToString()   ?? "";
@@ -123,7 +140,8 @@ namespace CrimsonX.Services
                     var ip            = data["ip"]?.ToString()             ?? "";
                     ContinentNames.TryGetValue(continentCode, out var continent);
                     continent ??= continentCode;
-                    SimpleLogger.Log(
+                    SimpleLogger.LogFirst(
+                        $"geo-trace|{countryCode}|{ExitNodeChain.ActivePort}",
                         $"[Geo] traced through 127.0.0.1:{ExitNodeChain.ActivePort} -> {country} ({countryCode}) in {sw.ElapsedMilliseconds} ms" +
                         (ExitNodeChain.ChainActive ? " - that is the exit node's location" : ""));
                     GeoTraceCompleted?.Invoke(new GeoTraceResult
@@ -138,8 +156,14 @@ namespace CrimsonX.Services
                 }
                 catch (Exception ex)
                 {
-                    if (token != _geoCts?.Token) return; 
-                    if (CrimsonX.Services.BackgroundTask.IsTeardownAbort(ex)) return;   // cancelled: nothing to report
+                    if (run != _geoRun) return;
+                    if (token.IsCancellationRequested)
+                    {
+                        SimpleLogger.Log($"[Geo] run {run}: timeout, the request was cancelled.");
+                        GeoTraceCompleted?.Invoke(new GeoTraceResult());
+                        return;
+                    }
+                    if (CrimsonX.Services.BackgroundTask.IsTeardownAbort(ex)) return;
                     SimpleLogger.Log(ex);
                     GeoTraceCompleted?.Invoke(new GeoTraceResult());
                 }
@@ -148,6 +172,7 @@ namespace CrimsonX.Services
 
         public void StopGeoTrace()
         {
+            _geoRun++;
             if (_geoCts == null) return;
             try { _geoCts.Cancel(); _geoCts.Dispose(); } catch { }
             _geoCts = null;

@@ -340,7 +340,7 @@ public partial class MainWindow
         _connectBreathControl.Opacity = _connectBreath.Next(DateTime.UtcNow, comingUp);
     }
 
-    // ── Connect box press feedback (same feel as the Apps & Games strip) ──
+    // ── Connect box press feedback ──
 
     private void HomeConnectBoxPress(object? sender, global::Avalonia.Input.PointerPressedEventArgs e)
         => SetHomeConnectBoxPressed(true);
@@ -843,7 +843,10 @@ public partial class MainWindow
             if (ruleTunnelError.Length > 0)
                 CrimsonX.Services.SimpleLogger.Log($"[SingBox] Rule tunnels: {ruleTunnelError}");
             else
-                CrimsonX.Services.SimpleLogger.Log($"[Tunnel] engines: rules({CrimsonX.Services.TunnelEngine.Describe(CrimsonX.Services.TunnelEngine.GroupRules)})");
+            {
+                string rulesLayout = $"[Tunnel] engines: rules({CrimsonX.Services.TunnelEngine.Describe(CrimsonX.Services.TunnelEngine.GroupRules)})";
+                CrimsonX.Services.SimpleLogger.LogFirst(rulesLayout, rulesLayout);
+            }
             if (!await Task.Run(() => CrimsonX.Services.SingboxConfigWriter.Write(_cfg, _cfg.SbDir), ct)) return false;
             var process = await Task.Run(() => ProcessService.StartProcessDirect(GetAppPath(@"Data\sing_box\sing-box.exe"), "run -c config.json", _cfg.SbDir), ct);
             if (process == null) return false;
@@ -923,6 +926,7 @@ public partial class MainWindow
             if (ok)
             {
                 CrimsonX.Services.SimpleLogger.Log($"[SingBox] Restarted with updated app rules (pid={_sbPid}).");
+                CrimsonX.Services.UiEventBus.Instance.PublishRulesApplied();
             }
             else if (ct.IsCancellationRequested)
             {

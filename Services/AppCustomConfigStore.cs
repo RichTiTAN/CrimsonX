@@ -23,13 +23,13 @@ using System.Linq;
 using CrimsonX.Models;
 using Newtonsoft.Json;
 
-
 namespace CrimsonX.Services
 {
     public sealed class AppCustomConfigEntry
     {
         public string Raw { get; set; } = "";
         public string Label { get; set; } = "";
+        public bool LabelEdited { get; set; }
         public DateTime SavedUtc { get; set; }
     }
 
@@ -91,6 +91,11 @@ namespace CrimsonX.Services
                 var loaded = list.Where(e => e != null && !string.IsNullOrWhiteSpace(e.Raw))
                                  .OrderByDescending(e => e.SavedUtc)
                                  .ToList();
+                if (NormalizeLabels(loaded))
+                {
+                    SaveCore(loaded);
+                    info = new FileInfo(path);
+                }
                 _cache         = loaded;
                 _cacheStampUtc = info.LastWriteTimeUtc;
                 _cacheLength   = info.Length;
@@ -103,6 +108,43 @@ namespace CrimsonX.Services
                 InvalidateCache();
                 return new List<AppCustomConfigEntry>();
             }
+        }
+
+        private static bool NormalizeLabels(List<AppCustomConfigEntry> entries)
+        {
+            bool changed = false;
+            foreach (var entry in entries)
+            {
+                if (entry == null || entry.LabelEdited) continue;
+                string raw = entry.Raw ?? "";
+                if (!LooksGeneratedLabel(entry.Label, raw))
+                {
+                    entry.LabelEdited = true;
+                    changed = true;
+                    continue;
+                }
+                string fresh = ConfigConverter.LabelFor(raw);
+                if (fresh.Length == 0 || string.Equals(fresh, entry.Label, StringComparison.Ordinal)) continue;
+                entry.Label = fresh;
+                changed = true;
+            }
+            return changed;
+        }
+
+        private static bool LooksGeneratedLabel(string label, string raw)
+        {
+            if (string.IsNullOrWhiteSpace(label)) return true;
+            if (string.Equals(label, SingboxLinkParser.LabelOf(raw), StringComparison.Ordinal)) return true;
+            if (string.Equals(label, TunnelConfigParser.LabelOf(raw), StringComparison.Ordinal)) return true;
+            if (label.StartsWith("xray", StringComparison.OrdinalIgnoreCase)) return true;
+            return string.Equals(label, "vless", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, "vmess", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, "trojan", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, "shadowsocks", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, "hysteria2", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, "tuic", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, "wireguard", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(label, "openvpn", StringComparison.OrdinalIgnoreCase);
         }
 
         internal static List<AppCustomConfigEntry> Snapshot(AppConfig cfg)
@@ -170,28 +212,12 @@ namespace CrimsonX.Services
             }
             raw = raw.Trim();
             bool usable = TunnelConfigParser.TryParse(raw, out var tunnel) && tunnel.Success;
-            if (usable)
-            {
-                label = tunnel.Label;
-            }
-            else
-            {
-                usable = SingboxLinkParser.TryParseLink(raw, out _, out label);
-            }
             string xrayError = "";
-            if (!usable && ConfigConverter.TryXrayOutbound(raw, out string xrayDoc, out string xrayLabel, out xrayError))
+            if (!usable)
             {
-                if (ConfigConverter.IsXrayOutbound(raw))
-                {
-                    string server = XrayLinkParser.ExtractServerAddress(xrayDoc);
-                    label = server.Length > 0 ? "xray · " + server : "xray";
-                }
-                else
-                {
-                    string fragment = XrayLinkParser.LinkFragment(raw);
-                    label = fragment.Length > 0 ? fragment : xrayLabel.Length > 0 ? xrayLabel : "xray";
-                }
-                usable = true;
+                usable = SingboxLinkParser.TryParseLink(raw, out _, out _);
+                if (!usable) usable = ConfigConverter.TryDetectChain(raw, out _, out var chainHops, out _, out _) && chainHops.Count > 0;
+                if (!usable) usable = ConfigConverter.TryXrayOutbound(raw, out _, out _, out xrayError);
             }
             if (!usable)
             {
@@ -200,6 +226,7 @@ namespace CrimsonX.Services
                 SimpleLogger.Log($"[Store] Refused a config: {reason}");
                 return CustomConfigSaveResult.Invalid;
             }
+            label = ConfigConverter.LabelFor(raw);
             CustomConfigSaveResult result;
             lock (_lock)
             {
@@ -209,7 +236,7 @@ namespace CrimsonX.Services
                 if (existing != null)
                 {
                     existing.Raw   = raw;
-                    existing.Label = label;
+                    if (!existing.LabelEdited) existing.Label = label;
                     existing.SavedUtc = DateTime.UtcNow;
                     SaveCore(entries.OrderByDescending(e => e.SavedUtc).ToList());
                     result = CustomConfigSaveResult.Updated;
@@ -271,8 +298,7 @@ namespace CrimsonX.Services
                 SimpleLogger.Log(ex);
             }
             string label = ConfigConverter.LabelFor(trimmed);
-            if (label.Length > 0) return label;
-            return trimmed.Length <= 40 ? trimmed : trimmed.Substring(0, 40) + "…";
+            return label.Length > 0 ? label : (trimmed.Length <= 40 ? trimmed : trimmed.Substring(0, 40) + "…");
         }
         public static List<string> DisplayOptions(IReadOnlyList<AppCustomConfigEntry> entries)
         {
@@ -281,9 +307,7 @@ namespace CrimsonX.Services
             var seen = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in entries)
             {
-                string text = entry == null
-                    ? ""
-                    : (string.IsNullOrWhiteSpace(entry.Label) ? entry.Raw : entry.Label);
+                string text = entry == null ? "" : (string.IsNullOrWhiteSpace(entry.Label) ? ConfigConverter.LabelFor(entry.Raw ?? "") : entry.Label);
                 if (seen.TryGetValue(text, out int count))
                 {
                     count++;

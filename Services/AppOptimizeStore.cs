@@ -36,6 +36,7 @@ namespace CrimsonX.Services
     public sealed class AppOptimizeState
     {
         public bool OnConnect { get; set; }
+        public bool AlternateMode { get; set; }
         public bool Ready { get; set; }
         public string FoundRaw { get; set; } = "";
         public string FoundLabel { get; set; } = "";

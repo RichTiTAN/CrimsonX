@@ -680,7 +680,7 @@ namespace CrimsonX.Services
             if (stream == null || string.IsNullOrWhiteSpace(fm)) return;
             var mask = FinalMask.Read(fm, out string warning);
             if (warning.Length > 0)
-                SimpleLogger.LogOnce($"mask-json|{fm.Length}:{fm.GetHashCode()}", $"[FinalMask] {warning}");
+                SimpleLogger.LogOnce("mask-json-invalid", $"[FinalMask] {warning}");
             if (mask != null) stream["finalmask"] = mask;
         }
 

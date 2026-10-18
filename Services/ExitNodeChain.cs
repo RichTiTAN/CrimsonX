@@ -246,16 +246,54 @@ namespace CrimsonX.Services
             }
         }
 
+        public static System.Collections.Generic.List<JObject> BuildExitChain(AppConfig config, out ExitNodePlane plane, out bool chained, out string error)
+        {
+            var hops = new System.Collections.Generic.List<JObject>();
+            var single = BuildExit(config, out plane, out chained, out error);
+            if (!chained || single == null) return hops;
+            if (plane == ExitNodePlane.SingboxOutbound)
+            {
+                string raw = (config.V2rayChainJson ?? "").Trim();
+                if (ConfigConverter.TrySingboxChain(raw, out var chain, out _, out _) && chain.Count > 1)
+                {
+                    for (int i = 0; i < chain.Count; i++)
+                    {
+                        var hop = (JObject)chain[i].DeepClone();
+                        hop.Remove("bind_interface");
+                        hop.Remove("inet4_bind_address");
+                        hop["tag"] = i == 0 ? EndpointTag : EndpointTag + "-" + (i + 1);
+                        hop["detour"] = i == 0 ? TransportTag : (i == 1 ? EndpointTag : EndpointTag + "-" + i);
+                        hops.Add(hop);
+                    }
+                    return hops;
+                }
+            }
+            hops.Add(single);
+            return hops;
+        }
+
         public static void PlaceInto(JObject document, JObject exitObject, ExitNodePlane plane)
         {
-            if (document == null || exitObject == null) return;
+            if (exitObject == null) return;
+            PlaceInto(document, new System.Collections.Generic.List<JObject> { exitObject }, plane);
+        }
+
+        public static void PlaceInto(JObject document, System.Collections.Generic.IReadOnlyList<JObject> hops, ExitNodePlane plane)
+        {
+            if (document == null || hops == null || hops.Count == 0) return;
             if (plane == ExitNodePlane.SingboxEndpoint)
             {
-                document["endpoints"] = new JArray { exitObject.DeepClone() };
+                document["endpoints"] = new JArray { hops[0].DeepClone() };
                 return;
             }
-            if (document["outbounds"] is JArray outbounds) outbounds.Add(exitObject.DeepClone());
-            else document["outbounds"] = new JArray { exitObject.DeepClone() };
+            if (document["outbounds"] is JArray outbounds)
+            {
+                foreach (var hop in hops) outbounds.Add(hop.DeepClone());
+                return;
+            }
+            var list = new JArray();
+            foreach (var hop in hops) list.Add(hop.DeepClone());
+            document["outbounds"] = list;
         }
 
         public static void AddProxyInbound(JObject document, AppConfig config)

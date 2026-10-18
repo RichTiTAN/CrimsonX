@@ -130,15 +130,24 @@ namespace CrimsonX.Services
 
         private static async Task<ConfigCheckResult> CheckForXrayAsync(string text, AppConfig cfg, ConfigCheckResult result)
         {
-            if (!ConfigConverter.TryXrayOutbound(text, out string xrayDoc, out string label, out string convertError))
+            if (!ConfigConverter.TryXrayChain(text, out var hops, out string chainLabel, out string convertError) || hops.Count == 0)
             {
                 result.Unreadable = true;
                 result.Reason = convertError;
                 return result;
             }
-            result.EngineJson = xrayDoc;
-            result.Label = label;
-            var xrayCheck = await XrayConfigValidator.CheckDetailedAsync(cfg, text).ConfigureAwait(false);
+            if (hops.Count == 1 && ConfigConverter.TryXrayOutbound(text, out string xrayDoc, out string singleLabel, out _))
+            {
+                result.EngineJson = xrayDoc;
+                result.Label = singleLabel;
+            }
+            else
+            {
+                result.EngineJson = ConfigConverter.BuildXrayChain(hops);
+                result.Label = chainLabel;
+            }
+            bool rebuiltChain = hops.Count > 1 && result.EngineJson.Length > 0;
+            var xrayCheck = await XrayConfigValidator.CheckDetailedAsync(cfg, rebuiltChain ? result.EngineJson : text).ConfigureAwait(false);
             result.Ok          = xrayCheck.Ok;
             result.MaskNote    = xrayCheck.MaskNote;
             result.WithoutMask = xrayCheck.WithoutMask;
@@ -148,20 +157,27 @@ namespace CrimsonX.Services
 
         private static async Task<ConfigCheckResult> CheckForSingboxAsync(string text, string sbDir, string adapterName, string adapterIp, ConfigCheckResult result)
         {
-            if (!ConfigConverter.TrySingboxOutbound(text, out string outboundJson, out string label, out string convertError))
+            if (!ConfigConverter.TrySingboxChain(text, out var hops, out string label, out string convertError) || hops.Count == 0)
             {
                 result.Unreadable = true;
                 result.Reason = convertError.Length > 0 ? convertError : "this config cannot be used here";
                 return result;
             }
-            result.EngineJson = outboundJson;
+            result.EngineJson = hops[0].ToString(Formatting.None);
             result.Label = label;
             bool ok;
             try
             {
-                var tagged = SingboxLinkParser.WithTagAndDial(JObject.Parse(outboundJson), ProbeTag, adapterName, adapterIp);
+                var tagged = SingboxLinkParser.WithTagAndDial((JObject)hops[0].DeepClone(), ProbeTag, adapterName, adapterIp);
                 string probe = tagged.ToString(Formatting.None);
-                ok = await Task.Run(() => SingboxConfigValidator.CheckOutbound(sbDir, probe)).ConfigureAwait(false);
+                string chain = "";
+                if (hops.Count > 1)
+                {
+                    var tail = new JArray();
+                    for (int i = 1; i < hops.Count; i++) tail.Add(hops[i]);
+                    chain = tail.ToString(Formatting.None);
+                }
+                ok = await Task.Run(() => SingboxConfigValidator.CheckChainOutbound(sbDir, probe, chain)).ConfigureAwait(false);
             }
             catch
             {

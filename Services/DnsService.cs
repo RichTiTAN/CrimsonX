@@ -191,7 +191,7 @@ namespace CrimsonX.Services
             string[] current = GetCurrentDns(adapterName);
             if (ListMatches(current, servers))
             {
-                SimpleLogger.Log($"[DnsService] {adapterName} already lists {string.Join(", ", servers)}");
+                SimpleLogger.LogFirst($"dns-already|{adapterName}", $"[DnsService] {adapterName} already lists {string.Join(", ", servers)}");
                 return true;
             }
             string[] commands = BuildApplyCommands(adapterName, servers);

@@ -145,6 +145,41 @@ public partial class MainWindow
         _exitIpFull = "";
         SetPublicIpTip("");
         _netDiag.StartGeoTrace();
+        StartGeoWatchdog();
+    }
+
+    private global::Avalonia.Threading.DispatcherTimer? _geoWatchdog;
+
+    private void StartGeoWatchdog()
+    {
+        StopGeoWatchdog();
+        var timer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(25) };
+        timer.Tick += (_, _) =>
+        {
+            StopGeoWatchdog();
+            if (!_state.IsGeoTracing) return;
+            _state.IsGeoTracing = false;
+            string timeout = CrimsonX.Localization.AppStrings.GeoTimeout;
+            var lblCountry  = this.FindControl<TextBlock>("lblCountryName");
+            var lblPing     = this.FindControl<TextBlock>("lblPing");
+            var lblPublicIp = this.FindControl<TextBlock>("lblPublicIp");
+            if (lblCountry  != null) lblCountry.Text  = timeout;
+            if (lblPing     != null) lblPing.Text     = "0 ms";
+            if (lblPublicIp != null) lblPublicIp.Text = timeout;
+            _exitIpFull = "";
+            SetPublicIpTip("");
+            CrimsonX.Services.SimpleLogger.Log("[Geo] the tiles were cleared by the watchdog; no trace result arrived.");
+        };
+        _geoWatchdog = timer;
+        timer.Start();
+    }
+
+    private void StopGeoWatchdog()
+    {
+        var timer = _geoWatchdog;
+        _geoWatchdog = null;
+        if (timer == null) return;
+        try { timer.Stop(); } catch { }
     }
 
     private string _exitIpFull = "";
@@ -161,6 +196,7 @@ public partial class MainWindow
     {
         Dispatcher.UIThread.Post(() =>
         {
+            StopGeoWatchdog();
             _state.IsGeoTracing = false;
             if (!_state.IsConnected) return;
             var lblCountry = this.FindControl<TextBlock>("lblCountryName");

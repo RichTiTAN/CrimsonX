@@ -37,12 +37,12 @@ namespace CrimsonX.Services
             lock (_lock)
             {
                 ActiveOutbounds = new List<string>(outbounds);
-                var jOutbounds = ParseOutbounds(outbounds, "StartXray");
-                if (!XrayConfigWriter.Write(config, xrayDir, jOutbounds))
+                var chains = ParseOutbounds(outbounds, "StartXray");
+                if (!XrayConfigWriter.Write(config, xrayDir, chains))
                 {
                     return false;
                 }
-                ApplyFinalMaskFallback(config, xrayDir, jOutbounds);
+                ApplyFinalMaskFallback(config, xrayDir, chains);
                 if (_xrayProcess != null)
                 {
                     try 
@@ -83,16 +83,20 @@ namespace CrimsonX.Services
             }
         }
 
-        private static void ApplyFinalMaskFallback(AppConfig config, string xrayDir, List<JObject> outbounds)
+        private static void ApplyFinalMaskFallback(AppConfig config, string xrayDir, List<List<JObject>> chains)
         {
             try
             {
                 bool hasMask = false;
-                foreach (var outbound in outbounds)
+                foreach (var chain in chains)
                 {
-                    if (FinalMask.FromStream(outbound) == null) continue;
-                    hasMask = true;
-                    break;
+                    foreach (var outbound in chain)
+                    {
+                        if (FinalMask.FromStream(outbound) == null) continue;
+                        hasMask = true;
+                        break;
+                    }
+                    if (hasMask) break;
                 }
                 if (!hasMask) return;
                 string configPath = Path.Combine(xrayDir, "config.json");
@@ -104,8 +108,11 @@ namespace CrimsonX.Services
                     return;
                 }
                 bool removed = false;
-                foreach (var outbound in outbounds) removed |= FinalMask.Strip(outbound);
-                if (!removed || !XrayConfigWriter.Write(config, xrayDir, outbounds)) return;
+                foreach (var chain in chains)
+                {
+                    foreach (var outbound in chain) removed |= FinalMask.Strip(outbound);
+                }
+                if (!removed || !XrayConfigWriter.Write(config, xrayDir, chains)) return;
                 string retry = XrayConfigValidator.TestFile(xrayDir, configPath);
                 if (retry.Length == 0)
                 {
@@ -132,7 +139,7 @@ namespace CrimsonX.Services
                 {
                     int oldOutboundsCount = ActiveOutbounds.Count;
                     ActiveOutbounds = new List<string>(newOutbounds);
-                    var jOutbounds = ParseOutbounds(newOutbounds, "SwapOutboundsAsync");
+                    var chains = ParseOutbounds(newOutbounds, "SwapOutboundsAsync");
                     var nodesToRemove = new List<string>();
                     var clonesToRemove = new List<string>();
                     string configJsonPath = Path.Combine(xrayDir, "config.json");
@@ -148,7 +155,7 @@ namespace CrimsonX.Services
                                     string tag = ob["tag"]?.ToString() ?? "";
                                     if (tag.StartsWith("proxy-node"))
                                         nodesToRemove.Add(tag);
-                                    else if (tag.StartsWith("proxy-clone"))
+                                    else if (tag.StartsWith("proxy-clone") || tag.StartsWith("proxy-hop"))
                                         clonesToRemove.Add(tag);
                                 }
                             }
@@ -158,7 +165,7 @@ namespace CrimsonX.Services
                     var tagsToRemove = new List<string>();
                     tagsToRemove.AddRange(clonesToRemove);
                     tagsToRemove.AddRange(nodesToRemove);
-                    if (!XrayConfigWriter.Write(config, xrayDir, jOutbounds))
+                    if (!XrayConfigWriter.Write(config, xrayDir, chains))
                     {
                         return false;
                     }
@@ -179,7 +186,7 @@ namespace CrimsonX.Services
                             string tag = ob["tag"]?.ToString() ?? "";
                             if (tag.StartsWith("proxy-node"))
                                 nodesToAdd.Add(ob);
-                            else if (tag.StartsWith("proxy-clone"))
+                            else if (tag.StartsWith("proxy-clone") || tag.StartsWith("proxy-hop"))
                                 clonesToAdd.Add(ob);
                         }
                         var proxyOutbounds = new JArray();
@@ -257,23 +264,22 @@ namespace CrimsonX.Services
             }
         }
 
-        private static List<JObject> ParseOutbounds(List<string> entries, string caller)
+        private static List<List<JObject>> ParseOutbounds(List<string> entries, string caller)
         {
-            var result = new List<JObject>();
+            var result = new List<List<JObject>>();
             int requested = 0;
             foreach (var outbStr in entries ?? new List<string>())
             {
                 requested++;
                 try
                 {
-                    var jOut = JObject.Parse(outbStr);
-                    if (jOut["outbounds"] is JArray arr && arr.Count > 0)
+                    if (ConfigConverter.TryXrayChain(outbStr, out var hops, out _, out string chainError) && hops.Count > 0)
                     {
-                        result.Add((JObject)arr[0]);
+                        result.Add(hops);
                     }
                     else
                     {
-                        CrimsonX.Services.SimpleLogger.Log($"[Xray] {caller}: outbound entry skipped (it has no \"outbounds\" array): {Preview(outbStr)}");
+                        CrimsonX.Services.SimpleLogger.Log($"[Xray] {caller}: outbound entry skipped ({chainError}): {Preview(outbStr)}");
                     }
                 }
                 catch (Exception ex)
