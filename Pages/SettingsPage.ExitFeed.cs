@@ -19,8 +19,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Media;
+using CrimsonX.Models;
 using CrimsonX.Services;
 
 namespace CrimsonX.Pages
@@ -41,6 +43,23 @@ namespace CrimsonX.Pages
     public partial class SettingsPage
     {
         private bool _exitNodeDefaultMode;
+        private bool _exitNodeDirty;
+        private bool _exitNodeExpanded;
+        private bool _exitNodeNoneSelected;
+
+        private void MarkExitNodeDirty()
+        {
+            if (_isInitializingSettings) return;
+            _exitNodeDirty = true;
+            UpdateExitNodeSubmitVisibility();
+        }
+
+        private void UpdateExitNodeSubmitVisibility()
+        {
+            var submit = this.FindControl<Button>("btnXrayExitNodeSubmit");
+            if (submit != null)
+                submit.IsVisible = _exitNodeDirty && _exitNodeExpanded && !_isInitializingSettings;
+        }
 
         internal static List<CountryComboItem> BuildCountryItems(string keepCode = "")
         {
@@ -61,13 +80,15 @@ namespace CrimsonX.Pages
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
+            bool keepStagedMode = _exitNodeDirty;
             bool wasInit = _isInitializingSettings;
             _isInitializingSettings = true;
             try
             {
                 var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
                 if (tog != null) tog.IsChecked = cfg.EnableV2rayChain;
-                _exitNodeDefaultMode = string.Equals(cfg.ExitNodeSource, "DEFAULT", StringComparison.OrdinalIgnoreCase);
+                if (!keepStagedMode)
+                    _exitNodeDefaultMode = string.Equals(cfg.ExitNodeSource, "DEFAULT", StringComparison.OrdinalIgnoreCase);
                 var btnDefault = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("btnExitNodeDefault");
                 var btnCustom = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("btnExitNodeCustom");
                 if (btnDefault != null) btnDefault.IsChecked = _exitNodeDefaultMode;
@@ -76,19 +97,13 @@ namespace CrimsonX.Pages
                 var panCustom = this.FindControl<Grid>("panExitNodeCustom");
                 if (panDefault != null) panDefault.IsVisible = _exitNodeDefaultMode;
                 if (panCustom != null) panCustom.IsVisible = !_exitNodeDefaultMode;
-                var combo = this.FindControl<ComboBox>("cbExitNodeCountry");
-                if (combo != null)
-                {
-                    var items = BuildCountryItems(cfg.ExitNodeCountry);
-                    combo.ItemsSource = items;
-                    combo.SelectedIndex = items.FindIndex(i =>
-                        string.Equals(i.Code, cfg.ExitNodeCountry, StringComparison.OrdinalIgnoreCase));
-                }
+                RefreshCountryComboSelection(cfg, preserveCurrent: keepStagedMode);
             }
             finally
             {
                 _isInitializingSettings = wasInit;
             }
+            UpdateExitNodeSubmitVisibility();
         }
 
         private void ExitNodeModeDefault_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -102,62 +117,91 @@ namespace CrimsonX.Pages
             if (_isInitializingSettings) return;
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
-            bool wasOn = cfg.EnableV2rayChain;
-            bool wasCustom = string.Equals(cfg.ExitNodeSource, "CUSTOM", StringComparison.OrdinalIgnoreCase);
-            string wasLink = cfg.V2rayChainJson ?? "";
+            var btnDefault = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("btnExitNodeDefault");
+            var btnCustom = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("btnExitNodeCustom");
+            if (_exitNodeDefaultMode == defaultMode)
+            {
+                if (btnDefault != null) btnDefault.IsChecked = defaultMode;
+                if (btnCustom != null) btnCustom.IsChecked = !defaultMode;
+                return;
+            }
+
+            _exitNodeDefaultMode = defaultMode;
+            _exitNodeNoneSelected = false;
+            if (btnDefault != null) btnDefault.IsChecked = defaultMode;
+            if (btnCustom != null) btnCustom.IsChecked = !defaultMode;
+            var panDefault = this.FindControl<Grid>("panExitNodeDefault");
+            var panCustom = this.FindControl<Grid>("panExitNodeCustom");
+            if (panDefault != null) panDefault.IsVisible = defaultMode;
+            if (panCustom != null) panCustom.IsVisible = !defaultMode;
+
             if (defaultMode)
             {
-                if (!string.Equals(cfg.ExitNodeSource, "DEFAULT", StringComparison.OrdinalIgnoreCase))
-                {
-                    cfg.ExitNodeCustomJson = cfg.V2rayChainJson ?? "";
-                    cfg.ExitNodeCustomEnabled = wasOn;
-                }
-                cfg.ExitNodeSource = "DEFAULT";
-                if (string.IsNullOrWhiteSpace(cfg.ExitNodeCountry))
-                {
-                    var allowed = CountryExitFeed.AllowedContinents(cfg);
-                    cfg.ExitNodeCountry = CountryExitFeed.Nodes
-                        .FirstOrDefault(n => CountryExitFeed.IsVisible(n, allowed))?.Code ?? "";
-                }
-                if (wasCustom && wasOn)
-                {
-                    var handOver = CountryExitFeed.NodeFor(cfg.ExitNodeCountry);
-                    if (handOver != null) CountryExitFeed.SelectCountry(cfg, handOver);
-                }
+                RefreshCountryComboSelection(cfg);
             }
             else
             {
-                CountryExitFeed.SelectCustom(cfg);
-                bool wasInit = _isInitializingSettings;
-                _isInitializingSettings = true;
-                try
-                {
-                    var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
-                    if (tog != null) tog.IsChecked = cfg.EnableV2rayChain;
-                }
-                finally { _isInitializingSettings = wasInit; }
-                ShowExitNodeRaw(cfg.V2rayChainJson);
+                string custom = string.Equals(cfg.ExitNodeSource, "CUSTOM", StringComparison.OrdinalIgnoreCase)
+                    ? cfg.V2rayChainJson ?? ""
+                    : cfg.ExitNodeCustomJson ?? "";
+                ShowExitNodeRaw(custom);
             }
-            bool chainChanged = wasOn != cfg.EnableV2rayChain
-                             || (cfg.EnableV2rayChain && !string.Equals(wasLink, cfg.V2rayChainJson ?? "", StringComparison.Ordinal));
-            MainWindow.Instance?.RequestConfigSave();
-            RefreshExitNodePane();
-            if (chainChanged && MainWindow.Instance?.State.IsEngineRunning == true) MainWindow.Instance.SmartRestartXray();
+            MarkExitNodeDirty();
+        }
+
+        private void RefreshCountryComboSelection(AppConfig cfg, bool preserveCurrent = true)
+        {
+            var combo = this.FindControl<ComboBox>("cbExitNodeCountry");
+            if (combo == null) return;
+            bool wasInit = _isInitializingSettings;
+            _isInitializingSettings = true;
+            try
+            {
+                string keep = preserveCurrent ? (combo.SelectedItem as CountryComboItem)?.Code ?? "" : "";
+                if (keep.Length == 0) keep = cfg.ExitNodeCountry;
+                var items = BuildCountryItems(keep);
+                combo.ItemsSource = items;
+                int index = items.FindIndex(i => string.Equals(i.Code, keep, StringComparison.OrdinalIgnoreCase));
+                if (index < 0 && items.Count > 0) index = 0;
+                combo.SelectedIndex = index;
+            }
+            finally
+            {
+                _isInitializingSettings = wasInit;
+            }
         }
 
         private void ExitNodeCountry_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
         {
+            if (_isInitializingSettings) return;
+            if (sender is global::Avalonia.Controls.ComboBox cb && cb.SelectedItem is CountryComboItem)
+                MarkExitNodeDirty();
         }
 
-        private void btnExitNodeSubmit_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        private void btnXrayExitNodeSubmit_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            _ = ApplyExitNodeSubmitAsync();
+        }
+
+        private async Task ApplyExitNodeSubmitAsync()
+        {
+            bool applied = _exitNodeDefaultMode
+                ? ApplyDefaultExitNode()
+                : await SubmitCustomExitNodeAsync();
+            if (!applied) return;
+            _exitNodeDirty = false;
+            CollapseExitNodePane(discardPending: false);
+        }
+
+        private bool ApplyDefaultExitNode()
         {
             var window = MainWindow.Instance;
             var cfg = window?.Config;
             var combo = this.FindControl<ComboBox>("cbExitNodeCountry");
-            if (cfg == null || combo?.SelectedItem is not CountryComboItem item) return;
+            if (window == null || cfg == null || combo?.SelectedItem is not CountryComboItem item) return false;
             var node = CountryExitFeed.NodeFor(item.Code);
-            if (node == null) return;
-            if (!CountryExitFeed.SelectCountry(cfg, node)) return;
+            if (node == null) return false;
+            CountryExitFeed.SelectCountry(cfg, node);
             bool wasInit = _isInitializingSettings;
             _isInitializingSettings = true;
             try
@@ -166,9 +210,86 @@ namespace CrimsonX.Pages
                 if (tog != null) tog.IsChecked = true;
             }
             finally { _isInitializingSettings = wasInit; }
-            window!.RequestConfigSave();
+            window.RequestConfigSave();
             if (window.State.IsEngineRunning) window.SmartRestartXray();
             RefreshExitNodePane();
+            return true;
+        }
+
+        private async Task<bool> SubmitCustomExitNodeAsync()
+        {
+            var cfg = MainWindow.Instance?.Config;
+            var box = this.FindControl<ComboBox>("cbXrayExitNode");
+            if (cfg == null || box == null) return false;
+            bool none = _exitNodeNoneSelected || box.SelectedIndex == 0
+                || string.Equals((box.Text ?? "").Trim(), CrimsonX.Localization.AppStrings.CustomProxyNone, StringComparison.Ordinal);
+            string raw = none ? "" : VisibleExitNodeRaw(cfg);
+            if (none || raw.Length == 0)
+            {
+                ClearCustomExitNode();
+                return true;
+            }
+            bool applied = await ApplyExitNodeRawAsync(raw);
+            if (!applied) return false;
+            cfg.ExitNodeSource = "CUSTOM";
+            cfg.ExitNodeCustomJson = cfg.V2rayChainJson ?? raw;
+            cfg.ExitNodeCustomEnabled = cfg.EnableV2rayChain;
+            cfg.ExitNodeSuspended = false;
+            cfg.ExitNodeAuto = false;
+            MainWindow.Instance?.RequestConfigSave();
+            RefreshExitNodePane();
+            return true;
+        }
+
+        private string VisibleExitNodeRaw(AppConfig cfg)
+        {
+            var box = this.FindControl<ComboBox>("cbXrayExitNode");
+            string visible = (box?.Text ?? "").Trim();
+            return visible.Length == 0 ? "" : ResolveExitNodeRaw(cfg, visible);
+        }
+
+        private string ResolveExitNodeRaw(AppConfig cfg, string visible)
+        {
+            var entry = _configComboEntries.FirstOrDefault(e =>
+                string.Equals((e.Raw ?? "").Trim(), visible, StringComparison.Ordinal)
+                || string.Equals((e.Label ?? "").Trim(), visible, StringComparison.Ordinal));
+            if (entry != null) return (entry.Raw ?? "").Trim();
+            string stored = (cfg.V2rayChainJson ?? "").Trim();
+            if (stored.Length > 0
+                && (string.Equals(visible, stored, StringComparison.Ordinal)
+                    || string.Equals(visible, CrimsonX.Services.AppCustomConfigStore.LabelFor(cfg, stored), StringComparison.Ordinal)))
+                return stored;
+            return visible;
+        }
+
+        private void ClearCustomExitNode()
+        {
+            var window = MainWindow.Instance;
+            var cfg = window?.Config;
+            if (window == null || cfg == null) return;
+            bool wasOn = cfg.EnableV2rayChain;
+            bool changed = CountryExitFeed.ClearCustom(cfg);
+            bool wasInit = _isInitializingSettings;
+            _isInitializingSettings = true;
+            try
+            {
+                var box = this.FindControl<ComboBox>("cbXrayExitNode");
+                if (box != null)
+                {
+                    box.SelectedIndex = -1;
+                    box.Text = "";
+                }
+                var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
+                if (tog != null) tog.IsChecked = false;
+            }
+            finally { _isInitializingSettings = wasInit; }
+            ShowExitNodeRaw("");
+            _exitNodeDirty = false;
+            _exitNodeNoneSelected = false;
+            UpdateExitNodeSubmitVisibility();
+            window.RequestConfigSave();
+            if (changed && wasOn && window.State.IsEngineRunning) window.SmartRestartXray();
+            CrimsonX.Services.SimpleLogger.Log("[ExitNode] Custom exit node cleared (NONE).");
         }
     }
 }

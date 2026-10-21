@@ -32,6 +32,10 @@ namespace CrimsonX.Models
         public string CustomConfig2 { get; set; } = "";
         public bool FetchConfigWhenOneProvided { get; set; } = false;
 
+        public bool EnablePerConfigAdapters { get; set; } = false;
+        public string CustomConfig1Adapter { get; set; } = "";
+        public string CustomConfig2Adapter { get; set; } = "";
+
         public bool DisableBackgroundChecks { get; set; } = false;
         public bool DisableRefreshTimer { get; set; } = false;
 

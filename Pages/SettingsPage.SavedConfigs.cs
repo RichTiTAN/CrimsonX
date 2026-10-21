@@ -157,6 +157,7 @@ namespace CrimsonX.Pages
             if (sender is not ComboBox cb || cb.SelectedIndex < 0) return;
             int index = cb.SelectedIndex;
             var cfg = MainWindow.Instance?.Config;
+            EnsureCustomConfigDraft();
             bool usable = true;
             string raw = "";
             string reason = "";
@@ -174,8 +175,7 @@ namespace CrimsonX.Pages
                 if (usable)
                 {
                     SetConfigRaw(cfg, slot, raw);
-                    cb.Text = AppCustomConfigStore.LabelFor(cfg, raw);
-                    MainWindow.Instance?.RequestConfigSave();
+                    ShowCustomConfigSlot(slot, raw);
                 }
             }
             finally
@@ -184,9 +184,11 @@ namespace CrimsonX.Pages
             }
             if (!usable)
             {
+                MarkCustomConfigsTextDirty();
                 MainWindow.Instance?.ShowToast(AppStrings.ToastConfigNotForXray + reason, ToastKind.Error);
                 return;
             }
+            MarkCustomConfigsTextDirty();
             _ = ValidateSlotAfterPickAsync(slot, raw);
         }
 
@@ -201,9 +203,8 @@ namespace CrimsonX.Pages
             string shortError = ConfigValidator.ShortReason(xrayError);
             MainWindow.Instance?.ShowToast(AppStrings.ToastXrayRejected + shortError, ToastKind.Error);
             SetConfigRaw(cfg, slot, "");
-            var cb = this.FindControl<ComboBox>(ConfigComboName(slot));
-            if (cb != null) cb.Text = "";
-            ConfigBoxes.Show(QuickSlotBoxKey(slot), "");
+            ShowCustomConfigSlot(slot, "");
+            MarkCustomConfigsTextDirty();
         }
 
         internal void ApplySavedConfigsLanguage()

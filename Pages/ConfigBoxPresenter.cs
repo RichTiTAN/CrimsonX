@@ -69,6 +69,8 @@ namespace CrimsonX.Pages
 
         public bool IsEmpty(string key) => GetText(Box(key)).Trim().Length == 0;
 
+        public string Text(string key) => GetText(Box(key)).Trim();
+
         public string Label(string raw) => _labelFor(raw ?? "") ?? "";
 
         public void Show(string key, string? raw)

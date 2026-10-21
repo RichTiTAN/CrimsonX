@@ -36,6 +36,7 @@ namespace CrimsonX.Pages
     public partial class SettingsPage : UserControl
     {
         private bool _isInitializingSettings = true;
+        private bool _settingsInitialSyncDone;
 
         private bool _lbResetByPage;
         public static SettingsPage? Instance { get; private set; }
@@ -109,19 +110,20 @@ namespace CrimsonX.Pages
             var togCustomConfigs = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togCustomConfigs");
             if (togCustomConfigs != null) togCustomConfigs.IsChecked = _cfg.EnableCustomConfigs;
             var cbCustomConfig1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
-            if (cbCustomConfig1 != null) cbCustomConfig1.Text = _cfg.CustomConfig1;
+            if (cbCustomConfig1 != null && !_customConfigDraftActive) cbCustomConfig1.Text = _cfg.CustomConfig1;
             var cbCustomConfig2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
-            if (cbCustomConfig2 != null) cbCustomConfig2.Text = _cfg.CustomConfig2;
+            if (cbCustomConfig2 != null && !_customConfigDraftActive) cbCustomConfig2.Text = _cfg.CustomConfig2;
             RefreshConfigCombos();
-            var chkAllowOneCustomConfig = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
-            if (chkAllowOneCustomConfig != null) chkAllowOneCustomConfig.IsChecked = _cfg.FetchConfigWhenOneProvided;
+            var togFetchConfigWhenOne = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togFetchConfigWhenOne");
+            if (togFetchConfigWhenOne != null && !_customConfigsDirty) togFetchConfigWhenOne.IsChecked = _cfg.FetchConfigWhenOneProvided;
+            if (!_customConfigsDirty) SyncPerConfigAdapterPanel();
             var togXrayExitNode = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
             if (togXrayExitNode != null) togXrayExitNode.IsChecked = _cfg.EnableV2rayChain;
             RefreshExitNodePane();
             var togAdapterBinding = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togAdapterBinding");
             if (togAdapterBinding != null) togAdapterBinding.IsChecked = _cfg.EnableAdapterBinding;
             if (_cfg.EnableLoadBalanceAdapters
-                && CrimsonX.Services.XrayConfigWriter.AdapterIps(_cfg.LoadBalanceAdapters).Count < 2)
+                && CrimsonX.Services.XrayConfigWriter.AvailableAdapterIps(_cfg.LoadBalanceAdapters).Count < 2)
             {
                 _cfg.EnableLoadBalanceAdapters = false;
                 MainWindow.Instance.RequestConfigSave();
@@ -137,6 +139,21 @@ namespace CrimsonX.Pages
         {
             _isInitializingSettings = false;
         }
+        if (!_settingsInitialSyncDone)
+        {
+            _settingsInitialSyncDone = true;
+            _customConfigsDirty = false;
+            _customConfigsTextDirty = false;
+            _customConfigDraftActive = false;
+            _draftConfig1 = "";
+            _draftConfig2 = "";
+            _exitNodeDirty = false;
+            _exitNodeNoneSelected = false;
+            _customConfigsExpanded = false;
+            _exitNodeExpanded = false;
+        }
+        UpdateCustomConfigsSubmitVisibility();
+        UpdateExitNodeSubmitVisibility();
     }
 
         public void ApplyConnectionModeUI(string mode)
@@ -173,7 +190,6 @@ namespace CrimsonX.Pages
         {
             TextBlock? F(string name) => this.FindControl<TextBlock>(name);
             Button? B(string name)    => this.FindControl<Button>(name);
-            bool fa = CrimsonX.Localization.AppStrings.IsPersian;
             var lblLanguage = F("lblCurrentLanguage");
             if (lblLanguage != null) lblLanguage.Text = CrimsonX.Localization.AppStrings.LblLanguageName;
             CrimsonX.Localization.AppStrings.Apply(F("lblSectionStartup"), CrimsonX.Localization.AppStrings.SectionStartup);
@@ -194,27 +210,14 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<Button>("btnRefreshPing"), CrimsonX.Localization.AppStrings.TtPingRefresh);
             CrimsonX.Localization.AppStrings.Apply(F("lblCustomConfigsTitle"), CrimsonX.Localization.AppStrings.CustomConfigsTitle);
             ApplySavedConfigsLanguage();
-            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblAllowOneCustomConfig"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvidedTooltip);
+            ApplyPerConfigAdapterLanguage();
+            CrimsonX.Localization.AppStrings.Apply(F("lblFetchConfigWhenOne"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvided);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblFetchConfigWhenOne"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvidedTooltip);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togFetchConfigWhenOne"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvidedTooltip);
             var btn1 = B("btnCustomConfigsPing1");
             if (btn1 != null) btn1.Content = CrimsonX.Localization.AppStrings.PingBtn;
             var btn2 = B("btnCustomConfigsPing2");
             if (btn2 != null) btn2.Content = CrimsonX.Localization.AppStrings.PingBtn;
-            var chkAllow = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
-            if (chkAllow != null)
-            {
-                if (chkAllow.Content is global::Avalonia.Controls.TextBlock tb)
-                {
-                    tb.Text = CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvided;
-                    tb.FontFamily = fa ? new global::Avalonia.Media.FontFamily("Segoe UI") : global::Avalonia.Media.FontFamily.Default;
-                    tb.FlowDirection = fa ? global::Avalonia.Media.FlowDirection.RightToLeft : global::Avalonia.Media.FlowDirection.LeftToRight;
-                }
-                else
-                {
-                    chkAllow.Content = CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvided;
-                    chkAllow.FontFamily = fa ? new global::Avalonia.Media.FontFamily("Segoe UI") : global::Avalonia.Media.FontFamily.Default;
-                    chkAllow.FlowDirection = fa ? global::Avalonia.Media.FlowDirection.RightToLeft : global::Avalonia.Media.FlowDirection.LeftToRight;
-                }
-            }
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsPing1"), CrimsonX.Localization.AppStrings.PingBtn);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsPing2"), CrimsonX.Localization.AppStrings.PingBtn);
             CrimsonX.Localization.AppStrings.ApplyBtn(B("btnCustomConfigsSave1"), CrimsonX.Localization.AppStrings.Save);
@@ -244,7 +247,8 @@ namespace CrimsonX.Pages
             if (lblExitDefault != null) lblExitDefault.Text = CrimsonX.Localization.AppStrings.ExitNodeDefault;
             var lblExitCustom = this.FindControl<TextBlock>("lblExitNodeCustom");
             if (lblExitCustom != null) lblExitCustom.Text = CrimsonX.Localization.AppStrings.ExitNodeCustom;
-            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnExitNodeSubmit"), CrimsonX.Localization.AppStrings.ExitNodeSubmit);
+            CrimsonX.Localization.AppStrings.ApplyBtn(B("btnXrayExitNodeSubmit"), CrimsonX.Localization.AppStrings.ExitNodeSubmit);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(B("btnXrayExitNodeSubmit"), CrimsonX.Localization.AppStrings.ExitNodeSubmit);
             var tbAdapterBinding = this.FindControl<TextBlock>("lblAdapterBindingTitle");
             CrimsonX.Localization.AppStrings.Apply(tbAdapterBinding, CrimsonX.Localization.AppStrings.AdapterBinding);
             CrimsonX.Localization.AppStrings.ApplyToolTip(tbAdapterBinding, CrimsonX.Localization.AppStrings.TtAdapterBinding);
@@ -300,12 +304,14 @@ namespace CrimsonX.Pages
 
         // ── Custom Configs ──
 
-        private void SetCustomConfigsExpanded(bool expanded)
+        private void SetCustomConfigsExpanded(bool expanded, bool revertPending = true)
     {
         var pan = this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigs");
         var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoCustomConfigsExpander");
         var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigsToggle");
         var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnCustomConfigsToggle");
+        if (!expanded && revertPending) DiscardCustomConfigsDraft();
+        _customConfigsExpanded = expanded;
         if (pan != null)
         {
             pan.MaxHeight = expanded ? 250 : 0;
@@ -313,7 +319,9 @@ namespace CrimsonX.Pages
             if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(expanded ? 180 : 0);
             if (panToggle != null) panToggle.CornerRadius = expanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
             if (btnToggle != null) btnToggle.CornerRadius = expanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+            if (expanded) RecalculateCustomConfigsDirty();
         }
+        UpdateCustomConfigsSubmitVisibility();
     }
 
     private void btnCustomConfigsToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -324,11 +332,7 @@ namespace CrimsonX.Pages
             if (src.Name == "togCustomConfigs") return;
             src = src.Parent as global::Avalonia.Controls.Control;
         }
-        var pan = this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigs");
-        if (pan != null)
-        {
-            SetCustomConfigsExpanded(pan.MaxHeight == 0);
-        }
+        SetCustomConfigsExpanded(!_customConfigsExpanded);
     }
 
     private void togCustomConfigs_IsCheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -349,8 +353,27 @@ namespace CrimsonX.Pages
                     return;
                 }
                 ResolveCustomConfigSlots();
+                CommitCustomConfigRawDraft();
+                _customConfigDraftActive = false;
+                _draftConfig1 = "";
+                _draftConfig2 = "";
+                _customConfigsTextDirty = false;
             }
             MainWindow.Instance.Config.EnableCustomConfigs = tog.IsChecked.Value;
+            if (tog.IsChecked != true)
+            {
+                ClearPerConfigAdapterMode(save: false);
+                SyncPerConfigAdapterPanel();
+            }
+            else
+            {
+                RecalculateCustomConfigsDirty();
+                var perTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togPerConfigAdapter");
+                if (perTog != null) perTog.IsEnabled = true;
+                ApplyPerConfigAdapterVisibility();
+                if (!_customConfigsDirty) SyncPerConfigAdapterPanel();
+            }
+            RecalculateCustomConfigsDirty();
             MainWindow.Instance.RequestConfigSave();
             NotifyCustomConfigsChanged(showSaveToast: false);
         }
@@ -378,16 +401,10 @@ namespace CrimsonX.Pages
         }
     }
 
-    private void chkAllowOneCustomConfig_IsCheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    private void togFetchConfigWhenOne_IsCheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_isInitializingSettings) return;
-        var chk = sender as global::Avalonia.Controls.CheckBox;
-        if (chk != null && chk.IsChecked != null)
-        {
-            MainWindow.Instance.Config.FetchConfigWhenOneProvided = chk.IsChecked.Value;
-            MainWindow.Instance.RequestConfigSave();
-            NotifyCustomConfigsChanged(showSaveToast: false);
-        }
+        RecalculateCustomConfigsDirty();
     }
 
     private void btnCustomConfigsSubmit_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -400,9 +417,9 @@ namespace CrimsonX.Pages
         var cb2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
         if (cb1 != null) cb1.Text = cfg1;
         if (cb2 != null) cb2.Text = cfg2;
-        var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
+        var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togFetchConfigWhenOne");
         var cfg = MainWindow.Instance?.Config;
-        if (chk != null && cfg != null) chk.IsChecked = cfg.FetchConfigWhenOneProvided;
+        if (tog != null && cfg != null) tog.IsChecked = cfg.FetchConfigWhenOneProvided;
         SubmitCustomConfigs();
         ShowQuickSettingsConfigs();
     }
@@ -438,22 +455,65 @@ namespace CrimsonX.Pages
 
     public void SubmitCustomConfigs()
     {
-        var chk = this.FindControl<global::Avalonia.Controls.CheckBox>("chkAllowOneCustomConfig");
+        var main = MainWindow.Instance;
+        var cfg = main.Config;
+        var togFetchConfig = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togFetchConfigWhenOne");
+        var togPerConfig = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togPerConfigAdapter");
+
         ResolveCustomConfigSlots();
-        ApplyCustomConfigTitles(true);
-        if (chk != null) MainWindow.Instance.Config.FetchConfigWhenOneProvided = chk.IsChecked ?? false;
-        bool hasConfig = !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1) ||
-                         !string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2);
+        CommitCustomConfigRawDraft();
+
+        bool fetchOn = togFetchConfig?.IsChecked ?? false;
+        bool perOn = togPerConfig?.IsChecked == true;
+        bool hasConfig = !string.IsNullOrWhiteSpace(cfg.CustomConfig1) ||
+                         !string.IsNullOrWhiteSpace(cfg.CustomConfig2);
+        cfg.FetchConfigWhenOneProvided = fetchOn;
+        cfg.EnableCustomConfigs = hasConfig;
+        cfg.EnablePerConfigAdapters = perOn && hasConfig;
+
+        if (cfg.EnablePerConfigAdapters)
+        {
+            string pick1 = string.IsNullOrWhiteSpace(cfg.CustomConfig1) ? "" : StagedAdapterPick(1);
+            string pick2 = string.IsNullOrWhiteSpace(cfg.CustomConfig2) ? "" : StagedAdapterPick(2);
+            if (pick1.Length > 0 && string.Equals(pick1, pick2, StringComparison.Ordinal)) pick2 = "";
+            StorePerConfigAdapterPick(cfg, 1, pick1);
+            StorePerConfigAdapterPick(cfg, 2, pick2);
+            cfg.EnableAdapterBinding = false;
+            cfg.EnableLoadBalanceAdapters = false;
+            bool wasInit = _isInitializingSettings;
+            _isInitializingSettings = true;
+            try
+            {
+                var bindTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togAdapterBinding");
+                if (bindTog != null) bindTog.IsChecked = false;
+                var lbTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togLoadBalance");
+                if (lbTog != null) lbTog.IsChecked = false;
+            }
+            finally { _isInitializingSettings = wasInit; }
+            CollapseAdapterBindingPanel();
+            ExpandLbPanel(false);
+        }
+
         var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togCustomConfigs");
         if (tog != null && tog.IsChecked != hasConfig)
         {
+            bool wasInit = _isInitializingSettings;
             _isInitializingSettings = true;
-            tog.IsChecked = hasConfig;
-            _isInitializingSettings = false;
+            try { tog.IsChecked = hasConfig; }
+            finally { _isInitializingSettings = wasInit; }
         }
-        MainWindow.Instance.Config.EnableCustomConfigs = hasConfig;
-        SetCustomConfigsExpanded(false);
-        MainWindow.Instance.RequestConfigSave();
+        if (!hasConfig) ClearPerConfigAdapterMode(save: false);
+        SyncPerConfigAdapterPanel();
+
+        _customConfigDraftActive = false;
+        _draftConfig1 = "";
+        _draftConfig2 = "";
+        _customConfigsTextDirty = false;
+        _customConfigsDirty = false;
+        ShowCustomConfigSlotsFromConfig();
+        SetCustomConfigsExpanded(false, revertPending: false);
+        UpdateCustomConfigsSubmitVisibility();
+        main.RequestConfigSave();
         NotifyCustomConfigsChanged(showSaveToast: true);
     }
 
@@ -474,16 +534,17 @@ namespace CrimsonX.Pages
             var btn = sender as global::Avalonia.Controls.Button;
             if (btn != null) btn.IsEnabled = false;
             ResolveCustomConfigSlots();
-            MainWindow.Instance.RequestConfigSave();
             long ping1 = -1;
             bool timedOut1 = false;
             CrimsonX.Services.ConfigTestResult res1 = null;
             using var cts1 = new System.Threading.CancellationTokenSource(15000);
             var ct = cts1.Token;
-            if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig1))
+            string raw1 = GetConfigRaw(MainWindow.Instance.Config, 1);
+            if (!string.IsNullOrWhiteSpace(raw1))
             {
+                var adapter1 = CrimsonX.Services.XrayConfigWriter.CustomConfigAdapter(MainWindow.Instance.Config, 1);
                 res1 = await CrimsonX.Services.CustomConfigPinger.ProbeAsync(
-                    MainWindow.Instance.Config.CustomConfig1, MainWindow.Instance.Config, "", "", ct);
+                    raw1, MainWindow.Instance.Config, adapter1.Name, adapter1.Ip, ct);
                 if (res1 != null && res1.Success) ping1 = res1.Ping;
                 else timedOut1 = res1 != null && res1.TimedOut;
             }
@@ -512,16 +573,17 @@ namespace CrimsonX.Pages
             var btn = sender as global::Avalonia.Controls.Button;
             if (btn != null) btn.IsEnabled = false;
             ResolveCustomConfigSlots();
-            MainWindow.Instance.RequestConfigSave();
             long ping2 = -1;
             bool timedOut2 = false;
             CrimsonX.Services.ConfigTestResult res2 = null;
             using var cts2 = new System.Threading.CancellationTokenSource(15000);
             var ct = cts2.Token;
-            if (!string.IsNullOrWhiteSpace(MainWindow.Instance.Config.CustomConfig2))
+            string raw2 = GetConfigRaw(MainWindow.Instance.Config, 2);
+            if (!string.IsNullOrWhiteSpace(raw2))
             {
+                var adapter2 = CrimsonX.Services.XrayConfigWriter.CustomConfigAdapter(MainWindow.Instance.Config, 2);
                 res2 = await CrimsonX.Services.CustomConfigPinger.ProbeAsync(
-                    MainWindow.Instance.Config.CustomConfig2, MainWindow.Instance.Config, "", "", ct);
+                    raw2, MainWindow.Instance.Config, adapter2.Name, adapter2.Ip, ct);
                 if (res2 != null && res2.Success) ping2 = res2.Ping;
                 else timedOut2 = res2 != null && res2.TimedOut;
             }
@@ -763,6 +825,8 @@ namespace CrimsonX.Pages
         }
         PruneLbAdapterConfig();
         RefreshLbAdapterCombos();
+        PrunePerConfigAdapterConfig();
+        RefreshPerConfigAdapterCombos();
     }
 
     internal void ScanAdapters() => btnScanAdapters_Click(null, null);
@@ -817,6 +881,13 @@ namespace CrimsonX.Pages
             try
             {
                 int visible = LbVisibleSlots();
+                bool showSecondRow = visible >= 3;
+                var secondRowPan = this.FindControl<global::Avalonia.Controls.Border>("panLbAdapterRow2");
+                if (secondRowPan != null)
+                {
+                    secondRowPan.MaxHeight = showSecondRow ? 36 : 0;
+                    secondRowPan.Opacity = showSecondRow ? 1 : 0;
+                }
                 var stored  = MainWindow.Instance.Config.LoadBalanceAdapters ?? new List<string>();
                 var all     = AdapterItems();
                 for (int slot = 1; slot <= LbAdapterMaxSlots; slot++)
@@ -824,7 +895,10 @@ namespace CrimsonX.Pages
                     var cmb = LbCombo(slot);
                     var row = LbRow(slot);
                     if (cmb == null || row == null) continue;
-                    row.IsVisible = slot <= visible;
+                    row.IsVisible = true;
+                    row.Opacity = slot == 4 && visible < 4 ? 0 : 1;
+                    row.IsHitTestVisible = slot != 4 || visible >= 4;
+                    if (slot == 4) row.IsEnabled = visible >= 4;
                     if (slot > visible)
                     {
                         cmb.ItemsSource = null;
@@ -997,7 +1071,7 @@ namespace CrimsonX.Pages
             if (tog.IsChecked == true)
             {
                 _lbResetByPage = false;
-                if (CrimsonX.Services.XrayConfigWriter.AdapterIps(cfg.LoadBalanceAdapters).Count < 2)
+                if (CrimsonX.Services.XrayConfigWriter.AvailableAdapterIps(cfg.LoadBalanceAdapters).Count < 2)
                 {
                     _lbResetByPage = true;
                     global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
@@ -1006,6 +1080,7 @@ namespace CrimsonX.Pages
                         CrimsonX.Localization.AppStrings.ToastLoadBalanceNeedsTwoAdapters, ToastKind.Error);
                     return;
                 }
+                ClearPerConfigAdapterMode(save: false);
                 if (cfg.EnableAdapterBinding)
                 {
                     cfg.EnableAdapterBinding = false;
@@ -1140,32 +1215,40 @@ namespace CrimsonX.Pages
         internal ConfigBoxPresenter ConfigBoxes
             => _configBoxes ??= new ConfigBoxPresenter(ReadConfigBoxRaw, WriteConfigBoxRaw, ConfigBoxTitle);
 
-        private static string ReadConfigBoxRaw(string key)
+        private string ReadConfigBoxRaw(string key)
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return "";
             return key switch
             {
                 ExitNodeBoxKey       => cfg.V2rayChainJson ?? "",
-                CustomConfigSlot1Key => cfg.CustomConfig1 ?? "",
-                CustomConfigSlot2Key => cfg.CustomConfig2 ?? "",
-                QuickConfigSlot1Key  => cfg.CustomConfig1 ?? "",
-                QuickConfigSlot2Key  => cfg.CustomConfig2 ?? "",
+                CustomConfigSlot1Key => _customConfigDraftActive ? _draftConfig1 : cfg.CustomConfig1 ?? "",
+                CustomConfigSlot2Key => _customConfigDraftActive ? _draftConfig2 : cfg.CustomConfig2 ?? "",
+                QuickConfigSlot1Key  => _customConfigDraftActive ? _draftConfig1 : cfg.CustomConfig1 ?? "",
+                QuickConfigSlot2Key  => _customConfigDraftActive ? _draftConfig2 : cfg.CustomConfig2 ?? "",
                 _                    => ""
             };
         }
 
-        private static void WriteConfigBoxRaw(string key, string raw)
+        private void WriteConfigBoxRaw(string key, string raw)
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
             switch (key)
             {
-                case ExitNodeBoxKey:       cfg.V2rayChainJson = raw; break;
-                case CustomConfigSlot1Key: cfg.CustomConfig1  = raw; break;
-                case CustomConfigSlot2Key: cfg.CustomConfig2  = raw; break;
-                case QuickConfigSlot1Key:  cfg.CustomConfig1  = raw; break;
-                case QuickConfigSlot2Key:  cfg.CustomConfig2  = raw; break;
+                case ExitNodeBoxKey:
+                    cfg.V2rayChainJson = raw;
+                    break;
+                case CustomConfigSlot1Key:
+                case QuickConfigSlot1Key:
+                    if (_customConfigDraftActive) _draftConfig1 = raw ?? "";
+                    else cfg.CustomConfig1 = raw;
+                    break;
+                case CustomConfigSlot2Key:
+                case QuickConfigSlot2Key:
+                    if (_customConfigDraftActive) _draftConfig2 = raw ?? "";
+                    else cfg.CustomConfig2 = raw;
+                    break;
             }
         }
 
@@ -1219,23 +1302,27 @@ namespace CrimsonX.Pages
             return true;
         }
 
-        private async Task ApplyExitNodeRawAsync(string raw)
+        private async Task<bool> ApplyExitNodeRawAsync(string raw)
         {
             var cfg = MainWindow.Instance?.Config;
-            if (cfg == null || string.IsNullOrWhiteSpace(raw)) return;
+            if (cfg == null || string.IsNullOrWhiteSpace(raw)) return false;
             raw = raw.Trim();
+            _exitNodeNoneSelected = false;
             if (CrimsonX.Services.TunnelConfigParser.TryParse(raw, out var tunnel) && tunnel.Success)
             {
                 if (!await ValidateTunnelExitNodeAsync(cfg, tunnel))
                 {
                     cfg.V2rayChainJson   = raw;
                     cfg.EnableV2rayChain = false;
+                    cfg.ExitNodeSource = "CUSTOM";
+                    cfg.ExitNodeCustomJson = raw;
+                    cfg.ExitNodeCustomEnabled = false;
                     var authTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
                     if (authTog != null) authTog.IsChecked = false;
                     ShowExitNodeRaw(raw);
                     MainWindow.Instance?.RequestConfigSave();
                     CrimsonX.Services.SimpleLogger.Log("[ExitNode] Saved without credentials; the exit node stays off until they are provided.");
-                    return;
+                    return true;
                 }
             }
             else
@@ -1248,7 +1335,7 @@ namespace CrimsonX.Pages
                 if (!verdict.Accepted)
                 {
                     MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
-                    return;
+                    return false;
                 }
                 if (verdict.Toast.Length > 0) MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
                 raw = verdict.Raw;
@@ -1257,26 +1344,44 @@ namespace CrimsonX.Pages
             }
             cfg.V2rayChainJson   = raw;
             cfg.EnableV2rayChain = true;
+            cfg.ExitNodeSource = "CUSTOM";
+            cfg.ExitNodeCustomJson = raw;
+            cfg.ExitNodeCustomEnabled = true;
+            cfg.ExitNodeSuspended = false;
+            cfg.ExitNodeAuto = false;
             var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
             if (tog != null) tog.IsChecked = true;
             ShowExitNodeRaw(raw);
             MainWindow.Instance?.RequestConfigSave();
             ApplyExitNodeChange();
+            return true;
         }
 
         private void XrayExitNode_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
         {
             if (_isInitializingSettings || _suppressConfigComboSync || ConfigBoxes.Suppressed) return;
-            if (sender is not global::Avalonia.Controls.ComboBox cb || cb.SelectedIndex <= 0) return;
+            if (sender is not global::Avalonia.Controls.ComboBox cb) return;
+            if (cb.SelectedIndex == 0)
+            {
+                _exitNodeNoneSelected = true;
+                MarkExitNodeDirty();
+                return;
+            }
+            if (cb.SelectedIndex <= 0) return;
             int index = cb.SelectedIndex - 1;
             if (index >= _configComboEntries.Count) return;
-            _ = ApplyExitNodeRawAsync(_configComboEntries[index].Raw);
+            _exitNodeNoneSelected = false;
+            MarkExitNodeDirty();
         }
 
         private async void btnXrayExitImport_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         {
             string text = await PickConfigFileTextAsync();
-            if (text.Length > 0) await ApplyExitNodeRawAsync(text);
+            if (text.Length > 0 && await ApplyExitNodeRawAsync(text))
+            {
+                _exitNodeDirty = false;
+                UpdateExitNodeSubmitVisibility();
+            }
         }
 
         private bool _isPingingExitNode;
@@ -1286,8 +1391,9 @@ namespace CrimsonX.Pages
             if (_isPingingExitNode) return;
             var cfg = MainWindow.Instance?.Config;
             var btn = sender as global::Avalonia.Controls.Button;
-            string raw = (cfg?.V2rayChainJson ?? "").Trim();
-            if (cfg == null || raw.Length == 0) return;
+            if (cfg == null) return;
+            string raw = VisibleExitNodeRaw(cfg);
+            if (raw.Length == 0) return;
             _isPingingExitNode = true;
             if (btn != null) btn.Content = "…";
             try
@@ -1318,21 +1424,27 @@ namespace CrimsonX.Pages
         // ── Custom Xray Exit Node Panel ──
 
         private void btnXrayCancel_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        var pan = this.FindControl<global::Avalonia.Controls.Border>("panXrayExitNode");
-        var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoXrayExitNodeExpander");
-        var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panXrayExitNodeToggle");
-        var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnXrayExitNodeToggle");
-        if (pan != null && ico != null)
+            => CollapseExitNodePane();
+
+        private void CollapseExitNodePane(bool discardPending = true)
         {
-            pan.MaxHeight = 0;
-            pan.Opacity = 0;
-            var transform = new global::Avalonia.Media.RotateTransform(0);
-            ico.RenderTransform = transform;
+            var pan = this.FindControl<global::Avalonia.Controls.Border>("panXrayExitNode");
+            var ico = this.FindControl<global::Avalonia.Controls.PathIcon>("icoXrayExitNodeExpander");
+            var panToggle = this.FindControl<global::Avalonia.Controls.Border>("panXrayExitNodeToggle");
+            var btnToggle = this.FindControl<global::Avalonia.Controls.Button>("btnXrayExitNodeToggle");
+            _exitNodeExpanded = false;
+            if (pan != null)
+            {
+                pan.MaxHeight = 0;
+                pan.Opacity = 0;
+            }
+            if (ico != null)
+                ico.RenderTransform = new global::Avalonia.Media.RotateTransform(0);
             if (panToggle != null) panToggle.CornerRadius = new global::Avalonia.CornerRadius(8);
             if (btnToggle != null) btnToggle.CornerRadius = new global::Avalonia.CornerRadius(8);
+            if (discardPending && _exitNodeDirty) DiscardPendingExitNodeEdit();
+            UpdateExitNodeSubmitVisibility();
         }
-    }
 
     private void btnXrayExitNodeToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -1350,10 +1462,15 @@ namespace CrimsonX.Pages
         var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
         if (pan != null && ico != null && tog != null)
         {
-            if (pan.MaxHeight == 0)
+            bool expanding = !_exitNodeExpanded;
+            _exitNodeExpanded = expanding;
+            if (expanding)
             {
-                ShowExitNodeRaw(MainWindow.Instance.Config.V2rayChainJson);
-                tog.IsChecked = MainWindow.Instance.Config.EnableV2rayChain;
+                if (!_exitNodeDirty) ShowExitNodeRaw(MainWindow.Instance.Config.V2rayChainJson);
+                bool wasInit = _isInitializingSettings;
+                _isInitializingSettings = true;
+                try { tog.IsChecked = MainWindow.Instance.Config.EnableV2rayChain; }
+                finally { _isInitializingSettings = wasInit; }
                 pan.MaxHeight = 200;
                 pan.Opacity = 1;
                 var transform = new global::Avalonia.Media.RotateTransform(180);
@@ -1369,8 +1486,10 @@ namespace CrimsonX.Pages
                 ico.RenderTransform = transform;
                 if (panToggle != null) panToggle.CornerRadius = new global::Avalonia.CornerRadius(8);
                 if (btnToggle != null) btnToggle.CornerRadius = new global::Avalonia.CornerRadius(8);
+                if (_exitNodeDirty) DiscardPendingExitNodeEdit();
             }
         }
+        UpdateExitNodeSubmitVisibility();
     }
 
     private async void btnXraySave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
@@ -1378,14 +1497,10 @@ namespace CrimsonX.Pages
         var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
         if (MainWindow.Instance.Config != null && tog != null)
         {
-            var text = (MainWindow.Instance.Config.V2rayChainJson ?? "").Trim();
-            bool enable = true;
+            var text = VisibleExitNodeRaw(MainWindow.Instance.Config);
             if (string.IsNullOrWhiteSpace(text))
             {
-                MainWindow.Instance.Config.V2rayChainJson = "";
-                MainWindow.Instance.Config.EnableV2rayChain = enable;
-                CrimsonX.Services.ConfigService.Save(MainWindow.Instance.Config, MainWindow.Instance.State, MainWindow.Instance.Config.CfgFile);
-                btnXrayCancel_Click(sender, e);
+                ClearCustomExitNode();
                 return;
             }
             if (CrimsonX.Services.TunnelConfigParser.TryParse(text, out var exitTunnel) && exitTunnel.Success)
@@ -1394,10 +1509,16 @@ namespace CrimsonX.Pages
                 {
                     MainWindow.Instance.Config.V2rayChainJson   = text;
                     MainWindow.Instance.Config.EnableV2rayChain = true;
+                    MainWindow.Instance.Config.ExitNodeSource = "CUSTOM";
+                    MainWindow.Instance.Config.ExitNodeCustomJson = text;
+                    MainWindow.Instance.Config.ExitNodeCustomEnabled = true;
+                    MainWindow.Instance.Config.ExitNodeSuspended = false;
+                    MainWindow.Instance.Config.ExitNodeAuto = false;
                     if (tog != null) tog.IsChecked = true;
                     CrimsonX.Services.ConfigService.Save(MainWindow.Instance.Config, MainWindow.Instance.State, MainWindow.Instance.Config.CfgFile);
                     StoreExitNodeInPool(MainWindow.Instance.Config, text);
                     ShowExitNodeRaw(text);
+                    _exitNodeDirty = false;
                 }
                 btnXrayCancel_Click(sender, e);
                 return;
@@ -1418,12 +1539,18 @@ namespace CrimsonX.Pages
                 CrimsonX.Services.SimpleLogger.Log("[ExitNode] A plain-TCP vless exit node is carried by sing-box, not xray.");
                 MainWindow.Instance.Config.V2rayChainJson   = text;
                 MainWindow.Instance.Config.EnableV2rayChain = true;
+                MainWindow.Instance.Config.ExitNodeSource = "CUSTOM";
+                MainWindow.Instance.Config.ExitNodeCustomJson = text;
+                MainWindow.Instance.Config.ExitNodeCustomEnabled = true;
+                MainWindow.Instance.Config.ExitNodeSuspended = false;
+                MainWindow.Instance.Config.ExitNodeAuto = false;
                 StoreExitNodeInPool(MainWindow.Instance.Config, text);
                 ShowExitNodeRaw(text);
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     tog.IsChecked = true;
                 });
                 CrimsonX.Services.ConfigService.Save(MainWindow.Instance.Config, MainWindow.Instance.State, MainWindow.Instance.Config.CfgFile);
+                _exitNodeDirty = false;
                 btnXrayCancel_Click(sender, e);
                 return;
             }
@@ -1443,12 +1570,18 @@ namespace CrimsonX.Pages
                 }
                 MainWindow.Instance.Config.V2rayChainJson = text;
                 MainWindow.Instance.Config.EnableV2rayChain = true;
+                MainWindow.Instance.Config.ExitNodeSource = "CUSTOM";
+                MainWindow.Instance.Config.ExitNodeCustomJson = text;
+                MainWindow.Instance.Config.ExitNodeCustomEnabled = true;
+                MainWindow.Instance.Config.ExitNodeSuspended = false;
+                MainWindow.Instance.Config.ExitNodeAuto = false;
                 StoreExitNodeInPool(MainWindow.Instance.Config, text);
                 ShowExitNodeRaw(text);
                 global::Avalonia.Threading.Dispatcher.UIThread.Post(() => {
                     tog.IsChecked = true;
                 });
                 CrimsonX.Services.ConfigService.Save(MainWindow.Instance.Config, MainWindow.Instance.State, MainWindow.Instance.Config.CfgFile);
+                _exitNodeDirty = false;
                 btnXrayCancel_Click(sender, e);
             }
             catch (Exception ex)
@@ -1649,6 +1782,7 @@ namespace CrimsonX.Pages
                 }
                 else if (!MainWindow.Instance.Config.EnableAdapterBinding)
                 {
+                    ClearPerConfigAdapterMode(save: false);
                     MainWindow.Instance.Config.EnableAdapterBinding = true;
                     MainWindow.Instance.RequestConfigSave();
                     if (MainWindow.Instance.State.IsEngineRunning)
@@ -1799,6 +1933,8 @@ namespace CrimsonX.Pages
         private void togXrayExitNode_IsCheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_isInitializingSettings) return;
+        bool hadPending = _exitNodeDirty;
+        _exitNodeDirty = false;
         var tog = sender as global::Avalonia.Controls.ToggleSwitch;
         if (tog != null)
         {
@@ -1811,6 +1947,7 @@ namespace CrimsonX.Pages
                     var icoXrayExitNodeExpander = this.FindControl<global::Avalonia.Controls.PathIcon>("icoXrayExitNodeExpander");
                     if (panXrayExitNode != null && panXrayExitNode.MaxHeight == 0)
                     {
+                        _exitNodeExpanded = true;
                         panXrayExitNode.MaxHeight = 500;
                         panXrayExitNode.Opacity = 1;
                         if (icoXrayExitNodeExpander != null)
@@ -1820,6 +1957,8 @@ namespace CrimsonX.Pages
                         if (panToggle != null) panToggle.CornerRadius = new global::Avalonia.CornerRadius(8, 8, 0, 0);
                         if (btnToggle != null) btnToggle.CornerRadius = new global::Avalonia.CornerRadius(8, 8, 0, 0);
                     }
+                    if (hadPending) DiscardPendingExitNodeEdit();
+                    UpdateExitNodeSubmitVisibility();
                     return;
                 }
                 else if (!MainWindow.Instance.Config.EnableV2rayChain)
@@ -1847,6 +1986,24 @@ namespace CrimsonX.Pages
                 }
             }
         }
+        if (hadPending) DiscardPendingExitNodeEdit();
+        UpdateExitNodeSubmitVisibility();
+    }
+
+    private void DiscardPendingExitNodeEdit()
+    {
+        var cfg = MainWindow.Instance?.Config;
+        _exitNodeDirty = false;
+        _exitNodeNoneSelected = false;
+        if (cfg != null)
+        {
+            string raw = string.Equals(cfg.ExitNodeSource, "CUSTOM", StringComparison.OrdinalIgnoreCase)
+                ? cfg.V2rayChainJson ?? ""
+                : cfg.ExitNodeCustomJson ?? "";
+            ShowExitNodeRaw(raw);
+        }
+        RefreshExitNodePane();
+        UpdateExitNodeSubmitVisibility();
     }
 
     private void cmbAdapters_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)

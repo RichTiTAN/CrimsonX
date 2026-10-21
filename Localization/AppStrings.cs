@@ -486,7 +486,17 @@ namespace CrimsonX.Localization
         public static string PaneExitNode => IsPersian ? "نود خروجی" : "EXIT NODE";
 
         public static string PaneCustomConfig => IsPersian ? "کانفیگ دلخواه" : "CUSTOM CONFIG";
-        public static string FetchConfigWhenOneProvided => IsPersian ? "دریافت کانفیگ جدید در صورت نیاز" : "Fetch a new config when only one is provided";
+        public static string FetchConfigWhenOneProvided => IsPersian ? "دریافت کانفیگ در صورت وجود تنها یک کانفیگ" : "FETCH A CONFIG IF ONLY ONE IS PROVIDED";
+
+        public static string PerConfigAdapterTitle => IsPersian ? "آداپتور برای هر کانفیگ" : "PER-CONFIG ADAPTER";
+
+        public static string AdapterTag => IsPersian ? "آداپتور" : "ADAPTER";
+
+        public static string PerConfigAdapterSlot(int slot) => IsPersian ? $"آداپتور کانفیگ {slot}" : $"Config {slot} — adapter";
+
+        public static string TtPerConfigAdapter => IsPersian
+            ? "برای هر کانفیگ دلخواه یک آداپتور انتخاب کنید. تا وقتی این گزینه روشن است، انتخاب های شما جای «اتصال به آداپتور» و «تعادل بار آداپتور ها» را می گیرد و آن دو خاموش می شوند. کانفیگی که آداپتورش خالی بماند از مسیر پیش فرض خارج می شود."
+            : "Pick one network adapter for each custom config. While this is on, those picks take the place of BIND ADAPTER and LOAD-BALANCE ADAPTERS, and both are switched off. A config left on Default uses the machine's default route.";
 
 
         public static string PingBtn => IsPersian ? "پینگ" : "PING";
@@ -540,6 +550,10 @@ namespace CrimsonX.Localization
         public static string ToastStillConnecting => IsPersian
             ? "در حال تلاش برای اتصال..."
             : "Still trying to connect...";
+
+        public static string ToastNoFlowingConfig => IsPersian
+            ? "هیچ کانفیگی داده منتقل نکرد؛ آداپتور دیگری را امتحان کنید یا نودهای دارای UDP را فعال کنید"
+            : "No config carried data through this network - try another adapter or enable UDP capable nodes";
 
         public static string CustomXrayExit     => IsPersian ? "نود خروجی دلخواه" : "CUSTOM EXIT-NODE";
 
@@ -895,6 +909,10 @@ namespace CrimsonX.Localization
         public static string ToastAdapterNoLongerAvail => IsPersian ? "آداپتور شبکه قبلی شما دیگر در دسترس نیست." : "Your previously selected network adapter is no longer available.";
 
         public static string ToastLoadBalanceNeedsTwoAdapters => IsPersian ? "برای تعادل بار حداقل دو آداپتور انتخاب کنید." : "Pick at least two adapters to load-balance over.";
+
+        public static string ToastLoadBalanceAdaptersMissing => IsPersian
+            ? "آداپتورهای تعادل بار انتخاب شده دیگر در دسترس نیستند؛ از مسیر پیش فرض شبکه استفاده می شود."
+            : "The selected load-balance adapters are no longer available - using the default network route.";
 
         public static string ToastDirectUdpAdapterFallback => IsPersian ? "آداپتور UDP مستقیم قبلی شما دیگر در دسترس نیست. با آداپتور پیش فرض ادامه می دهیم." : "Your Direct UDP adapter is no longer available. Continuing with the default adapter.";
 
