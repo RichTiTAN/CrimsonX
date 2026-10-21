@@ -19,6 +19,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -392,10 +393,11 @@ namespace CrimsonX.Services
 
         // Speed formatting 
 
-        private static string FormatSpeed(double bytesPerSec) =>
-            bytesPerSec >= 1_048_576 ? $"{Math.Round(bytesPerSec / 1_048_576.0, 2)} MB/s" :
-            bytesPerSec >= 1_024     ? $"{Math.Round(bytesPerSec / 1_024.0,     1)} KB/s" :
-                                       $"{(int)bytesPerSec} B/s";
+        internal static string FormatSpeed(double bytesPerSec) =>
+            bytesPerSec >= 1_073_741_824 ? (bytesPerSec / 1_073_741_824.0).ToString("0.##", CultureInfo.InvariantCulture) + " GB/s" :
+            bytesPerSec >= 1_048_576     ? (bytesPerSec / 1_048_576.0).ToString("0.#",  CultureInfo.InvariantCulture) + " MB/s" :
+            bytesPerSec >= 1_024         ? (bytesPerSec / 1_024.0).ToString("0",      CultureInfo.InvariantCulture) + " KB/s" :
+                                           ((int)bytesPerSec).ToString(CultureInfo.InvariantCulture) + " B/s";
 
         // IDisposable 
 

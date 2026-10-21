@@ -16,9 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using CrimsonX.Models;
@@ -27,7 +30,7 @@ namespace CrimsonX.Services
 {
     public static class XrayConfigWriter
     {
-        public static bool Write(AppConfig config, string xrayDir, System.Collections.Generic.List<JObject>? activeOutbounds = null)
+        public static bool Write(AppConfig config, string xrayDir, System.Collections.Generic.List<JObject>? activeOutbounds = null, Func<string, bool>? isAvailable = null)
         {
             var chains = new System.Collections.Generic.List<System.Collections.Generic.List<JObject>>();
             if (activeOutbounds != null)
@@ -37,10 +40,10 @@ namespace CrimsonX.Services
                     chains.Add(new System.Collections.Generic.List<JObject> { outbound });
                 }
             }
-            return Write(config, xrayDir, chains);
+            return Write(config, xrayDir, chains, isAvailable);
         }
 
-        public static bool Write(AppConfig config, string xrayDir, System.Collections.Generic.List<System.Collections.Generic.List<JObject>> activeChains)
+        public static bool Write(AppConfig config, string xrayDir, System.Collections.Generic.List<System.Collections.Generic.List<JObject>> activeChains, Func<string, bool>? isAvailable = null)
         {
             int nodeCount = 1;
             if (activeChains != null && activeChains.Count > 0) nodeCount = activeChains.Count;
@@ -52,15 +55,34 @@ namespace CrimsonX.Services
             bool preferDirectDefault = config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE" && config.LastXrayMode != "VPN Mode";
 
             // ── the adapters the traffic is spread over ──────────────────────────────────────────────────
-            var adapterPicks = config.EnableLoadBalanceAdapters
-                ? AdapterIps(config.LoadBalanceAdapters)
+            bool perConfigAdapters = UsesPerConfigAdapters(config);
+            var adapterCheck = isAvailable ?? IsAdapterAvailable;
+            int storedAdapterCount = AdapterIps(config.LoadBalanceAdapters).Count;
+            var adapterPicks = !perConfigAdapters && config.EnableLoadBalanceAdapters
+                ? AvailableAdapterIps(config.LoadBalanceAdapters, adapterCheck)
                 : new System.Collections.Generic.List<string>();
+            if (!perConfigAdapters && config.EnableLoadBalanceAdapters && storedAdapterCount > adapterPicks.Count)
+            {
+                SimpleLogger.LogFirst("adapter-write-unavailable",
+                    $"[Adapter] Ignoring {storedAdapterCount - adapterPicks.Count} load-balance adapter(s) that are no longer available.");
+            }
+            if (!perConfigAdapters && config.EnableLoadBalanceAdapters && storedAdapterCount > 0 && adapterPicks.Count == 0)
+            {
+                SimpleLogger.LogFirst("adapter-write-no-lb",
+                    "[Adapter] No load-balance adapter is available; using the default route.");
+            }
             var loadBalanceIps = adapterPicks.Count > 1
                 ? adapterPicks
                 : new System.Collections.Generic.List<string>();
+            string selectedIp = (config.SelectedAdapterIp ?? "").Trim();
             string pinnedIp = adapterPicks.Count == 1
                 ? adapterPicks[0]
-                : (config.EnableAdapterBinding ? (config.SelectedAdapterIp ?? "").Trim() : "");
+                : (!perConfigAdapters && config.EnableAdapterBinding && adapterCheck(selectedIp) ? selectedIp : "");
+            if (!perConfigAdapters && config.EnableAdapterBinding && selectedIp.Length > 0 && !adapterCheck(selectedIp))
+            {
+                SimpleLogger.LogFirst("adapter-write-no-bind",
+                    "[Adapter] The selected adapter is no longer available; using the default route.");
+            }
             string xrayBalancePolicy = GetXrayBalancePolicy(
                 loadBalanceIps.Count > 0 ? config.AdapterBalancePolicy : config.XrayBalancePolicy);
             object strategy = GetXrayBalancerStrategy(xrayDir, xrayBalancePolicy);
@@ -463,15 +485,78 @@ namespace CrimsonX.Services
             ? baseTag
             : baseTag.Replace("proxy-clone-", "proxy-hop-").Replace("proxy-node-", "proxy-hop-") + "-h" + (index + 1);
 
-        public static string ProbeSendThrough(AppConfig config)
+        public static string ProbeSendThrough(AppConfig config, Func<string, bool>? isAvailable = null)
         {
             if (config == null) return "";
+            if (UsesPerConfigAdapters(config)) return "";
+            var adapterCheck = isAvailable ?? IsAdapterAvailable;
             if (config.EnableLoadBalanceAdapters)
             {
-                var ips = AdapterIps(config.LoadBalanceAdapters);
-                if (ips.Count > 0) return ips[0];
+                int stored = AdapterIps(config.LoadBalanceAdapters).Count;
+                var ips = AvailableAdapterIps(config.LoadBalanceAdapters, adapterCheck);
+                if (ips.Count > 0)
+                {
+                    if (stored > ips.Count)
+                    {
+                        SimpleLogger.LogFirst("adapter-probe-unavailable",
+                            $"[Adapter] Ignoring {stored - ips.Count} load-balance adapter(s) that are no longer available.");
+                    }
+                    return ips[0];
+                }
+                if (stored > 0)
+                {
+                    SimpleLogger.LogFirst("adapter-probe-no-lb",
+                        "[Adapter] No load-balance adapter is available; using the default route.");
+                }
             }
-            return config.EnableAdapterBinding ? (config.SelectedAdapterIp ?? "").Trim() : "";
+            string selected = (config.SelectedAdapterIp ?? "").Trim();
+            if (config.EnableAdapterBinding && selected.Length > 0 && !adapterCheck(selected))
+            {
+                SimpleLogger.LogFirst("adapter-probe-no-bind",
+                    "[Adapter] The selected adapter is no longer available; using the default route.");
+            }
+            return config.EnableAdapterBinding && adapterCheck(selected) ? selected : "";
+        }
+
+        public static bool UsesPerConfigAdapters(AppConfig? config)
+            => config != null && config.EnableCustomConfigs && config.EnablePerConfigAdapters;
+
+        public static (string Name, string Ip) CustomConfigAdapter(AppConfig? config, int slot)
+            => UsesPerConfigAdapters(config)
+                ? SplitAdapter(slot == 2 ? config!.CustomConfig2Adapter : config!.CustomConfig1Adapter)
+                : ("", "");
+
+        public static (string Name, string Ip) SplitAdapter(string? pick)
+        {
+            string text = (pick ?? "").Trim();
+            if (text.Length == 0) return ("", "");
+            int at = text.LastIndexOf(" - ", StringComparison.Ordinal);
+            if (at < 0) return ("", text);
+            return (text.Substring(0, at).Trim(), text.Substring(at + 3).Trim());
+        }
+
+        public static string ApplySendThrough(string xrayDoc, string adapterIp)
+        {
+            if (string.IsNullOrWhiteSpace(xrayDoc) || string.IsNullOrWhiteSpace(adapterIp)) return xrayDoc ?? "";
+            try
+            {
+                var root = JObject.Parse(xrayDoc);
+                if (root["outbounds"] is not JArray outbounds) return xrayDoc;
+                JObject outbound = null;
+                foreach (var entry in outbounds)
+                {
+                    if (entry is not JObject candidate) continue;
+                    if (XrayLinkParser.IsLocalOutbound(candidate)) continue;
+                    outbound = candidate;
+                }
+                if (outbound == null) return xrayDoc;
+                outbound["sendThrough"] = adapterIp.Trim();
+                return root.ToString(Formatting.None);
+            }
+            catch
+            {
+                return xrayDoc;
+            }
         }
 
         public static System.Collections.Generic.List<string> AdapterIps(System.Collections.Generic.IEnumerable<string>? adapters)
@@ -487,6 +572,42 @@ namespace CrimsonX.Services
                 ips.Add(ip);
             }
             return ips;
+        }
+
+        public static System.Collections.Generic.List<string> AvailableAdapterIps(
+            System.Collections.Generic.IEnumerable<string>? adapters, Func<string, bool>? isAvailable = null)
+        {
+            var check = isAvailable ?? IsAdapterAvailable;
+            var available = new System.Collections.Generic.List<string>();
+            foreach (string ip in AdapterIps(adapters))
+            {
+                if (check(ip)) available.Add(ip);
+            }
+            return available;
+        }
+
+        public static bool IsAdapterAvailable(string ip)
+        {
+            if (string.IsNullOrWhiteSpace(ip)) return false;
+            if (!System.Net.IPAddress.TryParse(ip, out _)) return false;
+            try
+            {
+                foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (adapter.OperationalStatus != OperationalStatus.Up) continue;
+                    foreach (var unicast in adapter.GetIPProperties().UnicastAddresses)
+                    {
+                        if (unicast.Address.AddressFamily == AddressFamily.InterNetwork
+                            && unicast.Address.ToString() == ip)
+                            return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log($"[Adapter] Adapter check failed: {ex.Message}");
+            }
+            return false;
         }
     }
 

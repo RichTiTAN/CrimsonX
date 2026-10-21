@@ -100,6 +100,77 @@ namespace CrimsonX.Services
             }
         }
 
+        public static string ConfigIdentity(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+            string text = raw.Trim();
+            string outboundJson;
+            if (text.StartsWith("{"))
+            {
+                outboundJson = text;
+            }
+            else if (!TryParseLink(text, out outboundJson))
+            {
+                int hash = text.IndexOf('#');
+                return (hash >= 0 ? text.Substring(0, hash) : text).Trim();
+            }
+
+            try
+            {
+                var root = JObject.Parse(outboundJson);
+                RemoveDisplayName(root);
+                if (root["outbounds"] is JArray outbounds)
+                {
+                    foreach (var outbound in outbounds.OfType<JObject>())
+                    {
+                        RemoveDisplayName(outbound);
+                    }
+                }
+                else if (root["protocol"] != null)
+                {
+                    root = new JObject { ["outbounds"] = new JArray(root) };
+                }
+                return Canonicalize(root).ToString(Newtonsoft.Json.Formatting.None);
+            }
+            catch
+            {
+                int hash = text.IndexOf('#');
+                return (hash >= 0 ? text.Substring(0, hash) : text).Trim();
+            }
+        }
+
+        private static void RemoveDisplayName(JObject outbound)
+        {
+            outbound.Remove("tag");
+            outbound.Remove("name");
+            outbound.Remove("remarks");
+            outbound.Remove("remark");
+            outbound.Remove("ps");
+        }
+
+        private static JToken Canonicalize(JToken token)
+        {
+            if (token is JObject obj)
+            {
+                var result = new JObject();
+                foreach (var property in obj.Properties().OrderBy(p => p.Name, StringComparer.Ordinal))
+                {
+                    result[property.Name] = Canonicalize(property.Value);
+                }
+                return result;
+            }
+            if (token is JArray array)
+            {
+                var result = new JArray();
+                foreach (var item in array)
+                {
+                    result.Add(Canonicalize(item));
+                }
+                return result;
+            }
+            return token.DeepClone();
+        }
+
         public static string ExtractServerAddress(string jsonResult)
         {
             try

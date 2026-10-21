@@ -193,6 +193,26 @@ namespace CrimsonX.Services
             return changed;
         }
 
+        public static bool ClearCustom(AppConfig? cfg)
+        {
+            if (cfg == null) return false;
+            bool changed = !string.Equals(cfg.ExitNodeSource, "CUSTOM", StringComparison.OrdinalIgnoreCase)
+                           || !string.IsNullOrWhiteSpace(cfg.V2rayChainJson)
+                           || !string.IsNullOrWhiteSpace(cfg.ExitNodeCustomJson)
+                           || cfg.ExitNodeCustomEnabled
+                           || cfg.EnableV2rayChain
+                           || cfg.ExitNodeSuspended
+                           || cfg.ExitNodeAuto;
+            cfg.ExitNodeSource = "CUSTOM";
+            cfg.V2rayChainJson = "";
+            cfg.ExitNodeCustomJson = "";
+            cfg.ExitNodeCustomEnabled = false;
+            cfg.EnableV2rayChain = false;
+            cfg.ExitNodeSuspended = false;
+            cfg.ExitNodeAuto = false;
+            return changed;
+        }
+
         public static bool SelectAuto(AppConfig? cfg)
         {
             if (cfg == null) return false;

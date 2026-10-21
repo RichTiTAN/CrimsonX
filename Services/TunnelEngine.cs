@@ -126,9 +126,12 @@ namespace CrimsonX.Services
             {
                 var state = State(group);
                 if (!IsRunningLocked(state)) return false;
-                if (!state.Active.ContainsKey(key)) return false;
+                if (!state.Active.TryGetValue(key, out var target)) return false;
                 if (state.Signature.Length == 0) return true;
-                return string.Equals(state.Signature, AdapterSignature(adapterName, adapterIp), StringComparison.OrdinalIgnoreCase);
+                return string.Equals(
+                    AdapterSignature(target.AdapterName, target.AdapterIp),
+                    AdapterSignature(adapterName, adapterIp),
+                    StringComparison.OrdinalIgnoreCase);
             }
         }
 
@@ -188,7 +191,7 @@ namespace CrimsonX.Services
             lock (Sync)
             {
                 var state = State(group);
-                string signature = AdapterSignature(adapterName, adapterIp);
+                string signature = TargetsSignature(targets);
                 if (IsRunningLocked(state) && signature == state.Signature && SameTargets(state, targets))
                 {
                     foreach (var target in targets)
@@ -664,6 +667,18 @@ namespace CrimsonX.Services
         {
             string name = string.IsNullOrWhiteSpace(adapterName) ? "Default" : adapterName.Trim();
             return name + "|" + (adapterIp ?? "").Trim();
+        }
+
+        private static string TargetsSignature(List<TunnelTarget> targets)
+        {
+            var parts = new List<string>();
+            foreach (var target in targets)
+            {
+                string signature = AdapterSignature(target.AdapterName, target.AdapterIp);
+                if (!parts.Contains(signature, StringComparer.OrdinalIgnoreCase)) parts.Add(signature);
+            }
+            parts.Sort(StringComparer.OrdinalIgnoreCase);
+            return string.Join(";", parts);
         }
 
         private static void LogStarted(GroupState state, string group, List<TunnelTarget> targets)

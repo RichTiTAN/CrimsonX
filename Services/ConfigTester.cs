@@ -41,7 +41,9 @@ namespace CrimsonX.Services
 
         Rejected,
 
-        TimedOut
+        TimedOut,
+
+        NoData
     }
 
     public class ConfigTestResult
@@ -56,6 +58,20 @@ namespace CrimsonX.Services
         public string EngineLog { get; set; } = "";
 
         public bool IsTcpPing { get; set; }
+
+        public bool PingOk { get; set; }
+
+        public bool Flowed { get; set; }
+
+        public long FlowBytes { get; set; }
+
+        public long FlowMs { get; set; }
+
+        public string FlowTarget { get; set; } = "";
+
+        public string FlowReason { get; set; } = "";
+
+        public double FlowRateBps => FlowMs > 0 ? FlowBytes * 1000.0 / FlowMs : 0;
 
         public bool Measured => Success || Kind == ConfigPingKind.Slow;
 
@@ -75,6 +91,8 @@ namespace CrimsonX.Services
         public double Speed { get; set; }
         public double SpeedStability { get; set; }
         public bool SpeedStable { get; set; }
+        public bool SpeedTested { get; set; }
+        public bool SpeedResponded { get; set; }
         public double SpeedMinMbps { get; set; }
         public double SpeedMedianMbps { get; set; }
         public int SpeedStalls { get; set; }
@@ -118,6 +136,13 @@ namespace CrimsonX.Services
         public double Stability { get; set; }
         public bool Stable { get; set; }
 
+        public bool Flowed { get; set; }
+        public long BytesRead { get; set; }
+        public long FlowBytes { get; set; }
+        public long FlowMs { get; set; }
+        public string Target { get; set; } = "";
+        public string FailureReason { get; set; } = "";
+
         public bool HasSamples => Windows > 0;
         public double StallRatio => Windows > 0 ? (double)StalledWindows / Windows : 0;
         public int StabilityPercent => (int)Math.Round(Stability * 100);
@@ -140,6 +165,25 @@ namespace CrimsonX.Services
         private const double SpeedDegradeRatio = 0.50;
         private const double SpeedMinStableMbps = 1.0;
         private const string SpeedTestUrl = "https://proof.ovh.net/files/100Mb.dat";
+        private const int InboundReadyBudgetMs = 3000;
+        private const int PingWarmupBudgetMs = 2500;
+        private const int FlowWarmupBudgetMs = 2500;
+        private const int FlowReadBudgetMs = 5000;
+        private const int FlowRetryDelayMs = 250;
+        private const long FlowMinBytes = 4 * 1024;
+        private const int FlowSampleBufferSize = 16 * 1024;
+        internal static readonly string[] FlowProbeTargets =
+        {
+            "https://www.gstatic.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png",
+            "https://www.gstatic.com/webp/gallery/1.jpg",
+            "https://speed.cloudflare.com/__down?bytes=262144"
+        };
+        internal static readonly string[] SpeedTestTargets =
+        {
+            "https://speed.cloudflare.com/__down?bytes=104857600",
+            "https://proof.ovh.net/files/100Mb.dat",
+            "https://speedtest.tele2.net/100MB.zip"
+        };
         private const int NtpPort = 123;
         private const int ProbeAttempts = 3;
         private const string ScanNtpServerIp = "162.159.200.1";
@@ -189,6 +233,23 @@ namespace CrimsonX.Services
             return ranked;
         }
 
+        public static List<ConfigTestResult> RankVerifiedConfigs(IEnumerable<ConfigTestResult> configs)
+        {
+            var all = configs?.ToList() ?? new List<ConfigTestResult>();
+            var flowing = all.Where(c => c.Flowed).ToList();
+            var stable = flowing.Where(c => c.Speed > 0 && c.SpeedStable)
+                                .OrderByDescending(c => c.Speed).ToList();
+            var measured = flowing.Where(c => c.Speed > 0 && !c.SpeedStable)
+                                  .OrderByDescending(c => c.Speed).ToList();
+            var unmeasured = flowing.Where(c => c.Speed <= 0)
+                                    .OrderByDescending(c => c.FlowRateBps).ToList();
+            var ranked = new List<ConfigTestResult>(flowing.Count);
+            ranked.AddRange(stable);
+            ranked.AddRange(measured);
+            ranked.AddRange(unmeasured);
+            return ranked;
+        }
+
         public static void ApplySpeedResult(ConfigTestResult target, SpeedStabilityResult speed)
         {
             target.Speed = speed.Mbps;
@@ -198,16 +259,154 @@ namespace CrimsonX.Services
             target.SpeedMedianMbps = speed.MedianMbps;
             target.SpeedStalls = speed.StalledWindows;
             target.SpeedDegraded = speed.Degraded;
+            target.SpeedTested = true;
+            target.SpeedResponded = target.SpeedResponded || speed.Flowed;
+            target.Flowed = target.Flowed || speed.Flowed;
+            if (speed.Flowed && target.FlowBytes == 0)
+            {
+                target.FlowBytes = speed.FlowBytes > 0 ? speed.FlowBytes : speed.BytesRead;
+                target.FlowMs = speed.FlowMs;
+                target.FlowTarget = speed.Target;
+            }
             var culture = System.Globalization.CultureInfo.InvariantCulture;
+            string server = XrayLinkParser.ExtractServerAddress(target.OutboundJson);
             string trend = speed.Mbps <= 0
                 ? "no throughput"
                 : speed.Degraded
                     ? $"dropped {speed.FirstHalfMbps.ToString("F1", culture)} -> {speed.SecondHalfMbps.ToString("F1", culture)} Mbps"
                     : "no drop";
-            SimpleLogger.Log($"[Speed] {target.CountryCode} {XrayLinkParser.ExtractServerAddress(target.OutboundJson)}: " +
-                             $"{speed.Mbps.ToString("F1", culture)} Mbps, stability {speed.StabilityPercent}% " +
+            string flow = speed.Flowed
+                ? target.FlowBytes > 0
+                    ? $" (payload {target.FlowBytes} bytes in {target.FlowMs} ms)"
+                    : " (payload proven)"
+                : " (no payload)";
+            string measurement = speed.Mbps <= 0 && speed.Flowed
+                ? "no speed measurement - kept as fallback"
+                : $"{speed.Mbps.ToString("F1", culture)} Mbps, stability {speed.StabilityPercent}%";
+            SimpleLogger.Log($"[Speed] {target.CountryCode} {server}: {measurement} " +
                              $"({speed.Windows} windows, {speed.StalledWindows} stalls, {trend})" +
-                             $"{(speed.Stable ? "" : " - unstable")}");
+                             $"{(speed.Stable ? "" : " - unstable")}{flow}" +
+                             $"{(speed.FailureReason.Length > 0 ? " - " + speed.FailureReason : "")}");
+        }
+
+        private static async Task WarmUpPingTargetAsync(HttpClient client, string target, CancellationToken ct)
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(PingWarmupBudgetMs);
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, target);
+                req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
+                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                if (ct.IsCancellationRequested) throw;
+            }
+            catch { }
+        }
+
+        private static async Task WarmUpFlowTargetAsync(HttpClient client, string target, CancellationToken ct)
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(FlowWarmupBudgetMs);
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Head, target);
+                req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
+                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                if (ct.IsCancellationRequested) throw;
+            }
+            catch { }
+        }
+
+        private static async Task<(bool Flowed, long Bytes, long Ms, string Error)> ReadFlowTargetAsync(
+            HttpClient client, string target, CancellationToken ct)
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeoutCts.CancelAfter(FlowReadBudgetMs);
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, target);
+                req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
+                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+                if (!resp.IsSuccessStatusCode)
+                    return (false, 0, 0, $"HTTP {(int)resp.StatusCode} from {target}");
+                long expected = resp.Content.Headers.ContentLength ?? long.MaxValue;
+                long need = expected > 0 && expected < FlowMinBytes ? expected : FlowMinBytes;
+                long total = 0;
+                using var stream = await resp.Content.ReadAsStreamAsync(timeoutCts.Token);
+                byte[] buffer = new byte[FlowSampleBufferSize];
+                while (total < need)
+                {
+                    int read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), timeoutCts.Token);
+                    if (read <= 0) break;
+                    total += read;
+                }
+                sw.Stop();
+                if (total > 0 && total >= need)
+                    return (true, total, sw.ElapsedMilliseconds, "");
+                return (false, total, sw.ElapsedMilliseconds, total <= 0
+                    ? $"no payload from {target}"
+                    : $"only {total} bytes from {target}");
+            }
+            catch (OperationCanceledException)
+            {
+                if (ct.IsCancellationRequested) throw;
+                return (false, 0, 0, $"timed out on {target}");
+            }
+            catch (Exception ex)
+            {
+                return (false, 0, 0, $"{target}: {ex.Message}");
+            }
+        }
+
+        internal static async Task<(bool Flowed, string Target, long Bytes, long Ms, string Error)> PickFlowTargetAsync(
+            HttpClient client, string preferredTarget, CancellationToken ct)
+        {
+            var targets = new List<string>();
+            if (!string.IsNullOrWhiteSpace(preferredTarget)) targets.Add(preferredTarget);
+            foreach (string target in FlowProbeTargets) targets.Add(target);
+            foreach (string target in SpeedTestTargets) targets.Add(target);
+
+            string lastError = "no target carried data";
+            bool first = true;
+            foreach (string target in targets.Distinct(StringComparer.Ordinal))
+            {
+                ct.ThrowIfCancellationRequested();
+                await WarmUpFlowTargetAsync(client, target, ct);
+                var read = await ReadFlowTargetAsync(client, target, ct);
+                if (!read.Flowed && first)
+                {
+                    await Task.Delay(FlowRetryDelayMs, ct);
+                    read = await ReadFlowTargetAsync(client, target, ct);
+                }
+                if (read.Flowed)
+                    return (true, target, read.Bytes, read.Ms, "");
+                lastError = read.Error;
+                first = false;
+            }
+            return (false, "", 0, 0, lastError);
+        }
+
+        private static async Task<bool> WaitForLocalInboundAsync(
+            Process proc, int port, int budgetMs, CancellationToken ct)
+        {
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < budgetMs)
+            {
+                ct.ThrowIfCancellationRequested();
+                bool exited;
+                try { exited = proc.HasExited; } catch { exited = true; }
+                if (exited) return false;
+                if (await IsTcpPortOpenAsync(port)) return true;
+                await Task.Delay(50, ct);
+            }
+            return false;
         }
 
         private static (string Name, string Ip) TestAdapter(AppConfig cfg)
@@ -225,7 +424,7 @@ namespace CrimsonX.Services
             return ("", ip);
         }
 
-        public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false, bool isActiveWatchdog = false)
+        public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false, bool isActiveWatchdog = false, bool verifyFlow = false)
         {
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr = string.Empty;
@@ -272,8 +471,11 @@ namespace CrimsonX.Services
                 return res;
             }
             res.OutboundJson = outboundJsonStr;
+            bool flowVerificationAvailable = verifyFlow && tunnelPrep.State != TunnelTestState.Ready;
             int port = GetFreePort();
-            int udpPort = GetFreeUdpPort();
+            int stunUdpPort = GetFreeUdpPort();
+            int ntpUdpPort = GetFreeUdpPort();
+            while (ntpUdpPort == stunUdpPort) ntpUdpPort = GetFreeUdpPort();
             string tempId = Guid.NewGuid().ToString("N");
             string cfgPath = Path.Combine(cfg.XrayDir, $"test_{tempId}.json");
             Process testProc = null;
@@ -305,10 +507,23 @@ namespace CrimsonX.Services
                         },
                         new JObject
                         {
-                            ["port"] = udpPort,
+                            ["port"] = stunUdpPort,
                             ["listen"] = "127.0.0.1",
                             ["protocol"] = "dokodemo-door",
-                            ["tag"] = "udp-in",
+                            ["tag"] = "udp-stun",
+                            ["settings"] = new JObject
+                            {
+                                ["address"] = StunServerIp.Value,
+                                ["port"] = StunPort,
+                                ["network"] = "udp"
+                            }
+                        },
+                        new JObject
+                        {
+                            ["port"] = ntpUdpPort,
+                            ["listen"] = "127.0.0.1",
+                            ["protocol"] = "dokodemo-door",
+                            ["tag"] = "udp-ntp",
                             ["settings"] = new JObject
                             {
                                 ["address"] = NtpServerIp.Value,
@@ -323,7 +538,8 @@ namespace CrimsonX.Services
                         ["rules"] = new JArray
                         {
                             new JObject { ["type"] = "field", ["inboundTag"] = new JArray("in"), ["outboundTag"] = "proxy" },
-                            new JObject { ["type"] = "field", ["inboundTag"] = new JArray("udp-in"), ["outboundTag"] = "proxy" }
+                            new JObject { ["type"] = "field", ["inboundTag"] = new JArray("udp-stun"), ["outboundTag"] = "proxy" },
+                            new JObject { ["type"] = "field", ["inboundTag"] = new JArray("udp-ntp"), ["outboundTag"] = "proxy" }
                         }
                     }
                 };
@@ -343,11 +559,14 @@ namespace CrimsonX.Services
                     testProc.BeginOutputReadLine();
                 });
                 JobManager.AddProcess(testProc);
-                await Task.Delay(300, ct);
-                if (testProc.HasExited)
+                bool inboundReady = await WaitForLocalInboundAsync(testProc, port, InboundReadyBudgetMs, ct);
+                if (!inboundReady)
                 {
-                    res.Kind = ConfigPingKind.Rejected;
-                    res.Reason = "the engine refused this config";
+                    bool exited;
+                    try { exited = testProc.HasExited; } catch { exited = true; }
+                    res.TimedOut = !exited;
+                    res.Kind = exited ? ConfigPingKind.Rejected : ConfigPingKind.TimedOut;
+                    res.Reason = exited ? "the engine refused this config" : "the engine opened no inbound in time";
                     res.EngineLog = Tail(engineLog);
                     return res;
                 }
@@ -364,9 +583,11 @@ namespace CrimsonX.Services
                 foreach (var target in targetsToTest)
                 {
                     ct.ThrowIfCancellationRequested();
+                    if (verifyFlow) await WarmUpPingTargetAsync(client, target, ct);
                     var sw = Stopwatch.StartNew();
                     using var req = new HttpRequestMessage(HttpMethod.Get, target);
-                    req.Headers.ConnectionClose = true;
+                    if (!verifyFlow) req.Headers.ConnectionClose = true;
+                    req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
                     using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
                     if (!resp.IsSuccessStatusCode && resp.StatusCode != HttpStatusCode.NoContent && resp.StatusCode != HttpStatusCode.Found)
                     {
@@ -386,7 +607,38 @@ namespace CrimsonX.Services
                 res.Success = true;
                 res.Kind = ConfigPingKind.Ok;
                 res.Ping = totalPing / targetsToTest.Length;
-                res.UdpOk = cfg.EnableUdpCapableNodes ? await TestUdpAsync(udpPort, ct) : true;
+                res.PingOk = true;
+                if (flowVerificationAvailable)
+                {
+                    using var flowHandler = new HttpClientHandler
+                    {
+                        Proxy = new WebProxy($"http://127.0.0.1:{port}"),
+                        UseProxy = true,
+                        ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+                    };
+                    using var flowClient = new HttpClient(flowHandler)
+                    {
+                        Timeout = TimeSpan.FromMilliseconds(FlowWarmupBudgetMs + FlowReadBudgetMs + 1000)
+                    };
+                    var flow = await PickFlowTargetAsync(flowClient, "", ct);
+                    if (!flow.Flowed)
+                    {
+                        res.Success = false;
+                        res.Kind = ConfigPingKind.NoData;
+                        res.Reason = "the tunnel answered but carried no data";
+                        res.FlowReason = flow.Error;
+                        SimpleLogger.Log($"[Flow] {XrayLinkParser.ExtractServerAddress(res.OutboundJson)}: " +
+                                         $"no payload from any target - {flow.Error}");
+                        return res;
+                    }
+                    res.Flowed = true;
+                    res.FlowBytes = flow.Bytes;
+                    res.FlowMs = flow.Ms;
+                    res.FlowTarget = flow.Target;
+                    SimpleLogger.Log($"[Flow] {XrayLinkParser.ExtractServerAddress(res.OutboundJson)}: " +
+                                     $"{flow.Bytes} bytes in {flow.Ms} ms via {flow.Target}");
+                }
+                res.UdpOk = cfg.EnableUdpCapableNodes ? await TestUdpAsync(stunUdpPort, ntpUdpPort, ct) : true;
                 if (fetchGeo)
                 {
                     try
@@ -445,7 +697,9 @@ namespace CrimsonX.Services
             return res;
         }
 
-        public static async Task<SpeedStabilityResult> TestSpeedStabilityAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct)
+        public static async Task<SpeedStabilityResult> TestSpeedStabilityAsync(
+            string outboundJsonStr, AppConfig cfg, CancellationToken ct,
+            string? preferredTarget = null, bool verifyFlow = true)
         {
             var res = new SpeedStabilityResult();
             int port = GetFreePort();
@@ -497,7 +751,16 @@ namespace CrimsonX.Services
                     testProc.Start();
                 });
                 JobManager.AddProcess(testProc);
-                await Task.Delay(300, ct); 
+                bool inboundReady = await WaitForLocalInboundAsync(testProc, port, InboundReadyBudgetMs, ct);
+                if (!inboundReady)
+                {
+                    bool exited;
+                    try { exited = testProc.HasExited; } catch { exited = true; }
+                    res.FailureReason = exited
+                        ? "the engine refused this config"
+                        : "the engine opened no inbound in time";
+                    return res;
+                }
                 var handler = new HttpClientHandler
                 {
                     Proxy = new WebProxy($"http://127.0.0.1:{port}"),
@@ -505,14 +768,68 @@ namespace CrimsonX.Services
                     ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
                 };
                 using var client = new HttpClient(handler);
-                client.Timeout = TimeSpan.FromMilliseconds(10000); 
+                client.Timeout = TimeSpan.FromMilliseconds(10000);
                 ct.ThrowIfCancellationRequested();
-                var samples = await SampleSpeedWindowsAsync(client, ct);
-                FillSpeedResult(samples, res);
+                if (!verifyFlow)
+                {
+                    var legacySamples = await SampleSpeedWindowsAsync(client, SpeedTestUrl, ct, 0, 0);
+                    res.Target = SpeedTestUrl;
+                    FillSpeedResult(legacySamples, res);
+                    return res;
+                }
+
+                var targets = new List<string>();
+                if (!string.IsNullOrWhiteSpace(preferredTarget) && SpeedTestTargets.Contains(preferredTarget!))
+                    targets.Add(preferredTarget!);
+                foreach (string speedTarget in SpeedTestTargets)
+                    if (!targets.Contains(speedTarget)) targets.Add(speedTarget);
+                if (!string.IsNullOrWhiteSpace(preferredTarget)
+                    && !targets.Contains(preferredTarget!)
+                    && FlowProbeTargets.Contains(preferredTarget!))
+                    targets.Add(preferredTarget!);
+                foreach (string flowTarget in FlowProbeTargets)
+                    if (!targets.Contains(flowTarget)) targets.Add(flowTarget);
+                if (!string.IsNullOrWhiteSpace(preferredTarget) && !targets.Contains(preferredTarget!))
+                    targets.Add(preferredTarget!);
+
+                string lastError = "no target carried data";
+                foreach (string target in targets)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await WarmUpFlowTargetAsync(client, target, ct);
+                    var samples = await SampleSpeedWindowsAsync(
+                        client, target, ct, FlowReadBudgetMs, FlowMinBytes);
+                    if (!samples.Flowed)
+                    {
+                        lastError = $"{samples.FailureReason} on {target}";
+                        SimpleLogger.Log($"[Speed] {XrayLinkParser.ExtractServerAddress(outboundJsonStr)}: " +
+                                         $"no payload on {target} - {samples.FailureReason}; trying another target");
+                        continue;
+                    }
+                    res.Target = target;
+                    FillSpeedResult(samples, res);
+                    if (res.Flowed && res.Mbps <= 0)
+                    {
+                        SimpleLogger.Log($"[Speed] {XrayLinkParser.ExtractServerAddress(outboundJsonStr)}: " +
+                                         $"payload flowed but no throughput was measured on {target} - keeping it as fallback");
+                    }
+                    return res;
+                }
+                res.FailureReason = lastError;
+                SimpleLogger.Log($"[Speed] {XrayLinkParser.ExtractServerAddress(outboundJsonStr)}: " +
+                                 $"no target carried data - {lastError}");
                 return res;
             }
-            catch
+            catch (OperationCanceledException)
             {
+                res.FailureReason = "the speed test was cancelled";
+                return res;
+            }
+            catch (Exception ex)
+            {
+                res.FailureReason = ex.Message;
+                SimpleLogger.Log($"[Speed] {XrayLinkParser.ExtractServerAddress(outboundJsonStr)}: " +
+                                 $"the speed test failed - {ex.Message}");
                 return res;
             }
             finally
@@ -526,9 +843,19 @@ namespace CrimsonX.Services
             }
         }
 
-        private static async Task<List<(long Bytes, bool IsGap)>> SampleSpeedWindowsAsync(HttpClient client, CancellationToken ct)
+        private sealed class SpeedSampleResult
         {
-            var samples = new List<(long Bytes, bool IsGap)>();
+            public List<(long Bytes, bool IsGap)> Windows { get; } = new List<(long Bytes, bool IsGap)>();
+            public long TotalBytes { get; set; }
+            public long FlowMs { get; set; }
+            public bool Flowed { get; set; }
+            public string FailureReason { get; set; } = "";
+        }
+
+        private static async Task<SpeedSampleResult> SampleSpeedWindowsAsync(
+            HttpClient client, string target, CancellationToken ct, int flowGateMs, long flowMinBytes)
+        {
+            var result = new SpeedSampleResult();
             using var timeoutCts = new CancellationTokenSource(SpeedTestDurationMs);
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
             var sw = Stopwatch.StartNew();
@@ -537,6 +864,7 @@ namespace CrimsonX.Services
             long[] gapStart = new long[1];
             long[] noData = new long[1];
             long[] readerAlive = new long[1];
+            long[] flowReachedAt = new long[1];
             Volatile.Write(ref gapStart[0], -1);
             async Task ReadLoopAsync()
             {
@@ -546,7 +874,7 @@ namespace CrimsonX.Services
                     try
                     {
                         Volatile.Write(ref gapStart[0], sw.ElapsedMilliseconds);
-                        using var req = new HttpRequestMessage(HttpMethod.Get, SpeedTestUrl);
+                        using var req = new HttpRequestMessage(HttpMethod.Get, target);
                         req.Headers.ConnectionClose = true;
                         req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
                         using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token);
@@ -560,7 +888,9 @@ namespace CrimsonX.Services
                         while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, linkedCts.Token)) > 0)
                         {
                             Interlocked.Add(ref pending[0], read);
-                            Interlocked.Add(ref everRead[0], read);
+                            long readSoFar = Interlocked.Add(ref everRead[0], read);
+                            if (readSoFar >= flowMinBytes)
+                                Interlocked.CompareExchange(ref flowReachedAt[0], sw.ElapsedMilliseconds, 0);
                             Volatile.Write(ref gapStart[0], -1);
                         }
                     }
@@ -583,23 +913,55 @@ namespace CrimsonX.Services
                     if (wait > 0) await Task.Delay(wait, linkedCts.Token);
                     if (linkedCts.IsCancellationRequested) break;
                     bool isGap = Volatile.Read(ref readerAlive[0]) == 1 && Volatile.Read(ref gapStart[0]) >= 0;
-                    samples.Add((Interlocked.Exchange(ref pending[0], 0), isGap));
+                    result.Windows.Add((Interlocked.Exchange(ref pending[0], 0), isGap));
                     nextTick += SpeedSampleWindowMs;
+                    if (flowGateMs > 0
+                        && sw.ElapsedMilliseconds >= flowGateMs
+                        && Interlocked.Read(ref everRead[0]) < flowMinBytes)
+                    {
+                        linkedCts.Cancel();
+                        break;
+                    }
                 }
             }
             catch (OperationCanceledException)
             {
             }
             try { await reader; } catch { }
-            return samples;
+            result.TotalBytes = Interlocked.Read(ref everRead[0]);
+            result.Flowed = flowGateMs > 0
+                ? result.TotalBytes >= flowMinBytes
+                : result.TotalBytes > 0;
+            result.FlowMs = Interlocked.Read(ref flowReachedAt[0]) > 0
+                ? Interlocked.Read(ref flowReachedAt[0])
+                : sw.ElapsedMilliseconds;
+            if (!result.Flowed)
+            {
+                result.FailureReason = result.TotalBytes <= 0
+                    ? "no payload arrived"
+                    : $"only {result.TotalBytes} bytes arrived";
+            }
+            else if (Volatile.Read(ref noData[0]) != 0)
+            {
+                result.FailureReason = $"the download ended after {result.TotalBytes} bytes";
+            }
+            return result;
         }
 
-        private static void FillSpeedResult(List<(long Bytes, bool IsGap)> samples, SpeedStabilityResult res)
+        private static void FillSpeedResult(SpeedSampleResult samples, SpeedStabilityResult res)
         {
+            res.BytesRead = samples.TotalBytes;
+            res.Flowed = res.Flowed || samples.Flowed;
+            if (samples.Flowed)
+            {
+                res.FlowBytes = Math.Max(res.FlowBytes, Math.Min(samples.TotalBytes, FlowMinBytes));
+                res.FlowMs = samples.FlowMs;
+            }
+            if (samples.FailureReason.Length > 0) res.FailureReason = samples.FailureReason;
             const int warmupWindows = SpeedWarmupMs / SpeedSampleWindowMs;
             const double windowSeconds = SpeedSampleWindowMs / 1000.0;
             var measured = new List<long>();
-            foreach (var sample in samples)
+            foreach (var sample in samples.Windows)
             {
                 if (!sample.IsGap) measured.Add(sample.Bytes);
             }
@@ -668,10 +1030,18 @@ namespace CrimsonX.Services
             return port;
         }
 
-        private static async Task<bool> TestUdpAsync(int udpPort, CancellationToken ct)
+        private static async Task<bool> TestUdpAsync(int stunPort, int ntpPort, CancellationToken ct)
         {
-            var (ok, _) = await ProbeUdpAsync(udpPort, ct);
-            return ok;
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                var (stunOk, _) = await ProbeUdpAsync(
+                    stunPort, ct, TimeoutMs, null, requireNtpReply: false, stun: true);
+                if (stunOk) return true;
+                if (attempt == 0) await Task.Delay(250, ct);
+            }
+            var (ntpOk, _) = await ProbeUdpAsync(
+                ntpPort, ct, TimeoutMs, null, requireNtpReply: true, stun: false);
+            return ntpOk;
         }
         private static string Tail(System.Text.StringBuilder log, int max = 400)
         {
@@ -1518,27 +1888,7 @@ namespace CrimsonX.Services
             }
         }
         internal static bool IsAvailableAdapterAddress(string ip)
-        {
-            if (string.IsNullOrWhiteSpace(ip)) return false;
-            if (!IPAddress.TryParse(ip, out _)) return false;
-            try
-            {
-                foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces())
-                {
-                    if (adapter.OperationalStatus != OperationalStatus.Up) continue;
-                    foreach (var unicast in adapter.GetIPProperties().UnicastAddresses)
-                    {
-                        if (unicast.Address.AddressFamily == AddressFamily.InterNetwork && unicast.Address.ToString() == ip)
-                            return true;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                SimpleLogger.Log($"[UdpScanner] Adapter check failed: {ex.Message}");
-            }
-            return false;
-        }
+            => XrayConfigWriter.IsAdapterAvailable(ip);
 
         private static string AdapterNameForIp(string ip)
         {
