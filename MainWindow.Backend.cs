@@ -365,10 +365,10 @@ public partial class MainWindow
 
     private void SetConnectButtonProgress(int percent)
     {
-        CrimsonX.Services.UiEventBus.Instance.PublishConnectionProgress(percent);
         EnsureConnectBoxResources();
         if (percent < 0)
         {
+            CrimsonX.Services.UiEventBus.Instance.PublishConnectionProgress(-1);
             _targetFillPct = -1;
             _currentFillPct = 0;
             _fillAnimTimer?.Stop();
@@ -382,9 +382,16 @@ public partial class MainWindow
             if (_connectConnectedText != null) _connectConnectedText.Opacity = 0;
             return;
         }
-        double target = System.Math.Clamp(percent / 100.0, 0.0, 1.0);
+        if (!_state.IsEngineRunning && !_state.IsConnected) return;
+        if (_state.IsConnected && !_state.IsReconnecting && percent < ConnectProgress.Connected) return;
+        int current = _targetFillPct >= 0
+            ? (int)System.Math.Round(_targetFillPct * 100.0)
+            : 0;
+        int effective = System.Math.Max(current, System.Math.Clamp(percent, 0, 100));
+        CrimsonX.Services.UiEventBus.Instance.PublishConnectionProgress(effective);
+        double target = System.Math.Clamp(effective / 100.0, 0.0, 1.0);
         if (_targetFillPct >= 0 && target <= _targetFillPct) return; 
-        if (!_state.IsEngineRunning && !_state.IsConnected) return; 
+        _targetFillPct = target;
         if (_fillAnimTimer == null)
         {
             _fillAnimTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
@@ -420,7 +427,6 @@ public partial class MainWindow
         }
         if (!_fillAnimTimer.IsEnabled)
             _fillAnimTimer.Start();
-        _targetFillPct = System.Math.Clamp(percent / 100.0, 0.0, 1.0);
     }
 
     // ── Stop Engines / Disconnect Cleanup ──
@@ -646,6 +652,29 @@ public partial class MainWindow
                 return;
             }
         }
+        if (CrimsonX.Services.XrayConfigWriter.UsesPerConfigAdapters(_cfg))
+        {
+            var adapters = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
+            for (int slot = 1; slot <= 2; slot++)
+            {
+                var (pickedName, pickedIp) = CrimsonX.Services.XrayConfigWriter.CustomConfigAdapter(_cfg, slot);
+                if (pickedIp.Length == 0) continue;
+                bool exists = false;
+                foreach (var adapter in adapters)
+                {
+                    if (adapter.Name == pickedName && adapter.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up)
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists)
+                {
+                    ShowToast(CrimsonX.Localization.AppStrings.ToastAdapterNotAvailable, ToastKind.Error);
+                    return;
+                }
+            }
+        }
         if (_cfg.EnableDirectUDP && !string.IsNullOrWhiteSpace(_cfg.DirectUdpAdapterName))
         {
             var udpAdapters = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces();
@@ -780,6 +809,11 @@ public partial class MainWindow
         {
             StopAllEngines();
         }
+        catch (NoFlowingConfigException)
+        {
+            ShowToast(CrimsonX.Localization.AppStrings.ToastNoFlowingConfig, ToastKind.Error);
+            StopAllEngines();
+        }
         catch (Exception ex)
         {
             CrimsonX.Services.SimpleLogger.Log(ex);
@@ -808,7 +842,7 @@ public partial class MainWindow
                 }
                 if (_connectConnectedText != null) _connectConnectedText.Opacity = 0;
                 _connectBox?.Classes.Remove("connected");
-                SetConnectButtonProgress(15);
+                SetConnectButtonProgress(ConnectProgress.Discovery);
                 return;
             }
             if (_state.IsConnected)
@@ -819,7 +853,7 @@ public partial class MainWindow
                 SetSparklinesVisible(true);
                 SetReadoutTilesGrown(true);
             }
-            SetConnectButtonProgress(100);
+            SetConnectButtonProgress(ConnectProgress.Connected);
         });
     }
 
@@ -910,11 +944,11 @@ public partial class MainWindow
         var ct = _reapplyCts.Token;
         _state.IsReconnecting = true;
         SetConnectVisualState(true);
-        SetConnectButtonProgress(15);
+        SetConnectButtonProgress(ConnectProgress.Discovery);
         try
         {
             var restart = StartOrRestartSingBoxVerifiedAsync(killRunning: true, RestartExitNodeTimeoutSeconds, ct);
-            int progress = 15;
+            int progress = ConnectProgress.Discovery;
             while (!restart.IsCompleted && !ct.IsCancellationRequested && progress < 90)
             {
                 try { await Task.Delay(150); } catch { }

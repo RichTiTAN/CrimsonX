@@ -130,7 +130,7 @@ public partial class MainWindow : Window
                     Hide();
                 }
             }
-            if (isFirstOpen && _cfg.EnableAdapterBinding)
+            if (isFirstOpen && (_cfg.EnableAdapterBinding || _cfg.EnablePerConfigAdapters))
             {
                 Pages.SettingsPage.Instance?.ScanAdapters();
             }
