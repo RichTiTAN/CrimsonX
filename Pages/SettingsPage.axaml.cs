@@ -469,7 +469,15 @@ namespace CrimsonX.Pages
                          !string.IsNullOrWhiteSpace(cfg.CustomConfig2);
         cfg.FetchConfigWhenOneProvided = fetchOn;
         cfg.EnableCustomConfigs = hasConfig;
-        cfg.EnablePerConfigAdapters = perOn && hasConfig;
+        bool perConfigWasOn = cfg.EnablePerConfigAdapters;
+        bool perConfigNow = perOn && hasConfig;
+        bool restoredBinding = false;
+        if (perConfigNow)
+            EnterPerConfigMode(cfg);
+        else if (perConfigWasOn)
+            restoredBinding = LeavePerConfigMode(cfg);
+        else
+            cfg.EnablePerConfigAdapters = false;
 
         if (cfg.EnablePerConfigAdapters)
         {
@@ -478,8 +486,6 @@ namespace CrimsonX.Pages
             if (pick1.Length > 0 && string.Equals(pick1, pick2, StringComparison.Ordinal)) pick2 = "";
             StorePerConfigAdapterPick(cfg, 1, pick1);
             StorePerConfigAdapterPick(cfg, 2, pick2);
-            cfg.EnableAdapterBinding = false;
-            cfg.EnableLoadBalanceAdapters = false;
             bool wasInit = _isInitializingSettings;
             _isInitializingSettings = true;
             try
@@ -492,6 +498,18 @@ namespace CrimsonX.Pages
             finally { _isInitializingSettings = wasInit; }
             CollapseAdapterBindingPanel();
             ExpandLbPanel(false);
+        }
+
+        else if (restoredBinding)
+        {
+            var bindTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togAdapterBinding");
+            if (bindTog != null)
+            {
+                bool wasInit = _isInitializingSettings;
+                _isInitializingSettings = true;
+                try { bindTog.IsChecked = true; }
+                finally { _isInitializingSettings = wasInit; }
+            }
         }
 
         var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togCustomConfigs");
@@ -1080,7 +1098,8 @@ namespace CrimsonX.Pages
                         CrimsonX.Localization.AppStrings.ToastLoadBalanceNeedsTwoAdapters, ToastKind.Error);
                     return;
                 }
-                ClearPerConfigAdapterMode(save: false);
+                ClearPerConfigAdapterMode(save: false, restoreBinding: false);
+                cfg.AdapterBindingBeforePerConfig = false;
                 if (cfg.EnableAdapterBinding)
                 {
                     cfg.EnableAdapterBinding = false;
@@ -1782,7 +1801,8 @@ namespace CrimsonX.Pages
                 }
                 else if (!MainWindow.Instance.Config.EnableAdapterBinding)
                 {
-                    ClearPerConfigAdapterMode(save: false);
+                    ClearPerConfigAdapterMode(save: false, restoreBinding: false);
+                    MainWindow.Instance.Config.AdapterBindingBeforePerConfig = false;
                     MainWindow.Instance.Config.EnableAdapterBinding = true;
                     MainWindow.Instance.RequestConfigSave();
                     if (MainWindow.Instance.State.IsEngineRunning)

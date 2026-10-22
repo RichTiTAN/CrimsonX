@@ -33,6 +33,7 @@ namespace CrimsonX.Models
         public bool FetchConfigWhenOneProvided { get; set; } = false;
 
         public bool EnablePerConfigAdapters { get; set; } = false;
+        public bool AdapterBindingBeforePerConfig { get; set; } = false;
         public string CustomConfig1Adapter { get; set; } = "";
         public string CustomConfig2Adapter { get; set; } = "";
 

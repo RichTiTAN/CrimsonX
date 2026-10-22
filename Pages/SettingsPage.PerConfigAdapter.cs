@@ -33,7 +33,7 @@ namespace CrimsonX.Pages
             PrunePerConfigAdapterConfig();
             if (!cfg.EnableCustomConfigs && cfg.EnablePerConfigAdapters)
             {
-                cfg.EnablePerConfigAdapters = false;
+                LeavePerConfigMode(cfg);
                 main.RequestConfigSave();
             }
             bool wasInit = _isInitializingSettings;
@@ -180,12 +180,43 @@ namespace CrimsonX.Pages
                 MainWindow.Instance.ShowToast(AppStrings.ToastReconnectChanges);
         }
 
-        private void ClearPerConfigAdapterMode(bool save)
+        internal static void EnterPerConfigMode(AppConfig cfg)
+        {
+            if (cfg == null) return;
+            if (!cfg.EnablePerConfigAdapters)
+                cfg.AdapterBindingBeforePerConfig = cfg.EnableAdapterBinding;
+            cfg.EnablePerConfigAdapters = true;
+            cfg.EnableAdapterBinding = false;
+            cfg.EnableLoadBalanceAdapters = false;
+        }
+
+        internal static bool LeavePerConfigMode(AppConfig cfg)
+        {
+            if (cfg == null || !cfg.EnablePerConfigAdapters) return false;
+            cfg.EnablePerConfigAdapters = false;
+            bool restore = cfg.AdapterBindingBeforePerConfig
+                           && !string.IsNullOrWhiteSpace(cfg.SelectedAdapterIp);
+            cfg.AdapterBindingBeforePerConfig = false;
+            if (restore) cfg.EnableAdapterBinding = true;
+            return restore;
+        }
+
+        private bool ClearPerConfigAdapterMode(bool save, bool restoreBinding = true)
         {
             var main = MainWindow.Instance;
             var cfg = main?.Config;
-            if (main == null || cfg == null || !cfg.EnablePerConfigAdapters) return;
-            cfg.EnablePerConfigAdapters = false;
+            if (main == null || cfg == null || !cfg.EnablePerConfigAdapters) return false;
+            bool restored;
+            if (restoreBinding)
+            {
+                restored = LeavePerConfigMode(cfg);
+            }
+            else
+            {
+                cfg.EnablePerConfigAdapters = false;
+                cfg.AdapterBindingBeforePerConfig = false;
+                restored = false;
+            }
             var tog = this.FindControl<ToggleSwitch>("togPerConfigAdapter");
             if (tog != null)
             {
@@ -194,9 +225,21 @@ namespace CrimsonX.Pages
                 try { tog.IsChecked = false; }
                 finally { _isInitializingSettings = wasInit; }
             }
+            if (restored)
+            {
+                var bindTog = this.FindControl<ToggleSwitch>("togAdapterBinding");
+                if (bindTog != null)
+                {
+                    bool wasInit = _isInitializingSettings;
+                    _isInitializingSettings = true;
+                    try { bindTog.IsChecked = true; }
+                    finally { _isInitializingSettings = wasInit; }
+                }
+            }
             ApplyPerConfigAdapterVisibility();
             RecalculateCustomConfigsDirty();
             if (save) main.RequestConfigSave();
+            return restored;
         }
 
         private void cmbCustomConfigAdapter_SelectionChanged(object? sender, SelectionChangedEventArgs e)
