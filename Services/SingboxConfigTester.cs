@@ -115,7 +115,7 @@ namespace CrimsonX.Services
                         {
                             new JObject { ["tag"] = "dns_direct", ["type"] = "udp", ["server"] = "8.8.8.8" }
                         },
-                        ["strategy"] = "ipv4_only"
+                        ["strategy"] = "prefer_ipv4"
                     },
                     ["inbounds"] = new JArray
                     {

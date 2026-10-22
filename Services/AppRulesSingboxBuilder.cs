@@ -198,8 +198,9 @@ namespace CrimsonX.Services
                     ["tag"] = tag,
                     ["bind_interface"] = adapter
                 };
-                string ip = CachedAdapterIp(adapterIps, adapter);
-                if (!string.IsNullOrWhiteSpace(ip)) ob["inet4_bind_address"] = ip;
+                var binding = AdapterBindings.Resolve(adapter, CachedAdapterIp(adapterIps, adapter));
+                if (binding.HasV4) ob["inet4_bind_address"] = binding.Ipv4;
+                if (binding.HasV6) ob["inet6_bind_address"] = binding.Ipv6;
                 result.Outbounds.Add(ob);
                 return tag;
             }

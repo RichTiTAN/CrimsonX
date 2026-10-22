@@ -201,6 +201,7 @@ namespace CrimsonX.Services
             endpoint.Remove("tag");
             endpoint.Remove("bind_interface");
             endpoint.Remove("inet4_bind_address");
+            endpoint.Remove("inet6_bind_address");
             endpoint["tag"]    = EndpointTag;
             endpoint["detour"] = TransportTag;
             chained = true;
@@ -224,6 +225,7 @@ namespace CrimsonX.Services
             outbound.Remove("tag");
             outbound.Remove("bind_interface");
             outbound.Remove("inet4_bind_address");
+            outbound.Remove("inet6_bind_address");
             outbound["tag"]    = EndpointTag;
             outbound["detour"] = TransportTag;
             chained = true;
@@ -261,6 +263,7 @@ namespace CrimsonX.Services
                         var hop = (JObject)chain[i].DeepClone();
                         hop.Remove("bind_interface");
                         hop.Remove("inet4_bind_address");
+                        hop.Remove("inet6_bind_address");
                         hop["tag"] = i == 0 ? EndpointTag : EndpointTag + "-" + (i + 1);
                         hop["detour"] = i == 0 ? TransportTag : (i == 1 ? EndpointTag : EndpointTag + "-" + i);
                         hops.Add(hop);

@@ -65,13 +65,16 @@ namespace CrimsonX.Services
 
         private sealed class Route
         {
-            public IPAddress Source { get; set; }
+            public IPAddress? SourceV4 { get; set; }
 
-            public int InterfaceIndex { get; set; }
+            public IPAddress? SourceV6 { get; set; }
+
+            public int IndexV4 { get; set; }
+
+            public int IndexV6 { get; set; }
 
             public string Name { get; set; } = "";
         }
-
         public static bool IsOpenVpn(TunnelParseResult tunnel)
             => tunnel != null && tunnel.Success && tunnel.Kind == TunnelKind.OpenVpn;
 
@@ -173,11 +176,12 @@ namespace CrimsonX.Services
         {
             var route = ResolveRoute(adapterIp);
             if (route == null) return "default route";
-            return route.Name.Length > 0
-                ? $"{route.Name} ({route.Source}, ifIndex {route.InterfaceIndex})"
-                : route.Source.ToString();
+            var parts = new List<string>();
+            if (route.SourceV4 != null) parts.Add($"{route.SourceV4} (ifIndex {route.IndexV4})");
+            if (route.SourceV6 != null) parts.Add($"{route.SourceV6} (ifIndex {route.IndexV6})");
+            string where = string.Join(", ", parts);
+            return route.Name.Length > 0 ? $"{route.Name} ({where})" : where;
         }
-
         private static List<Tuple<string, int, string>> Remotes(TunnelParseResult tunnel)
         {
             var list = new List<Tuple<string, int, string>>();
@@ -216,12 +220,14 @@ namespace CrimsonX.Services
             try
             {
                 var nics = NetworkInterface.GetAllNetworkInterfaces();
-                if (IPAddress.TryParse((adapterIp ?? "").Trim(), out var wanted) && wanted.AddressFamily == AddressFamily.InterNetwork)
+                IPAddress wanted = null;
+                IPAddress.TryParse((adapterIp ?? "").Trim(), out wanted);
+                if (wanted != null)
                 {
                     foreach (var nic in nics)
                     {
-                        if (!nic.GetIPProperties().UnicastAddresses.Any(a => a.Address.Equals(wanted))) continue;
-                        return new Route { Source = wanted, InterfaceIndex = Index(nic), Name = nic.Name };
+                        if (nic.GetIPProperties().UnicastAddresses.Any(a => a.Address.Equals(wanted)))
+                            return RouteFor(nic);
                     }
                 }
                 foreach (var nic in nics)
@@ -230,10 +236,10 @@ namespace CrimsonX.Services
                     if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
                     if (nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
                     if (IsVirtual(nic)) continue;
-                    var address = nic.GetIPProperties().UnicastAddresses
-                        .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork)?.Address;
-                    if (address == null) continue;
-                    return new Route { Source = address, InterfaceIndex = Index(nic), Name = nic.Name };
+                    var addresses = nic.GetIPProperties().UnicastAddresses;
+                    if (!addresses.Any(a => a.Address.AddressFamily == AddressFamily.InterNetwork)
+                        && !addresses.Any(a => a.Address.AddressFamily == AddressFamily.InterNetworkV6)) continue;
+                    return RouteFor(nic);
                 }
             }
             catch (Exception ex)
@@ -243,6 +249,29 @@ namespace CrimsonX.Services
             return null;
         }
 
+        private static Route RouteFor(NetworkInterface nic)
+        {
+            int v4Index = 0;
+            int v6Index = 0;
+            IPAddress sourceV4 = null;
+            IPAddress sourceV6 = null;
+            try
+            {
+                var props = nic.GetIPProperties();
+                foreach (var info in props.UnicastAddresses)
+                {
+                    if (info.Address.AddressFamily == AddressFamily.InterNetwork && sourceV4 == null)
+                        sourceV4 = info.Address;
+                    if (info.Address.AddressFamily == AddressFamily.InterNetworkV6
+                        && !info.Address.IsIPv6LinkLocal && sourceV6 == null)
+                        sourceV6 = info.Address;
+                }
+                try { v4Index = props.GetIPv4Properties()?.Index ?? 0; } catch { }
+                try { v6Index = props.GetIPv6Properties()?.Index ?? 0; } catch { }
+            }
+            catch (Exception ex) { SimpleLogger.Log(ex); }
+            return new Route { SourceV4 = sourceV4, SourceV6 = sourceV6, IndexV4 = v4Index, IndexV6 = v6Index, Name = nic.Name };
+        }
         private static bool IsVirtual(NetworkInterface nic)
         {
             string text = (nic.Name ?? "") + " " + (nic.Description ?? "");
@@ -256,12 +285,6 @@ namespace CrimsonX.Services
                 if (text.IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0) return true;
             }
             return false;
-        }
-
-        private static int Index(NetworkInterface nic)
-        {
-            try { return nic.GetIPProperties().GetIPv4Properties()?.Index ?? 0; }
-            catch { return 0; }
         }
 
         private static List<IPAddress> Resolve(string host)
@@ -291,6 +314,8 @@ namespace CrimsonX.Services
             string pinnedError = error;
             bool pinnedTimeout = timedOut;
             if (route == null) return false;
+            bool v6 = candidate.Address.AddressFamily == AddressFamily.InterNetworkV6;
+            if (v6 ? route.SourceV6 == null : route.SourceV4 == null) return false;
             if (TryConnectOnce(candidate, null, timeoutMs, out ms, out timedOut, out error)) return true;
             error = $"{error} (pinned to {route.Name}: {pinnedError}{(pinnedTimeout ? ", timed out" : "")})";
             if (pinnedTimeout) timedOut = true;
@@ -298,7 +323,13 @@ namespace CrimsonX.Services
         }
 
         private static string RouteName(Route route)
-            => route == null ? "the default route" : $"{route.Name} ({route.Source}, ifIndex {route.InterfaceIndex})";
+        {
+            if (route == null) return "the default route";
+            var parts = new List<string>();
+            if (route.SourceV4 != null) parts.Add($"{route.SourceV4} (ifIndex {route.IndexV4})");
+            if (route.SourceV6 != null) parts.Add($"{route.SourceV6} (ifIndex {route.IndexV6})");
+            return $"{route.Name} ({string.Join(", ", parts)})";
+        }
 
         private static bool TryConnectOnce(Candidate candidate, Route route, int timeoutMs, out long ms, out bool timedOut, out string error)
         {
@@ -308,16 +339,23 @@ namespace CrimsonX.Services
             TcpClient client = null;
             try
             {
+                bool v6 = candidate.Address.AddressFamily == AddressFamily.InterNetworkV6;
                 client = new TcpClient(candidate.Address.AddressFamily);
-                if (route != null)
+                IPAddress source = route == null ? null : (v6 ? route.SourceV6 : route.SourceV4);
+                int ifIndex = route == null ? 0 : (v6 ? route.IndexV6 : route.IndexV4);
+                if (source != null)
                 {
-                    try { client.Client.Bind(new IPEndPoint(route.Source, 0)); }
-                    catch (Exception ex) { error = "bind to " + route.Source + " failed: " + ex.Message; }
-                    if (route.InterfaceIndex > 0)
+                    try { client.Client.Bind(new IPEndPoint(source, 0)); }
+                    catch (Exception ex) { error = "bind to " + source + " failed: " + ex.Message; }
+                }
+                if (ifIndex > 0)
+                {
+                    try
                     {
-                        try { client.Client.SetSocketOption(SocketOptionLevel.IP, (SocketOptionName)IpUnicastIf, route.InterfaceIndex); }
-                        catch (Exception ex) { error = "pinning to interface " + route.InterfaceIndex + " failed: " + ex.Message; }
+                        var level = v6 ? SocketOptionLevel.IPv6 : SocketOptionLevel.IP;
+                        client.Client.SetSocketOption(level, (SocketOptionName)IpUnicastIf, ifIndex);
                     }
+                    catch (Exception ex) { error = "pinning to interface " + ifIndex + " failed: " + ex.Message; }
                 }
                 var watch = Stopwatch.StartNew();
                 var connect = client.ConnectAsync(candidate.Address, candidate.Port);

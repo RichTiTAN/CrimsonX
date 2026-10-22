@@ -41,6 +41,7 @@ namespace CrimsonX.Services
                 CustomConfig2 = config.CustomConfig2,
                 FetchConfigWhenOneProvided = config.FetchConfigWhenOneProvided,
                 EnablePerConfigAdapters = config.EnablePerConfigAdapters,
+                AdapterBindingBeforePerConfig = config.AdapterBindingBeforePerConfig,
                 CustomConfig1Adapter = config.CustomConfig1Adapter,
                 CustomConfig2Adapter = config.CustomConfig2Adapter,
                 DisableBackgroundChecks = config.DisableBackgroundChecks,

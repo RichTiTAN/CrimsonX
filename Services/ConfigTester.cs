@@ -487,11 +487,7 @@ namespace CrimsonX.Services
                 {
                     var outb = (JObject)arr[0];
                     outb["tag"] = "proxy";
-                    string sendThroughIp = XrayConfigWriter.ProbeSendThrough(cfg);
-                    if (sendThroughIp.Length > 0 && !XrayLinkParser.IsLocalOutbound(outb))
-                    {
-                        outb["sendThrough"] = sendThroughIp;
-                    }
+                    AdapterBindings.ApplyXrayBinding(outb, XrayConfigWriter.ProbeBinding(cfg));
                 }
                 var fullConfig = new JObject
                 {
@@ -713,11 +709,7 @@ namespace CrimsonX.Services
                 {
                     var outb = (JObject)arr[0];
                     outb["tag"] = "proxy";
-                    string sendThroughIp = XrayConfigWriter.ProbeSendThrough(cfg);
-                    if (sendThroughIp.Length > 0 && !XrayLinkParser.IsLocalOutbound(outb))
-                    {
-                        outb["sendThrough"] = sendThroughIp;
-                    }
+                    AdapterBindings.ApplyXrayBinding(outb, XrayConfigWriter.ProbeBinding(cfg));
                 }
                 var fullConfig = new JObject
                 {
@@ -1240,7 +1232,7 @@ namespace CrimsonX.Services
                     }
                     if (!string.IsNullOrWhiteSpace(adapterIp))
                     {
-                        outb["sendThrough"] = adapterIp;
+                        AdapterBindings.ApplyXrayBinding(outb, AdapterBindings.ResolveFromIp(adapterIp));
                         SimpleLogger.LogFirst($"bind-perconfig|{adapterIp}", $"[UdpScanner] Test traffic bound to adapter address {adapterIp}");
                     }
                 }
@@ -1512,8 +1504,8 @@ namespace CrimsonX.Services
                 string tag = $"proxy-{i}";
                 var outbound = (JObject)node.DeepClone();
                 outbound["tag"] = tag;
-                if (!string.IsNullOrWhiteSpace(adapterIp) && !XrayLinkParser.IsLocalOutbound(outbound))
-                    outbound["sendThrough"] = adapterIp;
+                if (!string.IsNullOrWhiteSpace(adapterIp))
+                    AdapterBindings.ApplyXrayBinding(outbound, AdapterBindings.ResolveFromIp(adapterIp));
                 outbounds.Add(outbound);
                 string httpTag = $"in-{i}";
                 string udpTag  = $"udp-in-{i}";
@@ -1899,7 +1891,7 @@ namespace CrimsonX.Services
                     if (adapter.OperationalStatus != OperationalStatus.Up) continue;
                     foreach (var unicast in adapter.GetIPProperties().UnicastAddresses)
                     {
-                        if (unicast.Address.AddressFamily == AddressFamily.InterNetwork && unicast.Address.ToString() == ip)
+                        if (string.Equals(unicast.Address.ToString(), AdapterBindings.StripBrackets(ip), StringComparison.OrdinalIgnoreCase))
                             return adapter.Name;
                     }
                 }

@@ -136,7 +136,7 @@ namespace CrimsonX.Services
                 var list = root["outbounds"] as JArray;
                 var outbound = list?.OfType<JObject>().LastOrDefault();
                 if (outbound == null || XrayLinkParser.IsLocalOutbound(outbound)) return xrayJson;
-                outbound["sendThrough"] = bindIp;
+                AdapterBindings.ApplyXrayBinding(outbound, AdapterBindings.ResolveFromIp(bindIp));
                 return root.ToString(Newtonsoft.Json.Formatting.None);
             }
             catch

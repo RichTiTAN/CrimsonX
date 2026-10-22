@@ -58,33 +58,35 @@ namespace CrimsonX.Services
             bool perConfigAdapters = UsesPerConfigAdapters(config);
             var adapterCheck = isAvailable ?? IsAdapterAvailable;
             int storedAdapterCount = AdapterIps(config.LoadBalanceAdapters).Count;
-            var adapterPicks = !perConfigAdapters && config.EnableLoadBalanceAdapters
-                ? AvailableAdapterIps(config.LoadBalanceAdapters, adapterCheck)
-                : new System.Collections.Generic.List<string>();
-            if (!perConfigAdapters && config.EnableLoadBalanceAdapters && storedAdapterCount > adapterPicks.Count)
+            var adapterBindings = !perConfigAdapters && config.EnableLoadBalanceAdapters
+                ? AdapterBindings.ResolveAvailable(config.LoadBalanceAdapters, adapterCheck)
+                : new System.Collections.Generic.List<AdapterBinding>();
+            if (!perConfigAdapters && config.EnableLoadBalanceAdapters && storedAdapterCount > adapterBindings.Count)
             {
                 SimpleLogger.LogFirst("adapter-write-unavailable",
-                    $"[Adapter] Ignoring {storedAdapterCount - adapterPicks.Count} load-balance adapter(s) that are no longer available.");
+                    $"[Adapter] Ignoring {storedAdapterCount - adapterBindings.Count} load-balance adapter(s) that are no longer available.");
             }
-            if (!perConfigAdapters && config.EnableLoadBalanceAdapters && storedAdapterCount > 0 && adapterPicks.Count == 0)
+            if (!perConfigAdapters && config.EnableLoadBalanceAdapters && storedAdapterCount > 0 && adapterBindings.Count == 0)
             {
                 SimpleLogger.LogFirst("adapter-write-no-lb",
                     "[Adapter] No load-balance adapter is available; using the default route.");
             }
-            var loadBalanceIps = adapterPicks.Count > 1
-                ? adapterPicks
-                : new System.Collections.Generic.List<string>();
+            var loadBalanceBindings = adapterBindings.Count > 1
+                ? adapterBindings
+                : new System.Collections.Generic.List<AdapterBinding>();
             string selectedIp = (config.SelectedAdapterIp ?? "").Trim();
-            string pinnedIp = adapterPicks.Count == 1
-                ? adapterPicks[0]
-                : (!perConfigAdapters && config.EnableAdapterBinding && adapterCheck(selectedIp) ? selectedIp : "");
+            AdapterBinding pinnedBinding = adapterBindings.Count == 1
+                ? adapterBindings[0]
+                : (!perConfigAdapters && config.EnableAdapterBinding && adapterCheck(selectedIp)
+                    ? AdapterBindings.Resolve(config.SelectedAdapterName, selectedIp)
+                    : AdapterBinding.Empty);
             if (!perConfigAdapters && config.EnableAdapterBinding && selectedIp.Length > 0 && !adapterCheck(selectedIp))
             {
                 SimpleLogger.LogFirst("adapter-write-no-bind",
                     "[Adapter] The selected adapter is no longer available; using the default route.");
             }
             string xrayBalancePolicy = GetXrayBalancePolicy(
-                loadBalanceIps.Count > 0 ? config.AdapterBalancePolicy : config.XrayBalancePolicy);
+                loadBalanceBindings.Count > 0 ? config.AdapterBalancePolicy : config.XrayBalancePolicy);
             object strategy = GetXrayBalancerStrategy(xrayDir, xrayBalancePolicy);
             var rules = new List<object>
             {
@@ -170,7 +172,7 @@ namespace CrimsonX.Services
                     var exitHops = ResolveExitNodeHops(config.V2rayChainJson);
                     if (exitHops.Count > 0)
                     {
-                        int chainCopies = loadBalanceIps.Count > 0 ? loadBalanceIps.Count : 1;
+                        int chainCopies = loadBalanceBindings.Count > 0 ? loadBalanceBindings.Count : 1;
                         for (int slot = 0; slot < nodeCount * chainCopies; slot++)
                         {
                             int node = slot / chainCopies + 1;
@@ -204,7 +206,7 @@ namespace CrimsonX.Services
             var nodeOutboundTags = new List<string>();
             if (activeChains != null && activeChains.Count > 0)
             {
-                int nodeCopies = loadBalanceIps.Count > 0 ? loadBalanceIps.Count : 1;
+                int nodeCopies = loadBalanceBindings.Count > 0 ? loadBalanceBindings.Count : 1;
                 for (int slot = 0; slot < activeChains.Count * nodeCopies; slot++)
                 {
                     int node = slot / nodeCopies;
@@ -215,14 +217,14 @@ namespace CrimsonX.Services
                     if (local && copy > 1) continue;
                     string tag = NodeTag(sessionSuffix, node + 1, copy, nodeCopies);
                     nodeOutboundTags.Add(tag);
-                    string sendThroughIp = loadBalanceIps.Count > 0 ? loadBalanceIps[copy - 1] : pinnedIp;
+                    var binding = loadBalanceBindings.Count > 0 ? loadBalanceBindings[copy - 1] : pinnedBinding;
                     for (int h = 0; h < chain.Count; h++)
                     {
                         var ob = (JObject)chain[h].DeepClone();
                         ob["tag"] = h == 0 ? tag : ExitHopTag(tag, h);
-                        if (h == chain.Count - 1 && sendThroughIp.Length > 0 && !local)
+                        if (h == chain.Count - 1 && !local)
                         {
-                            ob["sendThrough"] = sendThroughIp;
+                            AdapterBindings.ApplyXrayBinding(ob, binding);
                         }
                         if (h + 1 < chain.Count) ChainThroughDialer(ob, ExitHopTag(tag, h + 1));
                         else
@@ -486,22 +488,29 @@ namespace CrimsonX.Services
             : baseTag.Replace("proxy-clone-", "proxy-hop-").Replace("proxy-node-", "proxy-hop-") + "-h" + (index + 1);
 
         public static string ProbeSendThrough(AppConfig config, Func<string, bool>? isAvailable = null)
+            => ProbeBinding(config, isAvailable).Primary;
+
+        /// <summary>
+        /// The one adapter a probe (a config test, the watchdog, the scanner) leaves through. It carries both
+        /// source families so a v6 endpoint is never pinned to a v4 address.
+        /// </summary>
+        public static AdapterBinding ProbeBinding(AppConfig config, Func<string, bool>? isAvailable = null)
         {
-            if (config == null) return "";
-            if (UsesPerConfigAdapters(config)) return "";
+            if (config == null) return AdapterBinding.Empty;
+            if (UsesPerConfigAdapters(config)) return AdapterBinding.Empty;
             var adapterCheck = isAvailable ?? IsAdapterAvailable;
             if (config.EnableLoadBalanceAdapters)
             {
                 int stored = AdapterIps(config.LoadBalanceAdapters).Count;
-                var ips = AvailableAdapterIps(config.LoadBalanceAdapters, adapterCheck);
-                if (ips.Count > 0)
+                var bindings = AdapterBindings.ResolveAvailable(config.LoadBalanceAdapters, adapterCheck);
+                if (bindings.Count > 0)
                 {
-                    if (stored > ips.Count)
+                    if (stored > bindings.Count)
                     {
                         SimpleLogger.LogFirst("adapter-probe-unavailable",
-                            $"[Adapter] Ignoring {stored - ips.Count} load-balance adapter(s) that are no longer available.");
+                            $"[Adapter] Ignoring {stored - bindings.Count} load-balance adapter(s) that are no longer available.");
                     }
-                    return ips[0];
+                    return bindings[0];
                 }
                 if (stored > 0)
                 {
@@ -515,9 +524,10 @@ namespace CrimsonX.Services
                 SimpleLogger.LogFirst("adapter-probe-no-bind",
                     "[Adapter] The selected adapter is no longer available; using the default route.");
             }
-            return config.EnableAdapterBinding && adapterCheck(selected) ? selected : "";
+            return config.EnableAdapterBinding && adapterCheck(selected)
+                ? AdapterBindings.Resolve(config.SelectedAdapterName, selected)
+                : AdapterBinding.Empty;
         }
-
         public static bool UsesPerConfigAdapters(AppConfig? config)
             => config != null && config.EnableCustomConfigs && config.EnablePerConfigAdapters;
 
@@ -538,6 +548,16 @@ namespace CrimsonX.Services
         public static string ApplySendThrough(string xrayDoc, string adapterIp)
         {
             if (string.IsNullOrWhiteSpace(xrayDoc) || string.IsNullOrWhiteSpace(adapterIp)) return xrayDoc ?? "";
+            return ApplySendThrough(xrayDoc, AdapterBindings.ResolveFromIp(adapterIp));
+        }
+
+        /// <summary>
+        /// Pins the hop that opens the socket to the source address that matches the endpoint's own family.
+        /// An IPv4 pick is never written onto an IPv6 endpoint (the dialer refuses a v4 local address for it).
+        /// </summary>
+        public static string ApplySendThrough(string xrayDoc, AdapterBinding binding)
+        {
+            if (string.IsNullOrWhiteSpace(xrayDoc) || binding == null || !binding.HasAny) return xrayDoc ?? "";
             try
             {
                 var root = JObject.Parse(xrayDoc);
@@ -550,7 +570,7 @@ namespace CrimsonX.Services
                     outbound = candidate;
                 }
                 if (outbound == null) return xrayDoc;
-                outbound["sendThrough"] = adapterIp.Trim();
+                AdapterBindings.ApplyXrayBinding(outbound, binding);
                 return root.ToString(Formatting.None);
             }
             catch
@@ -558,7 +578,6 @@ namespace CrimsonX.Services
                 return xrayDoc;
             }
         }
-
         public static System.Collections.Generic.List<string> AdapterIps(System.Collections.Generic.IEnumerable<string>? adapters)
         {
             var ips = new System.Collections.Generic.List<string>();
@@ -586,29 +605,8 @@ namespace CrimsonX.Services
             return available;
         }
 
-        public static bool IsAdapterAvailable(string ip)
-        {
-            if (string.IsNullOrWhiteSpace(ip)) return false;
-            if (!System.Net.IPAddress.TryParse(ip, out _)) return false;
-            try
-            {
-                foreach (var adapter in NetworkInterface.GetAllNetworkInterfaces())
-                {
-                    if (adapter.OperationalStatus != OperationalStatus.Up) continue;
-                    foreach (var unicast in adapter.GetIPProperties().UnicastAddresses)
-                    {
-                        if (unicast.Address.AddressFamily == AddressFamily.InterNetwork
-                            && unicast.Address.ToString() == ip)
-                            return true;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                SimpleLogger.Log($"[Adapter] Adapter check failed: {ex.Message}");
-            }
-            return false;
-        }
+        public static bool IsAdapterAvailable(string ip) => AdapterBindings.IsAddressAvailable(ip);
+
     }
 
     public static class SingboxConfigWriter
@@ -617,15 +615,34 @@ namespace CrimsonX.Services
             => string.Equals(config?.SplitTunnelMode, "INCLUSIVE", StringComparison.Ordinal);
 
         internal static object BuildTunInbound()
+            => BuildTunInbound(false);
+
+        internal static object BuildTunInbound(bool ipv6)
         {
             return new
             {
                 type = "tun", tag = "tun-in",
                 interface_name = TunProfile.InterfaceName,
-                address = new[] { TunProfile.AddressPrefix },
+                address = ipv6
+                    ? new[] { TunProfile.AddressPrefix, TunProfile.Ipv6AddressPrefix }
+                    : new[] { TunProfile.AddressPrefix },
                 mtu = 9000, auto_route = true, strict_route = true,
                 stack = "mixed", endpoint_independent_nat = true
             };
+        }
+
+        private static object BuildDirectUdpOutbound(AppConfig config)
+        {
+            var binding = AdapterBindings.Resolve(config.DirectUdpAdapterName, config.DirectUdpAdapterIp);
+            var outbound = new System.Collections.Generic.Dictionary<string, object>
+            {
+                ["type"] = "direct",
+                ["tag"] = "direct-udp"
+            };
+            if (binding.Name.Length > 0) outbound["bind_interface"] = binding.Name;
+            if (binding.HasV4) outbound["inet4_bind_address"] = binding.Ipv4;
+            if (binding.HasV6) outbound["inet6_bind_address"] = binding.Ipv6;
+            return outbound;
         }
 
         public static bool Write(AppConfig config, string sbDir, bool skipExitNode = false)
@@ -635,8 +652,7 @@ namespace CrimsonX.Services
             {
                 currentExe, "conjure-client.exe", "dnstt-client.exe",
                 "xray.exe", "xray",
-                "sing-box.exe", "sing-box", "cmd.exe", "conhost.exe",
-                "powershell.exe", "pwsh.exe"
+                "sing-box.exe", "sing-box"
             };
             if (currentExe.Length > 0 && !systemBypassApps.Contains(currentExe.ToLowerInvariant()))
                 systemBypassApps.Add(currentExe.ToLowerInvariant());
@@ -656,6 +672,9 @@ namespace CrimsonX.Services
                 }
             }
 
+            var endpointScan = AdapterBindings.ScanEndpoints(config);
+            bool tunnelIpv6 = endpointScan.UsesIpv6;
+            string dnsStrategy = endpointScan.NeedsDomainIpv6 ? "prefer_ipv4" : "ipv4_only";
             // ── Exit node ────────────────────────────────────────────────────────────────────────
             bool   exitChained  = false;
             string exitError    = "";
@@ -677,6 +696,16 @@ namespace CrimsonX.Services
                     new { port = new[] { 53 }, network = "udp", action = "hijack-dns" },
                     new { port = new[] { 53 }, network = "tcp", action = "hijack-dns" }
                 };
+                if (tunnelIpv6)
+                {
+                    var engineApps = new List<string> { "xray.exe", "xray", "sing-box.exe", "sing-box", "conjure-client.exe", "dnstt-client.exe" };
+                    sbRules.Add(new { process_name = engineApps.ToArray(), ip_cidr = new[] { "::/0" }, action = "route", outbound = "direct" });
+                    sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
+                    sbRules.Add(new { ip_cidr = new[] { "::/0" }, action = "reject" });
+                }
+                sbRules.Add(new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" });
+                if (!tunnelIpv6)
+                    sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
                 if (rules.RouteRules.Count > 0)
                     sbRules.AddRange(rules.RouteRules);
                 bool splitListProxied  = SplitListIsProxied(config);
@@ -693,7 +722,6 @@ namespace CrimsonX.Services
                     sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, ip_is_private = true, action = "route", outbound = "direct" });
                     sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, action = "route", outbound = proxyTag });
                 }
-                sbRules.Add(new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" });
                 if (userApps.Count > 0)
                 {
                     string targetOutbound = SplitListIsProxied(config) ? proxyTag : "direct";
@@ -705,7 +733,6 @@ namespace CrimsonX.Services
                 {
                     sbRules.Add(new { network = "udp", action = "route", outbound = !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp) ? "direct-udp" : "direct" });
                 }
-                sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
 
                 // ── Upstream resolvers ───────────────────────────────────────────────────────────────
                 var dnsServers = new List<object>
@@ -790,15 +817,15 @@ namespace CrimsonX.Services
                     {
                         servers = dnsServers.ToArray(),
                         rules = dnsRules.ToArray(),
-                        strategy = "ipv4_only"
+                        strategy = dnsStrategy
                     },
-                    inbounds = new object[] { BuildTunInbound() },
+                    inbounds = new object[] { BuildTunInbound(tunnelIpv6) },
                     outbounds = new System.Collections.Generic.List<object> {
                         new { type = "socks", tag = "proxy", server = "127.0.0.1", server_port = 10919 },
                         new { type = "direct", tag = "direct" }
                     }.Concat(
                         (config.EnableDirectUDP && !string.IsNullOrWhiteSpace(config.DirectUdpAdapterIp))
-                            ? new object[] { new { type = "direct", tag = "direct-udp", bind_interface = config.DirectUdpAdapterName, inet4_bind_address = config.DirectUdpAdapterIp } }
+                            ? new object[] { BuildDirectUdpOutbound(config) }
                             : new object[0]
                     ).Concat(rules.Outbounds).ToArray(),
                     route = new

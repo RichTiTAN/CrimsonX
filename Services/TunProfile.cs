@@ -24,6 +24,8 @@ namespace CrimsonX.Services
 
         public const string AddressPrefix = "172.18.0.1/30";
 
+        public const string Ipv6AddressPrefix = "fdfe:6f6e:1::1/126";
+
         public const string DeviceDescriptionMarker = "sing-tun";
     }
 }

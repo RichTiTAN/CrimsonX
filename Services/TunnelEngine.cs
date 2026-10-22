@@ -549,6 +549,11 @@ namespace CrimsonX.Services
             var routeRules = new JArray();
             var dnsServers = new JArray();
             var dnsRules = new JArray();
+            bool usesIpv6 = false;
+            foreach (var target in targets)
+            {
+                if (AdapterBindings.TunnelUsesIpv6(target.Parsed)) { usesIpv6 = true; break; }
+            }
             foreach (var target in targets)
             {
                 string inboundTag = target.Tag + "-in";
@@ -596,7 +601,7 @@ namespace CrimsonX.Services
                     ["servers"] = dnsServers,
                     ["rules"] = dnsRules,
                     ["final"] = "dns-fallback",
-                    ["strategy"] = "ipv4_only"
+                    ["strategy"] = usesIpv6 ? "prefer_ipv4" : "ipv4_only"
                 },
                 ["inbounds"] = inbounds,
                 ["endpoints"] = endpoints,

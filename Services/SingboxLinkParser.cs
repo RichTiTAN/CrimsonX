@@ -125,10 +125,7 @@ namespace CrimsonX.Services
         {
             outbound["tag"] = tag;
             if (!string.IsNullOrWhiteSpace(adapterName) && !string.Equals(adapterName, "Default", StringComparison.OrdinalIgnoreCase))
-            {
-                outbound["bind_interface"] = adapterName.Trim();
-                if (!string.IsNullOrWhiteSpace(adapterIp)) outbound["inet4_bind_address"] = adapterIp.Trim();
-            }
+                AdapterBindings.ApplySingboxBinding(outbound, AdapterBindings.Resolve(adapterName, adapterIp));
             return outbound;
         }
 
