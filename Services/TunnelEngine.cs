@@ -451,13 +451,19 @@ namespace CrimsonX.Services
 
         private static bool Settled(List<TunnelTarget> targets, Process process)
         {
-            Thread.Sleep(1200);
-            if (HasExited(process)) return false;
-            foreach (var target in targets)
+            int deadline = Environment.TickCount + 800 + targets.Count * 600;
+            while (Environment.TickCount < deadline)
             {
-                if (!WaitForPort(target.Port, process, 600)) return false;
+                if (HasExited(process)) return false;
+                bool ready = true;
+                foreach (var target in targets)
+                {
+                    if (!IsPortOpen(target.Port)) { ready = false; break; }
+                }
+                if (ready) return true;
+                Thread.Sleep(100);
             }
-            return true;
+            return false;
         }
 
         private static bool CanStartAlone(string sbDir, TunnelTarget target)
@@ -725,23 +731,29 @@ namespace CrimsonX.Services
             while (Environment.TickCount < deadline)
             {
                 if (process != null && HasExited(process)) return false;
-                TcpClient client = null;
-                try
-                {
-                    client = new TcpClient();
-                    var connect = client.BeginConnect(IPAddress.Loopback, port, null, null);
-                    if (connect.AsyncWaitHandle.WaitOne(200))
-                    {
-                        client.EndConnect(connect);
-                        return true;
-                    }
-                }
-                catch { }
-                finally
-                {
-                    try { client?.Close(); } catch { }
-                }
+                if (IsPortOpen(port)) return true;
                 Thread.Sleep(60);
+            }
+            return false;
+        }
+
+        private static bool IsPortOpen(int port)
+        {
+            TcpClient client = null;
+            try
+            {
+                client = new TcpClient();
+                var connect = client.BeginConnect(IPAddress.Loopback, port, null, null);
+                if (connect.AsyncWaitHandle.WaitOne(200))
+                {
+                    client.EndConnect(connect);
+                    return true;
+                }
+            }
+            catch { }
+            finally
+            {
+                try { client?.Close(); } catch { }
             }
             return false;
         }

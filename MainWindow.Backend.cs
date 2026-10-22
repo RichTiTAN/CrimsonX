@@ -774,7 +774,7 @@ public partial class MainWindow
             {
                 int? sbPid = _sbPid;
                 _sbPid = null;
-                CrimsonX.Services.ProcessService.KillVpnProcess(sbPid);
+                await CrimsonX.Services.ProcessService.KillVpnProcessAsync(sbPid);
                 CrimsonX.Services.TunnelEngine.Stop(CrimsonX.Services.TunnelEngine.GroupRules);
                 var outbounds = CrimsonX.Services.XrayPipelineManager.ActiveOutbounds;
                 if (outbounds != null && outbounds.Count > 0)
@@ -870,10 +870,15 @@ public partial class MainWindow
             {
                 int? previous = _sbPid;
                 _sbPid = null;
-                CrimsonX.Services.ProcessService.KillVpnProcess(previous);
+                await CrimsonX.Services.ProcessService.KillVpnProcessAsync(previous);
             }
             if (showConnecting) SetConnectVisualState(true);
-            CrimsonX.Services.AppRulesSingboxBuilder.EnsureRuleTunnels(_cfg, out string ruleTunnelError);
+            var ruleTunnels = await Task.Run(() =>
+            {
+                bool ok = CrimsonX.Services.AppRulesSingboxBuilder.EnsureRuleTunnels(_cfg, out string error);
+                return (ok, error);
+            }, ct);
+            string ruleTunnelError = ruleTunnels.error;
             if (ruleTunnelError.Length > 0)
                 CrimsonX.Services.SimpleLogger.Log($"[SingBox] Rule tunnels: {ruleTunnelError}");
             else
@@ -888,7 +893,7 @@ public partial class MainWindow
             try { await Task.Delay(350, ct); }
             catch (OperationCanceledException)
             {
-                try { CrimsonX.Services.ProcessService.KillVpnProcess(process.Id); } catch { }
+                try { await CrimsonX.Services.ProcessService.KillVpnProcessAsync(process.Id); } catch { }
                 return false;
             }
             if (!chained)
@@ -909,7 +914,7 @@ public partial class MainWindow
             }
             if (ct.IsCancellationRequested) return false;
             CrimsonX.Services.SimpleLogger.Log("[ExitNode] Falling back to the entry nodes only.");
-            try { CrimsonX.Services.ProcessService.KillVpnProcess(process.Id); } catch { }
+            try { await CrimsonX.Services.ProcessService.KillVpnProcessAsync(process.Id); } catch { }
             if (!await Task.Run(() => CrimsonX.Services.SingboxConfigWriter.Write(_cfg, _cfg.SbDir, skipExitNode: true))) return false;
             var retry = await Task.Run(() => ProcessService.StartProcessDirect(GetAppPath(@"Data\sing_box\sing-box.exe"), "run -c config.json", _cfg.SbDir));
             if (retry == null) return false;

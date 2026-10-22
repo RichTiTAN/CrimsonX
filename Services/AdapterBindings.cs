@@ -22,6 +22,8 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
 namespace CrimsonX.Services
@@ -70,7 +72,7 @@ namespace CrimsonX.Services
         private static readonly Dictionary<string, CachedBinding> Bindings = new Dictionary<string, CachedBinding>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, CachedFamily> Domains = new Dictionary<string, CachedFamily>(StringComparer.OrdinalIgnoreCase);
         private static readonly TimeSpan BindingTtl = TimeSpan.FromSeconds(10);
-        private static readonly TimeSpan DomainTtl = TimeSpan.FromMinutes(1);
+        private static readonly TimeSpan DomainTtl = TimeSpan.FromMinutes(10);
         private const int DomainBudgetMs = 400;
 
         internal static Func<string, EndpointFamily> DomainResolver { get; set; }
@@ -357,13 +359,19 @@ namespace CrimsonX.Services
             {
                 var task = Dns.GetHostAddressesAsync(name);
                 if (!task.Wait(DomainBudgetMs))
-                    return EndpointFamily.Unknown;
-                var addresses = task.Result ?? new IPAddress[0];
-                bool v4 = addresses.Any(a => a.AddressFamily == AddressFamily.InterNetwork);
-                bool v6 = addresses.Any(a => a.AddressFamily == AddressFamily.InterNetworkV6);
-                family = v4 ? EndpointFamily.Ipv4 : v6 ? EndpointFamily.Ipv6 : EndpointFamily.Unknown;
+                {
+                    _ = task.ContinueWith(t => { _ = t.Exception; }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                    family = EndpointFamily.Unknown;
+                }
+                else
+                {
+                    var addresses = task.Result ?? new IPAddress[0];
+                    bool v4 = addresses.Any(a => a.AddressFamily == AddressFamily.InterNetwork);
+                    bool v6 = addresses.Any(a => a.AddressFamily == AddressFamily.InterNetworkV6);
+                    family = v4 ? EndpointFamily.Ipv4 : v6 ? EndpointFamily.Ipv6 : EndpointFamily.Unknown;
+                }
             }
-            catch (Exception ex) { SimpleLogger.Log(ex); family = EndpointFamily.Unknown; }
+            catch (Exception ex) { SimpleLogger.LogOnce($"adapter-dns|{name}", $"[Adapter] Host lookup failed for {name}: {ex.Message}"); family = EndpointFamily.Unknown; }
             lock (Sync) { Domains[name] = new CachedFamily { Family = family, Stamp = DateTime.UtcNow }; }
             return family;
         }

@@ -830,7 +830,7 @@ namespace CrimsonX
                     {
                         try
                         {
-                            var newConfigs = await FetchConfigsFromWorker(sourceIndex, ct);
+                            var newConfigs = await Task.Run(() => FetchConfigsFromWorker(sourceIndex, ct), ct);
                             foreach (var c in ShuffledDistinct(newConfigs))
                             {
                                 _untestedConfigs.Enqueue(c);
@@ -841,7 +841,8 @@ namespace CrimsonX
                     }
                     if (_untestedConfigs.TryDequeue(out string cfg))
                     {
-                        var res = await ConfigTester.TestConfigAsync(cfg, _cfg, ct, fetchGeo: true, verifyFlow: true);
+                        var res = await Task.Run(
+                            () => ConfigTester.TestConfigAsync(cfg, _cfg, ct, fetchGeo: true, verifyFlow: true), ct);
                         if (res.Success && res.UdpOk && res.Flowed && IsConfigAllowed(res))
                         {
                             lock (_reservePool)
@@ -1033,7 +1034,7 @@ namespace CrimsonX
                             if (newSha != null && newSha != lastShas[i])
                             {
                                 lastShas[i] = newSha;
-                                var newConfigs = await FetchConfigsFromWorker(i, ct);
+                                var newConfigs = await Task.Run(() => FetchConfigsFromWorker(i, ct), ct);
                                 foreach (var c in ShuffledDistinct(newConfigs)) _untestedConfigs.Enqueue(c);
                             }
                         }
@@ -1054,7 +1055,8 @@ namespace CrimsonX
                         var activeTasks = activeConfigs.Select(async cfgStr =>
                         {
                             ct.ThrowIfCancellationRequested();
-                            var res = await ConfigTester.TestConfigAsync(cfgStr, _cfg, ct, isWatchdog: true, fetchGeo: true, isActiveWatchdog: true, verifyFlow: true);
+                            var res = await Task.Run(
+                                () => ConfigTester.TestConfigAsync(cfgStr, _cfg, ct, isWatchdog: true, fetchGeo: true, isActiveWatchdog: true, verifyFlow: true), ct);
                             bool isBlocked = !IsConfigAllowed(res);
                             if (!res.Success || !res.UdpOk || !res.Flowed || isBlocked)
                             {
@@ -1096,7 +1098,8 @@ namespace CrimsonX
                             while (passedConfigs.Count < targetPassedCount && configsToTest.TryDequeue(out string cfg))
                             {
                                 ct.ThrowIfCancellationRequested();
-                                testingTasks.Add(ConfigTester.TestConfigAsync(cfg, _cfg, ct, isWatchdog: true, fetchGeo: true, verifyFlow: true));
+                                testingTasks.Add(Task.Run(
+                                    () => ConfigTester.TestConfigAsync(cfg, _cfg, ct, isWatchdog: true, fetchGeo: true, verifyFlow: true), ct));
                                 if (testingTasks.Count >= 5 || configsToTest.Count == 0)
                                 {
                                     var results = await Task.WhenAll(testingTasks);
@@ -1130,7 +1133,8 @@ namespace CrimsonX
                                 var speedTasks = passedConfigs.Select(async cfgTest =>
                                 {
                                     ct.ThrowIfCancellationRequested();
-                                    var speed = await ConfigTester.TestSpeedStabilityAsync(cfgTest.OutboundJson, _cfg, ct);
+                                    var speed = await Task.Run(
+                                        () => ConfigTester.TestSpeedStabilityAsync(cfgTest.OutboundJson, _cfg, ct), ct);
                                     ConfigTester.ApplySpeedResult(cfgTest, speed);
                                     return cfgTest;
                                 });

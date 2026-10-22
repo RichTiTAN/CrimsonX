@@ -28,6 +28,8 @@ namespace CrimsonX.Services
 {
     public static class ConfigCache
     {
+        private static readonly object Sync = new();
+
         private static byte[] Encrypt(byte[] plainBytes)
         {
             using var aes = Aes.Create();
@@ -88,7 +90,7 @@ namespace CrimsonX.Services
             if (string.IsNullOrEmpty(path) || SecureDataKey.UsingLegacy()) return;
             try
             {
-                File.WriteAllBytes(path, Encrypt(Encoding.UTF8.GetBytes(json)));
+                WriteAtomic(path, Encrypt(Encoding.UTF8.GetBytes(json)));
                 SimpleLogger.Log($"[Cache] {Path.GetFileName(path)} moved to the machine key.");
             }
             catch (Exception ex)
@@ -97,89 +99,119 @@ namespace CrimsonX.Services
             }
         }
 
-        public static List<string> LoadCache(string path)
+        private static void WriteAtomic(string path, byte[] data)
         {
-            if (!File.Exists(path)) return new List<string>();
+            string temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
-                byte[] encrypted = File.ReadAllBytes(path);
-                string? json = DecryptBytes(path, encrypted);
-                if (string.IsNullOrEmpty(json)) return new List<string>();
-                var list = JsonConvert.DeserializeObject<List<string>>(json);
-                return list ?? new List<string>();
+                File.WriteAllBytes(temp, data);
+                File.Move(temp, path, overwrite: true);
             }
-            catch (Exception ex)
+            catch
             {
-                SimpleLogger.Log($"Failed to load config cache: {ex.Message}");
-                return new List<string>();
+                try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+                throw;
+            }
+        }
+
+        public static List<string> LoadCache(string path)
+        {
+            lock (Sync)
+            {
+                if (!File.Exists(path)) return new List<string>();
+                try
+                {
+                    byte[] encrypted = File.ReadAllBytes(path);
+                    string? json = DecryptBytes(path, encrypted);
+                    if (string.IsNullOrEmpty(json)) return new List<string>();
+                    var list = JsonConvert.DeserializeObject<List<string>>(json);
+                    return list ?? new List<string>();
+                }
+                catch (Exception ex)
+                {
+                    SimpleLogger.Log($"Failed to load config cache: {ex.Message}");
+                    return new List<string>();
+                }
             }
         }
 
         public static void SaveCache(string path, List<string> newConfigs, bool overwrite = false)
         {
-            try
+            lock (Sync)
             {
-                var finalConfigs = newConfigs;
-                if (!overwrite)
+                try
                 {
-                    var existing = LoadCache(path);
-                    var merged = new List<string>();
-                    merged.AddRange(newConfigs);
-                    foreach (var old in existing)
+                    var finalConfigs = newConfigs;
+                    if (!overwrite)
                     {
-                        if (!merged.Contains(old))
+                        var existing = LoadCache(path);
+                        var merged = new List<string>();
+                        merged.AddRange(newConfigs);
+                        foreach (var old in existing)
                         {
-                            merged.Add(old);
+                            if (!merged.Contains(old))
+                            {
+                                merged.Add(old);
+                            }
                         }
+                        finalConfigs = merged.Take(20).ToList();
                     }
-                    finalConfigs = merged.Take(20).ToList();
+                    string json = JsonConvert.SerializeObject(finalConfigs);
+                    byte[] plainBytes = Encoding.UTF8.GetBytes(json);
+                    WriteAtomic(path, Encrypt(plainBytes));
                 }
-                string json = JsonConvert.SerializeObject(finalConfigs);
-                byte[] plainBytes = Encoding.UTF8.GetBytes(json);
-                File.WriteAllBytes(path, Encrypt(plainBytes));
-            }
-            catch (Exception ex)
-            {
-                SimpleLogger.Log($"Failed to save config cache: {ex.Message}");
+                catch (Exception ex)
+                {
+                    SimpleLogger.Log($"Failed to save config cache: {ex.Message}");
+                }
             }
         }
 
         public static void RemoveFromCache(string path, string configJson)
         {
-            try
+            lock (Sync)
             {
-                var existing = LoadCache(path);
-                if (existing.Remove(configJson))
+                try
                 {
-                    SaveCache(path, existing, true);
+                    var existing = LoadCache(path);
+                    if (existing.Remove(configJson))
+                    {
+                        SaveCache(path, existing, true);
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                SimpleLogger.Log($"Failed to remove from config cache: {ex.Message}");
+                catch (Exception ex)
+                {
+                    SimpleLogger.Log($"Failed to remove from config cache: {ex.Message}");
+                }
             }
         }
 
         public static string? LoadString(string path)
         {
-            if (!File.Exists(path)) return null;
-            try
+            lock (Sync)
             {
-                return DecryptBytes(path, File.ReadAllBytes(path));
+                if (!File.Exists(path)) return null;
+                try
+                {
+                    return DecryptBytes(path, File.ReadAllBytes(path));
+                }
+                catch { return null; }
             }
-            catch { return null; }
         }
 
         public static void SaveString(string path, string content)
         {
-            try
+            lock (Sync)
             {
-                byte[] plainBytes = Encoding.UTF8.GetBytes(content ?? "");
-                string dir = Path.GetDirectoryName(path);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                File.WriteAllBytes(path, Encrypt(plainBytes));
+                try
+                {
+                    byte[] plainBytes = Encoding.UTF8.GetBytes(content ?? "");
+                    string dir = Path.GetDirectoryName(path);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                    WriteAtomic(path, Encrypt(plainBytes));
+                }
+                catch { }
             }
-            catch { }
         }
         
         public static Dictionary<string, string> LoadIconCache(string path)

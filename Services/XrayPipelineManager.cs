@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using CrimsonX.Models;
@@ -30,12 +31,15 @@ namespace CrimsonX.Services
     {
         private static Process? _xrayProcess;
         private static readonly object _lock = new object();
+        private static readonly SemaphoreSlim SwapGate = new(1, 1);
+        private static int _generation;
         public static List<string> ActiveOutbounds { get; private set; } = new List<string>();
 
         public static bool StartXray(List<string> outbounds, AppConfig config, string xrayDir)
         {
             lock (_lock)
             {
+                _generation++;
                 ActiveOutbounds = new List<string>(outbounds);
                 var chains = ParseOutbounds(outbounds, "StartXray");
                 if (!XrayConfigWriter.Write(config, xrayDir, chains))
@@ -133,95 +137,119 @@ namespace CrimsonX.Services
 
         public static async Task<bool> SwapOutboundsAsync(List<string> newOutbounds, AppConfig config, string xrayDir, bool forceRestart = false)
         {
-            return await Task.Run(() =>
+            return await Task.Run(async () =>
             {
-                lock (_lock)
+                await SwapGate.WaitAsync().ConfigureAwait(false);
+                try
                 {
-                    int oldOutboundsCount = ActiveOutbounds.Count;
-                    ActiveOutbounds = new List<string>(newOutbounds);
-                    var chains = ParseOutbounds(newOutbounds, "SwapOutboundsAsync");
-                    var nodesToRemove = new List<string>();
-                    var clonesToRemove = new List<string>();
-                    string configJsonPath = Path.Combine(xrayDir, "config.json");
-                    try 
+                    int generation = 0;
+                    JArray proxyOutbounds = new JArray();
+                    List<string> tagsToRemove = new List<string>();
+                    string tempObPath = "";
+                    lock (_lock)
                     {
-                        if (File.Exists(configJsonPath))
+                        generation = _generation;
+                        ActiveOutbounds = new List<string>(newOutbounds);
+                        var chains = ParseOutbounds(newOutbounds, "SwapOutboundsAsync");
+                        var nodesToRemove = new List<string>();
+                        var clonesToRemove = new List<string>();
+                        string configJsonPath = Path.Combine(xrayDir, "config.json");
+                        try
                         {
-                            var oldRoot = JObject.Parse(File.ReadAllText(configJsonPath));
-                            if (oldRoot["outbounds"] is JArray oldObs)
+                            if (File.Exists(configJsonPath))
                             {
-                                foreach (JObject ob in oldObs)
+                                var oldRoot = JObject.Parse(File.ReadAllText(configJsonPath));
+                                if (oldRoot["outbounds"] is JArray oldObs)
                                 {
-                                    string tag = ob["tag"]?.ToString() ?? "";
-                                    if (tag.StartsWith("proxy-node"))
-                                        nodesToRemove.Add(tag);
-                                    else if (tag.StartsWith("proxy-clone") || tag.StartsWith("proxy-hop"))
-                                        clonesToRemove.Add(tag);
+                                    foreach (JObject ob in oldObs)
+                                    {
+                                        string tag = ob["tag"]?.ToString() ?? "";
+                                        if (tag.StartsWith("proxy-node"))
+                                            nodesToRemove.Add(tag);
+                                        else if (tag.StartsWith("proxy-clone") || tag.StartsWith("proxy-hop"))
+                                            clonesToRemove.Add(tag);
+                                    }
                                 }
                             }
                         }
-                    } 
-                    catch { }
-                    var tagsToRemove = new List<string>();
-                    tagsToRemove.AddRange(clonesToRemove);
-                    tagsToRemove.AddRange(nodesToRemove);
-                    if (!XrayConfigWriter.Write(config, xrayDir, chains))
-                    {
-                        return false;
-                    }
-                    if (forceRestart || _xrayProcess == null || _xrayProcess.HasExited)
-                    {
-                        return StartXray(newOutbounds, config, xrayDir);
+                        catch { }
+                        tagsToRemove.AddRange(clonesToRemove);
+                        tagsToRemove.AddRange(nodesToRemove);
+                        if (!XrayConfigWriter.Write(config, xrayDir, chains))
+                        {
+                            return false;
+                        }
+                        if (forceRestart || _xrayProcess == null || _xrayProcess.HasExited)
+                        {
+                            return StartXray(newOutbounds, config, xrayDir);
+                        }
+                        try
+                        {
+                            if (!File.Exists(configJsonPath)) return false;
+                            var root = JObject.Parse(File.ReadAllText(configJsonPath));
+                            var outboundsArray = root["outbounds"] as JArray;
+                            if (outboundsArray == null) return false;
+                            var nodesToAdd = new JArray();
+                            var clonesToAdd = new JArray();
+                            foreach (JObject ob in outboundsArray)
+                            {
+                                string tag = ob["tag"]?.ToString() ?? "";
+                                if (tag.StartsWith("proxy-node"))
+                                    nodesToAdd.Add(ob);
+                                else if (tag.StartsWith("proxy-clone") || tag.StartsWith("proxy-hop"))
+                                    clonesToAdd.Add(ob);
+                            }
+                            foreach (var n in nodesToAdd) proxyOutbounds.Add(n);
+                            foreach (var c in clonesToAdd) proxyOutbounds.Add(c);
+                            tempObPath = Path.Combine(xrayDir, "temp_outbounds.json");
+                        }
+                        catch
+                        {
+                            return false;
+                        }
                     }
                     try
                     {
-                        if (!File.Exists(configJsonPath)) return false;
-                        var root = JObject.Parse(File.ReadAllText(configJsonPath));
-                        var outboundsArray = root["outbounds"] as JArray;
-                        if (outboundsArray == null) return false;
-                        var nodesToAdd = new JArray();
-                        var clonesToAdd = new JArray();
-                        foreach (JObject ob in outboundsArray)
-                        {
-                            string tag = ob["tag"]?.ToString() ?? "";
-                            if (tag.StartsWith("proxy-node"))
-                                nodesToAdd.Add(ob);
-                            else if (tag.StartsWith("proxy-clone") || tag.StartsWith("proxy-hop"))
-                                clonesToAdd.Add(ob);
-                        }
-                        var proxyOutbounds = new JArray();
-                        foreach (var n in nodesToAdd) proxyOutbounds.Add(n);
-                        foreach (var c in clonesToAdd) proxyOutbounds.Add(c);
-                        string tempObPath = Path.Combine(xrayDir, "temp_outbounds.json");
-                        foreach (var ob in proxyOutbounds)
+                        foreach (JObject ob in proxyOutbounds)
                         {
                             var wrapper = new JObject();
                             wrapper["outbounds"] = new JArray(ob);
-                            File.WriteAllText(tempObPath, wrapper.ToString());
-                            RunXrayApiCli(xrayDir, "ado", $"api ado --server=127.0.0.1:10999 \"{tempObPath}\"", 1500);
+                            await File.WriteAllTextAsync(tempObPath, wrapper.ToString()).ConfigureAwait(false);
+                            await RunXrayApiCliAsync(xrayDir, "ado", $"api ado --server=127.0.0.1:10999 \"{tempObPath}\"", 1500).ConfigureAwait(false);
                         }
                         foreach (string tag in tagsToRemove)
                         {
-                            RunXrayApiCli(xrayDir, "rmo", $"api rmo --server=127.0.0.1:10999 \"{tag}\"", 1500);
+                            await RunXrayApiCliAsync(xrayDir, "rmo", $"api rmo --server=127.0.0.1:10999 \"{tag}\"", 1500).ConfigureAwait(false);
                         }
-                        CrimsonX.Services.SimpleLogger.Log("[XrayPipelineManager] Seamless hot-swap executed successfully via CLI API.");
-                        return true;
                     }
                     catch (Exception ex)
                     {
                         CrimsonX.Services.SimpleLogger.Log($"[XrayPipelineManager] Seamless swap failed, falling back to restart: {ex.Message}");
-                        return StartXray(newOutbounds, config, xrayDir);
+                        lock (_lock)
+                        {
+                            if (generation != _generation || _xrayProcess == null || _xrayProcess.HasExited) return false;
+                            return StartXray(newOutbounds, config, xrayDir);
+                        }
                     }
                     finally
                     {
-                        string tempObPath = Path.Combine(xrayDir, "temp_outbounds.json");
                         try { if (File.Exists(tempObPath)) File.Delete(tempObPath); } catch { }
                     }
+                    lock (_lock)
+                    {
+                        if (generation != _generation || _xrayProcess == null || _xrayProcess.HasExited) return false;
+                    }
+                    CrimsonX.Services.SimpleLogger.Log("[XrayPipelineManager] Seamless hot-swap executed successfully via CLI API.");
+                    return true;
+                }
+                finally
+                {
+                    SwapGate.Release();
                 }
             });
         }
 
-        private static void RunXrayApiCli(string xrayDir, string operation, string arguments, int timeoutMs)
+        private static async Task RunXrayApiCliAsync(string xrayDir, string operation, string arguments, int timeoutMs)
         {
             using var proc = new Process();
             proc.StartInfo.FileName = Path.Combine(xrayDir, "xray.exe");
@@ -231,14 +259,20 @@ namespace CrimsonX.Services
             proc.StartInfo.RedirectStandardError = true;
             proc.StartInfo.RedirectStandardOutput = true;
             proc.Start();
-            var outTask = Task.Run(() => proc.StandardOutput.ReadToEnd());
-            var errTask = Task.Run(() => proc.StandardError.ReadToEnd());
-            if (!proc.WaitForExit(timeoutMs))
+            var outTask = proc.StandardOutput.ReadToEndAsync();
+            var errTask = proc.StandardError.ReadToEndAsync();
+            using var cts = new CancellationTokenSource(timeoutMs);
+            try
+            {
+                await proc.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
             {
                 try { proc.Kill(); } catch { }
-                proc.WaitForExit();
+                using var killCts = new CancellationTokenSource(1000);
+                try { await proc.WaitForExitAsync(killCts.Token).ConfigureAwait(false); } catch { }
             }
-            string output = errTask.GetAwaiter().GetResult() + " " + outTask.GetAwaiter().GetResult();
+            string output = (await errTask.ConfigureAwait(false)) + " " + (await outTask.ConfigureAwait(false));
             if (proc.ExitCode != 0)
             {
                 throw new Exception($"xray api {operation} failed with exit code {proc.ExitCode}: {output.Trim()}");
@@ -249,6 +283,7 @@ namespace CrimsonX.Services
         {
             lock (_lock)
             {
+                _generation++;
                 if (_xrayProcess != null)
                 {
                     try 
@@ -260,7 +295,7 @@ namespace CrimsonX.Services
                     try { _xrayProcess.Dispose(); } catch { }
                     _xrayProcess = null;
                 }
-                ActiveOutbounds.Clear();
+                ActiveOutbounds = new List<string>();
             }
         }
 

@@ -85,10 +85,13 @@ public partial class MainWindow : Window
         CrimsonX.Services.SimpleLogger.Log($"[Startup] CrimsonX v{Services.UpdateService.AppVersion} — Mode={_cfg.LastXrayMode}");
         CrimsonX.Services.BackgroundTask.Run("engine report", () => CrimsonX.Services.EngineReport.AnnounceAsync(_cfg));
         CrimsonX.Services.BackgroundTask.Run("country exit feed", () => RefreshCountryExitFeedAsync());
-        CrimsonX.Services.GeneratedArtifacts.RunStartupCleanup();
-        CrimsonX.Services.SecureJsonStore.MigrateLegacyStores();
         CrimsonX.Services.BackgroundTask.Run("dns heal", () => CrimsonX.Services.SystemDnsService.HealFromDiskAsync());
         InitializeComponent();
+        CrimsonX.Services.BackgroundTask.Run("startup cleanup", () => Task.Run(() =>
+        {
+            CrimsonX.Services.GeneratedArtifacts.RunStartupCleanup();
+            CrimsonX.Services.SecureJsonStore.MigrateLegacyStores();
+        }));
         var startupNav = this.FindControl<CrimsonX.Controls.NavigationBar>("navBar");
         startupNav?.SetAdBlockerState(_cfg.EnableAdBlock);
         if (_cfg.StartupTab == "AppsGames")

@@ -297,7 +297,7 @@ namespace CrimsonX.Services
             {
                 using var req = new HttpRequestMessage(HttpMethod.Get, target);
                 req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
-                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -314,7 +314,7 @@ namespace CrimsonX.Services
             {
                 using var req = new HttpRequestMessage(HttpMethod.Head, target);
                 req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
-                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -333,17 +333,17 @@ namespace CrimsonX.Services
             {
                 using var req = new HttpRequestMessage(HttpMethod.Get, target);
                 req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
-                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
+                using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token).ConfigureAwait(false);
                 if (!resp.IsSuccessStatusCode)
                     return (false, 0, 0, $"HTTP {(int)resp.StatusCode} from {target}");
                 long expected = resp.Content.Headers.ContentLength ?? long.MaxValue;
                 long need = expected > 0 && expected < FlowMinBytes ? expected : FlowMinBytes;
                 long total = 0;
-                using var stream = await resp.Content.ReadAsStreamAsync(timeoutCts.Token);
+                using var stream = await resp.Content.ReadAsStreamAsync(timeoutCts.Token).ConfigureAwait(false);
                 byte[] buffer = new byte[FlowSampleBufferSize];
                 while (total < need)
                 {
-                    int read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), timeoutCts.Token);
+                    int read = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), timeoutCts.Token).ConfigureAwait(false);
                     if (read <= 0) break;
                     total += read;
                 }
@@ -378,12 +378,12 @@ namespace CrimsonX.Services
             foreach (string target in targets.Distinct(StringComparer.Ordinal))
             {
                 ct.ThrowIfCancellationRequested();
-                await WarmUpFlowTargetAsync(client, target, ct);
-                var read = await ReadFlowTargetAsync(client, target, ct);
+                await WarmUpFlowTargetAsync(client, target, ct).ConfigureAwait(false);
+                var read = await ReadFlowTargetAsync(client, target, ct).ConfigureAwait(false);
                 if (!read.Flowed && first)
                 {
-                    await Task.Delay(FlowRetryDelayMs, ct);
-                    read = await ReadFlowTargetAsync(client, target, ct);
+                    await Task.Delay(FlowRetryDelayMs, ct).ConfigureAwait(false);
+                    read = await ReadFlowTargetAsync(client, target, ct).ConfigureAwait(false);
                 }
                 if (read.Flowed)
                     return (true, target, read.Bytes, read.Ms, "");
@@ -403,8 +403,8 @@ namespace CrimsonX.Services
                 bool exited;
                 try { exited = proc.HasExited; } catch { exited = true; }
                 if (exited) return false;
-                if (await IsTcpPortOpenAsync(port)) return true;
-                await Task.Delay(50, ct);
+                if (await IsTcpPortOpenAsync(port).ConfigureAwait(false)) return true;
+                await Task.Delay(50, ct).ConfigureAwait(false);
             }
             return false;
         }
@@ -433,7 +433,7 @@ namespace CrimsonX.Services
             string testAdapterIp   = adapter.Ip;
             if (TunnelConfigParser.TryParse(link, out var openVpn) && TunnelTcpProbe.IsOpenVpn(openVpn))
             {
-                var tcp = await Task.Run(() => TunnelTcpProbe.Probe(openVpn, testAdapterIp, TunnelTcpProbe.DefaultTimeoutMs));
+                var tcp = await Task.Run(() => TunnelTcpProbe.Probe(openVpn, testAdapterIp, TunnelTcpProbe.DefaultTimeoutMs)).ConfigureAwait(false);
                 string route = TunnelTcpProbe.RouteText(testAdapterIp);
                 if (tcp.Ok)
                 {
@@ -451,7 +451,7 @@ namespace CrimsonX.Services
                 };
             }
             IDisposable tunnelLease = null;
-            var tunnelPrep = await TunnelEngine.PrepareTestAsync(link, cfg, testAdapterName, testAdapterIp);
+            var tunnelPrep = await TunnelEngine.PrepareTestAsync(link, cfg, testAdapterName, testAdapterIp).ConfigureAwait(false);
             if (tunnelPrep.State == TunnelTestState.Failed)
             {
                 try { tunnelPrep.Lease?.Dispose(); } catch { }
@@ -553,9 +553,9 @@ namespace CrimsonX.Services
                     testProc.Start();
                     testProc.BeginErrorReadLine();
                     testProc.BeginOutputReadLine();
-                });
+                }).ConfigureAwait(false);
                 JobManager.AddProcess(testProc);
-                bool inboundReady = await WaitForLocalInboundAsync(testProc, port, InboundReadyBudgetMs, ct);
+                bool inboundReady = await WaitForLocalInboundAsync(testProc, port, InboundReadyBudgetMs, ct).ConfigureAwait(false);
                 if (!inboundReady)
                 {
                     bool exited;
@@ -579,12 +579,12 @@ namespace CrimsonX.Services
                 foreach (var target in targetsToTest)
                 {
                     ct.ThrowIfCancellationRequested();
-                    if (verifyFlow) await WarmUpPingTargetAsync(client, target, ct);
+                    if (verifyFlow) await WarmUpPingTargetAsync(client, target, ct).ConfigureAwait(false);
                     var sw = Stopwatch.StartNew();
                     using var req = new HttpRequestMessage(HttpMethod.Get, target);
                     if (!verifyFlow) req.Headers.ConnectionClose = true;
                     req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
-                    using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                    using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                     if (!resp.IsSuccessStatusCode && resp.StatusCode != HttpStatusCode.NoContent && resp.StatusCode != HttpStatusCode.Found)
                     {
                         throw new Exception("the tunnel answered HTTP " + (int)resp.StatusCode);
@@ -616,7 +616,7 @@ namespace CrimsonX.Services
                     {
                         Timeout = TimeSpan.FromMilliseconds(FlowWarmupBudgetMs + FlowReadBudgetMs + 1000)
                     };
-                    var flow = await PickFlowTargetAsync(flowClient, "", ct);
+                    var flow = await PickFlowTargetAsync(flowClient, "", ct).ConfigureAwait(false);
                     if (!flow.Flowed)
                     {
                         res.Success = false;
@@ -634,17 +634,17 @@ namespace CrimsonX.Services
                     SimpleLogger.Log($"[Flow] {XrayLinkParser.ExtractServerAddress(res.OutboundJson)}: " +
                                      $"{flow.Bytes} bytes in {flow.Ms} ms via {flow.Target}");
                 }
-                res.UdpOk = cfg.EnableUdpCapableNodes ? await TestUdpAsync(stunUdpPort, ntpUdpPort, ct) : true;
+                res.UdpOk = cfg.EnableUdpCapableNodes ? await TestUdpAsync(stunUdpPort, ntpUdpPort, ct).ConfigureAwait(false) : true;
                 if (fetchGeo)
                 {
                     try
                     {
                         using var geoReq = new HttpRequestMessage(HttpMethod.Get, "https://get.geojs.io/v1/ip/geo.json");
                         geoReq.Headers.ConnectionClose = true;
-                        using var geoResp = await client.SendAsync(geoReq, ct);
+                        using var geoResp = await client.SendAsync(geoReq, ct).ConfigureAwait(false);
                         if (geoResp.IsSuccessStatusCode)
                         {
-                            var geoJson = Newtonsoft.Json.Linq.JObject.Parse(await geoResp.Content.ReadAsStringAsync(ct));
+                            var geoJson = Newtonsoft.Json.Linq.JObject.Parse(await geoResp.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
                             res.CountryCode = geoJson["country_code"]?.ToString() ?? "";
                             res.Continent = geoJson["continent_code"]?.ToString() ?? "";
                             res.Continent = res.Continent switch
@@ -685,7 +685,7 @@ namespace CrimsonX.Services
                     await Task.Run(() => {
                         try { testProc.Kill(); } catch { }
                         try { testProc.Dispose(); } catch { }
-                    });
+                    }).ConfigureAwait(false);
                 }
                 try { if (File.Exists(cfgPath)) File.Delete(cfgPath); } catch { }
                 try { tunnelLease?.Dispose(); } catch { }
@@ -741,9 +741,9 @@ namespace CrimsonX.Services
                 testProc.StartInfo.CreateNoWindow = true;
                 await Task.Run(() => {
                     testProc.Start();
-                });
+                }).ConfigureAwait(false);
                 JobManager.AddProcess(testProc);
-                bool inboundReady = await WaitForLocalInboundAsync(testProc, port, InboundReadyBudgetMs, ct);
+                bool inboundReady = await WaitForLocalInboundAsync(testProc, port, InboundReadyBudgetMs, ct).ConfigureAwait(false);
                 if (!inboundReady)
                 {
                     bool exited;
@@ -764,7 +764,7 @@ namespace CrimsonX.Services
                 ct.ThrowIfCancellationRequested();
                 if (!verifyFlow)
                 {
-                    var legacySamples = await SampleSpeedWindowsAsync(client, SpeedTestUrl, ct, 0, 0);
+                    var legacySamples = await SampleSpeedWindowsAsync(client, SpeedTestUrl, ct, 0, 0).ConfigureAwait(false);
                     res.Target = SpeedTestUrl;
                     FillSpeedResult(legacySamples, res);
                     return res;
@@ -788,9 +788,9 @@ namespace CrimsonX.Services
                 foreach (string target in targets)
                 {
                     ct.ThrowIfCancellationRequested();
-                    await WarmUpFlowTargetAsync(client, target, ct);
+                    await WarmUpFlowTargetAsync(client, target, ct).ConfigureAwait(false);
                     var samples = await SampleSpeedWindowsAsync(
-                        client, target, ct, FlowReadBudgetMs, FlowMinBytes);
+                        client, target, ct, FlowReadBudgetMs, FlowMinBytes).ConfigureAwait(false);
                     if (!samples.Flowed)
                     {
                         lastError = $"{samples.FailureReason} on {target}";
@@ -869,15 +869,15 @@ namespace CrimsonX.Services
                         using var req = new HttpRequestMessage(HttpMethod.Get, target);
                         req.Headers.ConnectionClose = true;
                         req.Headers.UserAgent.ParseAdd("Mozilla/5.0");
-                        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token);
+                        using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token).ConfigureAwait(false);
                         if (!resp.IsSuccessStatusCode)
                         {
                             Volatile.Write(ref noData[0], Volatile.Read(ref everRead[0]) == 0 ? 1 : 0);
                             return;
                         }
-                        using var stream = await resp.Content.ReadAsStreamAsync(linkedCts.Token);
+                        using var stream = await resp.Content.ReadAsStreamAsync(linkedCts.Token).ConfigureAwait(false);
                         int read;
-                        while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, linkedCts.Token)) > 0)
+                        while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, linkedCts.Token).ConfigureAwait(false)) > 0)
                         {
                             Interlocked.Add(ref pending[0], read);
                             long readSoFar = Interlocked.Add(ref everRead[0], read);
@@ -902,7 +902,7 @@ namespace CrimsonX.Services
                 while (!linkedCts.IsCancellationRequested && Volatile.Read(ref noData[0]) == 0)
                 {
                     int wait = (int)(nextTick - sw.ElapsedMilliseconds);
-                    if (wait > 0) await Task.Delay(wait, linkedCts.Token);
+                    if (wait > 0) await Task.Delay(wait, linkedCts.Token).ConfigureAwait(false);
                     if (linkedCts.IsCancellationRequested) break;
                     bool isGap = Volatile.Read(ref readerAlive[0]) == 1 && Volatile.Read(ref gapStart[0]) >= 0;
                     result.Windows.Add((Interlocked.Exchange(ref pending[0], 0), isGap));
@@ -919,7 +919,7 @@ namespace CrimsonX.Services
             catch (OperationCanceledException)
             {
             }
-            try { await reader; } catch { }
+            try { await reader.ConfigureAwait(false); } catch { }
             result.TotalBytes = Interlocked.Read(ref everRead[0]);
             result.Flowed = flowGateMs > 0
                 ? result.TotalBytes >= flowMinBytes
@@ -1027,12 +1027,12 @@ namespace CrimsonX.Services
             for (int attempt = 0; attempt < 2; attempt++)
             {
                 var (stunOk, _) = await ProbeUdpAsync(
-                    stunPort, ct, TimeoutMs, null, requireNtpReply: false, stun: true);
+                    stunPort, ct, TimeoutMs, null, requireNtpReply: false, stun: true).ConfigureAwait(false);
                 if (stunOk) return true;
-                if (attempt == 0) await Task.Delay(250, ct);
+                if (attempt == 0) await Task.Delay(250, ct).ConfigureAwait(false);
             }
             var (ntpOk, _) = await ProbeUdpAsync(
-                ntpPort, ct, TimeoutMs, null, requireNtpReply: true, stun: false);
+                ntpPort, ct, TimeoutMs, null, requireNtpReply: true, stun: false).ConfigureAwait(false);
             return ntpOk;
         }
         private static string Tail(System.Text.StringBuilder log, int max = 400)
@@ -1080,10 +1080,10 @@ namespace CrimsonX.Services
                     request[0] = 0x23;
                 }
                 var sw = Stopwatch.StartNew();
-                await udp.SendAsync(request.AsMemory(), ct);
+                await udp.SendAsync(request.AsMemory(), ct).ConfigureAwait(false);
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeoutCts.CancelAfter(timeoutMs);
-                var resp = await udp.ReceiveAsync(timeoutCts.Token);
+                var resp = await udp.ReceiveAsync(timeoutCts.Token).ConfigureAwait(false);
                 sw.Stop();
                 bool ok = resp.Buffer != null && resp.Buffer.Length > 0;
                 if (ok && stun)
@@ -1279,9 +1279,9 @@ namespace CrimsonX.Services
                 testProc.StartInfo.UseShellExecute = false;
                 testProc.StartInfo.CreateNoWindow = true;
                 var proc = testProc;
-                await Task.Run(() => { proc.Start(); });
+                await Task.Run(() => { proc.Start(); }).ConfigureAwait(false);
                 JobManager.AddProcess(testProc);
-                await Task.Delay(300, ct);
+                await Task.Delay(300, ct).ConfigureAwait(false);
                 if (testProc.HasExited)
                 {
                     session.Dispose();
@@ -1324,7 +1324,7 @@ namespace CrimsonX.Services
                 if (pickedName.Length > 0) testAdapterName = pickedName;
             }
             IDisposable tunnelLease = null;
-            var tunnelPrep = await TunnelEngine.PrepareTestAsync(link, cfg, testAdapterName, testAdapterIp);
+            var tunnelPrep = await TunnelEngine.PrepareTestAsync(link, cfg, testAdapterName, testAdapterIp).ConfigureAwait(false);
             if (tunnelPrep.State == TunnelTestState.Failed)
             {
                 try { tunnelPrep.Lease?.Dispose(); } catch { }
@@ -1344,10 +1344,10 @@ namespace CrimsonX.Services
             UdpTestSession session = null;
             try
             {
-                session = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp, stun);
+                session = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp, stun).ConfigureAwait(false);
                 if (session == null) return res;
-                if (tcp) await ProbeOverTcpAsync(res, session.HttpPort, ct);
-                else await ProbeOverUdpAsync(res, session.HttpPort, session.UdpPort, warmUpFirst, measureHttpPing, stun, ct);
+                if (tcp) await ProbeOverTcpAsync(res, session.HttpPort, ct).ConfigureAwait(false);
+                else await ProbeOverUdpAsync(res, session.HttpPort, session.UdpPort, warmUpFirst, measureHttpPing, stun, ct).ConfigureAwait(false);
                 return res;
             }
             catch (OperationCanceledException)
@@ -1377,9 +1377,9 @@ namespace CrimsonX.Services
             {
                 if (warmUpFirst)
                 {
-                    if (await WarmUpAsync(udpPort, probeSocket, ct, stun))
+                    if (await WarmUpAsync(udpPort, probeSocket, ct, stun).ConfigureAwait(false))
                     {
-                        var (ok, rtt) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
+                        var (ok, rtt) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun).ConfigureAwait(false);
                         if (ok)
                         {
                             okCount++;
@@ -1392,7 +1392,7 @@ namespace CrimsonX.Services
                     for (int i = 0; i < ProbeAttempts; i++)
                     {
                         ct.ThrowIfCancellationRequested();
-                        var (ok, rtt) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
+                        var (ok, rtt) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun).ConfigureAwait(false);
                         if (ok)
                         {
                             okCount++;
@@ -1406,12 +1406,12 @@ namespace CrimsonX.Services
             res.UdpPing = okCount > 0 ? bestPing : 0;
             res.Ping = res.UdpPing;
             if (!res.Success) return;
-            await FetchGeoAsync(res, httpPort, ct);
+            await FetchGeoAsync(res, httpPort, ct).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(res.CountryCode) && string.IsNullOrWhiteSpace(res.Country))
-                await FetchGeoForServerAsync(res, ct);
+                await FetchGeoForServerAsync(res, ct).ConfigureAwait(false);
             if (measureHttpPing)
             {
-                long realPing = await MeasureHttpPingAsync(httpPort, ct);
+                long realPing = await MeasureHttpPingAsync(httpPort, ct).ConfigureAwait(false);
                 if (realPing > 0) res.Ping = realPing;
             }
         }
@@ -1423,11 +1423,11 @@ namespace CrimsonX.Services
             long bestPing = 0;
             using (var client = RelayDelayClient(httpPort))
             {
-                await MeasureRelayDelaySampleAsync(client, ct);
+                await MeasureRelayDelaySampleAsync(client, ct).ConfigureAwait(false);
                 for (int i = 0; i < ProbeAttempts; i++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    var (ok, rtt) = await MeasureRelayDelaySampleAsync(client, ct);
+                    var (ok, rtt) = await MeasureRelayDelaySampleAsync(client, ct).ConfigureAwait(false);
                     if (!ok) continue;
                     if (bestPing == 0 || rtt < bestPing) bestPing = rtt;
                 }
@@ -1436,9 +1436,9 @@ namespace CrimsonX.Services
             res.Ping = bestPing;
             res.Kind = bestPing > 0 ? ConfigPingKind.Ok : ConfigPingKind.TimedOut;
             if (!res.Success) return;
-            await FetchGeoAsync(res, httpPort, ct);
+            await FetchGeoAsync(res, httpPort, ct).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(res.CountryCode) && string.IsNullOrWhiteSpace(res.Country))
-                await FetchGeoForServerAsync(res, ct);
+                await FetchGeoForServerAsync(res, ct).ConfigureAwait(false);
         }
 
         private static HttpClient RelayDelayClient(int httpPort)
@@ -1462,7 +1462,7 @@ namespace CrimsonX.Services
                     ct.ThrowIfCancellationRequested();
                     var sw = Stopwatch.StartNew();
                     using var req = new HttpRequestMessage(HttpMethod.Get, target);
-                    using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                    using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                     if (!resp.IsSuccessStatusCode && resp.StatusCode != HttpStatusCode.NoContent && resp.StatusCode != HttpStatusCode.Found)
                         return (false, 0);
                     sw.Stop();
@@ -1620,10 +1620,10 @@ namespace CrimsonX.Services
                 proc.StartInfo.UseShellExecute = false;
                 proc.StartInfo.CreateNoWindow = true;
                 var started = proc;
-                await Task.Run(() => { started.Start(); }, ct);
+                await Task.Run(() => { started.Start(); }, ct).ConfigureAwait(false);
                 JobManager.AddProcess(proc);
                 var watch = Stopwatch.StartNew();
-                if (!await WaitForUdpBatchReadyAsync(proc, session.HttpPorts, ct))
+                if (!await WaitForUdpBatchReadyAsync(proc, session.HttpPorts, ct).ConfigureAwait(false))
                 {
                     string reason = proc.HasExited
                         ? "xray exited while the batch was starting"
@@ -1662,12 +1662,12 @@ namespace CrimsonX.Services
                 bool allOpen = true;
                 foreach (int port in httpPorts)
                 {
-                    if (await IsTcpPortOpenAsync(port)) continue;
+                    if (await IsTcpPortOpenAsync(port).ConfigureAwait(false)) continue;
                     allOpen = false;
                     break;
                 }
                 if (allOpen && watch.ElapsedMilliseconds >= BatchReadySettleMs) return true;
-                await Task.Delay(BatchReadyPollMs, ct);
+                await Task.Delay(BatchReadyPollMs, ct).ConfigureAwait(false);
             }
             return false;
         }
@@ -1678,7 +1678,7 @@ namespace CrimsonX.Services
             {
                 using var client = new TcpClient();
                 using var timeout = new CancellationTokenSource(200);
-                await client.ConnectAsync(IPAddress.Loopback, port, timeout.Token);
+                await client.ConnectAsync(IPAddress.Loopback, port, timeout.Token).ConfigureAwait(false);
                 return true;
             }
             catch { return false; }
@@ -1718,24 +1718,24 @@ namespace CrimsonX.Services
             }
 
             Task RunSingleAsync(int index)
-                => Task.Run(async () => results[index] = await TestRelayOnlyAsync(links[index], cfg, ct, sendThroughIp, measureHttpPing, stun, warmUpFirst, tcp), ct);
+                => Task.Run(async () => results[index] = await TestRelayOnlyAsync(links[index], cfg, ct, sendThroughIp, measureHttpPing, stun, warmUpFirst, tcp).ConfigureAwait(false), ct);
 
             var running = new List<Task>();
             foreach (int index in stragglers) running.Add(RunSingleAsync(index));
 
             if (outbounds.Count == 0)
             {
-                await AwaitAllAsync(running, ct);
+                await AwaitAllAsync(running, ct).ConfigureAwait(false);
                 return results;
             }
 
-            UdpBatchStart start = await StartUdpBatchSessionAsync(outbounds, cfg, ct, sendThroughIp, stun);
+            UdpBatchStart start = await StartUdpBatchSessionAsync(outbounds, cfg, ct, sendThroughIp, stun).ConfigureAwait(false);
             UdpBatchSession session = start.Session;
             if (session == null)
             {
                 SimpleLogger.LogFirst("batch-fallback", $"[Batch] {outbounds.Count} configs: one shared instance failed ({start.Error}) - testing one instance per config instead");
                 foreach (int index in indexes) running.Add(RunSingleAsync(index));
-                await AwaitAllAsync(running, ct);
+                await AwaitAllAsync(running, ct).ConfigureAwait(false);
                 return results;
             }
             try
@@ -1749,14 +1749,14 @@ namespace CrimsonX.Services
                     {
                         try
                         {
-                            if (tcp) await ProbeOverTcpAsync(result, httpPort, ct);
-                            else await ProbeOverUdpAsync(result, httpPort, udpPort, warmUpFirst, measureHttpPing, stun, ct);
+                            if (tcp) await ProbeOverTcpAsync(result, httpPort, ct).ConfigureAwait(false);
+                            else await ProbeOverUdpAsync(result, httpPort, udpPort, warmUpFirst, measureHttpPing, stun, ct).ConfigureAwait(false);
                         }
                         catch (OperationCanceledException) { result.Success = false; result.UdpOk = false; }
                         catch { result.Success = false; result.UdpOk = false; }
                     }, ct));
                 }
-                await AwaitAllAsync(running, ct);
+                await AwaitAllAsync(running, ct).ConfigureAwait(false);
                 return results;
             }
             finally
@@ -1768,7 +1768,7 @@ namespace CrimsonX.Services
         private static async Task AwaitAllAsync(List<Task> running, CancellationToken ct)
         {
             if (running.Count == 0) return;
-            try { await Task.WhenAll(running); }
+            try { await Task.WhenAll(running).ConfigureAwait(false); }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (OperationCanceledException) { }
             catch { }
@@ -1790,16 +1790,16 @@ namespace CrimsonX.Services
                 using var probeSocket = new UdpClient();
                 for (int attempt = 0; attempt < StabilitySessionAttempts && session == null; attempt++)
                 {
-                    var candidate = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp, stun);
+                    var candidate = await StartUdpTestSessionAsync(outboundJsonStr, cfg, ct, sendThroughIp, stun).ConfigureAwait(false);
                     if (candidate == null) continue;
                     bool ready;
                     if (tcp)
                     {
                         relayClient?.Dispose();
                         relayClient = RelayDelayClient(candidate.HttpPort);
-                        ready = await WarmUpRelayAsync(relayClient, ct);
+                        ready = await WarmUpRelayAsync(relayClient, ct).ConfigureAwait(false);
                     }
-                    else ready = await WarmUpAsync(candidate.UdpPort, probeSocket, ct, stun);
+                    else ready = await WarmUpAsync(candidate.UdpPort, probeSocket, ct, stun).ConfigureAwait(false);
                     if (ready) session = candidate;
                     else candidate.Dispose();
                 }
@@ -1809,9 +1809,9 @@ namespace CrimsonX.Services
                 {
                     ct.ThrowIfCancellationRequested();
                     (bool Ok, long RttMs) sample;
-                    if (tcp && relayClient != null) sample = await MeasureRelayDelaySampleAsync(relayClient, ct, capPing: false);
+                    if (tcp && relayClient != null) sample = await MeasureRelayDelaySampleAsync(relayClient, ct, capPing: false).ConfigureAwait(false);
                     else if (tcp) sample = (false, 0);
-                    else sample = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun);
+                    else sample = await ProbeUdpAsync(session.UdpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun).ConfigureAwait(false);
                     var (ok, rtt) = sample;
                     result.Sent++;
                     if (ok)
@@ -1824,7 +1824,7 @@ namespace CrimsonX.Services
                     try { onSample?.Invoke(ok, rtt); } catch { }
                     long nextTick = (long)result.Sent * intervalMs;
                     int wait = (int)(nextTick - elapsed.ElapsedMilliseconds);
-                    if (wait > 0) await Task.Delay(wait, ct);
+                    if (wait > 0) await Task.Delay(wait, ct).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)
@@ -1859,7 +1859,7 @@ namespace CrimsonX.Services
                     var sw = Stopwatch.StartNew();
                     using var req = new HttpRequestMessage(HttpMethod.Get, target);
                     req.Headers.ConnectionClose = true;
-                    using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                    using var resp = await client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                     if (!resp.IsSuccessStatusCode && resp.StatusCode != HttpStatusCode.NoContent && resp.StatusCode != HttpStatusCode.Found)
                         return 0;
                     sw.Stop();
@@ -1908,7 +1908,7 @@ namespace CrimsonX.Services
             while (budget.ElapsedMilliseconds < WarmupBudgetMs)
             {
                 ct.ThrowIfCancellationRequested();
-                var (ok, _) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, socket, requireNtpReply: !stun, stun: stun);
+                var (ok, _) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, socket, requireNtpReply: !stun, stun: stun).ConfigureAwait(false);
                 if (ok) return true;
             }
             return false;
@@ -1919,7 +1919,7 @@ namespace CrimsonX.Services
             while (budget.ElapsedMilliseconds < WarmupBudgetMs)
             {
                 ct.ThrowIfCancellationRequested();
-                var (ok, _) = await MeasureRelayDelaySampleAsync(client, ct, capPing: false);
+                var (ok, _) = await MeasureRelayDelaySampleAsync(client, ct, capPing: false).ConfigureAwait(false);
                 if (ok) return true;
             }
             return false;
@@ -1944,9 +1944,9 @@ namespace CrimsonX.Services
                         using var geoReq = new HttpRequestMessage(HttpMethod.Get, endpoint);
                         geoReq.Headers.ConnectionClose = true;
                         geoReq.Headers.UserAgent.ParseAdd("Mozilla/5.0");
-                        using var geoResp = await client.SendAsync(geoReq, ct);
+                        using var geoResp = await client.SendAsync(geoReq, ct).ConfigureAwait(false);
                         if (!geoResp.IsSuccessStatusCode) continue;
-                        var geoJson = JObject.Parse(await geoResp.Content.ReadAsStringAsync(ct));
+                        var geoJson = JObject.Parse(await geoResp.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
                         string code = geoJson["country_code"]?.ToString() ?? geoJson["countryCode"]?.ToString() ?? "";
                         string country = geoJson["country"]?.ToString() ?? "";
                         string continent = geoJson["continent_code"]?.ToString() ?? geoJson["continentCode"]?.ToString() ?? "";
@@ -1991,7 +1991,7 @@ namespace CrimsonX.Services
                 if (string.IsNullOrWhiteSpace(target)) return;
                 if (!System.Net.IPAddress.TryParse(target, out _))
                 {
-                    var addresses = await Dns.GetHostAddressesAsync(target, ct);
+                    var addresses = await Dns.GetHostAddressesAsync(target, ct).ConfigureAwait(false);
                     foreach (var address in addresses)
                     {
                         if (address.AddressFamily == AddressFamily.InterNetwork)
@@ -2003,9 +2003,9 @@ namespace CrimsonX.Services
                 }
                 if (!System.Net.IPAddress.TryParse(target, out _) || XrayLinkParser.IsLocalAddress(target)) return;
                 using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(4000) };
-                using var resp = await client.GetAsync($"https://get.geojs.io/v1/ip/geo/{target}.json", ct);
+                using var resp = await client.GetAsync($"https://get.geojs.io/v1/ip/geo/{target}.json", ct).ConfigureAwait(false);
                 if (!resp.IsSuccessStatusCode) return;
-                var geoJson = JObject.Parse(await resp.Content.ReadAsStringAsync(ct));
+                var geoJson = JObject.Parse(await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
                 string code = geoJson["country_code"]?.ToString() ?? "";
                 string country = geoJson["country"]?.ToString() ?? "";
                 if (string.IsNullOrWhiteSpace(code) && string.IsNullOrWhiteSpace(country)) return;

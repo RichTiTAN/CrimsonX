@@ -490,10 +490,6 @@ namespace CrimsonX.Services
         public static string ProbeSendThrough(AppConfig config, Func<string, bool>? isAvailable = null)
             => ProbeBinding(config, isAvailable).Primary;
 
-        /// <summary>
-        /// The one adapter a probe (a config test, the watchdog, the scanner) leaves through. It carries both
-        /// source families so a v6 endpoint is never pinned to a v4 address.
-        /// </summary>
         public static AdapterBinding ProbeBinding(AppConfig config, Func<string, bool>? isAvailable = null)
         {
             if (config == null) return AdapterBinding.Empty;
@@ -551,10 +547,6 @@ namespace CrimsonX.Services
             return ApplySendThrough(xrayDoc, AdapterBindings.ResolveFromIp(adapterIp));
         }
 
-        /// <summary>
-        /// Pins the hop that opens the socket to the source address that matches the endpoint's own family.
-        /// An IPv4 pick is never written onto an IPv6 endpoint (the dialer refuses a v4 local address for it).
-        /// </summary>
         public static string ApplySendThrough(string xrayDoc, AdapterBinding binding)
         {
             if (string.IsNullOrWhiteSpace(xrayDoc) || binding == null || !binding.HasAny) return xrayDoc ?? "";

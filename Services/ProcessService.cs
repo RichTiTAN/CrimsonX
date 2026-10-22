@@ -20,6 +20,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CrimsonX.Services
@@ -113,6 +114,28 @@ namespace CrimsonX.Services
                 }
             }
             catch (ArgumentException) { /* PID no longer exists — normal race condition */ }
+            catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
+        }
+
+        public static async Task KillVpnProcessAsync(int? pid)
+        {
+            if (pid == null) return;
+            try
+            {
+                using var p = Process.GetProcessById(pid.Value);
+                var name = p.ProcessName;
+                if ((name.IndexOf("xray",     StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     name.IndexOf("sing-box", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     name.IndexOf("sing_box", StringComparison.OrdinalIgnoreCase) >= 0) &&
+                    !p.HasExited)
+                {
+                    p.Kill();
+                    using var cts = new CancellationTokenSource(1000);
+                    try { await p.WaitForExitAsync(cts.Token).ConfigureAwait(false); }
+                    catch (OperationCanceledException) { }
+                }
+            }
+            catch (ArgumentException) { }
             catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
         }
 
