@@ -19,6 +19,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -30,7 +31,8 @@ namespace CrimsonX.Pages
 {
     public static class PasteRouter
     {
-        private static readonly HashSet<object> Hooked = new HashSet<object>();
+        private static readonly ConditionalWeakTable<object, object> Hooked = new ConditionalWeakTable<object, object>();
+        private static readonly ConditionalWeakTable<object, object> HookedContext = new ConditionalWeakTable<object, object>();
         private static readonly HashSet<object> Running = new HashSet<object>();
 
         public static bool IsPasteGesture(KeyEventArgs e)
@@ -78,7 +80,7 @@ namespace CrimsonX.Pages
 
         private static void AttachGesture(Control control, Func<string, Task> onPasted)
         {
-            if (!Hooked.Add(control)) return;
+            if (!Hooked.TryAdd(control, control)) return;
             control.AddHandler(InputElement.KeyDownEvent, async (object? sender, KeyEventArgs e) =>
             {
                 if (!IsPasteGesture(e)) return;
@@ -89,6 +91,7 @@ namespace CrimsonX.Pages
 
         private static void AttachContext(Control control, Func<string, Task> onPasted)
         {
+            if (!HookedContext.TryAdd(control, control)) return;
             control.AddHandler(InputElement.ContextRequestedEvent, async (object? sender, ContextRequestedEventArgs e) =>
             {
                 e.Handled = true;
@@ -98,7 +101,7 @@ namespace CrimsonX.Pages
 
         private static void AttachTextBox(TextBox textBox, Func<string, Task> onPasted)
         {
-            if (!Hooked.Add(textBox)) return;
+            if (!Hooked.TryAdd(textBox, textBox)) return;
             textBox.AddHandler(TextBox.PastingFromClipboardEvent, async (object? sender, RoutedEventArgs e) =>
             {
                 e.Handled = true;

@@ -47,7 +47,10 @@ namespace CrimsonX.Pages
 
         // ── Scanning ──
 
-        private async void Start_Click(object? sender, RoutedEventArgs e)
+        private void Start_Click(object? sender, RoutedEventArgs e)
+            => CrimsonX.Services.BackgroundTask.RunOnUi("scanner.start", () => StartClickAsync(sender, e));
+
+        private async Task StartClickAsync(object? sender, RoutedEventArgs e)
         {
             if (_isScanning)
             {
@@ -119,8 +122,6 @@ namespace CrimsonX.Pages
             int discardPing = SelectedDiscardPing();
             string adapterIp = SelectedAdapterIp();
             string routeName = SelectedAdapterName();
-            var routeBefore = AdapterCounters(adapterIp);
-            ShowRoute(AppStrings.ScannerScan, routeName, adapterIp, before: null);
             _lastGoal = goal;
             _items.Clear();
             _seen.Clear();
@@ -134,9 +135,16 @@ namespace CrimsonX.Pages
             var ct = _scanCts.Token;
             SetScanning(true);
             _scanStartedAt = DateTime.UtcNow;
+            await Task.Yield();
+            var start = await Task.Run(() => (
+                Before: AdapterCounters(adapterIp),
+                Up: adapterIp.Length == 0 || ConfigTester.IsAvailableAdapterAddress(adapterIp)), ct);
+            var routeBefore = start.Before;
+            ShowRoute(AppStrings.ScannerScan, routeName, adapterIp, before: null, adapterUp: start.Up);
             bool cancelled = false;
             bool failed = false;
             int padded = 0;
+            bool loggedFirstBatch = false;
             var scanWatch = Stopwatch.StartNew();
             try
             {
@@ -174,6 +182,11 @@ namespace CrimsonX.Pages
                         if (batch.Count == 0) break;
                         ct.ThrowIfCancellationRequested();
                         var results = await ScanBatchAsync(batch, adapterIp, ct);
+                        if (!loggedFirstBatch)
+                        {
+                            loggedFirstBatch = true;
+                            SimpleLogger.Log($"[UdpScanner] first batch ready in {scanWatch.ElapsedMilliseconds} ms");
+                        }
                         _testedCount += results.Length;
                         UpdateScanProgress();
                         foreach (var r in results)

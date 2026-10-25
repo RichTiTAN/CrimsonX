@@ -57,6 +57,15 @@
             <Setter Property="FlowDirection" Value="LeftToRight"/>
         </Style>
 
+        <Style Selector="TextBlock.sectionTitle">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="LetterSpacing" Value="1"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="FlowDirection" Value="LeftToRight"/>
+        </Style>
+
         <Style Selector="Border.scanRow">
             <Setter Property="Background" Value="#CC0F1114"/>
             <Setter Property="BorderBrush" Value="#242E38"/>
@@ -87,6 +96,30 @@
             <Setter Property="RenderTransform" Value="scale(0.94)"/>
         </Style>
 
+        <Style Selector="Border.segCell">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.segCell:pointerover">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
+        <Style Selector="Border.scanCell">
+            <Setter Property="Background" Value="#0A0C0F"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.scanCell:pointerover">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+        </Style>
         <Style Selector="Button.scanSegment">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -94,18 +127,16 @@
             <Setter Property="Padding" Value="9,0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="VerticalAlignment" Value="Stretch"/>
             <Setter Property="MinHeight" Value="22"/>
         </Style>
-        <Style Selector="Button.scanSegment /template/ ContentPresenter">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="Button.scanSegment:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#1AFFFFFF"/>
-        </Style>
         <Style Selector="Button.scanSegment:pointerover">
             <Setter Property="Foreground" Value="#E2E8F0"/>
-            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.scanSegment:pressed">
+            <Setter Property="Background" Value="Transparent"/>
         </Style>
         <Style Selector="Button.scanSegment.activeOpt">
             <Setter Property="Foreground" Value="#FFFFFF"/>
@@ -164,42 +195,56 @@
     </UserControl.Resources>
 
     <Border x:Name="udpContent" Background="Transparent" BorderThickness="0" Padding="6,45,6,7" Margin="0,0,10,20" HorizontalAlignment="Stretch" VerticalAlignment="Center">
-        <Grid RowDefinitions="Auto, Auto" RowSpacing="10">
+        <Grid ColumnDefinitions="*, 10, *">
 
-            <!-- ── Qualified configs ── -->
-            <Border Grid.Row="1" Classes="scanCard" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="7" Height="234" VerticalAlignment="Top">
-                <Grid RowDefinitions="Auto, *">
-                    <TextBlock x:Name="lblBoxConfigs" Grid.Row="0" Classes="boxTitle" Text="CONFIGS" Margin="0,0,0,6"/>
-                    <Grid Grid.Row="1">
-                        <StackPanel Name="pnlEmpty" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <TextBlock Name="lblEmpty" Text="NO CONFIGS TESTED YET" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
-                                       LetterSpacing="1" VerticalAlignment="Center" TextAlignment="Center"/>
-                            <TextBlock Name="lblEmptyDots" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
-                                       LetterSpacing="1" VerticalAlignment="Center" Width="0"/>
-                        </StackPanel>
+            <Border x:Name="panTestingBox" Grid.Column="0" Classes="scanCard" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto">
 
-                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                            <Grid ColumnDefinitions="*, 6, *">
-                                <ItemsControl Name="lstResultsLeft" Grid.Column="0" ItemTemplate="{StaticResource ScanItemTemplate}"/>
-                                <ItemsControl Name="lstResultsRight" Grid.Column="2" ItemTemplate="{StaticResource ScanItemTemplate}"/>
-                            </Grid>
-                        </ScrollViewer>
+                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,18">
+                        <TextBlock Grid.Column="0" Name="lblScanStatus" Text="READY" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"
+                                   TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                        <Border x:Name="panScanActions" Grid.Column="1" Classes="scanCell" CornerRadius="4" BorderBrush="#2D3748" BorderThickness="1"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" Height="24" ClipToBounds="True">
+                            <Button Name="btnStart" Content="START TESTING" Click="Start_Click"
+                                    Classes="scanSegment" FontSize="10" FontWeight="Bold" Foreground="#E2E8F0"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                    VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand"
+                                    BorderThickness="0" CornerRadius="3" MinWidth="92" MinHeight="22">
+                            </Button>
+                        </Border>
                     </Grid>
-                </Grid>
-            </Border>
 
-            <Grid Grid.Row="0" ColumnDefinitions="*, 10, *">
+                    <TextBlock Grid.Row="1" Name="lblSettingsTitle" Classes="sectionTitle" Text="SETTINGS" Margin="0,0,0,4"/>
 
-                <Border x:Name="panSettingsBox" Grid.Column="2" Classes="scanCard" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,10">
-
-                    <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto, Auto" RowSpacing="7" VerticalAlignment="Top">
-
+                    <Grid Grid.Row="2" ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto, Auto, Auto" RowSpacing="7" VerticalAlignment="Top" Margin="0,0,0,18">
                         <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                            <PathIcon Data="M21,9L17,5V8H10V10H17V13M7,11L3,15L7,19V16H14V14H7V11Z" Width="13" Height="13" Foreground="#8B949E"/>
+                            <TextBlock Name="lblMode" Classes="settingTitle" Text="MODE" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <Border x:Name="panModeActions" Grid.Row="0" Grid.Column="1" Background="#0A0C0F" CornerRadius="4" BorderBrush="#2D3748" BorderThickness="1"
+                                Width="85" HorizontalAlignment="Right" VerticalAlignment="Center" Height="24" ClipToBounds="True">
+                            <Grid ColumnDefinitions="*,1,*">
+                                <Border Grid.Column="0" Classes="segCell" CornerRadius="3,0,0,3">
+                                    <Button Name="btnScanTcp" Content="TCP" Click="ScanProtocol_Click"
+                                            Classes="scanSegment" FontSize="9" FontWeight="Bold" MinHeight="0"
+                                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                                </Border>
+                                <Border Grid.Column="1" Width="1" Background="#2D3748" VerticalAlignment="Stretch"/>
+                                <Border Grid.Column="2" Classes="segCell" CornerRadius="0,3,3,0">
+                                    <Button Name="btnScanUdp" Content="UDP" Click="ScanProtocol_Click"
+                                            Classes="scanSegment activeOpt" FontSize="9" FontWeight="Bold" MinHeight="0"
+                                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
                             <PathIcon Data="M7,13V11H21V13H7M7,19V17H21V19H7M7,7V5H21V7H7M3,8V5H2V4H4V8H3M2,17V16H5V20H2V19H4V18.5H3V17.5H4V17H2M4.25,10A0.75,0.75 0 0,1 5,10.75C5,10.95 4.92,11.14 4.79,11.27L3.12,13H5V14H2V13.08L4,11H2V10H4.25Z"
                                       Width="13" Height="13" Foreground="#8B949E"/>
                             <TextBlock Name="lblAmount" Classes="settingTitle" Text="AMOUNT OF CONFIGS" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
-                        <ComboBox Name="cmbAmount" Grid.Row="0" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
+                        <ComboBox Name="cmbAmount" Grid.Row="1" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
                                   CornerRadius="4" MinHeight="24" Height="24" Padding="8,0" Width="85" FontSize="10" FontWeight="SemiBold"
                                   VerticalContentAlignment="Center" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand"
                                   SelectionChanged="ScannerOption_Changed">
@@ -208,11 +253,11 @@
                             <ComboBoxItem Content="15" FontSize="10" FontWeight="SemiBold"/>
                         </ComboBox>
 
-                        <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
                             <PathIcon Data="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" Width="13" Height="13" Foreground="#8B949E"/>
                             <TextBlock Name="lblConcurrency" Classes="settingTitle" Text="CONCURRENT TESTING" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
-                        <ComboBox Name="cmbConcurrency" Grid.Row="1" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
+                        <ComboBox Name="cmbConcurrency" Grid.Row="2" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
                                   CornerRadius="4" MinHeight="24" Height="24" Padding="8,0" Width="85" FontSize="10" FontWeight="SemiBold"
                                   VerticalContentAlignment="Center" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand"
                                   SelectionChanged="ScannerOption_Changed">
@@ -220,12 +265,12 @@
                             <ComboBoxItem Content="10" FontSize="10" FontWeight="SemiBold"/>
                         </ComboBox>
 
-                        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                        <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
                             <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"
                                       Width="13" Height="13" Foreground="#8B949E"/>
                             <TextBlock Name="lblDiscard" Classes="settingTitle" Text="DISCARD HIGHER THAN" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
-                        <ComboBox Name="cmbDiscard" Grid.Row="2" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
+                        <ComboBox Name="cmbDiscard" Grid.Row="3" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
                                   CornerRadius="4" MinHeight="24" Height="24" Padding="8,0" Width="85" FontSize="10" FontWeight="SemiBold"
                                   VerticalContentAlignment="Center" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand"
                                   SelectionChanged="ScannerOption_Changed">
@@ -241,12 +286,12 @@
                             <ComboBoxItem Content="900 ms" FontSize="10" FontWeight="SemiBold"/>
                         </ComboBox>
 
-                        <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                        <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
                             <PathIcon Data="M21 3H3C1.89 3 1 3.89 1 5v14c0 1.11.89 2 2 2h18c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm-1 14H4V7h16v10z"
                                       Width="13" Height="13" Foreground="#8B949E"/>
                             <TextBlock Name="lblAdapter" Classes="settingTitle" Text="TEST ADAPTER" FontSize="10" FontWeight="SemiBold" LetterSpacing="0.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
-                        <ComboBox Name="cmbAdapter" Grid.Row="3" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
+                        <ComboBox Name="cmbAdapter" Grid.Row="4" Grid.Column="1" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1"
                                   CornerRadius="4" MinHeight="24" Height="24" Padding="8,0" Width="85" FontSize="10" FontWeight="SemiBold"
                                   VerticalContentAlignment="Center" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand"
                                   SelectionChanged="ScannerOption_Changed">
@@ -254,55 +299,44 @@
                         </ComboBox>
 
                     </Grid>
-                </Border>
 
-                <Border x:Name="panTestingBox" Grid.Column="0" Classes="scanCard" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,10">
-                    <Grid RowDefinitions="Auto, *, Auto">
+                    <TextBlock Grid.Row="3" Name="lblGraphSection" Classes="sectionTitle" Text="GRAPH" Margin="0,0,0,4"/>
 
-                        <Grid Grid.Row="2" ColumnDefinitions="Auto, *" Margin="0,6,0,0">
-                            <TextBlock Name="lblGraphTitle" Text="STABILITY" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
-                            <Border Name="boxGraphInfo" Grid.Column="1" ClipToBounds="True" HorizontalAlignment="Stretch"
-                                    VerticalAlignment="Center" Margin="10,0,0,0">
-                                <TextBlock Name="lblGraphInfo" Text="" FontSize="10" FontWeight="SemiBold"
-                                           FlowDirection="LeftToRight" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
-                                           HorizontalAlignment="Right" VerticalAlignment="Center" Padding="6,1,0,1"/>
-                            </Border>
-                        </Grid>
+                    <Border Grid.Row="4" Classes="graphBox" CornerRadius="4" Padding="6,4" MinHeight="108"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0">
+                        <cx:StabilityGraph Name="graphStability" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                    </Border>
 
-                        <Border Grid.Row="1" Classes="graphBox" CornerRadius="4" Padding="6,4" MinHeight="48"
-                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0">
-                            <cx:StabilityGraph Name="graphStability" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                    <Grid Grid.Row="5" ColumnDefinitions="Auto, *" Margin="0,6,0,0">
+                        <TextBlock Name="lblGraphTitle" Text="STABILITY" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                        <Border Name="boxGraphInfo" Grid.Column="1" ClipToBounds="True" HorizontalAlignment="Stretch"
+                                VerticalAlignment="Center" Margin="10,0,0,0">
+                            <TextBlock Name="lblGraphInfo" Text="" FontSize="10" FontWeight="SemiBold"
+                                       FlowDirection="LeftToRight" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center" Padding="6,1,0,1"/>
                         </Border>
-
-                        <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,8">
-                            <TextBlock Grid.Column="0" Name="lblScanStatus" Text="READY" FontSize="10" FontWeight="SemiBold" Foreground="#8B949E"
-                                       TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight" VerticalAlignment="Center" Margin="0,0,10,0"/>
-
-                            <Border x:Name="panScanActions" Grid.Column="1" Background="#0A0C0F" CornerRadius="4" BorderBrush="#2D3748" BorderThickness="1"
-                                    HorizontalAlignment="Right" VerticalAlignment="Center" Height="24" ClipToBounds="True">
-                                <Grid ColumnDefinitions="Auto,1,Auto,1,Auto">
-                                    <Button Grid.Column="0" Name="btnScanTcp" Content="TCP" Click="ScanProtocol_Click"
-                                            Classes="scanSegment" FontSize="9" FontWeight="Bold" MinHeight="0"
-                                            CornerRadius="3,0,0,3" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
-                                    <Border Grid.Column="1" Width="1" Background="#2D3748" VerticalAlignment="Stretch"/>
-                                    <Button Grid.Column="2" Name="btnScanUdp" Content="UDP" Click="ScanProtocol_Click"
-                                            Classes="scanSegment activeOpt" FontSize="9" FontWeight="Bold" MinHeight="0"
-                                            CornerRadius="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
-                                    <Border Grid.Column="3" Width="1" Background="#2D3748" VerticalAlignment="Stretch"/>
-                                    <Button Grid.Column="4" Name="btnStart" Content="START TESTING" Click="Start_Click"
-                                            Classes="scanSegment" FontSize="10" FontWeight="Bold" Foreground="#E2E8F0" Background="Transparent"
-                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                            VerticalAlignment="Stretch" VerticalContentAlignment="Center" Cursor="Hand"
-                                            BorderThickness="0" CornerRadius="0,3,3,0" Padding="12,0" MinWidth="92" MinHeight="22">
-                                    </Button>
-                                </Grid>
-                            </Border>
-                        </Grid>
-
                     </Grid>
-                </Border>
-            </Grid>
 
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" Classes="scanCard" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="7" VerticalAlignment="Stretch">
+                <Grid RowDefinitions="Auto, *">
+                    <TextBlock x:Name="lblBoxConfigs" Grid.Row="0" Classes="boxTitle" Text="CONFIGS" Margin="0,0,0,6"/>
+                    <Grid Grid.Row="1">
+                        <StackPanel Name="pnlEmpty" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Name="lblEmpty" Text="NO CONFIGS TESTED YET" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
+                                       LetterSpacing="1" VerticalAlignment="Center" TextAlignment="Center"/>
+                            <TextBlock Name="lblEmptyDots" Text="" FontSize="11" FontWeight="SemiBold" Foreground="#5A6270"
+                                       LetterSpacing="1" VerticalAlignment="Center" Width="0"/>
+                        </StackPanel>
+
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl Name="lstResults" ItemTemplate="{StaticResource ScanItemTemplate}"/>
+                        </ScrollViewer>
+                    </Grid>
+                </Grid>
+            </Border>
         </Grid>
     </Border>
 </UserControl>

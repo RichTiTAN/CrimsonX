@@ -151,7 +151,7 @@
                                 </Grid.Transitions>
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Grid.Column="0">
                                     <PathIcon x:Name="icoSlot1" Width="12" Height="12" Foreground="#8B949E"/>
-                                    <TextBlock x:Name="lblSlot1" Classes="settingTitle" ToolTip.Tip="Placeholder" Text="CUSTOM CONFIGS" FontSize="10" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="lblSlot1" Classes="settingTitle" Text="CUSTOM CONFIGS" FontSize="10" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 <Viewbox Grid.Column="1" Stretch="Uniform" Height="24" HorizontalAlignment="Right"><ToggleSwitch x:Name="togSlot1" OnContent="{x:Null}" OffContent="{x:Null}" IsCheckedChanged="TogSlot1_IsCheckedChanged"/></Viewbox>
                             </Grid>
@@ -177,7 +177,7 @@
                                 </Grid.Transitions>
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Grid.Column="0">
                                     <PathIcon x:Name="icoSlot2" Width="12" Height="12" Foreground="#8B949E"/>
-                                    <TextBlock x:Name="lblSlot2" Classes="settingTitle" ToolTip.Tip="Placeholder" Text="AUTO-CONNECT" FontSize="10" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="lblSlot2" Classes="settingTitle" Text="AUTO-CONNECT" FontSize="10" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                 </StackPanel>
                                 <Viewbox Grid.Column="1" Stretch="Uniform" Height="24" HorizontalAlignment="Right"><ToggleSwitch x:Name="togSlot2" OnContent="{x:Null}" OffContent="{x:Null}" IsCheckedChanged="TogSlot2_IsCheckedChanged"/></Viewbox>
                             </Grid>

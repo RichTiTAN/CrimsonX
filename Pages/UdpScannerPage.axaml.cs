@@ -53,9 +53,9 @@ namespace CrimsonX.Pages
         public string OutboundJson { get; set; } = "";
         public string Source { get; set; } = "";
         public string CountryCode { get; set; } = "";
-        public string StabilityLabel { get; set; } = "STABILITY";
-        public string StabilityTip { get; set; } = "Stability test";
-        public string CopyTip { get; set; } = "Copy share link";
+        public string StabilityLabel { get; set; } = AppStrings.UdpScannerStability;
+        public string StabilityTip { get; set; } = AppStrings.TtUdpScannerStability;
+        public string CopyTip { get; set; } = AppStrings.TtUdpScannerCopy;
         public string SaveTip { get; set; } = "";
         public long Ping { get; set; }
 
@@ -287,7 +287,11 @@ namespace CrimsonX.Pages
             AppStrings.Apply(T("lblDiscard"), AppStrings.UdpScannerDiscard);
             AppStrings.Apply(T("lblAdapter"), AppStrings.UdpScannerAdapter);
             AppStrings.Apply(T("lblGraphTitle"), AppStrings.UdpScannerStability);
-        AppStrings.Apply(T("lblBoxConfigs"), AppStrings.UdpScannerBoxConfigs);
+            AppStrings.Apply(T("lblSettingsTitle"), AppStrings.UdpScannerSettings);
+            AppStrings.Apply(T("lblGraphSection"), AppStrings.UdpScannerGraphTitle);
+            var graph = this.FindControl<CrimsonX.Controls.StabilityGraph>("graphStability");
+            graph?.SetAxisLabels(AppStrings.PingLabel, AppStrings.UdpScannerTimeAxis);
+            AppStrings.Apply(T("lblBoxConfigs"), AppStrings.UdpScannerBoxConfigs);
             AppStrings.ApplyToolTip(T("lblAmount"), AppStrings.TtUdpScannerAmount);
             AppStrings.ApplyToolTip(T("lblConcurrency"), AppStrings.TtUdpScannerConcurrency);
             AppStrings.ApplyToolTip(T("lblDiscard"), AppStrings.TtUdpScannerDiscard);
@@ -318,17 +322,8 @@ namespace CrimsonX.Pages
 
         private void RefreshResults()
         {
-            var left = new List<UdpScanItem>();
-            var right = new List<UdpScanItem>();
-            for (int i = 0; i < _items.Count; i++)
-            {
-                if (i % 2 == 0) left.Add(_items[i]);
-                else right.Add(_items[i]);
-            }
-            var lstLeft = this.FindControl<ItemsControl>("lstResultsLeft");
-            if (lstLeft != null) lstLeft.ItemsSource = left;
-            var lstRight = this.FindControl<ItemsControl>("lstResultsRight");
-            if (lstRight != null) lstRight.ItemsSource = right;
+            var list = this.FindControl<ItemsControl>("lstResults");
+            if (list != null) list.ItemsSource = new List<UdpScanItem>(_items);
             var empty = this.FindControl<StackPanel>("pnlEmpty");
             if (empty != null)
             {
@@ -396,10 +391,10 @@ namespace CrimsonX.Pages
 
         // ── Actions on a result ──
 
-        private async void Copy_Click(object? sender, RoutedEventArgs e)
+        private void Copy_Click(object? sender, RoutedEventArgs e)
         {
             if ((sender as Control)?.DataContext is not UdpScanItem item) return;
-            await CopyItemAsync(item);
+            CrimsonX.Services.BackgroundTask.RunOnUi("scanner.copy", () => CopyItemAsync(item));
         }
 
         private Control? _pressedRow;
@@ -561,8 +556,8 @@ namespace CrimsonX.Pages
             if (full.Length > 0) AppStrings.ApplyToolTip(lbl, full);
         }
 
-        private void ShowRoute(string what, string adapterName, string adapterIp, (long Sent, long Received)? before)
-            => SetRoute(adapterName, adapterIp, before, what);
+        private void ShowRoute(string what, string adapterName, string adapterIp, (long Sent, long Received)? before, bool? adapterUp = null)
+            => SetRoute(adapterName, adapterIp, before, what, adapterUp);
 
         private void RefreshIdleRoute()
         {
@@ -570,11 +565,11 @@ namespace CrimsonX.Pages
             SetRoute(name, ip, before: null, what: "");
         }
 
-        private void SetRoute(string adapterName, string adapterIp, (long Sent, long Received)? before, string what)
+        private void SetRoute(string adapterName, string adapterIp, (long Sent, long Received)? before, string what, bool? adapterUp = null)
         {
             string route;
             if (adapterIp.Length == 0) route = AppStrings.ScannerDefaultRoute;
-            else if (!ConfigTester.IsAvailableAdapterAddress(adapterIp))
+            else if (!(adapterUp ?? ConfigTester.IsAvailableAdapterAddress(adapterIp)))
                 route = $"{AppStrings.ScannerDefaultRoute} • {AppStrings.ScannerAdapterNotUp}";
             else route = $"{adapterName} ({adapterIp})";
 
@@ -639,6 +634,7 @@ namespace CrimsonX.Pages
             if (btn != null) btn.IsEnabled = false;
             var graph = this.FindControl<CrimsonX.Controls.StabilityGraph>("graphStability");
             graph?.Reset();
+            graph?.ReserveScale(true);
             var (routeName, routeIp) = PickedAdapter();
             var routeBefore = AdapterCounters(routeIp);
             ShowRoute(AppStrings.UdpScannerStability, routeName, routeIp, before: null);

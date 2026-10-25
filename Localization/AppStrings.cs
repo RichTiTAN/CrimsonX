@@ -620,6 +620,12 @@ namespace CrimsonX.Localization
 
         public static string UdpScannerBoxConfigs => IsPersian ? "کانفیگ ها" : "CONFIGS";
 
+        public static string UdpScannerSettings => IsPersian ? "تنظیمات" : "SETTINGS";
+
+        public static string UdpScannerGraphTitle => IsPersian ? "نمودار" : "GRAPH";
+
+        public static string UdpScannerTimeAxis => IsPersian ? "زمان" : "TIME";
+
         public static string TtUdpScannerStability => IsPersian ? "یک تست پایداری ۱۰ ثانیه ای روی این کانفیگ اجرا می کند (هر ۵۰۰ میلی ثانیه یک تست)، با همان پروتکلی که در بالا انتخاب شده است." : "Runs a 10 second stability test on this config (one probe every 500ms), over whichever protocol is picked above.";
 
         public static string TtUdpScannerCopy => IsPersian ? "کپی لینک اشتراک" : "Copy share link";
@@ -932,6 +938,8 @@ namespace CrimsonX.Localization
 
         public static string ToastUpdateFailedPrefix => IsPersian ? "خطا در بروزرسانی: " : "Failed to update: ";
 
+        public static string ToastUpdateCopyFailed => IsPersian ? "بروزرسانی دانلود شد ولی جایگزینی انجام نشد؛ دوباره تلاش کنید." : "The update downloaded but its files were not copied into place. Try again.";
+
         public static string ToastNewUpdateAvailable => IsPersian ? "بروزرسانی جدید در دسترس است" : "New update available";
 
         public static string ToastVpnInUse => IsPersian ? "آداپتور VPN از قبل توسط برنامه دیگری در حال استفاده است!" : "VPN adapter is already in use by another app!";
@@ -963,6 +971,8 @@ namespace CrimsonX.Localization
         public static string TtCustomXray   => IsPersian ? "یک نود خروجی شخصی تنظیم کنید تا ترافیک از آن عبور کند و وب سایت ها آدرس IP آن را ببینند. با فلش یکی از کانفیگ های ذخیره شده را انتخاب کنید یا یک کانفیگ xray، سینگ باکس، اپن وی پی ان یا وایرگارد را پیست کنید؛ دکمه + فایل را وارد می کند و SAVE آن را در کانفیگ های ذخیره شده نگه می دارد. کانفیگ های OpenVPN و WireGuard فقط در حالت VPN زنجیره می شوند." : "Configure a custom proxy node to act as your exit node. Traffic will be routed through this server, and websites will see its IP address. Pick one of your saved configs with the arrow, or paste any xray / sing-box / OpenVPN / WireGuard config: + imports a file and SAVE keeps it in your saved configs. OpenVPN and WireGuard exit nodes chain in VPN Mode only.";
 
         public static string TtAdapterBinding => IsPersian ? "کل ترافیک پروکسی را مجبور می کند منحصراً از طریق آداپتور شبکه انتخاب شده خارج شود. " : "Forces all proxy traffic to exclusively exit through the selected network adapter. ";
+
+        public static string TtUdpAdapterBinding => IsPersian ? "آداپتوری را انتخاب کنید تا ترافیک UDP مستقیم از یک کارت شبکه مشخص خارج شود." : "Select an adapter to force direct UDP traffic through a specific network interface.";
 
         public static string TtDnsSettings  => IsPersian ? "تنظیمات DNS رمزگذاری شده را کنترل می کند. DoH: DNS را از طریق HTTPS رمزگذاری می کند تا نشت و سانسور کاهش یابد؛ برای حالت پروکسی (Xray) و VPN (sing-box) اعمال می شود. DNS سیستم: DNS آداپتور شبکه اصلی ویندوز را هنگام اتصال تغییر می دهد تا پروکسی بتواند بوت استرپ کند؛ پس از قطع اتصال یا بستن برنامه بازگردانده می شود." : "Controls encrypted DNS settings. DoH: resolves DNS over HTTPS to reduce leaks and censorship; applies in proxy mode (Xray) and VPN mode (sing-box). System Proxy DNS: changes the Windows DNS on your main adapter at connect time so the proxy can bootstrap; restored on disconnect or app close.";
 

@@ -340,7 +340,7 @@ namespace CrimsonX.Pages
                 Content = _optText
             };
             _optMainButton.Classes.Add("optBtn");
-            ToolTip.SetTip(_optMainButton, AS.TtOptimize);
+            AS.ApplyToolTip(_optMainButton, AS.TtOptimize);
             _optMainButton.Click += OptimizeMain_Click;
 
             var gearIcon = new PathIcon
@@ -365,7 +365,7 @@ namespace CrimsonX.Pages
                 Content = gearIcon
             };
             _optGearButton.Classes.Add("optBtn");
-            ToolTip.SetTip(_optGearButton, AS.TtOptimizeGear);
+            AS.ApplyToolTip(_optGearButton, AS.TtOptimizeGear);
             _optGearButton.Click += OptimizeGear_Click;
 
             var separator = new Border { Width = 1, Background = new SolidColorBrush(Color.Parse("#2D3748")) };
@@ -474,7 +474,7 @@ namespace CrimsonX.Pages
                 VerticalContentAlignment = VerticalAlignment.Center,
                 SelectionBoxItemTemplate = new FuncDataTemplate<object?>((_, _) => new Panel(), false)
             };
-            ToolTip.SetTip(_optAdapterCombo, AS.TtOptimizeAdapter);
+            AS.ApplyToolTip(_optAdapterCombo, AS.TtOptimizeAdapter);
             _optAdapterCombo.SelectionChanged += OptimizeAdapter_Changed;
             Border? pill = null;
             _optAdapterCombo.TemplateApplied += (_, e) =>
@@ -535,7 +535,7 @@ namespace CrimsonX.Pages
                 Content = _optToggleText
             };
             _optToggleButton.Classes.Add("pillBtn");
-            ToolTip.SetTip(_optToggleButton, AS.TtOptimizeOnConnect);
+            AS.ApplyToolTip(_optToggleButton, AS.TtOptimizeOnConnect);
             _optToggleButton.Click += OptimizeOnConnect_Click;
 
             var pill = new Border { Child = _optToggleButton };
@@ -562,7 +562,7 @@ namespace CrimsonX.Pages
                 Content = _optAlternateText
             };
             _optAlternateButton.Classes.Add("pillBtn");
-            ToolTip.SetTip(_optAlternateButton, AS.TtOptimizeAlternateMode);
+            AS.ApplyToolTip(_optAlternateButton, AS.TtOptimizeAlternateMode);
             _optAlternateButton.Click += OptimizeAlternate_Click;
 
             var pill = new Border { Child = _optAlternateButton };
@@ -713,7 +713,10 @@ namespace CrimsonX.Pages
             return new SolidColorBrush(Color.Parse(fallback));
         }
 
-        private async void OptimizeMain_Click(object? sender, RoutedEventArgs e)
+        private void OptimizeMain_Click(object? sender, RoutedEventArgs e)
+            => CrimsonX.Services.BackgroundTask.RunOnUi("apps.optimize", () => OptimizeMainClickAsync(sender, e));
+
+        private async Task OptimizeMainClickAsync(object? sender, RoutedEventArgs e)
         {
             if (_optRunning || _optPendingResult != null)
             {
@@ -765,11 +768,17 @@ namespace CrimsonX.Pages
 
         private void ApplyOptimizeLanguage()
         {
-            if (_optMainButton != null) ToolTip.SetTip(_optMainButton, AS.TtOptimize);
-            if (_optGearButton != null) ToolTip.SetTip(_optGearButton, AS.TtOptimizeGear);
-            if (_optToggleButton != null) ToolTip.SetTip(_optToggleButton, AS.TtOptimizeOnConnect);
-            if (_optAlternateButton != null) ToolTip.SetTip(_optAlternateButton, AS.TtOptimizeAlternateMode);
-            if (_optAdapterCombo != null) ToolTip.SetTip(_optAdapterCombo, AS.TtOptimizeAdapter);
+            if (_optMainButton != null) AS.ApplyToolTip(_optMainButton, AS.TtOptimize);
+            if (_optGearButton != null) AS.ApplyToolTip(_optGearButton, AS.TtOptimizeGear);
+            if (_optToggleButton != null) AS.ApplyToolTip(_optToggleButton, AS.TtOptimizeOnConnect);
+            if (_optAlternateButton != null) AS.ApplyToolTip(_optAlternateButton, AS.TtOptimizeAlternateMode);
+            if (_optAdapterCombo != null) AS.ApplyToolTip(_optAdapterCombo, AS.TtOptimizeAdapter);
+            foreach (var rowButton in Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(this)
+                         .OfType<Button>()
+                         .Where(b => b.Name == "btnOptimizeItem"))
+            {
+                AS.ApplyToolTip(rowButton, AS.TtOptimizeItem);
+            }
             SyncOptimizeText();
             SyncOptimizeToggleVisual();
         }
@@ -1107,7 +1116,7 @@ namespace CrimsonX.Pages
                 new DoubleTransition { Property = Layoutable.MaxWidthProperty, Duration = TimeSpan.FromMilliseconds(200) },
                 new ThicknessTransition { Property = Layoutable.MarginProperty, Duration = TimeSpan.FromMilliseconds(200) }
             };
-            ToolTip.SetTip(button, AS.TtOptimizeItem);
+            AS.ApplyToolTip(button, AS.TtOptimizeItem);
             button.Click += OptimizeRow_Click;
             return button;
         }

@@ -738,7 +738,7 @@
                                                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                             <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" Width="14" Height="14" Foreground="#8B949E"/>
                                                             <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-                                                                <TextBlock x:Name="lblDnsSettingTitle" Classes="settingTitle" Text="DNS SETTINGS" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Resolve DNS through encrypted DNS-over-HTTPS (DoH) instead of plaintext queries. Reduces DNS leaks and censorship. Pick a provider or enter a custom DoH URL; applies in proxy mode (Xray) and VPN mode (sing-box)."/>
+                                                                <TextBlock x:Name="lblDnsSettingTitle" Classes="settingTitle" Text="DNS SETTINGS" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="{x:Static loc:AppStrings.TtDnsSettings}"/>
                                                             </StackPanel>
                                                         </StackPanel>
                                                         <PathIcon x:Name="icoDnsExpander" Grid.Column="2" Data="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center">
@@ -897,7 +897,7 @@
                                         <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                 <PathIcon Data="M4 15h16v-2H4v2zm0 4h16v-2H4v2zm0-8h16V9H4v2zm0-6v2h16V5H4z" Width="14" Height="14" Foreground="#8B949E"/>
-                                                <TextBlock x:Name="lblLbPolicy" Classes="settingTitle" Text="LOAD-BALANCE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Controls how Xray distributes connections across your proxy nodes."/>
+                                                <TextBlock x:Name="lblLbPolicy" Classes="settingTitle" Text="LOAD-BALANCE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="{x:Static loc:AppStrings.TtLbPolicy}"/>
                                             </StackPanel>
                                             <Button x:Name="btnLbPolicy" Grid.Column="2" Classes="optBtn" Click="BtnLbPolicy_Click" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1" CornerRadius="4" Width="113" MinHeight="26" Height="26" Padding="8,0" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand">
                                                 <Grid ColumnDefinitions="*, Auto">
@@ -961,7 +961,7 @@
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.09 13.36 4 12.69 4 12s.09-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.34.16-2h4.68c.09.66.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.17.64.26 1.31.26 2s-.09 1.36-.26 2h-3.38z" Width="14" Height="14" Foreground="#8B949E"/>
-                                                        <TextBlock x:Name="lblLanguageSetting" Classes="settingTitle" Text="LANGUAGE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Change the application language. Reopening the app may be required for all changes to take effect."/>
+                                                        <TextBlock x:Name="lblLanguageSetting" Classes="settingTitle" Text="LANGUAGE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="{x:Static loc:AppStrings.TtLanguage}"/>
                                                     </StackPanel>
                                                     <Button x:Name="btnLanguage" Grid.Column="2" Classes="optBtn" Click="BtnLanguage_Click" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#3A3F44" BorderThickness="1" CornerRadius="4" Width="90" MinHeight="26" Height="26" Padding="8,0" HorizontalAlignment="Right" VerticalAlignment="Center" Cursor="Hand">
                                                         <Grid ColumnDefinitions="*, Auto">
@@ -975,7 +975,7 @@
                                                 <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="36">
                                                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                                         <PathIcon Data="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10zm-2-1h-6v-2h6v2zM7.5 17l-1.41-1.41L8.67 13l-2.59-2.59L7.5 9l4 4-4 4z" Width="14" Height="14" Foreground="#8B949E"/>
-                                                        <TextBlock x:Name="lblDebugMode" Classes="settingTitle" Text="DEBUG MODE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="Show console windows for Tor, Xray, and sing-box instead of hiding them. Helpful for reading live logs when something fails to connect. Does not change routing or security—only visibility."/>
+                                                        <TextBlock x:Name="lblDebugMode" Classes="settingTitle" Text="DEBUG MODE" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="{x:Static loc:AppStrings.TtDebugMode}"/>
                                                     </StackPanel>
                                                     <ToggleSwitch x:Name="btnDebugTog" Grid.Column="2" IsCheckedChanged="SettingTog_CheckedChanged" OnContent="{x:Null}" OffContent="{x:Null}" VerticalAlignment="Center"/>
                                                 </Grid>
@@ -1046,16 +1046,16 @@
                     <Popup x:Name="LbPolicyPopup" IsLightDismissEnabled="False">
                         <Border Classes="popupContent" Background="#F2101116" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Width="113" Padding="2">
                             <StackPanel>
-                                <Button x:Name="btnLbLeastLoad" Classes="countryControl" Tag="leastload" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Distributes each new connection to the least-loaded proxy node. Best for mixed traffic with varying connection size.">
+                                <Button x:Name="btnLbLeastLoad" Classes="countryControl" Tag="leastload" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="{x:Static loc:AppStrings.TtLbLeastLoad}">
                                     <TextBlock Text="LEAST LOAD" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                                 </Button>
-                                <Button x:Name="btnLbRoundRobin" Classes="countryControl" Tag="roundrobin" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Distributes connections evenly across all proxy nodes in order, cycling through them one by one. Good for consistent, equal distribution.">
+                                <Button x:Name="btnLbRoundRobin" Classes="countryControl" Tag="roundrobin" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="{x:Static loc:AppStrings.TtLbRoundRobin}">
                                     <TextBlock Text="ROUND ROBIN" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                                 </Button>
-                                <Button x:Name="btnLbLeastPing" Classes="countryControl" Tag="leastping" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Picks the proxy node with the lowest recent ping. Best for latency-sensitive traffic.">
+                                <Button x:Name="btnLbLeastPing" Classes="countryControl" Tag="leastping" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="{x:Static loc:AppStrings.TtLbLeastPing}">
                                     <TextBlock Text="LEAST PING" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                                 </Button>
-                                <Button x:Name="btnLbRandom" Classes="countryControl" Tag="random" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="Picks a proxy node at random for each new connection. Statistically even over time but with more variance than Round Robin.">
+                                <Button x:Name="btnLbRandom" Classes="countryControl" Tag="random" Click="LbPolicyOption_Click" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch" Padding="8,6" Cursor="Hand" CornerRadius="4" ToolTip.Tip="{x:Static loc:AppStrings.TtLbRandom}">
                                     <TextBlock Text="RANDOM" VerticalAlignment="Center" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Left"/>
                                 </Button>
                             </StackPanel>

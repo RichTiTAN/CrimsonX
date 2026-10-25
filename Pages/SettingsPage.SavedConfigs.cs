@@ -381,10 +381,10 @@ namespace CrimsonX.Pages
             }
         }
 
-        private async void SavedConfigCopy_Click(object? sender, RoutedEventArgs e)
+        private void SavedConfigCopy_Click(object? sender, RoutedEventArgs e)
         {
             if ((sender as Control)?.DataContext is not SavedConfigItem item) return;
-            await CopySavedConfigAsync(item);
+            CrimsonX.Services.BackgroundTask.RunOnUi("settings.saved-config.copy", () => CopySavedConfigAsync(item));
         }
 
         private void SavedConfigDelete_Click(object? sender, RoutedEventArgs e)

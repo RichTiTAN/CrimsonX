@@ -140,6 +140,7 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.Apply(F("lblDirectUdpHeader"), CrimsonX.Localization.AppStrings.SplitTunnelDirectUDP);
             CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblDirectUdpHeader"), CrimsonX.Localization.AppStrings.SplitTunnelDirectUDPTooltip);
             CrimsonX.Localization.AppStrings.Apply(F("lblDirectUdpAdapterTitle"), CrimsonX.Localization.AppStrings.UdpAdapterBinding);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblDirectUdpAdapterTitle"), CrimsonX.Localization.AppStrings.TtUdpAdapterBinding);
             CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<Button>("btnScanUdpAdapters"), CrimsonX.Localization.AppStrings.ScanAdapters);
             var cmbUdpAdapters = this.FindControl<ComboBox>("cmbUdpAdapters");
             if (cmbUdpAdapters != null)
@@ -221,6 +222,7 @@ namespace CrimsonX.Pages
             AppStrings.Apply(this.FindControl<TextBlock>("lblSplitTunnelingHeader"), AppStrings.NavSplitTunneling);
             AppStrings.Apply(this.FindControl<TextBlock>("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDP);
             AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblDirectUdpHeader"), AppStrings.SplitTunnelDirectUDPTooltip);
+            AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblDirectUdpAdapterTitle"), AppStrings.TtUdpAdapterBinding);
             var btnSplitDisabled = this.FindControl<Button>("btnSplitDisabled");
             var btnSplitExclusive = this.FindControl<Button>("btnSplitExclusive");
             var btnSplitInclusive = this.FindControl<Button>("btnSplitInclusive");
@@ -520,7 +522,10 @@ namespace CrimsonX.Pages
             }
         }
 
-        private async void BrowseApp_Click(object? sender, RoutedEventArgs e)
+        private void BrowseApp_Click(object? sender, RoutedEventArgs e)
+            => CrimsonX.Services.BackgroundTask.RunOnceOnUi("split-tunnel.browse", () => BrowseAppClickAsync(sender, e));
+
+        private async Task BrowseAppClickAsync(object? sender, RoutedEventArgs e)
         {
             try
             {

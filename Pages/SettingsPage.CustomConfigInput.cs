@@ -378,9 +378,11 @@ namespace CrimsonX.Pages
 
         private void btnCustomConfigsSave2_Click(object? sender, RoutedEventArgs e) => SaveCustomConfigSlot(2);
 
-        private async void btnCustomConfigImport1_Click(object? sender, RoutedEventArgs e) => await ImportConfigIntoSlotAsync(1);
+        private void btnCustomConfigImport1_Click(object? sender, RoutedEventArgs e)
+            => CrimsonX.Services.BackgroundTask.RunOnceOnUi("settings.custom-config.import1", () => ImportConfigIntoSlotAsync(1));
 
-        private async void btnCustomConfigImport2_Click(object? sender, RoutedEventArgs e) => await ImportConfigIntoSlotAsync(2);
+        private void btnCustomConfigImport2_Click(object? sender, RoutedEventArgs e)
+            => CrimsonX.Services.BackgroundTask.RunOnceOnUi("settings.custom-config.import2", () => ImportConfigIntoSlotAsync(2));
 
         private async Task ImportConfigIntoSlotAsync(int slot)
         {
@@ -388,7 +390,10 @@ namespace CrimsonX.Pages
             if (text.Length > 0) await ApplyCustomConfigRawAsync(slot, text);
         }
 
-        internal async void SavedConfigBrowse_Click(object? sender, RoutedEventArgs e)
+        internal void SavedConfigBrowse_Click(object? sender, RoutedEventArgs e)
+            => CrimsonX.Services.BackgroundTask.RunOnceOnUi("settings.saved-config.browse", () => SavedConfigBrowseAsync());
+
+        internal async Task SavedConfigBrowseAsync()
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;

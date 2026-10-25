@@ -1393,7 +1393,10 @@ namespace CrimsonX.Pages
             MarkExitNodeDirty();
         }
 
-        private async void btnXrayExitImport_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        private void btnXrayExitImport_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+            => CrimsonX.Services.BackgroundTask.RunOnceOnUi("settings.exit-node.import", () => ExitNodeImportAsync());
+
+        private async Task ExitNodeImportAsync()
         {
             string text = await PickConfigFileTextAsync();
             if (text.Length > 0 && await ApplyExitNodeRawAsync(text))
@@ -1511,7 +1514,10 @@ namespace CrimsonX.Pages
         UpdateExitNodeSubmitVisibility();
     }
 
-    private async void btnXraySave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    private void btnXraySave_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+        => CrimsonX.Services.BackgroundTask.RunOnceOnUi("settings.exit-node.save", () => XraySaveAsync(sender, e));
+
+    private async Task XraySaveAsync(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
         if (MainWindow.Instance.Config != null && tog != null)

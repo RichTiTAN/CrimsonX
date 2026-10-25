@@ -325,16 +325,16 @@ public partial class AppsGamesOverlay : UserControl
         _connectUiTimer = new global::Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
         _connectUiTimer.Tick += (s, e) => { if (IsVisible) UpdateOverlayConnectUI(); };
         _connectUiTimer.Start();
+        CrimsonX.Services.UiEventBus.Instance.ConnectionProgress += OnConnectionProgress;
         this.AttachedToVisualTree += (s, e) =>
         {
-            CrimsonX.Services.UiEventBus.Instance.ConnectionProgress += OnConnectionProgress;
             CrimsonX.Services.UiEventBus.Instance.RulesApplied += OnRulesApplied;
+            SetOverlayConnectProgress(CrimsonX.Services.UiEventBus.Instance.LastConnectionProgress);
             UpdateOverlayConnectUI();
             _connectUiTimer?.Start();
         };
         this.DetachedFromVisualTree += (s, e) =>
         {
-            CrimsonX.Services.UiEventBus.Instance.ConnectionProgress -= OnConnectionProgress;
             CrimsonX.Services.UiEventBus.Instance.RulesApplied -= OnRulesApplied;
             StopOverlayActivity();
         };
@@ -1414,7 +1414,10 @@ catch (Exception ex)
         }
     }
 
-    private async void BtnSubmit_Click(object? sender, RoutedEventArgs e)
+    private void BtnSubmit_Click(object? sender, RoutedEventArgs e)
+        => CrimsonX.Services.BackgroundTask.RunOnceOnUi("apps.editor.submit", () => SubmitClickAsync(sender, e));
+
+    private async Task SubmitClickAsync(object? sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_exeName)) return;
         CommitDisplayNameRename();
@@ -1735,7 +1738,10 @@ catch (Exception ex)
         if (cbUdpA != null && cbUdpR != null) cbUdpA.IsEnabled = !AppsGamesOverlay.IsProxyRouting(AppsGamesOverlay.RoutingName(cbUdpR.SelectedIndex));
     }
 
-    private async void DefaultSubmit_Click(object? sender, RoutedEventArgs e)
+    private void DefaultSubmit_Click(object? sender, RoutedEventArgs e)
+        => CrimsonX.Services.BackgroundTask.RunOnceOnUi("apps.default-editor.submit", () => DefaultSubmitClickAsync(sender, e));
+
+    private async Task DefaultSubmitClickAsync(object? sender, RoutedEventArgs e)
     {
         if (string.IsNullOrEmpty(_editingDefaultRuleId)) { CloseDefaultEditor(); return; }
         var rule = _rules.FirstOrDefault(r => r.Id == _editingDefaultRuleId);
@@ -1966,6 +1972,10 @@ catch (Exception ex)
                         "[AppRules] The apply was interrupted by a disconnect; the rule changes stay pending.");
                 }
             }
+            catch (Exception ex)
+            {
+                CrimsonX.Services.SimpleLogger.Log(ex);
+            }
             finally
             {
                 _isApplyingRules = false;
@@ -2008,7 +2018,11 @@ catch (Exception ex)
                         _overlayFillTimer.Stop();
                         return;
                     }
-                    if (!IsEffectivelyVisible) return;
+                    if (!IsEffectivelyVisible)
+                    {
+                        _overlayFillTimer.Stop();
+                        return;
+                    }
                     double diff = _overlayFillTarget - _overlayFillCurrent;
                     if (System.Math.Abs(diff) < 0.005) _overlayFillCurrent = _overlayFillTarget;
                     else _overlayFillCurrent += diff * 0.35;
@@ -2333,6 +2347,7 @@ catch (Exception ex)
             RestoreCombo("cbDefaultUdpAdapter", dUdpA);
             RefreshList();
             UpdateOverlayConnectUI();
+            ApplyOptimizeLanguage();
         }
 
     // ── Delete / Pin / Reorder Rules ──

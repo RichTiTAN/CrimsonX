@@ -145,6 +145,17 @@ namespace CrimsonX.Controls
             }
         }
 
+        private static void SetSlotTip(TextBlock? label, string? text)
+        {
+            if (label == null) return;
+            if (string.IsNullOrEmpty(text))
+            {
+                global::Avalonia.Controls.ToolTip.SetTip(label, null);
+                return;
+            }
+            CrimsonX.Localization.AppStrings.ApplyToolTip(label, text);
+        }
+
         private Avalonia.Media.StreamGeometry? GetIconData(string key)
         {
             string pathData = key switch
@@ -191,8 +202,8 @@ namespace CrimsonX.Controls
             _lblSlot2.Text = GetLocalizedSettingName(_pendingSlot2);
             _icoSlot1.Data = GetIconData(_pendingSlot1);
             _icoSlot2.Data = GetIconData(_pendingSlot2);
-            global::Avalonia.Controls.ToolTip.SetTip(_lblSlot1, GetTooltipText(_pendingSlot1));
-            global::Avalonia.Controls.ToolTip.SetTip(_lblSlot2, GetTooltipText(_pendingSlot2));
+            SetSlotTip(_lblSlot1, GetTooltipText(_pendingSlot1));
+            SetSlotTip(_lblSlot2, GetTooltipText(_pendingSlot2));
         }
 
         private void InitializeComponent()
@@ -299,14 +310,14 @@ namespace CrimsonX.Controls
                             _pendingSlot1 = setting;
                             _lblSlot1.Text = GetLocalizedSettingName(setting);
                             _icoSlot1.Data = GetIconData(setting);
-                            global::Avalonia.Controls.ToolTip.SetTip(_lblSlot1, GetTooltipText(setting));
+                            SetSlotTip(_lblSlot1, GetTooltipText(setting));
                         }
                         else
                         {
                             _pendingSlot2 = setting;
                             _lblSlot2.Text = GetLocalizedSettingName(setting);
                             _icoSlot2.Data = GetIconData(setting);
-                            global::Avalonia.Controls.ToolTip.SetTip(_lblSlot2, GetTooltipText(setting));
+                            SetSlotTip(_lblSlot2, GetTooltipText(setting));
                         }
                         _ = ClosePopupAnimatedAsync();
                     };
@@ -346,8 +357,8 @@ namespace CrimsonX.Controls
             _lblSlot2.Text = GetLocalizedSettingName(_pendingSlot2);
             _icoSlot1.Data = GetIconData(_pendingSlot1);
             _icoSlot2.Data = GetIconData(_pendingSlot2);
-            global::Avalonia.Controls.ToolTip.SetTip(_lblSlot1, GetTooltipText(_pendingSlot1));
-            global::Avalonia.Controls.ToolTip.SetTip(_lblSlot2, GetTooltipText(_pendingSlot2));
+            SetSlotTip(_lblSlot1, GetTooltipText(_pendingSlot1));
+            SetSlotTip(_lblSlot2, GetTooltipText(_pendingSlot2));
             RefreshTogglesState();
         }
 

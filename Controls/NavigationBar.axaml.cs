@@ -179,7 +179,7 @@ public partial class NavigationBar : UserControl
     private void SetTip(string name, string text)
     {
         var control = this.FindControl<Control>(name);
-        if (control != null) ToolTip.SetTip(control, text);
+        if (control != null) CrimsonX.Localization.AppStrings.ApplyToolTip(control, text);
     }
 
     // Ad & tracker blocker tile
@@ -375,7 +375,10 @@ public partial class NavigationBar : UserControl
         }
     }
 
-    private async void NavLocations_Changed(object? sender, RoutedEventArgs e)
+    private void NavLocations_Changed(object? sender, RoutedEventArgs e)
+        => CrimsonX.Services.BackgroundTask.RunOnUi("nav.locations", () => NavLocationsChangedAsync(sender, e));
+
+    private async Task NavLocationsChangedAsync(object? sender, RoutedEventArgs e)
     {
         var tile = sender as ToggleButton;
         var popup = this.FindControl<Popup>("LocationsPopup");
