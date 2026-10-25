@@ -27,8 +27,9 @@ namespace CrimsonX.Services
 {
     public static class SimpleLogger
     {
-        private static readonly string LogFile = Path.Combine(AppContext.BaseDirectory, "Logs", "error.log");
+        private static string LogFile = Path.Combine(AppContext.BaseDirectory, "Logs", "error.log");
         private static bool _dirCreated = false;
+        private static bool _fallbackUsed = false;
         
         private static readonly Channel<string> _logChannel = Channel.CreateUnbounded<string>();
         private static readonly Task _consumerTask;
@@ -78,6 +79,17 @@ namespace CrimsonX.Services
 
         private static void WriteBuffer(StringBuilder sb)
         {
+            if (sb.Length == 0) return;
+            if (TryWrite(sb)) return;
+            if (_fallbackUsed) return;
+            _fallbackUsed = true;
+            _dirCreated = false;
+            LogFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CrimsonX", "Logs", "error.log");
+            TryWrite(sb);
+        }
+
+        private static bool TryWrite(StringBuilder sb)
+        {
             try
             {
                 if (!_dirCreated)
@@ -89,7 +101,6 @@ namespace CrimsonX.Services
                     }
                     _dirCreated = true;
                 }
-                if (sb.Length == 0) return;
                 File.AppendAllText(LogFile, sb.ToString());
                 sb.Clear();
                 if (++_writeCount >= 50)
@@ -97,8 +108,12 @@ namespace CrimsonX.Services
                     _writeCount = 0;
                     TrimLogFile();
                 }
+                return true;
             }
-            catch { }
+            catch
+            {
+                return false;
+            }
         }
 
         private static void TrimLogFile()

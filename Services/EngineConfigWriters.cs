@@ -603,6 +603,8 @@ namespace CrimsonX.Services
 
     public static class SingboxConfigWriter
     {
+        internal const string TunInboundTag = "tun-in";
+
         internal static bool SplitListIsProxied(AppConfig config)
             => string.Equals(config?.SplitTunnelMode, "INCLUSIVE", StringComparison.Ordinal);
 
@@ -613,7 +615,7 @@ namespace CrimsonX.Services
         {
             return new
             {
-                type = "tun", tag = "tun-in",
+                type = "tun", tag = TunInboundTag,
                 interface_name = TunProfile.InterfaceName,
                 address = ipv6
                     ? new[] { TunProfile.AddressPrefix, TunProfile.Ipv6AddressPrefix }
@@ -675,6 +677,7 @@ namespace CrimsonX.Services
             if (!skipExitNode)
                 exitHops = ExitNodeChain.BuildExitChain(config, out exitPlane, out exitChained, out exitError);
             if (exitChained) ExitNodeChain.AllocateProxyPort();
+            bool tunInbound = string.Equals(config.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase);
             if (exitError.Length > 0) CrimsonX.Services.SimpleLogger.Log($"[ExitNode] {exitError}");
             string proxyTag = exitChained ? ExitNodeChain.EndpointTag : ExitNodeChain.TransportTag;
             var appRules = AppRulesSingboxBuilder.Build(config, null, proxyTag);
@@ -688,14 +691,22 @@ namespace CrimsonX.Services
                     new { port = new[] { 53 }, network = "udp", action = "hijack-dns" },
                     new { port = new[] { 53 }, network = "tcp", action = "hijack-dns" }
                 };
-                if (tunnelIpv6)
+                if (exitChained)
                 {
-                    var engineApps = new List<string> { "xray.exe", "xray", "sing-box.exe", "sing-box", "conjure-client.exe", "dnstt-client.exe" };
-                    sbRules.Add(new { process_name = engineApps.ToArray(), ip_cidr = new[] { "::/0" }, action = "route", outbound = "direct" });
-                    sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
-                    sbRules.Add(new { ip_cidr = new[] { "::/0" }, action = "reject" });
+                    sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, ip_is_private = true, action = "route", outbound = "direct" });
+                    sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, action = "route", outbound = proxyTag });
                 }
-                sbRules.Add(new { process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" });
+                if (tunInbound)
+                {
+                    if (tunnelIpv6)
+                    {
+                        var engineApps = new List<string> { "xray.exe", "xray", "sing-box.exe", "sing-box", "conjure-client.exe", "dnstt-client.exe" };
+                        sbRules.Add(new { inbound = new[] { TunInboundTag }, process_name = engineApps.ToArray(), ip_cidr = new[] { "::/0" }, action = "route", outbound = "direct" });
+                        sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
+                        sbRules.Add(new { ip_cidr = new[] { "::/0" }, action = "reject" });
+                    }
+                    sbRules.Add(new { inbound = new[] { TunInboundTag }, process_name = systemBypassApps.ToArray(), action = "route", outbound = "direct" });
+                }
                 if (!tunnelIpv6)
                     sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
                 if (rules.RouteRules.Count > 0)
@@ -709,11 +720,6 @@ namespace CrimsonX.Services
                     sbRules.Add(new { protocol = "quic", action = "reject", method = "default" });
                 }
                 sbRules.Add(new { domain_keyword = new[] { AppSecrets.WorkerDomainKeyword }, action = "route", outbound = "direct" });
-                if (exitChained)
-                {
-                    sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, ip_is_private = true, action = "route", outbound = "direct" });
-                    sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, action = "route", outbound = proxyTag });
-                }
                 if (userApps.Count > 0)
                 {
                     string targetOutbound = SplitListIsProxied(config) ? proxyTag : "direct";
@@ -811,7 +817,7 @@ namespace CrimsonX.Services
                         rules = dnsRules.ToArray(),
                         strategy = dnsStrategy
                     },
-                    inbounds = new object[] { BuildTunInbound(tunnelIpv6) },
+                    inbounds = tunInbound ? new object[] { BuildTunInbound(tunnelIpv6) } : new object[0],
                     outbounds = new System.Collections.Generic.List<object> {
                         new { type = "socks", tag = "proxy", server = "127.0.0.1", server_port = 10919 },
                         new { type = "direct", tag = "direct" }

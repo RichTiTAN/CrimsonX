@@ -40,11 +40,14 @@ namespace CrimsonX
         private int _backgroundSeedSourceIndex = 0;
         private static readonly HttpClient _workerClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
 
-        private static readonly HashSet<string> BlockedCountries = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "RU", "BY", "EE" };
-
         private bool IsConfigAllowed(ConfigTestResult r)
         {
-            if (BlockedCountries.Contains(r.CountryCode)) return false;
+            if (CrimsonX.Services.CountryFilter.IsBlocked(r.CountryCode))
+            {
+                CrimsonX.Services.SimpleLogger.LogOnce($"blocked-country-{r.CountryCode}",
+                    $"[Filter] a config exiting in {r.CountryCode.ToUpperInvariant()} was skipped (RU and BY are blocked).");
+                return false;
+            }
             bool checkContinents = _cfg.EnableExcludedContinents && _cfg.ExcludedContinents != null && _cfg.ExcludedContinents.Count > 0;
             return !(checkContinents && _cfg.ExcludedContinents!.Contains(r.Continent));
         }
@@ -99,6 +102,7 @@ namespace CrimsonX
                     txtConnectBtn.Text = CrimsonX.Localization.AppStrings.StatusConnecting;
                     txtConnectBtn.Foreground = BrWhite;
                 }
+                ResetConnectProgressBaseline();
                 SetConnectButtonProgress(ConnectProgress.Starting);
             });
             await UpdateLanIpAsync();
@@ -259,18 +263,23 @@ namespace CrimsonX
                 {
                     throw new Exception("Xray process failed to start.");
                 }
-                if (_cfg.LastXrayMode == "VPN Mode")
+                bool customChainWanted = CrimsonX.Services.ExitNodeChain.ShouldChain(_cfg);
+                if (_cfg.LastXrayMode == "VPN Mode" || customChainWanted)
                 {
                     Dispatcher.UIThread.Post(() => SetConnectButtonProgress(ConnectProgress.ExitNode));
                     await PrepareExitNodeCredentialsAsync();
                     var sbPid = await StartSingBoxAsync(ct);
-                    if (sbPid == null) throw new Exception("Singbox failed to start");
-                    _sbPid = sbPid;
+                    if (sbPid == null)
+                    {
+                        if (_cfg.LastXrayMode == "VPN Mode") throw new Exception("Singbox failed to start");
+                        CrimsonX.Services.SimpleLogger.Log("[ExitNode] The chain did not start here; the system proxy stays on xray.");
+                    }
+                    else
+                    {
+                        _sbPid = sbPid;
+                    }
                 }
-                else
-                {
-                    ProxyService.SetSystemProxy(_cfg.LastXrayMode == "Proxy Mode");
-                }
+                if (_cfg.LastXrayMode != "VPN Mode") ApplySystemProxyForMode();
                 _state.IsConnected = true;
                 _state.SessionStartTime = DateTime.Now;
                 CrimsonX.Services.SimpleLogger.Log("[Connect] Connected successfully with Custom Configs.");
@@ -623,18 +632,23 @@ namespace CrimsonX
             {
                 throw new Exception("Xray process failed to start.");
             }
-            if (_cfg.LastXrayMode == "VPN Mode")
+            bool chainWanted = CrimsonX.Services.ExitNodeChain.ShouldChain(_cfg);
+            if (_cfg.LastXrayMode == "VPN Mode" || chainWanted)
             {
                 Dispatcher.UIThread.Post(() => SetConnectButtonProgress(ConnectProgress.ExitNode));
                 await PrepareExitNodeCredentialsAsync();
                 var sbPid = await StartSingBoxAsync(ct);
-                if (sbPid == null) throw new Exception("Singbox failed to start");
-                _sbPid = sbPid;
+                if (sbPid == null)
+                {
+                    if (_cfg.LastXrayMode == "VPN Mode") throw new Exception("Singbox failed to start");
+                    CrimsonX.Services.SimpleLogger.Log("[ExitNode] The chain did not start here; the system proxy stays on xray.");
+                }
+                else
+                {
+                    _sbPid = sbPid;
+                }
             }
-            else
-            {
-                ProxyService.SetSystemProxy(_cfg.LastXrayMode == "Proxy Mode");
-            }
+            if (_cfg.LastXrayMode != "VPN Mode") ApplySystemProxyForMode();
             _state.IsConnected = true;
             _state.SessionStartTime = DateTime.Now;
             CrimsonX.Services.SimpleLogger.Log("[Connect] Connected successfully with Dynamic Configs.");

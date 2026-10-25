@@ -45,15 +45,81 @@ namespace CrimsonX.Services
             @"Data\sing_box\tunnel"
         };
 
+        private static readonly string[] StartupOnlyFiles =
+        {
+            "updater.bat"
+        };
+
+        private static readonly string[] StartupOnlyPatterns =
+        {
+            "update_temp*.zip",
+            "update_extracted*"
+        };
+
         public static void RunStartupCleanup()
         {
             Cleanup();
+            if (PendingUpdateHandOff()) return;
+            Purge(StartupOnlyFiles, StartupOnlyPatterns);
+        }
+
+        private static bool PendingUpdateHandOff()
+        {
+            try
+            {
+                var owner = MainWindow.Instance;
+                string path = owner?.GetAppPath("updater.bat") ?? "updater.bat";
+                if (!File.Exists(path)) return false;
+                var age = DateTime.UtcNow - File.GetLastWriteTimeUtc(path);
+                return age >= TimeSpan.Zero && age < TimeSpan.FromMinutes(5);
+            }
+            catch (Exception ex) { SimpleLogger.Log(ex); return false; }
         }
 
         public static void Cleanup()
         {
+            Purge(Files, Patterns);
             var owner = MainWindow.Instance;
-            foreach (var relative in Files)
+            foreach (var relative in Trees)
+            {
+                try
+                {
+                    string path = owner?.GetAppPath(relative) ?? relative;
+                    if (Directory.Exists(path)) TryDeleteTree(path);
+                }
+                catch (Exception ex) { SimpleLogger.Log(ex); }
+            }
+        }
+
+        public static bool TookFailedUpdateHandOff()
+        {
+            try
+            {
+                var owner = MainWindow.Instance;
+                string path = owner?.GetAppPath("updater.log") ?? "updater.log";
+                if (!File.Exists(path)) return false;
+                bool finished = false;
+                bool failed = false;
+                foreach (string line in File.ReadAllLines(path))
+                {
+                    if (line.Contains("copy complete", StringComparison.OrdinalIgnoreCase)) finished = true;
+                    else if (line.Contains("gave up", StringComparison.OrdinalIgnoreCase)) { finished = true; failed = true; }
+                }
+                if (!finished)
+                {
+                    if (PendingUpdateHandOff()) return false;
+                    if (DateTime.UtcNow - File.GetLastWriteTimeUtc(path) < TimeSpan.FromMinutes(5)) return false;
+                }
+                try { File.Delete(path); } catch (Exception ex) { SimpleLogger.Log(ex); }
+                return finished && failed;
+            }
+            catch (Exception ex) { SimpleLogger.Log(ex); return false; }
+        }
+
+        private static void Purge(string[] files, string[] patterns)
+        {
+            var owner = MainWindow.Instance;
+            foreach (var relative in files)
             {
                 try
                 {
@@ -62,7 +128,7 @@ namespace CrimsonX.Services
                 }
                 catch (Exception ex) { SimpleLogger.Log(ex); }
             }
-            foreach (var relative in Patterns)
+            foreach (var relative in patterns)
             {
                 try
                 {
@@ -77,15 +143,6 @@ namespace CrimsonX.Services
                     {
                         TryDeleteTree(sub);
                     }
-                }
-                catch (Exception ex) { SimpleLogger.Log(ex); }
-            }
-            foreach (var relative in Trees)
-            {
-                try
-                {
-                    string path = owner?.GetAppPath(relative) ?? relative;
-                    if (Directory.Exists(path)) TryDeleteTree(path);
                 }
                 catch (Exception ex) { SimpleLogger.Log(ex); }
             }

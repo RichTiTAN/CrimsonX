@@ -30,22 +30,26 @@ namespace CrimsonX
 
         internal async Task<List<string>> FetchScanConfigsAsync(int index, CancellationToken ct)
         {
-            List<string> configs;
             if (index < 0)
             {
-                configs = CrimsonX.Services.ConfigCache.LoadCache(GetAppPath(@"Data\cache\cache.bin"));
-                configs = configs.Where(c => !CrimsonX.Services.XrayLinkParser.IsGrpcOutbound(c)).ToList();
+                string cachePath = GetAppPath(@"Data\cache\cache.bin");
+                return await Task.Run(() => ScrubScanConfigs(
+                    CrimsonX.Services.ConfigCache.LoadCache(cachePath)
+                        .Where(c => !CrimsonX.Services.XrayLinkParser.IsGrpcOutbound(c))
+                        .ToList(), _cfg.CustomConfig1, _cfg.CustomConfig2), ct);
             }
-            else
-            {
-                configs = await FetchConfigsFromWorker(index, ct);
-            }
+            List<string> configs = await FetchConfigsFromWorker(index, ct);
+            return await Task.Run(() => ScrubScanConfigs(configs, _cfg.CustomConfig1, _cfg.CustomConfig2), ct);
+        }
+
+        private static List<string> ScrubScanConfigs(List<string>? configs, string? custom1, string? custom2)
+        {
             if (configs == null) return new List<string>();
-            if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig1) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig1, out string c1Json))
+            if (!string.IsNullOrWhiteSpace(custom1) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(custom1!, out string c1Json))
             {
                 configs.RemoveAll(c => c == c1Json || c.Contains(c1Json));
             }
-            if (!string.IsNullOrWhiteSpace(_cfg.CustomConfig2) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(_cfg.CustomConfig2, out string c2Json))
+            if (!string.IsNullOrWhiteSpace(custom2) && CrimsonX.Services.XrayLinkParser.TryParseCustomConfig(custom2!, out string c2Json))
             {
                 configs.RemoveAll(c => c == c2Json || c.Contains(c2Json));
             }

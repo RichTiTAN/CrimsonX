@@ -86,10 +86,18 @@ public partial class MainWindow : Window
         CrimsonX.Services.BackgroundTask.Run("engine report", () => CrimsonX.Services.EngineReport.AnnounceAsync(_cfg));
         CrimsonX.Services.BackgroundTask.Run("country exit feed", () => RefreshCountryExitFeedAsync());
         CrimsonX.Services.BackgroundTask.Run("dns heal", () => CrimsonX.Services.SystemDnsService.HealFromDiskAsync());
+        CrimsonX.Services.ProcessService.SweepStrayEngines(
+            System.IO.Path.Combine(_cfg.SbDir, "sing-box.exe"),
+            System.IO.Path.Combine(_cfg.XrayDir, "xray.exe"));
         InitializeComponent();
         CrimsonX.Services.BackgroundTask.Run("startup cleanup", () => Task.Run(() =>
         {
             CrimsonX.Services.GeneratedArtifacts.RunStartupCleanup();
+            if (CrimsonX.Services.GeneratedArtifacts.TookFailedUpdateHandOff())
+            {
+                CrimsonX.Services.SimpleLogger.Log("[Update] The downloaded update was never copied into place.");
+                ShowToast(CrimsonX.Localization.AppStrings.ToastUpdateCopyFailed, ToastKind.Error);
+            }
             CrimsonX.Services.SecureJsonStore.MigrateLegacyStores();
         }));
         var startupNav = this.FindControl<CrimsonX.Controls.NavigationBar>("navBar");
@@ -332,7 +340,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            var (remoteVer, remoteMin) = await Services.UpdateService.CheckForUpdatesAsync();
+            var (remoteVer, remoteMin) = await Services.UpdateService.CheckForUpdatesAsync(default, _state.IsEngineRunning, _cfg.LastXrayMode);
             if (remoteVer != null)
             {
                 _remoteUpdateVersion = remoteVer;
@@ -371,7 +379,7 @@ public partial class MainWindow : Window
             }, token, (pct) =>
             {
                 SetTitleUpdateBadge(pct >= 100 ? TitleUpdateState.Extracting : TitleUpdateState.Downloading, pct);
-            });
+            }, _state.IsEngineRunning, _cfg.LastXrayMode);
             ProxyService.SetSystemProxy(false);
             StopAllEngines(true);
             System.Environment.Exit(0);
@@ -416,7 +424,14 @@ public partial class MainWindow : Window
         try
         {
         if (_updateCts != null) return;
-        bool isManual = Version.Parse(Services.UpdateService.AppVersion) < Version.Parse(_remoteMinUpdateVersion);
+        if (!Services.UpdateService.IsNewerVersion(_remoteUpdateVersion))
+        {
+            SetTitleUpdateBadge(TitleUpdateState.Hidden);
+            return;
+        }
+        bool isManual = Version.TryParse(Services.UpdateService.AppVersion, out var localVer)
+                     && Version.TryParse(_remoteMinUpdateVersion, out var minVer)
+                     && localVer < minVer;
         var dialog = new Dialogs.UpdateDialog(isManual: isManual, _remoteUpdateVersion);
         var result = await dialog.ShowDialog<string>(this);
         if (result == "Primary")
@@ -446,10 +461,12 @@ public partial class MainWindow : Window
             _updateCts.Cancel();
             _updateCts.Dispose();
             _updateCts = null;
-            SetTitleUpdateBadge(TitleUpdateState.Available);
+            SetTitleUpdateBadge(Services.UpdateService.IsNewerVersion(_remoteUpdateVersion)
+                ? TitleUpdateState.Available
+                : TitleUpdateState.Hidden);
             return;
         }
-        if (!string.IsNullOrEmpty(_remoteUpdateVersion) && _remoteUpdateVersion != "0.0.0")
+        if (Services.UpdateService.IsNewerVersion(_remoteUpdateVersion))
         {
             bool isManual = Version.TryParse(Services.UpdateService.AppVersion, out var localVer)
                          && Version.TryParse(_remoteMinUpdateVersion, out var remoteMinVer)
@@ -474,9 +491,12 @@ public partial class MainWindow : Window
         var token = _updateCts.Token;
         try
         {
-            var (remoteVer, remoteMin) = await Services.UpdateService.CheckForUpdatesAsync(token);
+            var (remoteVer, remoteMin) = await Services.UpdateService.CheckForUpdatesAsync(token, _state.IsEngineRunning, _cfg.LastXrayMode);
             if (remoteVer == null)
             {
+                _remoteUpdateVersion = "0.0.0";
+                _remoteMinUpdateVersion = "0.0.0";
+                SetTitleUpdateBadge(TitleUpdateState.Hidden);
                 ShowToast(CrimsonX.Localization.AppStrings.ToastLatestVersion, kind: ToastKind.Success);
                 Pages.AboutPage.Instance?.SetUpdateStatus(CrimsonX.Localization.AppStrings.UpdateLatest);
                 try { await Task.Delay(3000, token); } catch { }
@@ -501,6 +521,7 @@ public partial class MainWindow : Window
                 return;
             }
             _remoteUpdateVersion = remoteVer;
+            _remoteMinUpdateVersion = remoteMin ?? "0.0.0";
             SetUpdateUIStatus(CrimsonX.Localization.AppStrings.ToastNewUpdateAvailable);
             SetTitleUpdateBadge(TitleUpdateState.Available);
             _updateCts?.Dispose();

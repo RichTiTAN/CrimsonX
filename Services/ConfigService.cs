@@ -25,6 +25,8 @@ namespace CrimsonX.Services
     public static class ConfigService
     {
         private static readonly object SaveLock = new object();
+        private static string LastSavedPath = "";
+        private static string LastSavedJson = "";
 
         public static bool ConfigLoaded { get; private set; }
 
@@ -113,7 +115,14 @@ namespace CrimsonX.Services
                 string json = JsonConvert.SerializeObject(data, Formatting.None);
                 lock (SaveLock)
                 {
-                    WriteSettings(cfgFile, json);
+                    if (!string.Equals(LastSavedPath, cfgFile, System.StringComparison.OrdinalIgnoreCase)
+                        || LastSavedJson != json
+                        || !File.Exists(cfgFile))
+                    {
+                        WriteSettings(cfgFile, json);
+                        LastSavedPath = cfgFile;
+                        LastSavedJson = json;
+                    }
                 }
                 TunnelCredentialPruner.Sweep(config, AppRulesService.Load());
             }

@@ -781,7 +781,20 @@ namespace CrimsonX.Services
 
         private static void TryDeleteDirectory(string dir)
         {
-            try { if (Directory.Exists(dir)) Directory.Delete(dir, true); } catch { }
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    if (!Directory.Exists(dir)) return;
+                    Directory.Delete(dir, true);
+                    return;
+                }
+                catch
+                {
+                    if (attempt == 2) return;
+                    Thread.Sleep(100);
+                }
+            }
         }
 
         private static void SweepStaleProbeDirs(string sbDir)

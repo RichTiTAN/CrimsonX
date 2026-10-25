@@ -1,4 +1,4 @@
-﻿/*
+/*
  * CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
  * Copyright (C) 2026 RichTiTAN
  *
@@ -226,6 +226,37 @@ public partial class MainWindow
         catch { _state.LanIp = "Unknown"; }
     }
 
+    private async Task<bool> RestartSingBoxForModeSwitchAsync()
+    {
+        bool wasReconnecting = _state.IsReconnecting;
+        _state.IsReconnecting = true;
+        SetConnectVisualState(true);
+        try
+        {
+            var restart = StartOrRestartSingBoxVerifiedAsync(killRunning: true, RestartExitNodeTimeoutSeconds);
+            int progress = ConnectProgress.Discovery;
+            while (!restart.IsCompleted && progress < 90)
+            {
+                try { await Task.Delay(150); } catch { }
+                if (restart.IsCompleted) break;
+                progress += 5;
+                SetConnectButtonProgress(progress);
+            }
+            return await restart;
+        }
+        finally
+        {
+            if (!wasReconnecting) _state.IsReconnecting = false;
+            SetConnectVisualState(_state.IsConnected);
+        }
+    }
+
+    private void ApplySystemProxyForMode()
+    {
+        ProxyService.SetSystemProxy(_cfg.LastXrayMode == "Proxy Mode",
+            CrimsonX.Services.ExitNodeChain.ActivePort);
+    }
+
     private void UpdateLocalPortUI()
     {
         if (lblLocalIp == null) return;
@@ -363,6 +394,12 @@ public partial class MainWindow
         if (_connectPress != null) _connectPress.Opacity = pressed ? 1.0 : 0.0;
     }
 
+    private void ResetConnectProgressBaseline()
+    {
+        _targetFillPct = -1;
+        _currentFillPct = 0;
+    }
+
     private void SetConnectButtonProgress(int percent)
     {
         EnsureConnectBoxResources();
@@ -438,11 +475,10 @@ public partial class MainWindow
         _lastEngineChangeUtc = DateTime.UtcNow;
         lock (_pipelineCtsLock) { try { _pipelineCts?.Cancel(); } catch { } }
         CrimsonX.Services.BackgroundTask.Run("stop engine", () => Task.Run(() => CrimsonX.Services.XrayPipelineManager.StopXray()));
-        CrimsonX.Services.TunnelEngine.Stop();
         _state.AbortBoot       = true;
         _state.IsEngineRunning = false;
         lock (_staggerQueue) { _staggerQueue.Clear(); }
-        _session.Stop(); 
+        _session.Stop();
         _netDiag.StopStatsPolling();
         _netDiag.StopGeoTrace();
         _logClearTimer?.Stop();
@@ -459,6 +495,7 @@ public partial class MainWindow
             CrimsonX.Services.ProcessService.KillVpnProcess(sbDebugPid);
             CrimsonX.Services.ProcessService.KillVpnProcess(xrayPid);
             CrimsonX.Services.ProcessService.KillVpnProcess(sbPid);
+            CrimsonX.Services.TunnelEngine.Stop();
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log"));
             TryDeleteFile(GetAppPath(@"Data\Xray\error.log"));
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log.tmp"));
@@ -595,8 +632,8 @@ public partial class MainWindow
         Skip
     }
 
-    private async void btnConnect_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e) =>
-        await HandleConnectRequestAsync(OfflineGuard.Ask);
+    private void btnConnect_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e) =>
+        CrimsonX.Services.BackgroundTask.RunOnUi("connect click", () => HandleConnectRequestAsync(OfflineGuard.Ask));
 
     internal void ConnectDisconnect() => CrimsonX.Services.BackgroundTask.Run("connect request", () => HandleConnectRequestAsync(OfflineGuard.Ask));
     internal void ConnectAfterCheck() => CrimsonX.Services.BackgroundTask.Run("connect after check", () => HandleConnectRequestAsync(OfflineGuard.Skip));
@@ -749,7 +786,7 @@ public partial class MainWindow
         {
             if (wasVpn == isVpn)
             {
-                ProxyService.SetSystemProxy(newMode == "Proxy Mode");
+                ApplySystemProxyForMode();
                 CrimsonX.Services.SimpleLogger.Log($"[ModeHotSwap] {oldMode} -> {newMode} (system proxy only)");
                 return true;
             }
@@ -763,7 +800,7 @@ public partial class MainWindow
                     return false;
                 }
                 await CrimsonX.Services.XrayPipelineManager.SwapOutboundsAsync(outbounds, _cfg, _cfg.XrayDir, true);
-                if (!await StartOrRestartSingBoxVerifiedAsync(killRunning: false, RestartExitNodeTimeoutSeconds))
+                if (!await RestartSingBoxForModeSwitchAsync())
                 {
                     ShowToast(CrimsonX.Localization.AppStrings.ToastStartVpnFailed, ToastKind.Error);
                     return false;
@@ -779,8 +816,16 @@ public partial class MainWindow
                 var outbounds = CrimsonX.Services.XrayPipelineManager.ActiveOutbounds;
                 if (outbounds != null && outbounds.Count > 0)
                     await CrimsonX.Services.XrayPipelineManager.SwapOutboundsAsync(outbounds, _cfg, _cfg.XrayDir, true);
-                ProxyService.SetSystemProxy(newMode == "Proxy Mode");
-                CrimsonX.Services.SimpleLogger.Log($"[ModeHotSwap] VPN Mode -> {newMode} (sing-box stopped)");
+                if (CrimsonX.Services.ExitNodeChain.ShouldChain(_cfg))
+                {
+                    bool restarted = await RestartSingBoxForModeSwitchAsync();
+                    CrimsonX.Services.SimpleLogger.Log($"[ModeHotSwap] VPN Mode -> {newMode} (the chain keeps running as a proxy: {restarted})");
+                }
+                else
+                {
+                    CrimsonX.Services.SimpleLogger.Log($"[ModeHotSwap] VPN Mode -> {newMode} (sing-box stopped)");
+                }
+                ApplySystemProxyForMode();
             }
             Dispatcher.UIThread.Post(() =>
             {
@@ -863,15 +908,14 @@ public partial class MainWindow
         catch (OperationCanceledException) { return false; }
         bool chained = CrimsonX.Services.ExitNodeChain.ShouldChain(_cfg);
         bool showConnecting = chained && killRunning;
+        int? spawnedPid = null;
         try
         {
             CrimsonX.Services.ExitNodeChain.SetChainActive(false);
-            if (killRunning)
-            {
-                int? previous = _sbPid;
-                _sbPid = null;
-                await CrimsonX.Services.ProcessService.KillVpnProcessAsync(previous);
-            }
+            int? previous = _sbPid;
+            _sbPid = null;
+            await CrimsonX.Services.ProcessService.KillVpnProcessAsync(previous);
+            if (chained) await CrimsonX.Services.ExitNodeChain.WaitForProxyPortFreeAsync(2000);
             if (showConnecting) SetConnectVisualState(true);
             var ruleTunnels = await Task.Run(() =>
             {
@@ -886,14 +930,19 @@ public partial class MainWindow
                 string rulesLayout = $"[Tunnel] engines: rules({CrimsonX.Services.TunnelEngine.Describe(CrimsonX.Services.TunnelEngine.GroupRules)})";
                 CrimsonX.Services.SimpleLogger.LogFirst(rulesLayout, rulesLayout);
             }
+            string controller = CrimsonX.Services.SingboxClashApi.ReallocateController();
+            CrimsonX.Services.SimpleLogger.Log($"[SingBox] clash controller on {controller}.");
             if (!await Task.Run(() => CrimsonX.Services.SingboxConfigWriter.Write(_cfg, _cfg.SbDir), ct)) return false;
             var process = await Task.Run(() => ProcessService.StartProcessDirect(GetAppPath(@"Data\sing_box\sing-box.exe"), "run -c config.json", _cfg.SbDir), ct);
             if (process == null) return false;
             _sbPid = process.Id;
+            spawnedPid = process.Id;
             try { await Task.Delay(350, ct); }
             catch (OperationCanceledException)
             {
                 try { await CrimsonX.Services.ProcessService.KillVpnProcessAsync(process.Id); } catch { }
+                _sbPid = null;
+                spawnedPid = null;
                 return false;
             }
             if (!chained)
@@ -912,13 +961,35 @@ public partial class MainWindow
                 Dispatcher.UIThread.Post(() => StartGeoPing());
                 return true;
             }
-            if (ct.IsCancellationRequested) return false;
+            if (ct.IsCancellationRequested)
+            {
+                CrimsonX.Services.SimpleLogger.Log("[SingBox] The start was cancelled; the half-started instance is being killed.");
+                try { await CrimsonX.Services.ProcessService.KillVpnProcessAsync(process.Id); } catch { }
+                _sbPid = null;
+                spawnedPid = null;
+                return false;
+            }
+            if (!string.Equals(_cfg.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase))
+            {
+                CrimsonX.Services.SimpleLogger.Log("[ExitNode] The chain did not come up; the proxy stays on xray.");
+                try { await CrimsonX.Services.ProcessService.KillVpnProcessAsync(process.Id); } catch { }
+                _sbPid = null;
+                spawnedPid = null;
+                CrimsonX.Services.ExitNodeChain.SetChainActive(false);
+                Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastExitNodeFailed, ToastKind.Error));
+                return false;
+            }
             CrimsonX.Services.SimpleLogger.Log("[ExitNode] Falling back to the entry nodes only.");
             try { await CrimsonX.Services.ProcessService.KillVpnProcessAsync(process.Id); } catch { }
+            _sbPid = null;
+            spawnedPid = null;
+            if (chained) await CrimsonX.Services.ExitNodeChain.WaitForProxyPortFreeAsync(2000);
+            CrimsonX.Services.SingboxClashApi.ReallocateController();
             if (!await Task.Run(() => CrimsonX.Services.SingboxConfigWriter.Write(_cfg, _cfg.SbDir, skipExitNode: true))) return false;
             var retry = await Task.Run(() => ProcessService.StartProcessDirect(GetAppPath(@"Data\sing_box\sing-box.exe"), "run -c config.json", _cfg.SbDir));
             if (retry == null) return false;
             _sbPid = retry.Id;
+            spawnedPid = retry.Id;
             CrimsonX.Services.SimpleLogger.Log(
                 $"[ExitNode] The exit node was dropped; proxied traffic is back on xray 127.0.0.1:{CrimsonX.Services.ExitNodeChain.ActivePort}.");
             Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastExitNodeFailed, ToastKind.Error));
@@ -927,6 +998,11 @@ public partial class MainWindow
         catch (Exception ex)
         {
             CrimsonX.Services.SimpleLogger.Log(ex);
+            if (spawnedPid != null)
+            {
+                try { await CrimsonX.Services.ProcessService.KillVpnProcessAsync(spawnedPid); } catch { }
+                _sbPid = null;
+            }
             return false;
         }
         finally
@@ -1021,7 +1097,7 @@ public partial class MainWindow
             _cfg, 
             _cfg.XrayDir,
             true);
-        ProxyService.SetSystemProxy(_cfg.LastXrayMode == "Proxy Mode");
+        ApplySystemProxyForMode();
         if (_state.IsConnected)
         {
             await UpdateLanIpAsync();

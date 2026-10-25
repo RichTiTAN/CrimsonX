@@ -189,13 +189,7 @@ namespace CrimsonX.Services
 
         private static async Task<bool> PingAsync(int port, ConfigTestResult res, CancellationToken ct)
         {
-            var handler = new HttpClientHandler
-            {
-                Proxy = new WebProxy($"http://127.0.0.1:{port}"),
-                UseProxy = true,
-                ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-            };
-            using var client = new HttpClient(handler);
+            using var client = new HttpClient(ConfigTester.ProxyHandler(port));
             client.Timeout = TimeSpan.FromMilliseconds(TimeoutMs);
             long total = 0;
             int count = 0;

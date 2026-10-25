@@ -566,12 +566,7 @@ namespace CrimsonX.Services
                     res.EngineLog = Tail(engineLog);
                     return res;
                 }
-                var handler = new HttpClientHandler
-                {
-                    Proxy = new WebProxy($"http://127.0.0.1:{port}"),
-                    UseProxy = true,
-                    ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-                };
+                var handler = ProxyHandler(port);
                 using var client = new HttpClient(handler);
                 client.Timeout = TimeSpan.FromMilliseconds(TimeoutMs);
                 long totalPing = 0;
@@ -606,12 +601,7 @@ namespace CrimsonX.Services
                 res.PingOk = true;
                 if (flowVerificationAvailable)
                 {
-                    using var flowHandler = new HttpClientHandler
-                    {
-                        Proxy = new WebProxy($"http://127.0.0.1:{port}"),
-                        UseProxy = true,
-                        ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-                    };
+                    using var flowHandler = ProxyHandler(port);
                     using var flowClient = new HttpClient(flowHandler)
                     {
                         Timeout = TimeSpan.FromMilliseconds(FlowWarmupBudgetMs + FlowReadBudgetMs + 1000)
@@ -753,12 +743,7 @@ namespace CrimsonX.Services
                         : "the engine opened no inbound in time";
                     return res;
                 }
-                var handler = new HttpClientHandler
-                {
-                    Proxy = new WebProxy($"http://127.0.0.1:{port}"),
-                    UseProxy = true,
-                    ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-                };
+                var handler = ProxyHandler(port);
                 using var client = new HttpClient(handler);
                 client.Timeout = TimeSpan.FromMilliseconds(10000);
                 ct.ThrowIfCancellationRequested();
@@ -1441,14 +1426,17 @@ namespace CrimsonX.Services
                 await FetchGeoForServerAsync(res, ct).ConfigureAwait(false);
         }
 
-        private static HttpClient RelayDelayClient(int httpPort)
-        {
-            var handler = new HttpClientHandler
+        internal static HttpClientHandler ProxyHandler(int httpPort)
+            => new HttpClientHandler
             {
                 Proxy = new WebProxy($"http://127.0.0.1:{httpPort}"),
                 UseProxy = true,
                 ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
             };
+
+        private static HttpClient RelayDelayClient(int httpPort)
+        {
+            var handler = ProxyHandler(httpPort);
             return new HttpClient(handler) { Timeout = TimeSpan.FromMilliseconds(TimeoutMs) };
         }
 
@@ -1729,7 +1717,7 @@ namespace CrimsonX.Services
                 return results;
             }
 
-            UdpBatchStart start = await StartUdpBatchSessionAsync(outbounds, cfg, ct, sendThroughIp, stun).ConfigureAwait(false);
+            UdpBatchStart start = await Task.Run(() => StartUdpBatchSessionAsync(outbounds, cfg, ct, sendThroughIp, stun), ct).ConfigureAwait(false);
             UdpBatchSession session = start.Session;
             if (session == null)
             {
@@ -1844,12 +1832,7 @@ namespace CrimsonX.Services
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    Proxy = new WebProxy($"http://127.0.0.1:{httpPort}"),
-                    UseProxy = true,
-                    ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-                };
+                var handler = ProxyHandler(httpPort);
                 using var client = new HttpClient(handler);
                 client.Timeout = TimeSpan.FromMilliseconds(TimeoutMs);
                 long totalPing = 0;
@@ -1928,12 +1911,7 @@ namespace CrimsonX.Services
         {
             try
             {
-                var handler = new HttpClientHandler
-                {
-                    Proxy = new WebProxy($"http://127.0.0.1:{httpPort}"),
-                    UseProxy = true,
-                    ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-                };
+                var handler = ProxyHandler(httpPort);
                 using var client = new HttpClient(handler);
                 client.Timeout = TimeSpan.FromMilliseconds(GeoTimeoutMs);
                 foreach (var endpoint in GeoEndpoints)

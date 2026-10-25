@@ -29,8 +29,12 @@ namespace CrimsonX.Services
         private const int INTERNET_OPTION_SETTINGS_CHANGED = 39;
         private const int INTERNET_OPTION_REFRESH = 37;
 
-        public static void SetSystemProxy(bool enable)
+        public static void SetSystemProxy(bool enable) => SetSystemProxy(enable, ExitNodeChain.XrayProxyPort);
+
+        public static void SetSystemProxy(bool enable, int port)
         {
+            if (port <= 0) port = ExitNodeChain.XrayProxyPort;
+            string endpoint = "127.0.0.1:" + port;
             CrimsonX.Services.BackgroundTask.Run("system proxy", () => Task.Run(() =>
             {
                 try
@@ -42,7 +46,7 @@ namespace CrimsonX.Services
                         if (enable)
                         {
                             key.SetValue("ProxyEnable", 1, RegistryValueKind.DWord);
-                            key.SetValue("ProxyServer", "127.0.0.1:10919", RegistryValueKind.String);
+                            key.SetValue("ProxyServer", endpoint, RegistryValueKind.String);
                         }
                         else
                         {

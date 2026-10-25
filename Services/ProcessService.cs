@@ -163,6 +163,38 @@ namespace CrimsonX.Services
             }
         }
 
+        public static int SweepStrayEngines(params string[] exePaths)
+        {
+            int killed = 0;
+            foreach (string exePath in exePaths)
+            {
+                if (string.IsNullOrWhiteSpace(exePath)) continue;
+                string name = Path.GetFileNameWithoutExtension(exePath);
+                if (string.IsNullOrWhiteSpace(name)) continue;
+                Process[] candidates;
+                try { candidates = Process.GetProcessesByName(name); }
+                catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); continue; }
+                foreach (var p in candidates)
+                {
+                    using (p)
+                    {
+                        try
+                        {
+                            if (p.HasExited) continue;
+                            if (!string.Equals(p.MainModule?.FileName, exePath, StringComparison.OrdinalIgnoreCase)) continue;
+                            p.Kill();
+                            p.WaitForExit(1000);
+                            killed++;
+                        }
+                        catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
+                    }
+                }
+            }
+            if (killed > 0)
+                CrimsonX.Services.SimpleLogger.Log($"[Startup] killed {killed} leftover engine process(es) so their ports are free.");
+            return killed;
+        }
+
         public static async Task UpdateBootScheduledTask(bool enable, string exePath)
         {
             const string taskName = "CrimsonX_AutoStart";

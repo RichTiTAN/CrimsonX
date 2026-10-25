@@ -77,6 +77,16 @@ namespace CrimsonX.Services
             }
         }
 
+        internal static async System.Threading.Tasks.Task WaitForProxyPortFreeAsync(int timeoutMs)
+        {
+            var started = DateTime.UtcNow;
+            while ((DateTime.UtcNow - started).TotalMilliseconds < timeoutMs)
+            {
+                if (IsPortFree(ProxyPort)) return;
+                try { await System.Threading.Tasks.Task.Delay(50); } catch { return; }
+            }
+        }
+
         public const int XrayProxyPort = 10919;
 
         public static bool ChainActive { get; private set; }
@@ -173,8 +183,7 @@ namespace CrimsonX.Services
                || transport["type"]?.ToString() is "tcp" or "raw";
 
         public static bool ShouldChain(AppConfig config)
-            => IsSingboxExit(config)
-               && string.Equals(config.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase);
+            => IsSingboxExit(config);
 
         public static int DisplayPort(AppConfig config) => ShouldChain(config) ? ProxyPort : XrayProxyPort;
 
@@ -187,11 +196,6 @@ namespace CrimsonX.Services
             if (raw.Length == 0) return null;
             if (!TunnelConfigParser.TryParse(raw, out var tunnel) || tunnel?.Endpoint == null || !tunnel.Success)
                 return null;
-            if (!string.Equals(config.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase))
-            {
-                error = $"'{tunnel.Label}' is an OpenVPN/WireGuard exit node and only chains in VPN Mode.";
-                return null;
-            }
             if (!TunnelCredentialResolver.ApplyStored(tunnel))
             {
                 error = $"'{tunnel.Label}' needs OpenVPN credentials before it can act as the exit node.";
@@ -217,11 +221,6 @@ namespace CrimsonX.Services
             if (raw.Length == 0 || !IsPlainTcpVless(raw)) return null;
             var outbound = ReadVlessOutbound(raw);
             if (outbound == null) return null;
-            if (!string.Equals(config.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase))
-            {
-                error = $"'{SingboxLinkParser.DescribeOutbound(outbound)}' is a vless exit node and only chains in VPN Mode.";
-                return null;
-            }
             outbound.Remove("tag");
             outbound.Remove("bind_interface");
             outbound.Remove("inet4_bind_address");

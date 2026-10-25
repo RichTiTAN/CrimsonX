@@ -73,6 +73,10 @@ namespace CrimsonX.Services
         private static readonly Dictionary<string, CachedFamily> Domains = new Dictionary<string, CachedFamily>(StringComparer.OrdinalIgnoreCase);
         private static readonly TimeSpan BindingTtl = TimeSpan.FromSeconds(10);
         private static readonly TimeSpan DomainTtl = TimeSpan.FromMinutes(10);
+        private static System.Collections.Generic.HashSet<string> LiveAddressesCache =
+            new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly TimeSpan LiveAddressesTtl = TimeSpan.FromSeconds(2);
+        private static DateTime LiveAddressesStamp = DateTime.MinValue;
         private const int DomainBudgetMs = 400;
 
         internal static Func<string, EndpointFamily> DomainResolver { get; set; }
@@ -161,16 +165,29 @@ namespace CrimsonX.Services
         {
             string text = StripBrackets(ip);
             if (!IPAddress.TryParse(text, out var wanted)) return false;
-            try
+            return LiveAddresses().Contains(wanted.ToString());
+        }
+
+        private static System.Collections.Generic.HashSet<string> LiveAddresses()
+        {
+            lock (Sync)
             {
-                foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+                var now = DateTime.UtcNow;
+                if (now - LiveAddressesStamp < LiveAddressesTtl) return LiveAddressesCache;
+                var set = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                try
                 {
-                    if (nic.OperationalStatus != OperationalStatus.Up) continue;
-                    if (Useful(nic).Any(i => i.Address.Equals(wanted))) return true;
+                    foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+                    {
+                        if (nic.OperationalStatus != OperationalStatus.Up) continue;
+                        foreach (var info in Useful(nic)) set.Add(info.Address.ToString());
+                    }
                 }
+                catch (Exception ex) { SimpleLogger.Log(ex); }
+                LiveAddressesCache = set;
+                LiveAddressesStamp = now;
+                return set;
             }
-            catch (Exception ex) { SimpleLogger.Log(ex); }
-            return false;
         }
         public static string SourceFor(AdapterBinding binding, EndpointFamily family)
         {

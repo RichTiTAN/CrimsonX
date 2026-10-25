@@ -32,10 +32,23 @@ namespace CrimsonX.Services
         private const int NoData = unchecked((int)0x800700E8);
 
         private static readonly ConcurrentDictionary<string, byte> _reported = new(StringComparer.Ordinal);
+        private static readonly ConcurrentDictionary<string, byte> _running = new(StringComparer.Ordinal);
 
         public static void Run(string site, Func<Task> work)
         {
             _ = Observe(site, work);
+        }
+
+        public static void RunOnUi(string site, Func<Task> work)
+        {
+            _ = ObserveOnUi(site, work);
+        }
+
+        public static void RunOnceOnUi(string site, Func<Task> work)
+        {
+            string key = site ?? "";
+            if (!_running.TryAdd(key, 0)) return;
+            _ = ObserveOnceOnUi(key, work);
         }
 
         public static void Report(string site, Exception ex)
@@ -73,6 +86,34 @@ namespace CrimsonX.Services
             catch (Exception ex)
             {
                 Report(site, ex);
+            }
+        }
+
+        private static async Task ObserveOnUi(string site, Func<Task> work)
+        {
+            try
+            {
+                await work();
+            }
+            catch (Exception ex)
+            {
+                Report(site, ex);
+            }
+        }
+
+        private static async Task ObserveOnceOnUi(string site, Func<Task> work)
+        {
+            try
+            {
+                await work();
+            }
+            catch (Exception ex)
+            {
+                Report(site, ex);
+            }
+            finally
+            {
+                _running.TryRemove(site, out _);
             }
         }
 

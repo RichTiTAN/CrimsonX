@@ -64,6 +64,26 @@ namespace CrimsonX.Services
             }
         }
 
+        internal static string ReallocateController()
+        {
+            lock (Sync)
+            {
+                int port = PickPort(CurrentPort());
+                _controller = "127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture);
+                return _controller;
+            }
+        }
+
+        private static int CurrentPort()
+        {
+            string controller = _controller;
+            int colon = controller.LastIndexOf(':');
+            return colon >= 0
+                && int.TryParse(controller.Substring(colon + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out int port)
+                ? port
+                : 0;
+        }
+
         internal static string EnsureSecret()
         {
             lock (Sync)
@@ -78,14 +98,14 @@ namespace CrimsonX.Services
             }
         }
 
-        private static int PickPort()
+        private static int PickPort(int avoid = 0)
         {
             for (int attempt = 0; attempt < 16; attempt++)
             {
                 int candidate = Random.Shared.Next(19090, 19290);
-                if (IsPortFree(candidate)) return candidate;
+                if (candidate != avoid && IsPortFree(candidate)) return candidate;
             }
-            return 19091;
+            return avoid == 19091 ? 19092 : 19091;
         }
 
         private static bool IsPortFree(int port)

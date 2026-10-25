@@ -41,10 +41,13 @@ namespace CrimsonX.Services
 
         public event System.Action<int>? ConnectionProgress;
 
+        public int LastConnectionProgress { get; private set; } = -1;
+
         public event System.Action? RulesApplied;
 
         public void PublishConnectionProgress(int percent)
         {
+            LastConnectionProgress = percent;
             Dispatcher.UIThread.Post(() => ConnectionProgress?.Invoke(percent));
         }
 
