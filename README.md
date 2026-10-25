@@ -35,7 +35,7 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 
 ##  Screenshots
 
-<img width="651" height="551" alt="Screenshot 2026-08-24 101948" src="https://github.com/user-attachments/assets/90de8995-ddac-489c-a5d4-b5b9ddc6ad5c" />
+<img width="696" height="554" alt="Screenshot 2026-10-04 155541" src="https://github.com/user-attachments/assets/7b093fdb-5d37-4ee0-a75c-efadf7aa86b9" />
 
 
 ##  Installation
@@ -68,13 +68,10 @@ At runtime the stores in `Data\cache\*.bin` are encrypted with a 32-byte key tha
 ### 2. Custom Configs
 If you don't want to rely on the automated scrapers, you can inject up to 2 of your own configs directly in the Settings tab: VLESS/VMESS/Shadowsocks/Socks share links, xray/sing-box outbound JSON, or full **OpenVPN** (`.ovpn`, with inline `<ca>`/`<tls-crypt>`/`<tls-auth>` blocks) and **WireGuard** configs (`.conf`, `wireguard://` share links, sing-box endpoint JSON or xray `wireguard` outbound JSON).
 
-Just paste them in (**Ctrl+V**), press the **+** button to import a file, or pick one of your saved configs: the box keeps the config behind the scenes and only shows its title, so a multi-line `.ovpn` can no longer be clipped by the single-line box.
+Just paste them in (**Ctrl+V**), press the **+** button to import a file, or pick one of your saved configs.
+The same configs can also be used per app in the **Apps & Games** tab (custom proxy per rule). 
 
-OpenVPN and WireGuard configs are not proxied by xray directly: CrimsonX runs a second, headless sing-box instance that owns the `openvpn-client` / `wireguard` endpoint and exposes a local socks inbound on a free loopback port. xray then dials that socks inbound as one of its `proxy-node` outbounds, so the config takes part in the normal balancer, speed test, split tunnel and watchdog logic. The tunnel port is picked automatically on every connect (never hardcoded, never exposed to the LAN) and is written to the log as `[Tunnel] openvpn <server> → socks 127.0.0.1:<port>`.
-
-The same configs can also be used per app in the **Apps & Games** tab (custom proxy per rule). Those run in their own sing-box tunnel process, kept separate from the Custom Configs tunnels, and only apply in VPN Mode — and when the same config + adapter is already running as a custom config, the rule reuses that engine instead of starting a second process.
-
-The **CUSTOM CONFIGS** section also carries a **PER-CONFIG ADAPTER** switch. With it on, each of the two boxes gets its own adapter picker and each config leaves through the adapter it was given — while **BIND ADAPTER** and **LOAD-BALANCE ADAPTERS** are switched off (turning either of them on switches this mode off again). A slot left on **Default** follows the machine's default route. The picks apply to xray-dialed configs and to the OpenVPN/WireGuard tunnels alike, and the **PING** button tests each slot through its own adapter. Each adapter row is **SCAN** + the adapter dropdown + an **ADAPTER** tag, and the section's **SUBMIT** now sits in the **CUSTOM CONFIGS** header: it appears only while the panel has an unapplied change, applies both boxes, and closes the panel.
+The **CUSTOM CONFIGS** section also carries a **PER-CONFIG ADAPTER** switch. With it on, each of the two boxes gets its own adapter picker and each config leaves through the adapter it was given.
 
 ### 3. Load Balance Policies
 Head to the **Settings** tab to adjust how CrimsonX distributes connections. If you're downloading large files, **Least Ping** or **Round Robin** is recommended.  
