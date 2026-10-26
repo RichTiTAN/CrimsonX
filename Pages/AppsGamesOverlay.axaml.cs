@@ -60,10 +60,9 @@ public class AppRuleViewModel
     public string[] CountryItems { get; }
     public string[] RegionItems { get; }
     public string ConfigLabel => CrimsonX.Localization.AppStrings.ConfigBadge;
-    public string EditTooltip => CrimsonX.Localization.AppStrings.Edit;
+    public string EditTooltip => CrimsonX.Localization.AppStrings.EditTooltip;
     public string DeleteTooltip => CrimsonX.Localization.AppStrings.Delete;
     public string PinTooltip => CrimsonX.Localization.AppStrings.PinUnpin;
-    public string EditAdaptersTooltip => CrimsonX.Localization.AppStrings.EditAdapters;
     public bool    IsLauncher { get; }
     public bool    IsBrowser  { get; }
     public bool    IsMessenger { get; }
@@ -79,10 +78,6 @@ public class AppRuleViewModel
     public string  CustomLabel => CrimsonX.Localization.AppStrings.RoutingCustomShort;
     public string  DirectLabel => CrimsonX.Localization.AppStrings.RoutingDirect.ToUpperInvariant();
     public string  ProxyLabel  => CrimsonX.Localization.AppStrings.RoutingProxy.ToUpperInvariant();
-
-    public string  EditorTooltip => IsCustomRouting && !string.IsNullOrWhiteSpace(CustomProxyLabel)
-        ? CustomProxyLabel
-        : EditAdaptersTooltip;
 
     public bool    ShowAdapterEditor => HasCountry || HasRegion || ShowsRoutingPill || ShowsRoutingEditor || HasDirectRouting;
     public int     CountryIndex { get; }

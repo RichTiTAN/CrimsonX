@@ -81,6 +81,7 @@ namespace CrimsonX.Controls
         private global::Avalonia.Controls.StackPanel? _panCustomActions;
         private global::Avalonia.Controls.ComboBox? _cbCfg1;
         private global::Avalonia.Controls.ComboBox? _cbCfg2;
+        private global::Avalonia.Controls.Button? _btnSubmit;
         private bool _customView;
         private bool _editMode;
         private bool _syncingCustomView;
@@ -219,6 +220,7 @@ namespace CrimsonX.Controls
             _panCustomActions = this.FindControl<StackPanel>("panCustomActions");
             _cbCfg1 = this.FindControl<ComboBox>("cbQSCustomConfig1");
             _cbCfg2 = this.FindControl<ComboBox>("cbQSCustomConfig2");
+            _btnSubmit = this.FindControl<Button>("btnQSSubmit");
             Pages.SettingsPage.Instance?.AttachQuickSettingsConfigBoxes(_cbCfg1, _cbCfg2);
             _btnSlot1 = this.FindControl<Button>("btnSlot1")!;
             _btnSlot2 = this.FindControl<Button>("btnSlot2")!;
@@ -411,6 +413,7 @@ namespace CrimsonX.Controls
             {
                 Pages.SettingsPage.Instance?.AttachQuickSettingsConfigBoxes(_cbCfg1, _cbCfg2);
                 Pages.SettingsPage.Instance?.ShowQuickSettingsConfigs();
+                Pages.SettingsPage.Instance?.RefreshCustomConfigsSubmit();
             }
             finally { _syncingCustomView = false; }
         }
@@ -453,10 +456,14 @@ namespace CrimsonX.Controls
 
         private void btnQSSubmit_Click(object? sender, RoutedEventArgs e)
         {
-            Pages.SettingsPage.Instance?.SubmitCustomConfigsFromQuickSettings(
-                _cbCfg1?.Text ?? "", _cbCfg2?.Text ?? "");
+            Pages.SettingsPage.Instance?.SubmitCustomConfigsFromQuickSettings();
             RefreshTogglesState();
             ShowCustomView(false);
+        }
+
+        internal void SetCustomConfigsSubmitVisible(bool visible)
+        {
+            if (_btnSubmit != null) _btnSubmit.IsVisible = visible;
         }
 
         private static int SlotOf(object? sender)

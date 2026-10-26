@@ -411,18 +411,17 @@ namespace CrimsonX.Pages
         => SubmitCustomConfigs();
 
 
-    public void SubmitCustomConfigsFromQuickSettings(string cfg1, string cfg2)
+    public void SubmitCustomConfigsFromQuickSettings()
     {
-        var cb1 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig1");
-        var cb2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
-        if (cb1 != null) cb1.Text = cfg1;
-        if (cb2 != null) cb2.Text = cfg2;
         var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togFetchConfigWhenOne");
         var cfg = MainWindow.Instance?.Config;
         if (tog != null && cfg != null) tog.IsChecked = cfg.FetchConfigWhenOneProvided;
-        SubmitCustomConfigs();
-        ShowQuickSettingsConfigs();
+        BeginCustomConfigsSubmit(QuickSlotBoxKey(1), QuickSlotBoxKey(2), keepAdapterPicks: true);
     }
+
+    private void BeginCustomConfigsSubmit(string key1, string key2, bool keepAdapterPicks)
+        => CrimsonX.Services.BackgroundTask.RunOnceOnUi("settings.custom-configs.submit",
+            () => SubmitCustomConfigsAsync(key1, key2, keepAdapterPicks));
 
     private void SetCustomConfigSlotText(int slot, string text)
     {
@@ -453,14 +452,18 @@ namespace CrimsonX.Pages
         else          btnCustomConfigsSave1_Click(this, new global::Avalonia.Interactivity.RoutedEventArgs());
     }
 
-    public void SubmitCustomConfigs()
+    public void SubmitCustomConfigs() => BeginCustomConfigsSubmit(SlotBoxKey(1), SlotBoxKey(2), keepAdapterPicks: false);
+
+    private async Task SubmitCustomConfigsAsync(string key1, string key2, bool keepAdapterPicks)
     {
+        bool rejected1 = !await AcceptTypedConfigAsync(key1);
+        bool rejected2 = !await AcceptTypedConfigAsync(key2);
         var main = MainWindow.Instance;
         var cfg = main.Config;
         var togFetchConfig = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togFetchConfigWhenOne");
         var togPerConfig = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togPerConfigAdapter");
 
-        ResolveCustomConfigSlots();
+        ResolveCustomConfigSlots(key1, key2, rejected1, rejected2);
         CommitCustomConfigRawDraft();
 
         bool fetchOn = togFetchConfig?.IsChecked ?? false;
@@ -481,8 +484,18 @@ namespace CrimsonX.Pages
 
         if (cfg.EnablePerConfigAdapters)
         {
-            string pick1 = string.IsNullOrWhiteSpace(cfg.CustomConfig1) ? "" : StagedAdapterPick(1);
-            string pick2 = string.IsNullOrWhiteSpace(cfg.CustomConfig2) ? "" : StagedAdapterPick(2);
+            string pick1 = "";
+            string pick2 = "";
+            if (!string.IsNullOrWhiteSpace(cfg.CustomConfig1))
+            {
+                pick1 = StagedAdapterPick(1);
+                if (pick1.Length == 0 && keepAdapterPicks) pick1 = PerConfigAdapterPick(cfg, 1);
+            }
+            if (!string.IsNullOrWhiteSpace(cfg.CustomConfig2))
+            {
+                pick2 = StagedAdapterPick(2);
+                if (pick2.Length == 0 && keepAdapterPicks) pick2 = PerConfigAdapterPick(cfg, 2);
+            }
             if (pick1.Length > 0 && string.Equals(pick1, pick2, StringComparison.Ordinal)) pick2 = "";
             StorePerConfigAdapterPick(cfg, 1, pick1);
             StorePerConfigAdapterPick(cfg, 2, pick2);
@@ -531,6 +544,7 @@ namespace CrimsonX.Pages
         ShowCustomConfigSlotsFromConfig();
         SetCustomConfigsExpanded(false, revertPending: false);
         UpdateCustomConfigsSubmitVisibility();
+        ShowQuickSettingsConfigs();
         main.RequestConfigSave();
         NotifyCustomConfigsChanged(showSaveToast: true);
     }

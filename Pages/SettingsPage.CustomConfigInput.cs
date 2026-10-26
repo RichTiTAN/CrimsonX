@@ -170,10 +170,15 @@ namespace CrimsonX.Pages
 
         private void UpdateCustomConfigsSubmitVisibility()
         {
+            bool pending = _customConfigsDirty && !_isInitializingSettings;
             var submit = this.FindControl<Button>("btnCustomConfigsSubmit");
             if (submit != null)
-                submit.IsVisible = _customConfigsDirty && _customConfigsExpanded && !_isInitializingSettings;
+                submit.IsVisible = pending && _customConfigsExpanded;
+            MainWindow.Instance?.FindControl<CrimsonX.Controls.QuickSettingsPanel>("quickSettings")
+                ?.SetCustomConfigsSubmitVisible(pending);
         }
+
+        internal void RefreshCustomConfigsSubmit() => UpdateCustomConfigsSubmitVisibility();
 
         private void ConfigBoxTextChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
         {
@@ -310,24 +315,79 @@ namespace CrimsonX.Pages
             ConfigBoxes.Show(QuickSlotBoxKey(slot), raw);
         }
 
-        private string ResolveCustomConfigRaw(int slot)
+        private string ResolveCustomConfigRaw(int slot) => ResolveCustomConfigRaw(SlotBoxKey(slot));
+
+        private string ResolveCustomConfigRaw(string key)
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return "";
             EnsureCustomConfigDraft();
-            return ConfigBoxes.Resolve(SlotBoxKey(slot),
-                visible => AppCustomConfigStore.CanStore(visible));
+            return ConfigBoxes.Resolve(key,
+                visible => AdoptableConfigText(visible),
+                visible => SavedConfigRawForTitle(cfg, visible));
         }
 
-        internal void ResolveCustomConfigSlots()
+        private static bool AdoptableConfigText(string visible)
+            => AppCustomConfigStore.CanStore(visible)
+            || ConfigConverter.TryAcceptFor(visible, ConfigTarget.Xray, out _);
+
+        private static string SavedConfigRawForTitle(AppConfig cfg, string visible)
+        {
+            if (cfg == null || visible.Length == 0) return "";
+            foreach (var entry in AppCustomConfigStore.Load(cfg))
+            {
+                if (entry == null) continue;
+                if (string.Equals((entry.Label ?? "").Trim(), visible, StringComparison.Ordinal))
+                    return (entry.Raw ?? "").Trim();
+            }
+            return "";
+        }
+
+        private async Task<bool> AcceptTypedConfigAsync(string key)
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null) return true;
+            EnsureCustomConfigDraft();
+            string visible = ConfigBoxes.Text(key);
+            if (visible.Length == 0) return true;
+            string stored = (ReadConfigBoxRaw(key) ?? "").Trim();
+            if (stored.Length > 0
+                && (string.Equals(visible, stored, StringComparison.Ordinal)
+                 || string.Equals(visible, ConfigBoxTitle(stored), StringComparison.Ordinal)))
+                return true;
+            if (SavedConfigRawForTitle(cfg, visible).Length > 0) return true;
+            var verdict = await ConfigIntake.AcceptAsync(visible, cfg, ConfigTarget.Xray, AppStrings.PaneCustomConfig);
+            if (!verdict.Accepted)
+            {
+                CrimsonX.Services.SimpleLogger.Log($"[Submit] {AppStrings.PaneCustomConfig}: {verdict.Reason}");
+                MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
+                return false;
+            }
+            if (verdict.Toast.Length > 0) MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);
+            int slot = SlotOfKey(key);
+            SetConfigRaw(cfg, slot, verdict.Raw.Length > 0 ? verdict.Raw : visible);
+            ShowCustomConfigSlot(slot, GetConfigRaw(cfg, slot));
+            MarkCustomConfigsTextDirty();
+            return true;
+        }
+
+        private static int SlotOfKey(string key)
+            => string.Equals(key, SlotBoxKey(2), StringComparison.Ordinal)
+            || string.Equals(key, QuickSlotBoxKey(2), StringComparison.Ordinal) ? 2 : 1;
+
+        internal void ResolveCustomConfigSlots() => ResolveCustomConfigSlots(SlotBoxKey(1), SlotBoxKey(2));
+
+        internal void ResolveCustomConfigSlots(string key1, string key2, bool rejected1 = false, bool rejected2 = false)
         {
             var cfg = MainWindow.Instance?.Config;
             if (cfg == null) return;
             EnsureCustomConfigDraft();
             for (int slot = 1; slot <= 2; slot++)
             {
-                string resolved = ResolveCustomConfigRaw(slot);
-                bool cleared = ConfigBoxes.IsEmpty(SlotBoxKey(slot));
+                if (slot == 1 ? rejected1 : rejected2) continue;
+                string key = slot == 2 ? key2 : key1;
+                string resolved = ResolveCustomConfigRaw(key);
+                bool cleared = ConfigBoxes.IsEmpty(key);
                 if (resolved.Length > 0 || cleared || GetConfigRaw(cfg, slot).Length == 0)
                     SetConfigRaw(cfg, slot, resolved);
             }

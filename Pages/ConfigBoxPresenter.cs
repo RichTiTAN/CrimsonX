@@ -100,7 +100,9 @@ namespace CrimsonX.Pages
             }
         }
 
-        public string Resolve(string key, Func<string, bool> adopt)
+        public string Resolve(string key, Func<string, bool> adopt) => Resolve(key, adopt, null);
+
+        public string Resolve(string key, Func<string, bool> adopt, Func<string, string>? rawOfTitle)
         {
             string visible = GetText(Box(key)).Trim();
             string stored  = (_readRaw(key) ?? "").Trim();
@@ -109,6 +111,13 @@ namespace CrimsonX.Pages
                 && (string.Equals(visible, stored, StringComparison.Ordinal)
                  || string.Equals(visible, Label(stored), StringComparison.Ordinal)))
                 return stored;
+            string titled = (rawOfTitle?.Invoke(visible) ?? "").Trim();
+            if (titled.Length > 0)
+            {
+                _writeRaw(key, titled);
+                Show(key, titled);
+                return titled;
+            }
             if (adopt == null || !adopt(visible)) return "";
             _writeRaw(key, visible);
             Show(key, visible);

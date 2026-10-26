@@ -427,11 +427,16 @@ namespace CrimsonX.Controls
                   .Append(FormatDuration(_sessionElapsed ?? TimeSpan.Zero));
                 if (_hasTelemetry)
                 {
+                    long totalBytes = _lastProcesses.Sum(p => p.DownloadBytes + p.UploadBytes);
                     sb.Append("   ·   ")
                       .Append(_activeConnections.ToString(CultureInfo.InvariantCulture))
                       .Append(' ').Append(AppStrings.OverlayStatsActive)
                       .Append("   ·   ↓ ").Append(FormatSpeed(_speedDown, false))
-                      .Append("   ↑ ").Append(FormatSpeed(_speedUp, false));
+                      .Append("   ↑ ").Append(FormatSpeed(_speedUp, false))
+                      .Append("   ·   ")
+                      .Append(AppStrings.TtOverlayStatsTotal)
+                      .Append(' ')
+                      .Append(FormatSpeed(totalBytes, false));
                     foreach (var proc in _lastProcesses.Take(5))
                     {
                         sb.Append('\n')

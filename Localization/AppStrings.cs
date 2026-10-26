@@ -444,7 +444,7 @@ namespace CrimsonX.Localization
             ? "نوار بالا را روی تب های اسپلیت تانلینگ، تم ها، اسکنر و درباره نگه می دارد"
             : "Keeps the readout bar on the split tunneling, themes, scanner and about tabs";
 
-        public static string EditAdapters => IsPersian ? "ویرایش آداپتورها" : "Edit Adapters";
+        public static string EditTooltip => IsPersian ? "ویرایش" : "Edit";
 
         // ── Settings - Start-up ──
 
@@ -1047,6 +1047,8 @@ namespace CrimsonX.Localization
         public static string TtOverlayStatsTitle   => IsPersian ? "ترافیک قوانین برنامه ها" : "APP RULE TRAFFIC";
 
         public static string TtOverlayStatsSession => IsPersian ? "نشست:" : "SESSION";
+
+        public static string TtOverlayStatsTotal   => IsPersian ? "مجموع:" : "TOTAL";
 
         public static string TtOverlayStatsHint    => IsPersian ? "فقط ترافیک برنامه هایی که قانون فعال دارند محاسبه می شود." : "Only traffic of apps that have an enabled rule is counted.";
 
