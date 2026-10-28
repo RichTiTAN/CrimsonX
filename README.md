@@ -38,7 +38,8 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 <img width="696" height="554" alt="Screenshot 2026-10-04 155541" src="https://github.com/user-attachments/assets/7b093fdb-5d37-4ee0-a75c-efadf7aa86b9" />
 
 
-##  Installation
+##  Installation  
+Note: [Linux version](https://github.com/RichTiTAN/CrimsonX-Linux)
 
 1. Go to the [Releases](https://github.com/RichTiTAN/CrimsonX/releases) page.
 2. Download the latest `CrimsonX.zip`.
