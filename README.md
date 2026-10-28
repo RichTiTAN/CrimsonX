@@ -38,15 +38,15 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 <img width="696" height="554" alt="Screenshot 2026-10-04 155541" src="https://github.com/user-attachments/assets/7b093fdb-5d37-4ee0-a75c-efadf7aa86b9" />
 
 
-##  Installation  
-Note: [Linux version](https://github.com/RichTiTAN/CrimsonX-Linux)
+##  Installation
 
 1. Go to the [Releases](https://github.com/RichTiTAN/CrimsonX/releases) page.
 2. Download the latest `CrimsonX.zip`.
 3. Extract the folder to your preferred location.
 4. Run `CrimsonX.exe`.
 
-*Note: CrimsonX requires Windows 10 or newer.*
+*Note: CrimsonX requires Windows 10 or newer.  
+You can find the [Linux version here](https://github.com/RichTiTAN/CrimsonX-Linux).*
 
 ###  Building from source
 Private worker URLs and a built-in encryption key live in a **gitignored** file (`Services/AppSecrets.cs`) so they never end up in the public repository. After cloning, create it from the template before building:
