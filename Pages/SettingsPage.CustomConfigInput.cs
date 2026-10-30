@@ -19,6 +19,7 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using CrimsonX.Localization;
@@ -53,11 +54,15 @@ namespace CrimsonX.Pages
             bool dirty = textDirty;
             if (cfg != null)
             {
-                var fetch = this.FindControl<ToggleSwitch>("togFetchConfigWhenOne");
+                var fetch = this.FindControl<ToggleButton>("togFetchConfigWhenOne");
                 if (fetch != null)
                     dirty |= (fetch.IsChecked ?? false) != cfg.FetchConfigWhenOneProvided;
 
-                var per = this.FindControl<ToggleSwitch>("togPerConfigAdapter");
+                var obfuscation = this.FindControl<ToggleButton>("togCustomConfigObfuscation");
+                if (obfuscation != null)
+                    dirty |= (obfuscation.IsChecked ?? false) != cfg.EnableCustomConfigObfuscation;
+
+                var per = this.FindControl<ToggleButton>("togPerConfigAdapter");
                 bool perOn = per?.IsChecked == true;
                 dirty |= perOn != cfg.EnablePerConfigAdapters;
                 if (perOn)
@@ -143,19 +148,28 @@ namespace CrimsonX.Pages
 
             ShowCustomConfigSlot(1, cfg.CustomConfig1 ?? "");
             ShowCustomConfigSlot(2, cfg.CustomConfig2 ?? "");
+            SyncCustomConfigSwitchesFromConfig();
+            UpdateCustomConfigsSubmitVisibility();
+        }
+
+        internal void SyncCustomConfigSwitchesFromConfig()
+        {
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null) return;
             bool wasInit = _isInitializingSettings;
             _isInitializingSettings = true;
             try
             {
-                var fetch = this.FindControl<ToggleSwitch>("togFetchConfigWhenOne");
+                var fetch = this.FindControl<ToggleButton>("togFetchConfigWhenOne");
                 if (fetch != null) fetch.IsChecked = cfg.FetchConfigWhenOneProvided;
+                var obfuscation = this.FindControl<ToggleButton>("togCustomConfigObfuscation");
+                if (obfuscation != null) obfuscation.IsChecked = cfg.EnableCustomConfigObfuscation;
             }
             finally
             {
                 _isInitializingSettings = wasInit;
             }
             SyncPerConfigAdapterPanel();
-            UpdateCustomConfigsSubmitVisibility();
         }
 
         private void ResetStagedAdapter(int slot)

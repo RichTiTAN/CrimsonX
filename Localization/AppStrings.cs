@@ -209,6 +209,8 @@ namespace CrimsonX.Localization
 
         public static string GeoTimeout             => IsPersian ? "ناموفق"          : "Timeout";
 
+        public static string ToastGeoFailed         => IsPersian ? "ردیابی موقعیت ناموفق بود: " : "The location trace failed: ";
+
         // ── Split Tunneling ──
 
         public static string SplitTunnelDirectUDP => IsPersian ? "UDP مستقیم" : "DIRECT UDP";
@@ -488,6 +490,8 @@ namespace CrimsonX.Localization
         public static string PaneCustomConfig => IsPersian ? "کانفیگ دلخواه" : "CUSTOM CONFIG";
         public static string FetchConfigWhenOneProvided => IsPersian ? "دریافت کانفیگ در صورت وجود تنها یک کانفیگ" : "FETCH A CONFIG IF ONLY ONE IS PROVIDED";
 
+        public static string CustomConfigObfuscationTitle => IsPersian ? "مبهم سازی" : "OBFUSCATION";
+
         public static string PerConfigAdapterTitle => IsPersian ? "آداپتور برای هر کانفیگ" : "PER-CONFIG ADAPTER";
 
         public static string AdapterTag => IsPersian ? "آداپتور" : "ADAPTER";
@@ -691,6 +695,14 @@ namespace CrimsonX.Localization
         public static string OptimizeAdapter => IsPersian ? "آداپتور" : "ADAPTER";
 
         public static string TtOptimizeAdapter => IsPersian ? "تست ها و اتصال برنامه های بهینه شده از این آداپتور انجام می شوند." : "Which adapter the tests and the optimized apps' connection should use.";
+
+        public static string OptimizeRegion => IsPersian ? "منطقه" : "REGION";
+
+        public static string TtOptimizeRegion => IsPersian
+            ? "بهینه سازی فقط از کانفیگ های این منطقه انجام می شود. گزینه «همه» هیچ فیلتر منطقه ای اعمال نمی کند؛ روسیه و بلاروس در هر حالت مسدود می مانند."
+            : "Optimization only uses configs from this region. All applies no region filter; Russia and Belarus stay blocked either way.";
+
+        public static string RegionAll => IsPersian ? "همه" : "All";
 
         public static string TtOptimize => IsPersian ? "سریع ترین کانفیگ پایدار را پیدا می کند و روی برنامه های انتخاب شده اعمال می کند." : "Finds the fastest stable config and applies it to the apps you choose.";
 
@@ -1018,13 +1030,19 @@ namespace CrimsonX.Localization
 
         public static string TtSavedConfigsPing => IsPersian ? "آزمایش این کانفیگ" : "Test this config";
 
-        public static string TtSavedConfigsCopy => IsPersian ? "کپی لینک اشتراک" : "Copy share link";
+        public static string TtSavedConfigsCopy => IsPersian ? "کپی کانفیگ" : "Copy config";
 
         public static string TtSavedConfigsDelete => IsPersian ? "حذف از لیست ذخیره شده" : "Remove from the saved list";
 
         public static string TtCustomConfigs => IsPersian
             ? "کانفیگ های شخصی خود را برای اتصال مستقیم وارد کنید. اگر دو کانفیگ معتبر باشند، برنامه مستقیم با هر دو وصل می شود. اگر یک کانفیگ معتبر باشد و «اجازه اتصال با یک کانفیگ» فعال باشد، فقط با همان یکی وصل می شود. در غیر این صورت، برنامه بهترین کانفیگ سرور را پیدا کرده و کنار کانفیگ شما از آن استفاده می کند. کانفیگ های شخصی در صورت خرابی به صورت خودکار جایگزین نمی شوند."
             : "Enter your own proxy configs for direct connection. If both configs are valid, the app connects with them immediately. If one is valid and 'Allow connecting with one config' is on, it connects with just that one. Otherwise the app finds the fastest server config and pairs it with yours. Custom configs will not be replaced automatically if they fail a connection health check.";
+
+        public static string TtCustomConfigsMore => IsPersian
+            ? "گزینه های بیشتری برای کانفیگ های دلخواه در تب تنظیمات موجود است: مبهم سازی، آداپتور برای هر کانفیگ و موارد دیگر."
+            : "More custom-config options are in the Settings tab: obfuscation, per-config adapters and more.";
+
+        public static string MoreSettings => IsPersian ? "تنظیمات بیشتر" : "MORE SETTINGS";
 
         public static string TtDisableBackgroundChecks => IsPersian
             ? "بررسی پس زمینه به طور مداوم کانفیگ های جدید را آزمایش می کند و آنها را در استخر ذخیره می کند تا در صورت قطع اتصال جایگزین سریع تری در دسترس باشد. با فعال کردن این گزینه، استخر ذخیره بین جلسه ای به روز نمی شود."
@@ -1036,6 +1054,10 @@ namespace CrimsonX.Localization
 
         public static string LocationsTooltip => IsPersian ? "شما فقط به کانفیگ های قاره های انتخاب شده متصل خواهید شد." : "You will only be connected to configs from the selected continents.";
         public static string FetchConfigWhenOneProvidedTooltip => IsPersian ? "اگر این گزینه فعال باشد و فقط یکی از دو کانفیگ سفارشی را وارد کرده باشید، برنامه یک کانفیگ تازه هم دریافت می کند تا بتواند با دو کانفیگ متصل شود. اگر غیرفعال باشد، برنامه فقط با کانفیگ های واردشده متصل می شود." : "If this is on and only one custom config is provided, the app also fetches a fresh config so it can connect with two. If it is off, the app connects using only the config(s) you provided.";
+
+        public static string CustomConfigObfuscationTooltip => IsPersian
+            ? "پیش از هر دست دادن اپن وی پی ان یا وایرگارد چند بسته پوشاننده ارسال می شود تا تونل با یک بسته قابل شناسایی آغاز نشود. فقط برای UDP است و کانفیگ های TCP دست نخورده می مانند. سرور این بسته ها را نادیده می گیرد و خود دست دادن تغییری نمی کند."
+            : "Decoy datagrams are sent before every OpenVPN / WireGuard handshake, so the tunnel never opens with a recognisable first packet. UDP only - TCP configs are left untouched. The server ignores the decoys and the handshake itself is unchanged.";
 
 
         public static string OverlaySplitRegularTooltip => IsPersian ? "هدایت تمام ترافیک از طریق VPN، با رعایت قوانین تنظیم شده در این تب. این گزینه با انتخاب هر دو گزینه \"غیرفعال\" و \"اختصاصی\" در تب \"اسپلیت تانل\" فعال می شود." : "Route all traffic through the VPN, with respect to the rules set here. This option can be enabled with both \"DISABLED\" and \"EXCLUSIVE\" options in the \"Split Tunneling\" tab.";

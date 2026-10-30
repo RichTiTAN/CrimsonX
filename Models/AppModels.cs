@@ -31,6 +31,7 @@ namespace CrimsonX.Models
         public string CustomConfig1 { get; set; } = "";
         public string CustomConfig2 { get; set; } = "";
         public bool FetchConfigWhenOneProvided { get; set; } = false;
+        public bool EnableCustomConfigObfuscation { get; set; } = false;
 
         public bool EnablePerConfigAdapters { get; set; } = false;
         public bool AdapterBindingBeforePerConfig { get; set; } = false;

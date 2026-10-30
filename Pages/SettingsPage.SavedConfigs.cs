@@ -508,9 +508,7 @@ namespace CrimsonX.Pages
 
         private async Task CopySavedConfigAsync(SavedConfigItem item)
         {
-            string text = XrayLinkParser.TryBuildShareLink(item.Raw, out string link, "CrimsonX") && !string.IsNullOrWhiteSpace(link)
-                ? link
-                : item.Raw;
+            string text = ConfigShareText.Build(item.Raw);
             if (string.IsNullOrWhiteSpace(text)) return;
             try
             {

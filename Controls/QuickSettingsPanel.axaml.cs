@@ -77,6 +77,7 @@ namespace CrimsonX.Controls
         private global::Avalonia.Controls.Button? _btnTabCustom;
         private global::Avalonia.Controls.TextBlock? _lblTabQuick;
         private global::Avalonia.Controls.TextBlock? _lblTabCustom;
+        private global::Avalonia.Controls.Button? _btnCustomMore;
         private global::Avalonia.Controls.Carousel? _panCarousel;
         private global::Avalonia.Controls.StackPanel? _panCustomActions;
         private global::Avalonia.Controls.ComboBox? _cbCfg1;
@@ -191,6 +192,8 @@ namespace CrimsonX.Controls
             CrimsonX.Localization.AppStrings.Apply(F("lblCancel"), CrimsonX.Localization.AppStrings.Cancel);
             CrimsonX.Localization.AppStrings.Apply(F("lblQSTabCustom"),   CrimsonX.Localization.AppStrings.CustomConfigsTitle);
             CrimsonX.Localization.AppStrings.Apply(F("lblQSSubmit"),      CrimsonX.Localization.AppStrings.Submit);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(_btnCustomMore, CrimsonX.Localization.AppStrings.TtCustomConfigsMore);
+            CrimsonX.Localization.AppStrings.Apply(F("lblQSCustomMore"), CrimsonX.Localization.AppStrings.MoreSettings);
             SyncCustomConfigsView();
             UpdateHeaderActions();
             _panPopupSlot1Items.Children.Clear();
@@ -216,6 +219,7 @@ namespace CrimsonX.Controls
             _btnTabCustom = this.FindControl<Button>("btnQSTabCustom");
             _lblTabQuick = this.FindControl<TextBlock>("lblQuickSettings");
             _lblTabCustom = this.FindControl<TextBlock>("lblQSTabCustom");
+            _btnCustomMore = this.FindControl<Button>("btnQSCustomMore");
             _panCarousel = this.FindControl<Carousel>("panQSCarousel");
             _panCustomActions = this.FindControl<StackPanel>("panCustomActions");
             _cbCfg1 = this.FindControl<ComboBox>("cbQSCustomConfig1");
@@ -421,11 +425,19 @@ namespace CrimsonX.Controls
         private void QSTab_Click(object? sender, RoutedEventArgs e)
             => ShowCustomView(ReferenceEquals(sender, _btnTabCustom));
 
+        private void QSCustomMore_Click(object? sender, RoutedEventArgs e)
+        {
+            MainWindow.Instance?.FindControl<NavigationBar>("navBar")?.SelectTab("Settings");
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(
+                () => Pages.SettingsPage.Instance?.OpenCustomConfigsSection());
+        }
+
         private void ShowCustomView(bool custom)
         {
             _customView = custom;
             if (custom) SyncCustomConfigsView();
             if (_panCarousel != null) _panCarousel.SelectedIndex = custom ? 1 : 0;
+            if (_btnCustomMore != null) _btnCustomMore.IsVisible = custom;
             UpdateHeaderActions();
         }
 

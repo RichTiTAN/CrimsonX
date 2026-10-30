@@ -50,6 +50,17 @@
         <Style Selector="ComboBox.customProxy /template/ TextBox">
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
+        <Style Selector="ComboBox.optGlyph:pointerover /template/ Border#Background">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="ComboBox.optGlyph:pressed /template/ Border#Background">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="ComboBox.optGlyph /template/ Border#HighlightBackground">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
             <Style Selector="RadioButton.pill">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#8B949E"/>

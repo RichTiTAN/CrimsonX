@@ -66,7 +66,8 @@
                         </Button>
                     </StackPanel>
                     
-                    <Panel Grid.Column="1" HorizontalAlignment="Right">
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Panel VerticalAlignment="Center">
                         <!-- Default mode button -->
                         <Button x:Name="btnCustomize" Click="btnCustomize_Click" Background="Transparent" BorderThickness="0" Cursor="Hand" Padding="8,4" CornerRadius="4" Opacity="1" HorizontalAlignment="Right">
                             <Button.Transitions>
@@ -129,7 +130,11 @@
                                 <TextBlock x:Name="lblQSSubmit" Text="SUBMIT" FontSize="10" FontWeight="Bold" Foreground="#34D399" LetterSpacing="1" VerticalAlignment="Center"/>
                             </Button>
                         </StackPanel>
-                    </Panel>
+                        </Panel>
+                        <Button x:Name="btnQSCustomMore" Classes="qsTab" IsVisible="False" VerticalAlignment="Stretch" Click="QSCustomMore_Click">
+                            <TextBlock x:Name="lblQSCustomMore" Text="MORE SETTINGS" FontSize="10" FontWeight="Bold" Foreground="#8B949E" LetterSpacing="1" VerticalAlignment="Center"/>
+                        </Button>
+                    </StackPanel>
                 </Grid>
 
                 <Carousel x:Name="panQSCarousel" Focusable="False">

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using CrimsonX.Localization;
@@ -40,7 +41,7 @@ namespace CrimsonX.Pages
             _isInitializingSettings = true;
             try
             {
-                var tog = this.FindControl<ToggleSwitch>("togPerConfigAdapter");
+                var tog = this.FindControl<ToggleButton>("togPerConfigAdapter");
                 if (tog != null)
                 {
                     tog.IsEnabled = cfg.EnableCustomConfigs;
@@ -58,9 +59,8 @@ namespace CrimsonX.Pages
 
         internal void ApplyPerConfigAdapterLanguage()
         {
-            AppStrings.Apply(this.FindControl<TextBlock>("lblPerConfigAdapterTitle"), AppStrings.PerConfigAdapterTitle);
-            AppStrings.ApplyToolTip(this.FindControl<TextBlock>("lblPerConfigAdapterTitle"), AppStrings.TtPerConfigAdapter);
-            AppStrings.ApplyToolTip(this.FindControl<ToggleSwitch>("togPerConfigAdapter"), AppStrings.TtPerConfigAdapter);
+            AppStrings.ApplyBtn(this.FindControl<ToggleButton>("togPerConfigAdapter"), AppStrings.PerConfigAdapterTitle);
+            AppStrings.ApplyToolTip(this.FindControl<ToggleButton>("togPerConfigAdapter"), AppStrings.TtPerConfigAdapter);
             var cb1 = this.FindControl<ComboBox>("cmbCustomConfig1Adapter");
             if (cb1 != null) cb1.PlaceholderText = AppStrings.PerConfigAdapterSlot(1);
             var cb2 = this.FindControl<ComboBox>("cmbCustomConfig2Adapter");
@@ -78,7 +78,7 @@ namespace CrimsonX.Pages
         {
             var row = this.FindControl<Border>("rowPerConfigAdapters");
             if (row == null) return;
-            var tog = this.FindControl<ToggleSwitch>("togPerConfigAdapter");
+            var tog = this.FindControl<ToggleButton>("togPerConfigAdapter");
             bool on = tog?.IsChecked == true;
             row.MaxHeight = on ? 36 : 0;
             row.Opacity = on ? 1 : 0;
@@ -160,7 +160,7 @@ namespace CrimsonX.Pages
         private void togPerConfigAdapter_IsCheckedChanged(object? sender, RoutedEventArgs e)
         {
             if (_isInitializingSettings) return;
-            var tog = sender as ToggleSwitch;
+            var tog = sender as ToggleButton;
             if (tog == null) return;
             var main = MainWindow.Instance;
             var cfg = main?.Config;
@@ -217,7 +217,7 @@ namespace CrimsonX.Pages
                 cfg.AdapterBindingBeforePerConfig = false;
                 restored = false;
             }
-            var tog = this.FindControl<ToggleSwitch>("togPerConfigAdapter");
+            var tog = this.FindControl<ToggleButton>("togPerConfigAdapter");
             if (tog != null)
             {
                 bool wasInit = _isInitializingSettings;

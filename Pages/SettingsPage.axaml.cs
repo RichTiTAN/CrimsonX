@@ -114,8 +114,10 @@ namespace CrimsonX.Pages
             var cbCustomConfig2 = this.FindControl<global::Avalonia.Controls.ComboBox>("cbCustomConfig2");
             if (cbCustomConfig2 != null && !_customConfigDraftActive) cbCustomConfig2.Text = _cfg.CustomConfig2;
             RefreshConfigCombos();
-            var togFetchConfigWhenOne = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togFetchConfigWhenOne");
+            var togFetchConfigWhenOne = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togFetchConfigWhenOne");
             if (togFetchConfigWhenOne != null && !_customConfigsDirty) togFetchConfigWhenOne.IsChecked = _cfg.FetchConfigWhenOneProvided;
+            var togObfuscation = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togCustomConfigObfuscation");
+            if (togObfuscation != null && !_customConfigsDirty) togObfuscation.IsChecked = _cfg.EnableCustomConfigObfuscation;
             if (!_customConfigsDirty) SyncPerConfigAdapterPanel();
             var togXrayExitNode = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
             if (togXrayExitNode != null) togXrayExitNode.IsChecked = _cfg.EnableV2rayChain;
@@ -211,9 +213,10 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.Apply(F("lblCustomConfigsTitle"), CrimsonX.Localization.AppStrings.CustomConfigsTitle);
             ApplySavedConfigsLanguage();
             ApplyPerConfigAdapterLanguage();
-            CrimsonX.Localization.AppStrings.Apply(F("lblFetchConfigWhenOne"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvided);
-            CrimsonX.Localization.AppStrings.ApplyToolTip(F("lblFetchConfigWhenOne"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvidedTooltip);
-            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togFetchConfigWhenOne"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvidedTooltip);
+            CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togFetchConfigWhenOne"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvided);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togFetchConfigWhenOne"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvidedTooltip);
+            CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togCustomConfigObfuscation"), CrimsonX.Localization.AppStrings.CustomConfigObfuscationTitle);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togCustomConfigObfuscation"), CrimsonX.Localization.AppStrings.CustomConfigObfuscationTooltip);
             var btn1 = B("btnCustomConfigsPing1");
             if (btn1 != null) btn1.Content = CrimsonX.Localization.AppStrings.PingBtn;
             var btn2 = B("btnCustomConfigsPing2");
@@ -324,6 +327,12 @@ namespace CrimsonX.Pages
         UpdateCustomConfigsSubmitVisibility();
     }
 
+    internal void OpenCustomConfigsSection()
+    {
+        SetCustomConfigsExpanded(true);
+        this.FindControl<global::Avalonia.Controls.Border>("panCustomConfigsToggle")?.BringIntoView();
+    }
+
     private void btnCustomConfigsToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
     {
         var src = e.Source as global::Avalonia.Controls.Control;
@@ -368,7 +377,7 @@ namespace CrimsonX.Pages
             else
             {
                 RecalculateCustomConfigsDirty();
-                var perTog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togPerConfigAdapter");
+                var perTog = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togPerConfigAdapter");
                 if (perTog != null) perTog.IsEnabled = true;
                 ApplyPerConfigAdapterVisibility();
                 if (!_customConfigsDirty) SyncPerConfigAdapterPanel();
@@ -407,15 +416,19 @@ namespace CrimsonX.Pages
         RecalculateCustomConfigsDirty();
     }
 
+    private void togCustomConfigObfuscation_IsCheckedChanged(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_isInitializingSettings) return;
+        RecalculateCustomConfigsDirty();
+    }
+
     private void btnCustomConfigsSubmit_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
         => SubmitCustomConfigs();
 
 
     public void SubmitCustomConfigsFromQuickSettings()
     {
-        var tog = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togFetchConfigWhenOne");
-        var cfg = MainWindow.Instance?.Config;
-        if (tog != null && cfg != null) tog.IsChecked = cfg.FetchConfigWhenOneProvided;
+        SyncCustomConfigSwitchesFromConfig();
         BeginCustomConfigsSubmit(QuickSlotBoxKey(1), QuickSlotBoxKey(2), keepAdapterPicks: true);
     }
 
@@ -460,26 +473,29 @@ namespace CrimsonX.Pages
         bool rejected2 = !await AcceptTypedConfigAsync(key2);
         var main = MainWindow.Instance;
         var cfg = main.Config;
-        var togFetchConfig = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togFetchConfigWhenOne");
-        var togPerConfig = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togPerConfigAdapter");
+        var togFetchConfig = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togFetchConfigWhenOne");
+        var togPerConfig = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togPerConfigAdapter");
+        var togObfuscation = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togCustomConfigObfuscation");
 
         ResolveCustomConfigSlots(key1, key2, rejected1, rejected2);
         CommitCustomConfigRawDraft();
 
         bool fetchOn = togFetchConfig?.IsChecked ?? false;
         bool perOn = togPerConfig?.IsChecked == true;
+        bool perConfigReady = togPerConfig != null;
         bool hasConfig = !string.IsNullOrWhiteSpace(cfg.CustomConfig1) ||
                          !string.IsNullOrWhiteSpace(cfg.CustomConfig2);
-        cfg.FetchConfigWhenOneProvided = fetchOn;
+        if (togFetchConfig != null) cfg.FetchConfigWhenOneProvided = fetchOn;
+        if (togObfuscation != null) cfg.EnableCustomConfigObfuscation = togObfuscation.IsChecked == true;
         cfg.EnableCustomConfigs = hasConfig;
         bool perConfigWasOn = cfg.EnablePerConfigAdapters;
-        bool perConfigNow = perOn && hasConfig;
+        bool perConfigNow = perConfigReady && perOn && hasConfig;
         bool restoredBinding = false;
         if (perConfigNow)
             EnterPerConfigMode(cfg);
-        else if (perConfigWasOn)
+        else if (perConfigReady && perConfigWasOn)
             restoredBinding = LeavePerConfigMode(cfg);
-        else
+        else if (perConfigReady)
             cfg.EnablePerConfigAdapters = false;
 
         if (cfg.EnablePerConfigAdapters)
@@ -1325,6 +1341,12 @@ namespace CrimsonX.Pages
 
         private static async Task<bool> ValidateTunnelExitNodeAsync(CrimsonX.Models.AppConfig cfg, CrimsonX.Services.TunnelParseResult tunnel)
         {
+            if (tunnel != null && tunnel.RequiresAwg)
+            {
+                CrimsonX.Services.SimpleLogger.Log("[ExitNode] An AmneziaWG config cannot be used as the exit node.");
+                MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastNotSupportedPrefix + CrimsonX.Localization.AppStrings.PaneExitNode, ToastKind.Error);
+                return false;
+            }
             if (!await CrimsonX.Services.TunnelCredentialResolver.ApplyAsync(tunnel))
             {
                 MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelNeedsCredentials, ToastKind.Error);
@@ -1364,7 +1386,7 @@ namespace CrimsonX.Pages
                 var verdict = await CrimsonX.Services.ConfigIntake.AcceptAsync(
                     raw, cfg,
                     singboxExit ? CrimsonX.Services.ConfigTarget.Singbox : CrimsonX.Services.ConfigTarget.Xray,
-                    CrimsonX.Localization.AppStrings.PaneExitNode);
+                    CrimsonX.Localization.AppStrings.PaneExitNode, exitNode: true);
                 if (!verdict.Accepted)
                 {
                     MainWindow.Instance?.ShowToast(verdict.Toast, ToastKind.Error);

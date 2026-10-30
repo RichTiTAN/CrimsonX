@@ -51,6 +51,63 @@
         <Style Selector="ToggleButton.pillToggle:checked">
             <Setter Property="Foreground" Value="White"/>
         </Style>
+
+        <Style Selector="ToggleButton.switchRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.3"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="ToggleButton.switchRow:pointerover">
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+        </Style>
+        <Style Selector="ToggleButton.switchRow:pressed">
+            <Setter Property="BorderBrush" Value="#99FFFFFF"/>
+        </Style>
+        <Style Selector="ToggleButton.switchRow:checked">
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSuccessBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ThemeSuccessGlowBrush}"/>
+        </Style>
+        <Style Selector="ToggleButton.switchRow:checked:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSuccessPointerOverBrush}"/>
+        </Style>
+        <Style Selector="ToggleButton.switchRow:disabled">
+            <Setter Property="BorderBrush" Value="#242E38"/>
+            <Setter Property="Foreground" Value="#5A6270"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+        </Style>
     
         <Style Selector="TextBox:pointerover">
             <Setter Property="Foreground" Value="#FFFFFF"/>
@@ -272,7 +329,7 @@
                                                         <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
                                                     </Transitions>
                                                 </Border.Transitions>
-                                                <StackPanel Margin="15,15,15,10" Spacing="0">
+                                                <StackPanel Margin="15,15,15,5" Spacing="0">
                                                     <Grid ColumnDefinitions="*,10,*" Margin="0,0,0,10">
                                                           <!-- Config 1 -->
                                                           <Grid Grid.Column="0" ColumnDefinitions="*,Auto,Auto,Auto" MinHeight="26">
@@ -386,24 +443,11 @@
                                                         </Grid>
                                                     </Border>
 
-                                                    <Grid ColumnDefinitions="*,12,*" MinHeight="30" Margin="0">
-                                                        <Grid Grid.Column="0" ColumnDefinitions="*,Auto">
-                                                            <TextBlock x:Name="lblPerConfigAdapterTitle" Text="PER-CONFIG ADAPTER" FontSize="10" FontWeight="Bold" Foreground="#8B949E" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                            <ToggleSwitch Grid.Column="1" x:Name="togPerConfigAdapter" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,-5,0" IsEnabled="False" IsCheckedChanged="togPerConfigAdapter_IsCheckedChanged">
-                                                                <ToggleSwitch.RenderTransform>
-                                                                    <ScaleTransform ScaleX="0.78" ScaleY="0.78"/>
-                                                                </ToggleSwitch.RenderTransform>
-                                                            </ToggleSwitch>
-                                                        </Grid>
-                                                        <Grid Grid.Column="2" ColumnDefinitions="*,Auto">
-                                                            <TextBlock x:Name="lblFetchConfigWhenOne" Text="FETCH A CONFIG IF ONLY ONE IS PROVIDED" FontSize="10" FontWeight="Bold" Foreground="#8B949E" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{x:Static loc:AppStrings.FetchConfigWhenOneProvidedTooltip}"/>
-                                                            <ToggleSwitch Grid.Column="1" x:Name="togFetchConfigWhenOne" OnContent="{x:Null}" OffContent="{x:Null}" HorizontalAlignment="Right" VerticalAlignment="Center" MinWidth="40" Margin="0,0,-5,0" IsCheckedChanged="togFetchConfigWhenOne_IsCheckedChanged">
-                                                                <ToggleSwitch.RenderTransform>
-                                                                    <ScaleTransform ScaleX="0.78" ScaleY="0.78"/>
-                                                                </ToggleSwitch.RenderTransform>
-                                                            </ToggleSwitch>
-                                                        </Grid>
+                                                    <Grid ColumnDefinitions="*,10,*" Margin="0,0,0,10">
+                                                        <ToggleButton Grid.Column="0" x:Name="togPerConfigAdapter" Classes="switchRow" Content="PER-CONFIG ADAPTER" IsEnabled="False" IsCheckedChanged="togPerConfigAdapter_IsCheckedChanged" ToolTip.Tip="{x:Static loc:AppStrings.TtPerConfigAdapter}"/>
+                                                        <ToggleButton Grid.Column="2" x:Name="togCustomConfigObfuscation" Classes="switchRow" Content="OBFUSCATION" IsCheckedChanged="togCustomConfigObfuscation_IsCheckedChanged" ToolTip.Tip="{x:Static loc:AppStrings.CustomConfigObfuscationTooltip}"/>
                                                     </Grid>
+                                                    <ToggleButton x:Name="togFetchConfigWhenOne" Classes="switchRow" Content="FETCH A CONFIG IF ONLY ONE IS PROVIDED" Margin="0,0,0,10" IsCheckedChanged="togFetchConfigWhenOne_IsCheckedChanged" ToolTip.Tip="{x:Static loc:AppStrings.FetchConfigWhenOneProvidedTooltip}"/>
                                                 </StackPanel>
                                             </Border>
                                         </StackPanel>

@@ -25,6 +25,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using CrimsonX.Models;
 using CrimsonX.Services;
 
@@ -526,16 +527,12 @@ public partial class NavigationBar : UserControl
 
     public void SelectTab(string tag)
     {
-        var navStack = this.FindControl<StackPanel>("NavStack");
-        if (navStack != null)
+        foreach (var radio in this.GetVisualDescendants().OfType<RadioButton>())
         {
-            foreach (var child in navStack.Children)
+            if (radio.Tag is string candidate && candidate == tag)
             {
-                if (child is RadioButton rb && rb.Tag is string rTag && rTag == tag)
-                {
-                    rb.IsChecked = true;
-                    break;
-                }
+                radio.IsChecked = true;
+                return;
             }
         }
     }

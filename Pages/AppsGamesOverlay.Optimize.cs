@@ -92,6 +92,13 @@ namespace CrimsonX.Pages
         private TextBlock _optAdapterLabel;
         private ComboBox _optAdapterCombo;
         private Border _optAdapterPill;
+        private TextBlock _optRegionLabel;
+        private ComboBox _optRegionCombo;
+        private Border _optRegionPill;
+        private string _optRegion = "";
+        private bool _optLoadingRegion;
+        private readonly List<string> _optRegionItems = new List<string>();
+        private static readonly string[] OptRegionNames = { "", "Asia", "Europe", "North America", "South America", "Africa", "Oceania" };
         private IBrush _optIdleTextBrush;
         private IBrush _optReadyTextBrush;
 
@@ -167,6 +174,7 @@ namespace CrimsonX.Pages
             _optFoundPingMs = _optState.FoundPingMs;
             _optAdapterName = string.IsNullOrWhiteSpace(_optState.AdapterName) ? "Default" : _optState.AdapterName;
             _optAdapterIp = _optState.AdapterIp ?? "";
+            _optRegion = _optState.Region ?? "";
             _optReady = _optState.Ready && _optFoundRaw.Length > 0;
         }
 
@@ -442,9 +450,11 @@ namespace CrimsonX.Pages
         {
             var menu = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             menu.Children.Add(BuildOptimizeAdapterPill());
+            menu.Children.Add(BuildOptimizeRegionPill());
             menu.Children.Add(BuildOptimizeOnConnectPill());
             menu.Children.Add(BuildOptimizeAlternatePill());
             LoadOptimizeAdapters();
+            LoadOptimizeRegions();
             return menu;
         }
 
@@ -474,6 +484,7 @@ namespace CrimsonX.Pages
                 VerticalContentAlignment = VerticalAlignment.Center,
                 SelectionBoxItemTemplate = new FuncDataTemplate<object?>((_, _) => new Panel(), false)
             };
+            _optAdapterCombo.Classes.Add("optGlyph");
             AS.ApplyToolTip(_optAdapterCombo, AS.TtOptimizeAdapter);
             _optAdapterCombo.SelectionChanged += OptimizeAdapter_Changed;
             Border? pill = null;
@@ -516,6 +527,118 @@ namespace CrimsonX.Pages
             };
             _optAdapterPill = pill;
             return pill;
+        }
+
+        private Border BuildOptimizeRegionPill()
+        {
+            _optRegionLabel = new TextBlock
+            {
+                Text = AS.OptimizeRegion,
+                FontSize = 9,
+                FontWeight = FontWeight.Bold,
+                LetterSpacing = 0.5,
+                Foreground = new SolidColorBrush(Color.Parse("#8B949E")),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var labelCell = new Border { Padding = new Thickness(9, 3), Child = _optRegionLabel };
+
+            _optRegionCombo = new ComboBox
+            {
+                Width = 14,
+                MinHeight = 18,
+                Height = 18,
+                FontSize = 9,
+                Padding = new Thickness(0),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                CornerRadius = new CornerRadius(0),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                SelectionBoxItemTemplate = new FuncDataTemplate<object?>((_, _) => new Panel(), false)
+            };
+            _optRegionCombo.Classes.Add("optGlyph");
+            AS.ApplyToolTip(_optRegionCombo, AS.TtOptimizeRegion);
+            _optRegionCombo.SelectionChanged += OptimizeRegion_Changed;
+            Border? pill = null;
+            _optRegionCombo.TemplateApplied += (_, e) =>
+            {
+                if (e.NameScope.Find<PathIcon>("DropDownGlyph") is { } glyph)
+                {
+                    Grid.SetColumn(glyph, 0);
+                    Grid.SetColumnSpan(glyph, 2);
+                    glyph.HorizontalAlignment = HorizontalAlignment.Left;
+                    glyph.Margin = new Thickness(0);
+                }
+                var popup = e.NameScope.Find<Popup>("PART_Popup")
+                    ?? Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(_optRegionCombo)
+                        .OfType<Popup>().FirstOrDefault();
+                if (popup != null && pill != null) popup.PlacementTarget = pill;
+            };
+
+            var row = new Grid();
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(labelCell, 0);
+            Grid.SetColumn(_optRegionCombo, 1);
+            row.Children.Add(labelCell);
+            row.Children.Add(_optRegionCombo);
+
+            pill = new Border { Child = row };
+            pill.Classes.Add("floatBox");
+            pill.Cursor = OptHandCursor;
+            pill.PointerPressed += (_, e) =>
+            {
+                if (_optRunning)
+                {
+                    e.Handled = true;
+                    return;
+                }
+                if (e.Source is Visual src && _optRegionCombo != null && IsVisualOrAncestor(src, _optRegionCombo)) return;
+                if (_optRegionCombo != null) _optRegionCombo.IsDropDownOpen = true;
+                e.Handled = true;
+            };
+            _optRegionPill = pill;
+            return pill;
+        }
+
+        private static string RegionDisplay(string continent) => continent switch
+        {
+            "Asia"          => AS.ExcludeContinentAsia,
+            "Europe"        => AS.ExcludeContinentEurope,
+            "North America" => AS.ExcludeContinentNorthAmerica,
+            "South America" => AS.ExcludeContinentSouthAmerica,
+            "Africa"        => AS.ExcludeContinentAfrica,
+            "Oceania"       => AS.ExcludeContinentOceania,
+            _               => continent
+        };
+
+        private void LoadOptimizeRegions()
+        {
+            var combo = _optRegionCombo;
+            if (combo == null) return;
+            _optLoadingRegion = true;
+            try
+            {
+                _optRegionItems.Clear();
+                _optRegionItems.Add(AS.RegionAll);
+                for (int i = 1; i < OptRegionNames.Length; i++) _optRegionItems.Add(RegionDisplay(OptRegionNames[i]));
+                combo.ItemsSource = _optRegionItems.ToArray();
+                int index = Array.IndexOf(OptRegionNames, _optRegion ?? "");
+                combo.SelectedIndex = index < 0 ? 0 : index;
+            }
+            finally
+            {
+                _optLoadingRegion = false;
+            }
+        }
+
+        private void OptimizeRegion_Changed(object? sender, SelectionChangedEventArgs e)
+        {
+            if (_optLoadingRegion || _optRunning || _optRegionCombo == null) return;
+            int index = _optRegionCombo.SelectedIndex;
+            if (index < 0 || index >= OptRegionNames.Length) index = 0;
+            _optRegion = OptRegionNames[index];
+            _optState.Region = _optRegion;
+            AppOptimizeStore.Save(_optState);
         }
 
         private Border BuildOptimizeOnConnectPill()
@@ -637,7 +760,6 @@ namespace CrimsonX.Pages
             _optState.AdapterName = _optAdapterName;
             _optState.AdapterIp = _optAdapterIp;
             AppOptimizeStore.Save(_optState);
-            CloseOptimizeMenu();
         }
 
         private void PositionOptimizeToggle()
@@ -773,6 +895,9 @@ namespace CrimsonX.Pages
             if (_optToggleButton != null) AS.ApplyToolTip(_optToggleButton, AS.TtOptimizeOnConnect);
             if (_optAlternateButton != null) AS.ApplyToolTip(_optAlternateButton, AS.TtOptimizeAlternateMode);
             if (_optAdapterCombo != null) AS.ApplyToolTip(_optAdapterCombo, AS.TtOptimizeAdapter);
+            if (_optRegionCombo != null) AS.ApplyToolTip(_optRegionCombo, AS.TtOptimizeRegion);
+            if (_optRegionLabel != null) _optRegionLabel.Text = AS.OptimizeRegion;
+            LoadOptimizeRegions();
             foreach (var rowButton in Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(this)
                          .OfType<Button>()
                          .Where(b => b.Name == "btnOptimizeItem"))
@@ -975,7 +1100,7 @@ namespace CrimsonX.Pages
                     : AppOptimizerService.ConnectedConcurrency;
                 string adapterIp = _optAdapterIp ?? "";
                 var result = await Task.Run(
-                    () => AppOptimizerService.RunAsync(_cfg, adapterIp, concurrency, progress, ct, _optState.AlternateMode), ct);
+                    () => AppOptimizerService.RunAsync(_cfg, adapterIp, concurrency, progress, ct, _optState.AlternateMode, _optState.Region), ct);
                 if (runId != _optRunId || ct.IsCancellationRequested) return;
                 if (result == null || string.IsNullOrEmpty(result.Raw))
                 {
@@ -1176,7 +1301,7 @@ namespace CrimsonX.Pages
         {
             if (rule == null || string.IsNullOrEmpty(_optFoundRaw)) return;
             var choice = EnsureOptimizeChoice(rule.Id);
-            if (!choice.Chosen)
+            if (!HoldsOptimizeValues(rule, choice))
             {
                 choice.PrevTcpRouting = rule.TcpRouting;
                 choice.PrevUdpRouting = rule.UdpRouting;
@@ -1186,6 +1311,7 @@ namespace CrimsonX.Pages
                 choice.PrevCustomProxyLabel = rule.CustomProxyLabel;
             }
             choice.Chosen = true;
+            choice.AppliedRaw = _optFoundRaw;
             string adapter = string.IsNullOrWhiteSpace(_optAdapterName) ? "Default" : _optAdapterName;
             rule.TcpRouting = "Custom";
             rule.UdpRouting = "Custom";
@@ -1208,6 +1334,14 @@ namespace CrimsonX.Pages
             return choice;
         }
 
+        private static bool HoldsOptimizeValues(AppGameRule rule, AppOptimizeChoice choice)
+        {
+            if (choice == null || !choice.Chosen || string.IsNullOrEmpty(choice.AppliedRaw)) return false;
+            if (!string.Equals(rule.TcpRouting, "Custom", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!string.Equals(rule.UdpRouting, "Custom", StringComparison.OrdinalIgnoreCase)) return false;
+            return string.Equals(rule.CustomProxyRaw ?? "", choice.AppliedRaw, StringComparison.Ordinal);
+        }
+
         private void RevertRule(AppGameRule rule)
         {
             var choice = _optState.Choices.FirstOrDefault(c => c.RuleId == rule.Id);
@@ -1218,6 +1352,7 @@ namespace CrimsonX.Pages
             if (!string.IsNullOrEmpty(choice.PrevUdpAdapter)) rule.UdpAdapter = choice.PrevUdpAdapter;
             rule.CustomProxyRaw = choice.PrevCustomProxyRaw ?? "";
             rule.CustomProxyLabel = choice.PrevCustomProxyLabel ?? "";
+            choice.AppliedRaw = "";
         }
 
         private void ApplyOptimizeToChosenRules()
@@ -1287,6 +1422,7 @@ namespace CrimsonX.Pages
         {
             if (!_optToggleVisible) return;
             if (_optAdapterCombo is { IsDropDownOpen: true }) return;
+            if (_optRegionCombo is { IsDropDownOpen: true }) return;
             if (e.Source is Visual source && IsInsideOptimizeMenu(source)) return;
             CloseOptimizeMenu();
         }
