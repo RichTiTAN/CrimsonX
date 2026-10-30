@@ -116,43 +116,39 @@ namespace CrimsonX.Services
             var cts = new CancellationTokenSource();
             _geoCts = cts;
             var token = cts.Token;
-            var sw    = Stopwatch.StartNew();
             CrimsonX.Services.BackgroundTask.Run("geo trace", async () =>
             {
                 try
                 {
-                    var request = GeoClient().GetStringAsync("https://get.geojs.io/v1/ip/geo.json", token);
-                    var finished = await Task.WhenAny(request, Task.Delay(TimeSpan.FromSeconds(20), token)).ConfigureAwait(false);
-                    if (finished != request)
+                    int port = ExitNodeChain.ActivePort;
+                    if (!await ProxyListeningAsync(port, token).ConfigureAwait(false))
                     {
-                        try { cts.Cancel(); } catch { }
                         if (run != _geoRun) return;
-                        SimpleLogger.Log($"[Geo] run {run}: timeout, the request was abandoned.");
-                        GeoTraceCompleted?.Invoke(new GeoTraceResult());
+                        string down = $"the local proxy on 127.0.0.1:{port} is not listening";
+                        SimpleLogger.Log($"[Geo] run {run}: {down}.");
+                        GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = down });
                         return;
                     }
-                    string json = await request.ConfigureAwait(false);
-                    sw.Stop();
+                    var hit = await TraceGeoAsync(token).ConfigureAwait(false);
                     if (run != _geoRun) return;
-                    var data          = JObject.Parse(json);
-                    var continentCode = data["continent_code"]?.ToString() ?? "";
-                    var countryCode   = data["country_code"]?.ToString()   ?? "";
-                    var country       = data["country"]?.ToString()        ?? "";
-                    var ip            = data["ip"]?.ToString()             ?? "";
-                    ContinentNames.TryGetValue(continentCode, out var continent);
-                    continent ??= continentCode;
+                    if (hit.Ip.Length == 0)
+                    {
+                        SimpleLogger.Log($"[Geo] run {run}: no source answered through 127.0.0.1:{port} ({hit.Error}).");
+                        GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = hit.Error });
+                        return;
+                    }
                     SimpleLogger.LogFirst(
-                        $"geo-trace|{countryCode}|{ExitNodeChain.ActivePort}",
-                        $"[Geo] traced through 127.0.0.1:{ExitNodeChain.ActivePort} -> {country} ({countryCode}) in {sw.ElapsedMilliseconds} ms" +
+                        $"geo-trace|{hit.CountryCode}|{port}",
+                        $"[Geo] traced through 127.0.0.1:{port} -> {hit.Country} ({hit.CountryCode}) in {hit.Ms} ms via {hit.Source}" +
                         (ExitNodeChain.ChainActive ? " - that is the exit node's location" : ""));
                     GeoTraceCompleted?.Invoke(new GeoTraceResult
                     {
-                        Country       = country,
-                        Continent     = continent,
-                        CountryCode   = countryCode,
-                        ContinentCode = continentCode,
-                        Ip            = ip,
-                        PingMs        = sw.ElapsedMilliseconds
+                        Country       = hit.Country,
+                        Continent     = hit.Continent,
+                        CountryCode   = hit.CountryCode,
+                        ContinentCode = hit.ContinentCode,
+                        Ip            = hit.Ip,
+                        PingMs        = hit.Ms
                     });
                 }
                 catch (Exception ex)
@@ -161,12 +157,12 @@ namespace CrimsonX.Services
                     if (token.IsCancellationRequested)
                     {
                         SimpleLogger.Log($"[Geo] run {run}: timeout, the request was cancelled.");
-                        GeoTraceCompleted?.Invoke(new GeoTraceResult());
+                        GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = "the trace was cancelled" });
                         return;
                     }
                     if (CrimsonX.Services.BackgroundTask.IsTeardownAbort(ex)) return;
                     SimpleLogger.Log(ex);
-                    GeoTraceCompleted?.Invoke(new GeoTraceResult());
+                    GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = ex.Message });
                 }
             });
         }
@@ -177,6 +173,132 @@ namespace CrimsonX.Services
             if (_geoCts == null) return;
             try { _geoCts.Cancel(); _geoCts.Dispose(); } catch { }
             _geoCts = null;
+        }
+
+        private const int SourceBudgetMs = 6000;
+        private const int ProxyCheckTimeoutMs = 2000;
+
+        private sealed class TraceHit
+        {
+            public string Ip = "";
+            public string CountryCode = "";
+            public string Country = "";
+            public string ContinentCode = "";
+            public string Continent = "";
+            public long Ms;
+            public string Source = "";
+            public string Error = "";
+        }
+
+        private static readonly Dictionary<string, string> ContinentCodes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["AFRICA"] = "AF", ["ASIA"] = "AS", ["EUROPE"] = "EU", ["NORTH AMERICA"] = "NA", ["SOUTH AMERICA"] = "SA", ["OCEANIA"] = "OC", ["ANTARCTICA"] = "AN"
+        };
+
+        private static async Task<bool> ProxyListeningAsync(int port, CancellationToken token)
+        {
+            if (port <= 0) return false;
+            try
+            {
+                using var client = new System.Net.Sockets.TcpClient();
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                cts.CancelAfter(ProxyCheckTimeoutMs);
+                await client.ConnectAsync(System.Net.IPAddress.Loopback, port, cts.Token).ConfigureAwait(false);
+                return true;
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+            catch { return false; }
+        }
+
+        private async Task<TraceHit> TraceGeoAsync(CancellationToken token)
+        {
+            var failures = new List<string>();
+            var client = GeoClient();
+            foreach (string source in new[] { "cloudflare", "geojs", "myip", "ipify" })
+            {
+                var attempt = new TraceHit();
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                cts.CancelAfter(SourceBudgetMs);
+                var sw = Stopwatch.StartNew();
+                try
+                {
+                    if (source == "cloudflare") await FillFromCloudflareAsync(client, attempt, cts.Token).ConfigureAwait(false);
+                    else if (source == "geojs") await FillFromGeojsAsync(client, attempt, cts.Token).ConfigureAwait(false);
+                    else if (source == "myip") await FillFromMyIpAsync(client, attempt, cts.Token).ConfigureAwait(false);
+                    else await FillFromIpifyAsync(client, attempt, cts.Token).ConfigureAwait(false);
+                    sw.Stop();
+                    if (attempt.Ip.Length > 0)
+                    {
+                        attempt.Ms = sw.ElapsedMilliseconds;
+                        attempt.Source = source;
+                        return attempt;
+                    }
+                    failures.Add($"{source}: no ip in the reply ({sw.ElapsedMilliseconds} ms)");
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+                catch (Exception ex)
+                {
+                    sw.Stop();
+                    failures.Add($"{source}: {ex.GetType().Name}: {ex.Message} ({sw.ElapsedMilliseconds} ms)");
+                }
+            }
+            return new TraceHit { Error = failures.Count == 0 ? "no source answered" : string.Join("; ", failures) };
+        }
+
+        private static void ApplyCountry(TraceHit hit, string code)
+        {
+            hit.CountryCode = (code ?? "").Trim().ToUpperInvariant();
+            if (hit.Country.Length == 0 && hit.CountryCode.Length > 0)
+                hit.Country = CrimsonX.Localization.GeoTranslation.GetCountryEn(hit.CountryCode, hit.CountryCode);
+            if (hit.CountryCode.Length > 0
+                && CrimsonX.Localization.CountryContinents.Map.TryGetValue(hit.CountryCode, out string? continent))
+                hit.Continent = continent;
+            if (hit.ContinentCode.Length == 0 && hit.Continent.Length > 0
+                && ContinentCodes.TryGetValue(hit.Continent, out string? continentCode))
+                hit.ContinentCode = continentCode;
+        }
+
+        private static async Task FillFromCloudflareAsync(HttpClient client, TraceHit hit, CancellationToken token)
+        {
+            string text = await client.GetStringAsync("https://1.1.1.1/cdn-cgi/trace", token).ConfigureAwait(false);
+            string code = "";
+            foreach (string line in text.Split('\n'))
+            {
+                string row = line.Trim();
+                if (row.StartsWith("ip=", StringComparison.Ordinal)) hit.Ip = row.Substring(3).Trim();
+                else if (row.StartsWith("loc=", StringComparison.Ordinal)) code = row.Substring(4).Trim();
+            }
+            ApplyCountry(hit, code);
+        }
+
+        private static async Task FillFromGeojsAsync(HttpClient client, TraceHit hit, CancellationToken token)
+        {
+            string json = await client.GetStringAsync("https://get.geojs.io/v1/ip/geo.json", token).ConfigureAwait(false);
+            var data = JObject.Parse(json);
+            hit.Ip = data["ip"]?.ToString() ?? "";
+            hit.Country = data["country"]?.ToString() ?? "";
+            string continentCode = (data["continent_code"]?.ToString() ?? "").Trim().ToUpperInvariant();
+            ApplyCountry(hit, data["country_code"]?.ToString() ?? "");
+            if (hit.ContinentCode.Length == 0 && continentCode.Length > 0) hit.ContinentCode = continentCode;
+            if (hit.Continent.Length == 0 && hit.ContinentCode.Length > 0
+                && ContinentNames.TryGetValue(hit.ContinentCode, out string? continent))
+                hit.Continent = continent;
+        }
+
+        private static async Task FillFromMyIpAsync(HttpClient client, TraceHit hit, CancellationToken token)
+        {
+            string json = await client.GetStringAsync("https://api.myip.com", token).ConfigureAwait(false);
+            var data = JObject.Parse(json);
+            hit.Ip = data["ip"]?.ToString() ?? "";
+            hit.Country = data["country"]?.ToString() ?? "";
+            ApplyCountry(hit, data["cc"]?.ToString() ?? "");
+        }
+
+        private static async Task FillFromIpifyAsync(HttpClient client, TraceHit hit, CancellationToken token)
+        {
+            string json = await client.GetStringAsync("https://api.ipify.org?format=json", token).ConfigureAwait(false);
+            try { hit.Ip = JObject.Parse(json)["ip"]?.ToString() ?? ""; }
+            catch { hit.Ip = ""; }
         }
 
         // Stats polling

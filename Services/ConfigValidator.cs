@@ -58,7 +58,7 @@ namespace CrimsonX.Services
         private const string ProbeTag = "custom-probe";
 
         public static async Task<ConfigCheckResult> CheckAsync(string raw, AppConfig cfg, ConfigTarget target,
-            ConfigCheckLevel level = ConfigCheckLevel.Offline, string adapterName = "", string adapterIp = "", string sbDirOverride = "")
+            ConfigCheckLevel level = ConfigCheckLevel.Offline, string adapterName = "", string adapterIp = "", string sbDirOverride = "", bool exitNode = false)
         {
             var result = new ConfigCheckResult();
             string text = (raw ?? "").Trim();
@@ -73,6 +73,12 @@ namespace CrimsonX.Services
             {
                 result.IsTunnel = true;
                 result.Label = tunnel.Label ?? "";
+                if (exitNode && tunnel.RequiresAwg)
+                {
+                    result.Unreadable = true;
+                    result.Reason = "an AmneziaWG config cannot be used as the exit node";
+                    return result;
+                }
                 return level == ConfigCheckLevel.Live
                     ? await CheckTunnelLiveAsync(sbDir, tunnel, adapterName, adapterIp, result).ConfigureAwait(false)
                     : CheckTunnelOffline(sbDir, tunnel, result);
@@ -105,8 +111,18 @@ namespace CrimsonX.Services
         private static ConfigCheckResult CheckTunnelOffline(string sbDir, TunnelParseResult tunnel, ConfigCheckResult result)
         {
             string endpointJson = (tunnel.Endpoint ?? new JObject()).ToString(Formatting.None);
-            result.Ok = SingboxConfigValidator.CheckEndpoint(sbDir, endpointJson);
-            if (!result.Ok) result.Reason = "sing-box rejected this OpenVPN / WireGuard config";
+            string engine = TunnelEngine.EngineExe(null, tunnel.RequiresAwg, sbDir);
+            if (tunnel.RequiresAwg && (string.IsNullOrWhiteSpace(engine) || !System.IO.File.Exists(engine)))
+            {
+                result.Ok = false;
+                result.Reason = "the AmneziaWG engine (amnezia-box.exe) is not installed";
+                return result;
+            }
+            result.Ok = SingboxConfigValidator.CheckEndpoint(sbDir, endpointJson, engine);
+            if (!result.Ok)
+                result.Reason = tunnel.RequiresAwg
+                    ? "amnezia-box rejected this AmneziaWG config"
+                    : "sing-box rejected this OpenVPN / WireGuard config";
             return result;
         }
 

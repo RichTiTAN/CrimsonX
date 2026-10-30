@@ -42,6 +42,7 @@ namespace CrimsonX.Services
                 CustomConfig1 = config.CustomConfig1,
                 CustomConfig2 = config.CustomConfig2,
                 FetchConfigWhenOneProvided = config.FetchConfigWhenOneProvided,
+                EnableCustomConfigObfuscation = config.EnableCustomConfigObfuscation,
                 EnablePerConfigAdapters = config.EnablePerConfigAdapters,
                 AdapterBindingBeforePerConfig = config.AdapterBindingBeforePerConfig,
                 CustomConfig1Adapter = config.CustomConfig1Adapter,

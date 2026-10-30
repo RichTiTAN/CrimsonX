@@ -52,6 +52,8 @@ namespace CrimsonX
             return !(checkContinents && _cfg.ExcludedContinents!.Contains(r.Continent));
         }
 
+        private static string CustomSlotId(int slot, string key) => "slot" + slot + "|" + (key ?? "");
+
     // ── Dynamic Connect Pipeline ──
 
         private async Task RunDynamicPipelineAsyncCore()
@@ -183,9 +185,11 @@ namespace CrimsonX
                         var targets = new List<CrimsonX.Services.TunnelTarget>();
                         foreach (var item in readyTunnels)
                         {
+                            string slotKey = CrimsonX.Services.TunnelConfigParser.KeyOf(item.Tunnel.Raw, item.AdapterName);
                             targets.Add(new CrimsonX.Services.TunnelTarget
                             {
-                                Key = CrimsonX.Services.TunnelConfigParser.KeyOf(item.Tunnel.Raw, item.AdapterName),
+                                Key = slotKey,
+                                Id = CustomSlotId(item.Slot, slotKey),
                                 Parsed = item.Tunnel,
                                 Tag = "tunnel-" + targets.Count,
                                 AdapterName = item.AdapterName,
@@ -200,7 +204,8 @@ namespace CrimsonX
                             foreach (var item in readyTunnels)
                             {
                                 string tunnelKey = CrimsonX.Services.TunnelConfigParser.KeyOf(item.Tunnel.Raw, item.AdapterName);
-                                int? port = CrimsonX.Services.TunnelEngine.PortFor(CrimsonX.Services.TunnelEngine.GroupCustom, tunnelKey);
+                                int? port = CrimsonX.Services.TunnelEngine.PortForId(CrimsonX.Services.TunnelEngine.GroupCustom,
+                                    CustomSlotId(item.Slot, tunnelKey));
                                 if (port == null)
                                 {
                                     CrimsonX.Services.SimpleLogger.Log($"[Connect] Tunnel '{item.Tunnel.Label}' has no socks port in the engine; it cannot be added to the xray config.");
@@ -833,6 +838,7 @@ namespace CrimsonX
             try
             {
                 int sourceIndex = _backgroundSeedSourceIndex;
+                bool pausedForFullCache = false;
                 while (!ct.IsCancellationRequested && _state.IsConnected)
                 {
                     if (_cfg.DisableBackgroundChecks)
@@ -840,6 +846,20 @@ namespace CrimsonX
                         await Task.Delay(5000, ct);
                         continue;
                     }
+                    string cachePath = GetAppPath(@"Data\cache\cache.bin");
+                    int cachedWorking = CrimsonX.Services.ConfigCache.Count(cachePath);
+                    if (cachedWorking >= CrimsonX.Services.ConfigCache.WorkingLimit)
+                    {
+                        if (!pausedForFullCache)
+                        {
+                            pausedForFullCache = true;
+                            CrimsonX.Services.SimpleLogger.Log(
+                                $"[Connect] Working cache is full ({cachedWorking}); background testing paused until the next connect.");
+                        }
+                        await Task.Delay(5000, ct);
+                        continue;
+                    }
+                    pausedForFullCache = false;
                     if (_untestedConfigs.IsEmpty && sourceIndex < WorkerSourceCount)
                     {
                         try
@@ -972,12 +992,12 @@ namespace CrimsonX
             List<(int Slot, CrimsonX.Services.TunnelParseResult Tunnel, string AdapterName, string AdapterIp)> tunnels,
             CancellationToken ct)
     {
-        var pending = new List<(CrimsonX.Services.TunnelParseResult Tunnel, string AdapterName)>();
+        var pending = new List<(CrimsonX.Services.TunnelParseResult Tunnel, string AdapterName, int Slot)>();
         foreach (var item in tunnels)
         {
-            int? port = CrimsonX.Services.TunnelEngine.PortFor(CrimsonX.Services.TunnelEngine.GroupCustom,
-                CrimsonX.Services.TunnelConfigParser.KeyOf(item.Tunnel.Raw, item.AdapterName));
-            if (port != null) pending.Add((item.Tunnel, item.AdapterName));
+            int? port = CrimsonX.Services.TunnelEngine.PortForId(CrimsonX.Services.TunnelEngine.GroupCustom,
+                CustomSlotId(item.Slot, CrimsonX.Services.TunnelConfigParser.KeyOf(item.Tunnel.Raw, item.AdapterName)));
+            if (port != null) pending.Add((item.Tunnel, item.AdapterName, item.Slot));
         }
         if (pending.Count == 0) return;
         var started = DateTime.UtcNow;
@@ -986,8 +1006,8 @@ namespace CrimsonX
         {
             foreach (var item in pending.ToList())
             {
-                int? port = CrimsonX.Services.TunnelEngine.PortFor(CrimsonX.Services.TunnelEngine.GroupCustom,
-                    CrimsonX.Services.TunnelConfigParser.KeyOf(item.Tunnel.Raw, item.AdapterName));
+                int? port = CrimsonX.Services.TunnelEngine.PortForId(CrimsonX.Services.TunnelEngine.GroupCustom,
+                    CustomSlotId(item.Slot, CrimsonX.Services.TunnelConfigParser.KeyOf(item.Tunnel.Raw, item.AdapterName)));
                 if (port == null) continue;
                 var probe = await CrimsonX.Services.TunnelHopProbe.ProbeAsync(port.Value, 4000, ct);
                 if (!probe.Ok) continue;

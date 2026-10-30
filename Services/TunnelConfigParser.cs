@@ -56,6 +56,10 @@ namespace CrimsonX.Services
 
         public bool NeedsCredentials { get; set; }
 
+        public bool RequiresAwg { get; set; }
+
+        public List<AwgConfig.DnsServer> DnsServers { get; set; } = new List<AwgConfig.DnsServer>();
+
         public string KindText => Kind == TunnelKind.OpenVpn ? "openvpn" : Kind == TunnelKind.WireGuard ? "wireguard" : "";
 
         public string ServerText()
@@ -182,6 +186,12 @@ namespace CrimsonX.Services
                     if (peer != null) return $"wireguard · {peer["address"]}:{peer["port"]}";
                     return "wireguard";
                 }
+                if (type == "awg")
+                {
+                    var peer = (endpoint["peers"] as JArray)?.FirstOrDefault() as JObject;
+                    if (peer != null) return $"amneziawg · {peer["address"]}:{peer["port"]}";
+                    return "amneziawg";
+                }
                 if (type == "openvpn-client")
                 {
                     var server = (endpoint["servers"] as JArray)?.FirstOrDefault() as JObject;
@@ -235,6 +245,7 @@ namespace CrimsonX.Services
             if (outbound == null) return null;
             string type = outbound["type"]?.ToString() ?? "";
             if (type.Equals("wireguard", StringComparison.OrdinalIgnoreCase)) return FromSingboxEndpoint(outbound);
+            if (type.Equals("awg", StringComparison.OrdinalIgnoreCase)) return FromSingboxEndpoint(outbound);
             if ((outbound["protocol"]?.ToString() ?? "").Equals("wireguard", StringComparison.OrdinalIgnoreCase))
                 return FromXrayWireGuard(outbound);
             return null;
@@ -244,7 +255,8 @@ namespace CrimsonX.Services
         {
             if (source == null) return null;
             string type = source["type"]?.ToString() ?? "";
-            bool isWireGuard = type.Equals("wireguard", StringComparison.OrdinalIgnoreCase);
+            bool isWireGuard = type.Equals("wireguard", StringComparison.OrdinalIgnoreCase)
+                            || type.Equals("awg", StringComparison.OrdinalIgnoreCase);
             bool isOpenVpn = type.Equals("openvpn-client", StringComparison.OrdinalIgnoreCase)
                           || type.Equals("openvpn", StringComparison.OrdinalIgnoreCase);
             if (!isWireGuard && !isOpenVpn) return null;
@@ -252,6 +264,8 @@ namespace CrimsonX.Services
             endpoint.Remove("tag");
             endpoint.Remove("label");
             StripEmpty(endpoint);
+            if (type.Equals("awg", StringComparison.OrdinalIgnoreCase))
+                return new TunnelParseResult { Kind = TunnelKind.WireGuard, Endpoint = endpoint, RequiresAwg = true };
             if (isWireGuard) return BuildFromWireGuardObject(endpoint);
             return BuildFromOpenVpnObject(endpoint);
         }
@@ -712,7 +726,7 @@ namespace CrimsonX.Services
             peer["allowed_ips"] = new JArray(allowed.Length > 0 ? allowed : DefaultAllowedIps);
             string preShared = QueryValue(qs, "presharedkey", "pre_shared_key", "psk");
             if (preShared.Length > 0) peer["pre_shared_key"] = preShared;
-            int keepAlive = ParseInt(QueryValue(qs, "keepalive", "persistentkeepalive", "persistent_keepalive"), 0);
+            int keepAlive = ParseKeepAlive(QueryValue(qs, "keepalive", "persistentkeepalive", "persistent_keepalive"));
             if (keepAlive > 0) peer["persistent_keepalive_interval"] = keepAlive;
             var reserved = SplitList(QueryValue(qs, "reserved").Replace('+', ','));
             if (reserved.Length > 0) peer["reserved"] = ToIntArray(reserved);
@@ -729,6 +743,15 @@ namespace CrimsonX.Services
             if (listenPort > 0) endpoint["listen_port"] = listenPort;
             int workers = ParseInt(QueryValue(qs, "workers"), 0);
             if (workers > 0) endpoint["workers"] = workers;
+            if (AwgConfig.Apply(endpoint, qs, out string awgLinkError))
+            {
+                var awgLink = new TunnelParseResult { Kind = TunnelKind.WireGuard, Endpoint = endpoint, Label = label, RequiresAwg = true };
+                awgLink.DnsServers = AwgConfig.ReadDnsServers(QueryValue(qs, "dns"), out string linkDnsWarning);
+                if (linkDnsWarning.Length > 0) SimpleLogger.Log($"[Tunnel] {linkDnsWarning}");
+                return awgLink;
+            }
+            if (awgLinkError.Length > 0)
+                return new TunnelParseResult { Kind = TunnelKind.WireGuard, Error = awgLinkError };
             return new TunnelParseResult { Kind = TunnelKind.WireGuard, Endpoint = endpoint, Label = label };
         }
 
@@ -816,13 +839,22 @@ namespace CrimsonX.Services
                 peer["allowed_ips"] = new JArray(allowed.Length > 0 ? allowed : DefaultAllowedIps);
                 string preShared = Value(values, "presharedkey", "pre_shared_key");
                 if (preShared.Length > 0) peer["pre_shared_key"] = preShared;
-                int keepAlive = ParseInt(Value(values, "persistentkeepalive", "keepalive"), 0);
+                int keepAlive = ParseKeepAlive(Value(values, "persistentkeepalive", "keepalive"));
                 if (keepAlive > 0) peer["persistent_keepalive_interval"] = keepAlive;
                 peerArray.Add(peer);
             }
             if (peerArray.Count == 0)
                 return new TunnelParseResult { Error = "This WireGuard config has no usable [Peer]." };
             endpoint["peers"] = peerArray;
+            if (AwgConfig.Apply(endpoint, interfaceValues, out string awgError))
+            {
+                var awgResult = new TunnelParseResult { Kind = TunnelKind.WireGuard, Endpoint = endpoint, RequiresAwg = true };
+                awgResult.DnsServers = AwgConfig.ReadDnsServers(Value(interfaceValues, "dns"), out string dnsWarning);
+                if (dnsWarning.Length > 0) SimpleLogger.Log($"[Tunnel] {dnsWarning}");
+                return awgResult;
+            }
+            if (awgError.Length > 0)
+                return new TunnelParseResult { Kind = TunnelKind.WireGuard, Error = awgError };
             return new TunnelParseResult { Kind = TunnelKind.WireGuard, Endpoint = endpoint };
         }
 
@@ -1376,6 +1408,15 @@ namespace CrimsonX.Services
         {
             if (string.IsNullOrWhiteSpace(value)) return fallback;
             return int.TryParse(value.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) ? parsed : fallback;
+        }
+
+        private static int ParseKeepAlive(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return 0;
+            string text = value.Trim();
+            int dash = text.IndexOf('-');
+            if (dash > 0) text = text.Substring(0, dash).Trim();
+            return ParseInt(text, 0);
         }
     }
 }

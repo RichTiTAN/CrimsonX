@@ -199,6 +199,8 @@ public partial class MainWindow
             StopGeoWatchdog();
             _state.IsGeoTracing = false;
             if (!_state.IsConnected) return;
+            if (result.Error.Length > 0)
+                ShowToast(CrimsonX.Localization.AppStrings.ToastGeoFailed + result.Error, ToastKind.Error);
             var lblCountry = this.FindControl<TextBlock>("lblCountryName");
             var lblPing    = this.FindControl<TextBlock>("lblPing");
             var lblPublicIp = this.FindControl<TextBlock>("lblPublicIp");

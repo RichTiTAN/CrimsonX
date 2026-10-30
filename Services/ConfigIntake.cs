@@ -54,7 +54,7 @@ namespace CrimsonX.Services
         private static readonly Dictionary<string, ConfigIntakeResult> Cache = new(StringComparer.Ordinal);
 
         public static async Task<ConfigIntakeResult> AcceptAsync(string raw, AppConfig cfg, ConfigTarget target, string paneName,
-            ConfigCheckLevel level = ConfigCheckLevel.Offline, string adapterName = "", string adapterIp = "")
+            ConfigCheckLevel level = ConfigCheckLevel.Offline, string adapterName = "", string adapterIp = "", bool exitNode = false)
         {
             string text = (raw ?? "").Trim();
             var result = new ConfigIntakeResult { Raw = text };
@@ -64,9 +64,9 @@ namespace CrimsonX.Services
                 result.Reason = "empty config";
                 return result;
             }
-            string key = $"{target}|{level}|{paneName}|{adapterName}|{ConfigConverter.KeyFor(text, adapterIp)}";
+            string key = $"{target}|{level}|{paneName}|{adapterName}|{exitNode}|{ConfigConverter.KeyFor(text, adapterIp)}";
             if (Cache.TryGetValue(key, out var cached)) return cached;
-            var verdict = await ConfigValidator.CheckAsync(text, cfg, target, level, adapterName, adapterIp).ConfigureAwait(false);
+            var verdict = await ConfigValidator.CheckAsync(text, cfg, target, level, adapterName, adapterIp, exitNode: exitNode).ConfigureAwait(false);
             result.Accepted         = verdict.Ok;
             result.Unreadable       = verdict.Unreadable;
             result.NeedsCredentials = verdict.NeedsCredentials;

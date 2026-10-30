@@ -28,6 +28,8 @@ namespace CrimsonX.Services
 {
     public static class ConfigCache
     {
+        public const int WorkingLimit = 50;
+
         private static readonly object Sync = new();
 
         private static byte[] Encrypt(byte[] plainBytes)
@@ -135,6 +137,14 @@ namespace CrimsonX.Services
             }
         }
 
+        public static int Count(string path)
+        {
+            lock (Sync)
+            {
+                return LoadCache(path).Count;
+            }
+        }
+
         public static void SaveCache(string path, List<string> newConfigs, bool overwrite = false)
         {
             lock (Sync)
@@ -154,7 +164,7 @@ namespace CrimsonX.Services
                                 merged.Add(old);
                             }
                         }
-                        finalConfigs = merged.Take(20).ToList();
+                        finalConfigs = merged.Take(WorkingLimit).ToList();
                     }
                     string json = JsonConvert.SerializeObject(finalConfigs);
                     byte[] plainBytes = Encoding.UTF8.GetBytes(json);

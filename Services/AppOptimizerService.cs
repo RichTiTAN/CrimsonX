@@ -48,7 +48,7 @@ namespace CrimsonX.Services
         private const int StabilityDurationMs = 10000;
         private const int StabilityIntervalMs = 500;
 
-        public static async Task<AppOptimizeResult> RunAsync(AppConfig cfg, string adapterIp, int concurrency, IProgress<double> progress, CancellationToken ct, bool alternate = false)
+        public static async Task<AppOptimizeResult> RunAsync(AppConfig cfg, string adapterIp, int concurrency, IProgress<double> progress, CancellationToken ct, bool alternate = false, string region = "")
         {
             int batch = Math.Max(1, concurrency);
             var main = MainWindow.Instance;
@@ -139,7 +139,9 @@ namespace CrimsonX.Services
                         if (r == null || !r.Success) continue;
                         if (!alternate && !r.UdpOk) continue;
                         if (string.IsNullOrWhiteSpace(r.OutboundJson)) continue;
-                        if (!main.IsConfigAllowedForScan(r)) continue;
+                        if (CountryFilter.IsBlocked(r.CountryCode)) continue;
+                        if (!string.IsNullOrWhiteSpace(region)
+                            && !string.Equals(r.Continent, region, StringComparison.OrdinalIgnoreCase)) continue;
                         if (SingboxCannotDial(r.Link) || SingboxCannotDial(r.OutboundJson)) continue;
                         if (collected.Any(f => string.Equals(f.OutboundJson, r.OutboundJson, StringComparison.Ordinal))) continue;
                         collected.Add(r);

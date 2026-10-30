@@ -26,6 +26,7 @@ namespace CrimsonX.Services
         public string ContinentCode { get; init; } = "";
         public string Ip            { get; init; } = "";
         public long   PingMs        { get; init; }
+        public string Error         { get; init; } = "";
     }
 
     public sealed class StatsSnapshot

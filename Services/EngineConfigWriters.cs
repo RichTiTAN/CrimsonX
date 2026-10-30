@@ -700,7 +700,7 @@ namespace CrimsonX.Services
                 {
                     if (tunnelIpv6)
                     {
-                        var engineApps = new List<string> { "xray.exe", "xray", "sing-box.exe", "sing-box", "conjure-client.exe", "dnstt-client.exe" };
+                        var engineApps = new List<string> { "xray.exe", "xray", "sing-box.exe", "sing-box", "amnezia-box.exe", "amnezia-box", "conjure-client.exe", "dnstt-client.exe" };
                         sbRules.Add(new { inbound = new[] { TunInboundTag }, process_name = engineApps.ToArray(), ip_cidr = new[] { "::/0" }, action = "route", outbound = "direct" });
                         sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
                         sbRules.Add(new { ip_cidr = new[] { "::/0" }, action = "reject" });

@@ -62,12 +62,14 @@ namespace CrimsonX.Services
             if (!string.IsNullOrWhiteSpace(appPath)) return appPath;
             return Path.Combine(sbDir ?? "", "sing-box.exe");
         }
-        public static bool Check(string sbDir, string configPath)
+        public static bool Check(string sbDir, string configPath) => Check(sbDir, configPath, "");
+
+        public static bool Check(string sbDir, string configPath, string exePath)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(sbDir) || string.IsNullOrWhiteSpace(configPath)) return true;
-                return RunCheck(sbDir, configPath);
+                return RunCheck(sbDir, configPath, exePath);
             }
             catch
             {
@@ -75,13 +77,13 @@ namespace CrimsonX.Services
             }
         }
 
-        private static bool RunCheck(string sbDir, string configPath)
+        private static bool RunCheck(string sbDir, string configPath, string exePath = "")
         {
             try
             {
                 var psi = new ProcessStartInfo
                 {
-                    FileName               = SbExePath(sbDir),
+                    FileName               = string.IsNullOrWhiteSpace(exePath) ? SbExePath(sbDir) : exePath,
                     Arguments              = $"check -D \"{sbDir}\" -c \"{configPath}\"",
                     WorkingDirectory       = sbDir,
                     UseShellExecute        = false,
@@ -251,6 +253,9 @@ namespace CrimsonX.Services
         }
 
         public static bool CheckEndpoint(string sbDir, string endpointJson)
+            => CheckEndpoint(sbDir, endpointJson, "");
+
+        public static bool CheckEndpoint(string sbDir, string endpointJson, string exePath)
         {
             if (string.IsNullOrWhiteSpace(endpointJson)) return false;
             JObject endpoint;
@@ -276,7 +281,7 @@ namespace CrimsonX.Services
                     ["outbounds"] = new JArray { new JObject { ["type"] = "direct", ["tag"] = "direct" } }
                 };
                 File.WriteAllText(probePath, config.ToString(Formatting.Indented));
-                return Check(sbDir, probePath);
+                return Check(sbDir, probePath, exePath);
             }
             catch
             {

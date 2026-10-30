@@ -106,7 +106,8 @@ namespace CrimsonX.Services
                 var name = p.ProcessName;
                 if ((name.IndexOf("xray",     StringComparison.OrdinalIgnoreCase) >= 0 ||
                      name.IndexOf("sing-box", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                     name.IndexOf("sing_box", StringComparison.OrdinalIgnoreCase) >= 0) &&
+                     name.IndexOf("sing_box", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     name.IndexOf("amnezia-box", StringComparison.OrdinalIgnoreCase) >= 0) &&
                     !p.HasExited)
                 {
                     p.Kill();
@@ -126,7 +127,8 @@ namespace CrimsonX.Services
                 var name = p.ProcessName;
                 if ((name.IndexOf("xray",     StringComparison.OrdinalIgnoreCase) >= 0 ||
                      name.IndexOf("sing-box", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                     name.IndexOf("sing_box", StringComparison.OrdinalIgnoreCase) >= 0) &&
+                     name.IndexOf("sing_box", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                     name.IndexOf("amnezia-box", StringComparison.OrdinalIgnoreCase) >= 0) &&
                     !p.HasExited)
                 {
                     p.Kill();

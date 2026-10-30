@@ -34,6 +34,8 @@ namespace CrimsonX.Services
     {
         public string Key { get; set; } = "";
 
+        public string Id { get; set; } = "";
+
         public TunnelParseResult Parsed { get; set; }
 
         public string Tag { get; set; } = "";
@@ -74,10 +76,13 @@ namespace CrimsonX.Services
 
         private sealed class GroupState
         {
+            public string Name = "";
+            public bool Awg;
             public Process Process;
             public string Dir = "";
             public string Signature = "";
             public readonly Dictionary<string, TunnelTarget> Active = new Dictionary<string, TunnelTarget>(StringComparer.Ordinal);
+            public List<TunnelObfuscator> Relays = new List<TunnelObfuscator>();
         }
 
         private static readonly object Sync = new object();
@@ -85,12 +90,14 @@ namespace CrimsonX.Services
 
         private static int _probeSweepDone;
 
-        private static GroupState State(string group)
+        private static GroupState State(string group) => State(group, false);
+
+        private static GroupState State(string group, bool awg)
         {
-            string name = string.IsNullOrWhiteSpace(group) ? GroupCustom : group.Trim();
+            string name = (string.IsNullOrWhiteSpace(group) ? GroupCustom : group.Trim()) + (awg ? "-awg" : "");
             if (!Groups.TryGetValue(name, out var state))
             {
-                state = new GroupState();
+                state = new GroupState { Name = name, Awg = awg };
                 Groups[name] = state;
             }
             return state;
@@ -98,54 +105,103 @@ namespace CrimsonX.Services
 
         public static bool IsRunning(string group)
         {
-            lock (Sync) { return IsRunningLocked(State(group)); }
+            lock (Sync) { return IsRunningLocked(State(group)) || IsRunningLocked(State(group, true)); }
         }
 
         public static int? PortFor(string group, string key)
         {
             lock (Sync)
             {
-                var state = State(group);
-                if (state.Process == null) return null;
-                return state.Active.TryGetValue(key ?? "", out var target) ? (int?)target.Port : null;
+                return PortIn(State(group), key) ?? PortIn(State(group, true), key);
             }
+        }
+
+        private static int? PortIn(GroupState state, string key)
+        {
+            if (state.Process == null) return null;
+            if (state.Active.TryGetValue(key ?? "", out var target)) return target.Port;
+            foreach (var live in state.Active.Values)
+            {
+                if (string.Equals(live.Key, key ?? "", StringComparison.Ordinal)) return live.Port;
+            }
+            return null;
+        }
+
+        public static int? PortForId(string group, string id)
+        {
+            lock (Sync)
+            {
+                return PortInId(State(group), id) ?? PortInId(State(group, true), id);
+            }
+        }
+
+        private static int? PortInId(GroupState state, string id)
+        {
+            if (state.Process == null) return null;
+            return state.Active.TryGetValue(id ?? "", out var target) ? target.Port : null;
         }
 
         public static string TagFor(string group, string key)
         {
             lock (Sync)
             {
-                return State(group).Active.TryGetValue(key ?? "", out var target) ? target.Tag : "";
+                return TagIn(State(group), key) ?? TagIn(State(group, true), key) ?? "";
             }
         }
+
+        private static string TagIn(GroupState state, string key)
+        {
+            if (state.Active.TryGetValue(key ?? "", out var target)) return target.Tag;
+            foreach (var live in state.Active.Values)
+            {
+                if (string.Equals(live.Key, key ?? "", StringComparison.Ordinal)) return live.Tag;
+            }
+            return null;
+        }
+
+        internal static string IdOf(TunnelTarget target)
+            => target == null ? "" : (string.IsNullOrWhiteSpace(target.Id) ? (target.Key ?? "") : target.Id);
 
         public static bool GroupServes(string group, string key, string adapterName, string adapterIp)
         {
             if (string.IsNullOrWhiteSpace(key)) return false;
             lock (Sync)
             {
-                var state = State(group);
-                if (!IsRunningLocked(state)) return false;
-                if (!state.Active.TryGetValue(key, out var target)) return false;
-                if (state.Signature.Length == 0) return true;
-                return string.Equals(
-                    AdapterSignature(target.AdapterName, target.AdapterIp),
-                    AdapterSignature(adapterName, adapterIp),
-                    StringComparison.OrdinalIgnoreCase);
+                return ServesIn(State(group), key, adapterName, adapterIp)
+                    || ServesIn(State(group, true), key, adapterName, adapterIp);
             }
+        }
+
+        private static bool ServesIn(GroupState state, string key, string adapterName, string adapterIp)
+        {
+            if (!IsRunningLocked(state)) return false;
+            if (!state.Active.TryGetValue(key, out var target)) return false;
+            if (state.Signature.Length == 0) return true;
+            return string.Equals(
+                AdapterSignature(target.AdapterName, target.AdapterIp),
+                AdapterSignature(adapterName, adapterIp),
+                StringComparison.OrdinalIgnoreCase);
         }
 
         public static string Describe(string group)
         {
             lock (Sync)
             {
-                var state = State(group);
-                if (!IsRunningLocked(state)) return "none";
-                var ports = state.Active.Values
-                    .OrderBy(t => t.Tag, StringComparer.Ordinal)
-                    .Select(t => t.Port);
-                return $"{state.Active.Count} endpoint(s) pid={state.Process?.Id} ports=[{string.Join(",", ports)}]";
+                var stock = State(group);
+                var awg = State(group, true);
+                var parts = new List<string>();
+                if (IsRunningLocked(stock)) parts.Add(DescribeOne(stock));
+                if (IsRunningLocked(awg)) parts.Add(DescribeOne(awg));
+                return parts.Count == 0 ? "none" : string.Join("; ", parts);
             }
+        }
+
+        private static string DescribeOne(GroupState state)
+        {
+            var ports = state.Active.Values
+                .OrderBy(t => t.Tag, StringComparer.Ordinal)
+                .Select(t => t.Port);
+            return $"{state.Active.Count} endpoint(s) pid={state.Process?.Id} ports=[{string.Join(",", ports)}]";
         }
 
         // ── Public API ──────────────────────────────────────────────────────────────────────
@@ -188,26 +244,40 @@ namespace CrimsonX.Services
                 if (string.IsNullOrWhiteSpace(targets[i].AdapterName)) targets[i].AdapterName = adapterName ?? "";
                 if (string.IsNullOrWhiteSpace(targets[i].AdapterIp)) targets[i].AdapterIp = adapterIp ?? "";
             }
+            var stock = targets.Where(t => t.Parsed == null || !t.Parsed.RequiresAwg).ToList();
+            var awg = targets.Where(t => t.Parsed != null && t.Parsed.RequiresAwg).ToList();
+            bool started = false;
+            string stockError = "";
+            string awgError = "";
+            if (stock.Count > 0) started |= EnsureEngineStarted(cfg, sbDir, group, false, stock, out stockError);
+            if (awg.Count > 0) started |= EnsureEngineStarted(cfg, sbDir, group, true, awg, out awgError);
+            error = stockError.Length > 0 ? stockError : awgError;
+            return started;
+        }
+
+        private static bool EnsureEngineStarted(AppConfig cfg, string sbDir, string group, bool awg, List<TunnelTarget> targets, out string error)
+        {
+            error = "";
             lock (Sync)
             {
-                var state = State(group);
+                var state = State(group, awg);
                 string signature = TargetsSignature(targets);
                 if (IsRunningLocked(state) && signature == state.Signature && SameTargets(state, targets))
                 {
                     foreach (var target in targets)
                     {
-                        if (state.Active.TryGetValue(target.Key, out var live)) target.Port = live.Port;
+                        if (state.Active.TryGetValue(IdOf(target), out var live)) target.Port = live.Port;
                     }
                     return true;
                 }
                 foreach (var target in targets)
                 {
-                    if (state.Active.TryGetValue(target.Key, out var previous)) target.Port = previous.Port;
+                    if (state.Active.TryGetValue(IdOf(target), out var previous)) target.Port = previous.Port;
                 }
                 StopLocked(state);
-                string dir = Path.Combine(sbDir, "tunnel", GroupDir(group));
+                string dir = Path.Combine(sbDir, "tunnel", GroupDir(group) + (awg ? "-awg" : ""));
                 state.Dir = dir;
-                if (TryStartBatch(sbDir, state, targets, out error))
+                if (TryStartBatch(cfg, sbDir, state, targets, out error))
                 {
                     state.Signature = signature;
                     LogStarted(state, group, targets);
@@ -219,10 +289,10 @@ namespace CrimsonX.Services
                     var survivors = new List<TunnelTarget>();
                     foreach (var target in targets)
                     {
-                        if (CanStartAlone(sbDir, target)) survivors.Add(target);
+                        if (CanStartAlone(cfg, sbDir, target)) survivors.Add(target);
                         else SimpleLogger.Log($"[Tunnel] '{target.Parsed?.Label}' could not be started and was skipped.");
                     }
-                    if (survivors.Count > 0 && TryStartBatch(sbDir, state, survivors, out error))
+                    if (survivors.Count > 0 && TryStartBatch(cfg, sbDir, state, survivors, out error))
                     {
                         state.Signature = signature;
                         LogStarted(state, group, survivors);
@@ -245,7 +315,11 @@ namespace CrimsonX.Services
 
         public static void Stop(string group)
         {
-            lock (Sync) { StopLocked(State(group)); }
+            lock (Sync)
+            {
+                StopLocked(State(group));
+                StopLocked(State(group, true));
+            }
         }
 
         public static JObject BuildXraySocksOutbound(int port)
@@ -320,15 +394,18 @@ namespace CrimsonX.Services
                 return false;
             }
             string dir = Path.Combine(sbDir, "tunnel_probe_" + Guid.NewGuid().ToString("N"));
-            var outcome = StartEngine(sbDir, dir, new List<TunnelTarget> { target });
+            var probeState = new GroupState { Name = "transient", Awg = tunnel.RequiresAwg, Dir = dir };
+            var outcome = StartEngine(null, sbDir, probeState, new List<TunnelTarget> { target }, out var relays);
             if (outcome.Process == null)
             {
+                DisposeRelays(relays);
                 error = outcome.Error.Length > 0 ? outcome.Error : "the tunnel engine could not be started";
                 SimpleLogger.Log($"[Tunnel] Test engine failed: {error}");
                 return false;
             }
             if (!Settled(new List<TunnelTarget> { target }, outcome.Process))
             {
+                DisposeRelays(relays);
                 error = "the tunnel instance exited right after start (see the sing-box log lines above)";
                 SimpleLogger.Log("[Tunnel] Test engine exited right after startup.");
                 KillProcess(outcome.Process);
@@ -397,7 +474,7 @@ namespace CrimsonX.Services
             public bool Exited;
         }
 
-        private static bool TryStartBatch(string sbDir, GroupState state, List<TunnelTarget> targets, out string error)
+        private static bool TryStartBatch(AppConfig cfg, string sbDir, GroupState state, List<TunnelTarget> targets, out string error)
         {
             error = "";
             if (targets.Count == 0)
@@ -416,23 +493,26 @@ namespace CrimsonX.Services
                     error = "No free loopback port is available for the tunnel.";
                     continue;
                 }
-                var outcome = StartEngine(sbDir, state.Dir, targets);
+                var outcome = StartEngine(cfg, sbDir, state, targets, out var relays);
                 if (outcome.Process != null)
                 {
                     if (Settled(targets, outcome.Process))
                     {
                         state.Process = outcome.Process;
                         state.Active.Clear();
-                        foreach (var target in targets) state.Active[target.Key] = target;
+                        foreach (var target in targets) state.Active[IdOf(target)] = target;
+                        AttachRelays(state, relays);
                         return true;
                     }
                     error = "The tunnel engine exited right after startup (see the [sing-box.exe] log lines).";
                     KillProcess(outcome.Process);
+                    DisposeRelays(relays);
                     SimpleLogger.Log("[Tunnel] Engine exited right after startup; retrying once.");
                     if (attempt >= 2) return false;
                     foreach (var target in targets) target.Port = 0;
                     continue;
                 }
+                DisposeRelays(relays);
                 error = outcome.Error;
                 if (!outcome.Retryable)
                 {
@@ -447,6 +527,20 @@ namespace CrimsonX.Services
                 SimpleLogger.Log($"[Tunnel] Engine start attempt {attempt}/{MaxAttempts} failed: {outcome.Error}");
             }
             return false;
+        }
+
+        internal static string EngineExe(AppConfig? cfg, bool awg, string sbDir)
+        {
+            if (!awg)
+            {
+                string stock = MainWindow.Instance?.GetAppPath(@"Data\sing_box\sing-box.exe") ?? "";
+                if (stock.Length > 0) return stock;
+                return Path.Combine(sbDir ?? "", "sing-box.exe");
+            }
+            string engine = MainWindow.Instance?.GetAppPath(AwgConfig.EnginePath) ?? "";
+            if (engine.Length > 0) return engine;
+            string baseDir = cfg?.BaseDir ?? "";
+            return baseDir.Length > 0 ? Path.Combine(baseDir, AwgConfig.EnginePath) : AwgConfig.EnginePath;
         }
 
         private static bool Settled(List<TunnelTarget> targets, Process process)
@@ -466,7 +560,7 @@ namespace CrimsonX.Services
             return false;
         }
 
-        private static bool CanStartAlone(string sbDir, TunnelTarget target)
+        private static bool CanStartAlone(AppConfig cfg, string sbDir, TunnelTarget target)
         {
             var probe = new TunnelTarget
             {
@@ -479,30 +573,35 @@ namespace CrimsonX.Services
             };
             if (probe.Port <= 0) return false;
             string dir = Path.Combine(sbDir, "tunnel_probe_" + Guid.NewGuid().ToString("N"));
-            var outcome = StartEngine(sbDir, dir, new List<TunnelTarget> { probe });
+            var probeState = new GroupState { Name = "probe", Awg = target.Parsed?.RequiresAwg == true, Dir = dir };
+            var outcome = StartEngine(cfg, sbDir, probeState, new List<TunnelTarget> { probe }, out var relays);
             bool ok = outcome.Process != null;
             if (!ok) SimpleLogger.Log($"[Tunnel] '{target.Parsed?.Label}' was rejected: {outcome.Error}");
             KillProcess(outcome.Process);
+            DisposeRelays(relays);
             TryDeleteDirectory(dir);
             return ok;
         }
 
-        private static EngineStart StartEngine(string sbDir, string dir, List<TunnelTarget> targets)
+        private static EngineStart StartEngine(AppConfig? cfg, string sbDir, GroupState state, List<TunnelTarget> targets, out List<TunnelObfuscator> relays)
         {
+            relays = new List<TunnelObfuscator>();
             var outcome = new EngineStart();
+            string dir = state.Dir;
             try
             {
                 Directory.CreateDirectory(dir);
                 string configPath = Path.Combine(dir, "config.json");
-                File.WriteAllText(configPath, BuildConfig(targets).ToString(Formatting.Indented));
-                string exe = MainWindow.Instance?.GetAppPath(@"Data\sing_box\sing-box.exe");
-                if (string.IsNullOrWhiteSpace(exe)) exe = Path.Combine(sbDir, "sing-box.exe");
-                if (!File.Exists(exe))
+                File.WriteAllText(configPath, BuildConfig(cfg, targets, relays).ToString(Formatting.Indented));
+                string exe = EngineExe(cfg, state.Awg, sbDir);
+                if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe))
                 {
-                    outcome.Error = "sing-box.exe was not found.";
+                    outcome.Error = state.Awg
+                        ? "The AmneziaWG engine (amnezia-box.exe) was not found in Data\\awg."
+                        : "sing-box.exe was not found.";
                     return outcome;
                 }
-                if (!SingboxConfigValidator.Check(sbDir, configPath))
+                if (!SingboxConfigValidator.Check(sbDir, configPath, exe))
                 {
                     outcome.Error = "The generated tunnel config was rejected by sing-box check.";
                     return outcome;
@@ -548,7 +647,7 @@ namespace CrimsonX.Services
 
         // ── Config generation ───────────────────────────────────────────────────────────────
 
-        private static JObject BuildConfig(List<TunnelTarget> targets)
+        private static JObject BuildConfig(AppConfig? cfg, List<TunnelTarget> targets, List<TunnelObfuscator> relays)
         {
             var inbounds = new JArray();
             var endpoints = new JArray();
@@ -572,6 +671,9 @@ namespace CrimsonX.Services
                 });
                 var endpoint = (JObject)target.Parsed.Endpoint.DeepClone();
                 TunnelConfigParser.WithTag(endpoint, target.Tag, target.AdapterName, target.AdapterIp);
+                TunnelObfuscator.Apply(cfg, target, endpoint, relays, out string obfuscationError);
+                if (obfuscationError.Length > 0)
+                    SimpleLogger.Log($"[Obfuscation] '{target.Parsed?.Label}' keeps a direct dial: {obfuscationError}");
                 endpoints.Add(endpoint);
                 routeRules.Add(new JObject
                 {
@@ -579,13 +681,22 @@ namespace CrimsonX.Services
                     ["action"] = "route",
                     ["outbound"] = target.Tag
                 });
-                dnsServers.Add(new JObject
+                var tunnelDns = new JObject
                 {
                     ["type"] = "udp",
                     ["tag"] = "dns-" + target.Tag,
                     ["server"] = "1.1.1.1",
                     ["detour"] = target.Tag
-                });
+                };
+                var configuredDns = target.Parsed?.DnsServers;
+                if (configuredDns != null && configuredDns.Count > 0)
+                {
+                    tunnelDns["server"] = configuredDns[0].Host;
+                    if (configuredDns[0].Port > 0 && configuredDns[0].Port != 53) tunnelDns["server_port"] = configuredDns[0].Port;
+                    if (configuredDns.Count > 1)
+                        SimpleLogger.Log($"[Tunnel] '{target.Parsed?.Label}' lists {configuredDns.Count} DNS servers; the first ({configuredDns[0].Host}) is used.");
+                }
+                dnsServers.Add(tunnelDns);
                 dnsRules.Add(new JObject
                 {
                     ["inbound"] = new JArray(inboundTag),
@@ -656,6 +767,7 @@ namespace CrimsonX.Services
             state.Dir = "";
             state.Signature = "";
             state.Active.Clear();
+            DisposeRelays(state.Relays);
             KillProcess(process);
             if (dir.Length > 0)
             {
@@ -664,12 +776,28 @@ namespace CrimsonX.Services
             }
         }
 
+        private static void DisposeRelays(List<TunnelObfuscator> relays)
+        {
+            if (relays == null) return;
+            foreach (var relay in relays)
+            {
+                try { relay.Dispose(); } catch { }
+            }
+            relays.Clear();
+        }
+
+        private static void AttachRelays(GroupState state, List<TunnelObfuscator> relays)
+        {
+            DisposeRelays(state.Relays);
+            state.Relays = relays ?? new List<TunnelObfuscator>();
+        }
+
         private static bool SameTargets(GroupState state, List<TunnelTarget> desired)
         {
             if (state.Active.Count != desired.Count) return false;
             foreach (var target in desired)
             {
-                if (!state.Active.ContainsKey(target.Key)) return false;
+                if (!state.Active.ContainsKey(IdOf(target))) return false;
             }
             return true;
         }
@@ -696,7 +824,8 @@ namespace CrimsonX.Services
         {
             foreach (var target in targets)
             {
-                SimpleLogger.Log($"[Tunnel:{group}] {target.Parsed?.KindText} {target.Parsed?.ServerText()} → socks 127.0.0.1:{target.Port} " +
+                string kind = state.Awg ? "amneziawg" : target.Parsed?.KindText;
+                SimpleLogger.Log($"[Tunnel:{group}] {kind} {target.Parsed?.ServerText()} → socks 127.0.0.1:{target.Port} " +
                                  $"(tag={target.Tag}, pid={state.Process?.Id})");
             }
         }

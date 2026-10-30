@@ -196,6 +196,11 @@ namespace CrimsonX.Services
             if (raw.Length == 0) return null;
             if (!TunnelConfigParser.TryParse(raw, out var tunnel) || tunnel?.Endpoint == null || !tunnel.Success)
                 return null;
+            if (tunnel.RequiresAwg)
+            {
+                error = $"An AmneziaWG config cannot be used as the exit node.";
+                return null;
+            }
             if (!TunnelCredentialResolver.ApplyStored(tunnel))
             {
                 error = $"'{tunnel.Label}' needs OpenVPN credentials before it can act as the exit node.";

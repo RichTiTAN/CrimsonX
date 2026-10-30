@@ -31,6 +31,7 @@ namespace CrimsonX.Services
         public string PrevUdpAdapter { get; set; } = "";
         public string PrevCustomProxyRaw { get; set; } = "";
         public string PrevCustomProxyLabel { get; set; } = "";
+        public string AppliedRaw { get; set; } = "";
     }
 
     public sealed class AppOptimizeState
@@ -43,6 +44,7 @@ namespace CrimsonX.Services
         public long FoundPingMs { get; set; }
         public string AdapterName { get; set; } = "Default";
         public string AdapterIp { get; set; } = "";
+        public string Region { get; set; } = "";
         public List<AppOptimizeChoice> Choices { get; set; } = new List<AppOptimizeChoice>();
     }
 
