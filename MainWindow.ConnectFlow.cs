@@ -34,6 +34,7 @@ namespace CrimsonX
         private CancellationTokenSource? _pipelineCts;
         private readonly object _pipelineCtsLock = new object();
         private ConcurrentQueue<string> _untestedConfigs = new ConcurrentQueue<string>();
+        private ConcurrentQueue<string> _validateConfigs = new ConcurrentQueue<string>();
         private List<string> _reservePool = new List<string>();
         private HashSet<string> _customOutboundJsons = new HashSet<string>();
         private const int WorkerSourceCount = 6;
@@ -296,6 +297,7 @@ namespace CrimsonX
                 });
                 StartSessionClock();
                 StartStatsPolling();
+                SeedCachedConfigsForValidation();
                 CrimsonX.Services.BackgroundTask.Run("connect testing", () => StartBackgroundTestingLoop(ct));
                 CrimsonX.Services.BackgroundTask.Run("connect refresh", () => StartRefreshTimer(ct));
                 return;
@@ -311,6 +313,7 @@ namespace CrimsonX
             var overflowCandidates = new List<ConfigTestResult>();
             var droppedForCache = new HashSet<string>(StringComparer.Ordinal);
             _untestedConfigs = new ConcurrentQueue<string>();
+            _validateConfigs = new ConcurrentQueue<string>();
 
             void DropPoolConfig(ConfigTestResult r)
             {
@@ -833,6 +836,17 @@ namespace CrimsonX
 
     // ── Background Testing Loop ──
 
+        private void SeedCachedConfigsForValidation()
+        {
+            var known = CrimsonX.Services.ConfigCache.LoadCache(GetAppPath(@"Data\cache\cache.bin"))
+                .Where(c => !string.IsNullOrWhiteSpace(c) && !_customOutboundJsons.Contains(c))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            _validateConfigs = new ConcurrentQueue<string>(known);
+            if (known.Count > 0)
+                CrimsonX.Services.SimpleLogger.Log($"[Connect] Validating {known.Count} cached config(s) from this session.");
+        }
+
         private async Task StartBackgroundTestingLoop(CancellationToken ct)
         {
             try
@@ -843,6 +857,25 @@ namespace CrimsonX
                 {
                     if (_cfg.DisableBackgroundChecks)
                     {
+                        await Task.Delay(5000, ct);
+                        continue;
+                    }
+                    if (_validateConfigs.TryDequeue(out string known))
+                    {
+                        var knownRes = await Task.Run(
+                            () => ConfigTester.TestConfigAsync(known, _cfg, ct, fetchGeo: true, verifyFlow: true), ct);
+                        if (knownRes.Success && knownRes.UdpOk && knownRes.Flowed && IsConfigAllowed(knownRes))
+                        {
+                            lock (_reservePool)
+                            {
+                                if (!_reservePool.Contains(knownRes.OutboundJson)) _reservePool.Add(knownRes.OutboundJson);
+                            }
+                        }
+                        else if (!knownRes.Flowed && !string.IsNullOrWhiteSpace(knownRes.OutboundJson))
+                        {
+                            CrimsonX.Services.ConfigCache.RemoveFromCache(GetAppPath(@"Data\cache\cache.bin"), knownRes.OutboundJson);
+                            lock (_reservePool) { _reservePool.Remove(knownRes.OutboundJson); }
+                        }
                         await Task.Delay(5000, ct);
                         continue;
                     }

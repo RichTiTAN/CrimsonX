@@ -30,7 +30,20 @@ namespace CrimsonX.Services
             int removed = 0;
             try
             {
-                removed = TunnelCredentialStore.PruneTo(LiveKeys(cfg, rules));
+                var keys = LiveKeys(cfg, rules);
+                try
+                {
+                    foreach (var choice in AppOptimizeStore.Load().Choices)
+                    {
+                        if (choice == null) continue;
+                        Add(keys, choice.PrevCustomProxyRaw);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SimpleLogger.Log(ex);
+                }
+                removed = TunnelCredentialStore.PruneTo(keys);
             }
             catch (Exception ex)
             {
