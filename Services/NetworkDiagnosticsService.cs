@@ -126,7 +126,7 @@ namespace CrimsonX.Services
                         if (run != _geoRun) return;
                         string down = $"the local proxy on 127.0.0.1:{port} is not listening";
                         SimpleLogger.Log($"[Geo] run {run}: {down}.");
-                        GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = down });
+                        GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = down, Failure = GeoFailure.Failed });
                         return;
                     }
                     var hit = await TraceGeoAsync(token).ConfigureAwait(false);
@@ -134,7 +134,7 @@ namespace CrimsonX.Services
                     if (hit.Ip.Length == 0)
                     {
                         SimpleLogger.Log($"[Geo] run {run}: no source answered through 127.0.0.1:{port} ({hit.Error}).");
-                        GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = hit.Error });
+                        GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = hit.Error, Failure = hit.Failure });
                         return;
                     }
                     SimpleLogger.LogFirst(
@@ -157,12 +157,12 @@ namespace CrimsonX.Services
                     if (token.IsCancellationRequested)
                     {
                         SimpleLogger.Log($"[Geo] run {run}: timeout, the request was cancelled.");
-                        GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = "the trace was cancelled" });
+                        GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = "the trace was cancelled", Failure = GeoFailure.Cancelled });
                         return;
                     }
                     if (CrimsonX.Services.BackgroundTask.IsTeardownAbort(ex)) return;
                     SimpleLogger.Log(ex);
-                    GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = ex.Message });
+                    GeoTraceCompleted?.Invoke(new GeoTraceResult { Error = ex.Message, Failure = GeoFailure.Failed });
                 }
             });
         }
@@ -188,6 +188,7 @@ namespace CrimsonX.Services
             public long Ms;
             public string Source = "";
             public string Error = "";
+            public GeoFailure Failure = GeoFailure.Failed;
         }
 
         private static readonly Dictionary<string, string> ContinentCodes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -213,6 +214,8 @@ namespace CrimsonX.Services
         private async Task<TraceHit> TraceGeoAsync(CancellationToken token)
         {
             var failures = new List<string>();
+            int timeouts = 0;
+            int others = 0;
             var client = GeoClient();
             foreach (string source in new[] { "cloudflare", "geojs", "myip", "ipify" })
             {
@@ -231,18 +234,33 @@ namespace CrimsonX.Services
                     {
                         attempt.Ms = sw.ElapsedMilliseconds;
                         attempt.Source = source;
+                        attempt.Failure = GeoFailure.None;
                         return attempt;
                     }
                     failures.Add($"{source}: no ip in the reply ({sw.ElapsedMilliseconds} ms)");
+                    others++;
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
                 catch (Exception ex)
                 {
                     sw.Stop();
                     failures.Add($"{source}: {ex.GetType().Name}: {ex.Message} ({sw.ElapsedMilliseconds} ms)");
+                    if (ex is OperationCanceledException) timeouts++;
+                    else others++;
                 }
             }
-            return new TraceHit { Error = failures.Count == 0 ? "no source answered" : string.Join("; ", failures) };
+            return new TraceHit
+            {
+                Error = failures.Count == 0 ? "no source answered" : string.Join("; ", failures),
+                Failure = ClassifyFailure(timeouts, others)
+            };
+        }
+
+        internal static GeoFailure ClassifyFailure(int timeouts, int others)
+        {
+            if (others > 0) return GeoFailure.Failed;
+            if (timeouts > 0) return GeoFailure.Timeout;
+            return GeoFailure.Failed;
         }
 
         private static void ApplyCountry(TraceHit hit, string code)

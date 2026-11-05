@@ -199,8 +199,8 @@ namespace CrimsonX
                         }
                         string tunnelError = "";
                         bool tunnelStarted = await Task.Run(() => CrimsonX.Services.TunnelEngine.EnsureTargetsStarted(
-                            _cfg, CrimsonX.Services.TunnelEngine.GroupCustom, targets, "", "", out tunnelError));
-                        if (tunnelStarted)
+                            _cfg, CrimsonX.Services.TunnelEngine.GroupCustom, targets, "", "", ct, out tunnelError), ct);
+                        void AttachStartedTunnels()
                         {
                             foreach (var item in readyTunnels)
                             {
@@ -219,12 +219,32 @@ namespace CrimsonX
                                 _customOutboundJsons.Add(socksJson);
                                 CrimsonX.Services.SimpleLogger.Log($"[Connect] Tunnel '{item.Tunnel.Label}' is dialed by xray as a socks outbound on 127.0.0.1:{port.Value}.");
                             }
+                        }
+                        for (int attempt = 1; !tunnelStarted && attempt <= 3 && !ct.IsCancellationRequested; attempt++)
+                        {
+                            CrimsonX.Services.SimpleLogger.Log($"[Connect] Tunnel engine failed ({tunnelError}); retrying ({attempt}/3).");
+                            Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastStillConnecting));
+                            try { await Task.Delay(3000, ct); }
+                            catch (OperationCanceledException) { break; }
+                            tunnelStarted = await Task.Run(() => CrimsonX.Services.TunnelEngine.EnsureTargetsStarted(
+                                _cfg, CrimsonX.Services.TunnelEngine.GroupCustom, targets, "", "", ct, out tunnelError), ct);
+                        }
+                        if (tunnelStarted)
+                        {
+                            AttachStartedTunnels();
                             await AwaitTunnelEstablishedAsync(readyTunnels, ct);
+                        }
+                        else if (ct.IsCancellationRequested)
+                        {
+                            CrimsonX.Services.SimpleLogger.Log("[Connect] the tunnel start was cancelled by the user.");
+                            throw new OperationCanceledException(ct);
                         }
                         else
                         {
-                            CrimsonX.Services.SimpleLogger.Log($"[Connect] Tunnel engine failed: {tunnelError}");
-                            Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelFailed, ToastKind.Error));
+                            CrimsonX.Services.SimpleLogger.Log($"[Connect] Tunnel engine failed after retries: {tunnelError}");
+                            if (!ct.IsCancellationRequested)
+                                Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelFailed, ToastKind.Error));
+                            throw new Exception("The custom tunnel could not be started: " + tunnelError);
                         }
                     }
                 }
@@ -246,11 +266,12 @@ namespace CrimsonX
             if (_cfg.EnableAppRules && string.Equals(_cfg.LastXrayMode, "VPN Mode", StringComparison.OrdinalIgnoreCase))
             {
                 string rulesError = "";
-                bool rulesStarted = await Task.Run(() => CrimsonX.Services.AppRulesSingboxBuilder.EnsureRuleTunnels(_cfg, out rulesError));
+                bool rulesStarted = await Task.Run(() => CrimsonX.Services.AppRulesSingboxBuilder.EnsureRuleTunnels(_cfg, ct, out rulesError), ct);
                 if (!rulesStarted)
                 {
                     CrimsonX.Services.SimpleLogger.Log($"[Connect] App-rule tunnel group failed: {rulesError}");
-                    Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelFailed, ToastKind.Error));
+                    if (!ct.IsCancellationRequested)
+                        Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelFailed, ToastKind.Error));
                 }
             }
             else
@@ -285,10 +306,16 @@ namespace CrimsonX
                         _sbPid = sbPid;
                     }
                 }
+                if (!await VerifyFetchedLocationExitAsync(ct))
+                {
+                    if (!await Task.Run(() => XrayPipelineManager.StartXray(customTopConfigs, _cfg, _cfg.XrayDir)))
+                        throw new Exception("Xray process failed to start.");
+                }
                 if (_cfg.LastXrayMode != "VPN Mode") ApplySystemProxyForMode();
                 _state.IsConnected = true;
                 _state.SessionStartTime = DateTime.Now;
                 CrimsonX.Services.SimpleLogger.Log("[Connect] Connected successfully with Custom Configs.");
+                StartTunnelWatch();
                 StartGeoPing();
                 Dispatcher.UIThread.Post(() => {
                     SetConnectButtonProgress(ConnectProgress.Connected);
@@ -656,10 +683,16 @@ namespace CrimsonX
                     _sbPid = sbPid;
                 }
             }
+            if (!await VerifyFetchedLocationExitAsync(ct))
+            {
+                if (!await Task.Run(() => XrayPipelineManager.StartXray(topConfigs, _cfg, _cfg.XrayDir)))
+                    throw new Exception("Xray process failed to start.");
+            }
             if (_cfg.LastXrayMode != "VPN Mode") ApplySystemProxyForMode();
             _state.IsConnected = true;
             _state.SessionStartTime = DateTime.Now;
             CrimsonX.Services.SimpleLogger.Log("[Connect] Connected successfully with Dynamic Configs.");
+            StartTunnelWatch();
             StartGeoPing();
             Dispatcher.UIThread.Post(() => {
                 SetConnectButtonProgress(ConnectProgress.Connected);
@@ -954,7 +987,7 @@ namespace CrimsonX
 
         // ── Exit node (an OpenVPN / WireGuard config chained inside the sing-box instance) ──
 
-        private const int ExitNodeTimeoutSeconds = 25;
+        private const int ExitNodeTimeoutSeconds = 50;
 
         private async Task PrepareExitNodeCredentialsAsync()
         {
@@ -984,7 +1017,7 @@ namespace CrimsonX
                 if (probe.Ok)
                 {
                     CrimsonX.Services.SimpleLogger.Log(
-                        $"[ExitNode] established after {(int)(DateTime.UtcNow - started).TotalMilliseconds} ms (hop reply in {probe.Ms} ms)");
+                        $"[ExitNode] established after {(int)(DateTime.UtcNow - started).TotalMilliseconds} ms via {probe.Target} (hop reply in {probe.Ms} ms)");
                     return true;
                 }
                 if (!loggedFailure)
@@ -1018,6 +1051,27 @@ namespace CrimsonX
             return false;
         }
 
+        private async Task<bool> VerifyFetchedLocationExitAsync(CancellationToken ct)
+        {
+            if (!_cfg.EnableV2rayChain) return true;
+            if (CrimsonX.Services.ExitNodeChain.Plane(_cfg) != CrimsonX.Services.ExitNodeChain.ExitNodePlane.XrayOutbound) return true;
+            if (!string.Equals(_cfg.ExitNodeSource, "DEFAULT", StringComparison.OrdinalIgnoreCase)) return true;
+            string country = _cfg.ExitNodeCountry ?? "";
+            if (country.Length == 0 || string.Equals(country, "AUTO", StringComparison.OrdinalIgnoreCase)) return true;
+            Dispatcher.UIThread.Post(() => SetConnectButtonProgress(ConnectProgress.ExitNode));
+            if (await CrimsonX.Services.ExitNodeVerifier.VerifyAsync(CrimsonX.Services.ExitNodeChain.DisplayPort(_cfg), ct))
+            {
+                CrimsonX.Services.SimpleLogger.Log("[ExitNode] the fetched location answered both probes.");
+                return true;
+            }
+            if (ct.IsCancellationRequested) return false;
+            CrimsonX.Services.SimpleLogger.Log("[ExitNode] the fetched location did not answer both probes; falling back to AUTO.");
+            CrimsonX.Services.CountryExitFeed.SelectAuto(_cfg);
+            RequestConfigSave();
+            Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastExitNodeLocationFailed, ToastKind.Error));
+            return false;
+        }
+
         private async Task<int?> StartSingBoxAsync(CancellationToken ct)
             => await StartOrRestartSingBoxVerifiedAsync(killRunning: false, ExitNodeTimeoutSeconds, ct) ? _sbPid : null;
 
@@ -1044,7 +1098,7 @@ namespace CrimsonX
                 if (port == null) continue;
                 var probe = await CrimsonX.Services.TunnelHopProbe.ProbeAsync(port.Value, 4000, ct);
                 if (!probe.Ok) continue;
-                CrimsonX.Services.SimpleLogger.Log($"[Tunnel] established '{item.Tunnel.Label}' via 127.0.0.1:{port.Value} after {(int)(DateTime.UtcNow - started).TotalMilliseconds} ms (hop reply in {probe.Ms} ms)");
+                CrimsonX.Services.SimpleLogger.Log($"[Tunnel] established '{item.Tunnel.Label}' via 127.0.0.1:{port.Value} using {probe.Target} after {(int)(DateTime.UtcNow - started).TotalMilliseconds} ms (hop reply in {probe.Ms} ms)");
                 pending.Remove(item);
             }
             if (pending.Count == 0) break;

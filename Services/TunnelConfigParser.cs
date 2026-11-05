@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -33,7 +34,9 @@ namespace CrimsonX.Services
 
         OpenVpn,
 
-        WireGuard
+        WireGuard,
+
+        Ipsec
     }
 
     public sealed class TunnelParseResult
@@ -58,14 +61,29 @@ namespace CrimsonX.Services
 
         public bool RequiresAwg { get; set; }
 
+        public bool RequiresIpsec { get; set; }
+
         public List<AwgConfig.DnsServer> DnsServers { get; set; } = new List<AwgConfig.DnsServer>();
 
-        public string KindText => Kind == TunnelKind.OpenVpn ? "openvpn" : Kind == TunnelKind.WireGuard ? "wireguard" : "";
+        public string KindText => Kind switch
+        {
+            TunnelKind.OpenVpn => "openvpn",
+            TunnelKind.WireGuard => "wireguard",
+            TunnelKind.Ipsec => "ikev2",
+            _ => ""
+        };
 
         public string ServerText()
         {
             try
             {
+                if (Kind == TunnelKind.Ipsec)
+                {
+                    string ipsecServer = Endpoint?["server"]?.ToString() ?? "";
+                    if (ipsecServer.Length == 0) return "";
+                    int port = int.TryParse(Endpoint?["server_port"]?.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedPort) ? parsedPort : 0;
+                    return port > 0 ? $"{ipsecServer}:{port}" : ipsecServer;
+                }
                 if (Kind == TunnelKind.WireGuard)
                 {
                     var peer = (Endpoint?["peers"] as JArray)?.FirstOrDefault() as JObject;
@@ -98,11 +116,30 @@ namespace CrimsonX.Services
 
         public const int DefaultTunnelMtu = 1280;
 
+        public const int IpsecDefaultMtu = 1400;
+
+        public const int IpsecMinMtu = 576;
+
+        public const int IpsecMaxMtu = 1500;
+
         private static void ApplyDefaultMtu(JObject endpoint)
         {
             if (endpoint == null) return;
             if (ToInt(endpoint["mtu"]) > 0) return;
             endpoint["mtu"] = DefaultTunnelMtu;
+        }
+
+        private static void ApplyIpsecMtu(JObject endpoint)
+        {
+            if (endpoint == null) return;
+            int mtu = ToInt(endpoint["mtu"]);
+            if (mtu < IpsecMinMtu || mtu > IpsecMaxMtu)
+            {
+                if (mtu > 0) SimpleLogger.Log($"[Tunnel] Ignoring the IKEv2 MTU {mtu}: it must be between {IpsecMinMtu} and {IpsecMaxMtu}.");
+                endpoint.Remove("mtu");
+                mtu = IpsecDefaultMtu;
+            }
+            endpoint["mtu"] = mtu;
         }
 
         public static bool TryParse(string raw, out TunnelParseResult result)
@@ -114,6 +151,9 @@ namespace CrimsonX.Services
             try
             {
                 if (text.StartsWith("{")) parsed = ParseJson(text);
+                else if (text.StartsWith("ikev2://", StringComparison.OrdinalIgnoreCase)
+                      || text.StartsWith("ipsec://", StringComparison.OrdinalIgnoreCase)) parsed = ParseIpsecLink(text);
+                else if (LooksLikeMobileConfig(text)) parsed = ParseMobileConfig(text);
                 else if (text.StartsWith("wireguard://", StringComparison.OrdinalIgnoreCase)
                       || text.StartsWith("wg://", StringComparison.OrdinalIgnoreCase)) parsed = ParseWireGuardLink(text);
                 else if (LooksLikeWireGuardIni(text)) parsed = ParseWireGuardIni(text);
@@ -127,7 +167,8 @@ namespace CrimsonX.Services
             if (parsed == null) return false;
             if (parsed.Endpoint != null)
             {
-                ApplyDefaultMtu(parsed.Endpoint);
+                if (parsed.Kind == TunnelKind.Ipsec) ApplyIpsecMtu(parsed.Endpoint);
+                else ApplyDefaultMtu(parsed.Endpoint);
                 parsed.Success = true;
                 if (string.IsNullOrWhiteSpace(parsed.Label)) parsed.Label = DescribeEndpoint(parsed.Endpoint);
                 parsed.Label = CleanLabel(parsed.Label);
@@ -180,6 +221,13 @@ namespace CrimsonX.Services
             {
                 string type = endpoint?["type"]?.ToString() ?? "";
                 if (type.Length == 0) return "";
+                if (type == "ipsec")
+                {
+                    string host = endpoint["server"]?.ToString() ?? "";
+                    if (host.Length == 0) return "ikev2";
+                    int port = ToInt(endpoint["server_port"]);
+                    return port > 0 ? $"ikev2 · {host}:{port}" : $"ikev2 · {host}";
+                }
                 if (type == "wireguard")
                 {
                     var peer = (endpoint["peers"] as JArray)?.FirstOrDefault() as JObject;
@@ -209,6 +257,7 @@ namespace CrimsonX.Services
         private static TunnelParseResult ParseJson(string text)
         {
             var root = JObject.Parse(text);
+            if (IsIpsecObject(root)) return FromIpsecObject(root);
             if (root["endpoints"] is JArray endpoints)
             {
                 TunnelParseResult first = null;
@@ -216,6 +265,7 @@ namespace CrimsonX.Services
                 foreach (var item in endpoints.OfType<JObject>())
                 {
                     var found = FromSingboxEndpoint(item);
+                    if (found == null && IsIpsecObject(item)) found = FromIpsecObject(item);
                     if (found == null) continue;
                     supported++;
                     if (first == null) first = found;
@@ -1417,6 +1467,335 @@ namespace CrimsonX.Services
             int dash = text.IndexOf('-');
             if (dash > 0) text = text.Substring(0, dash).Trim();
             return ParseInt(text, 0);
+        }
+
+        private static bool LooksLikeMobileConfig(string text)
+        {
+            string head = (text ?? "").TrimStart();
+            if (head.StartsWith("<plist", StringComparison.OrdinalIgnoreCase)) return true;
+            return head.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase)
+                && head.IndexOf("<plist", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool IsIpsecObject(JObject source)
+        {
+            if (source == null) return false;
+            string type = source["type"]?.ToString() ?? "";
+            return type.Equals("ipsec", StringComparison.OrdinalIgnoreCase)
+                || type.Equals("ikev2", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static TunnelParseResult ParseIpsecLink(string link)
+        {
+            int scheme = link.IndexOf("://", StringComparison.Ordinal);
+            string body = scheme >= 0 ? link.Substring(scheme + 3) : link;
+            string label = "";
+            int hash = body.IndexOf('#');
+            if (hash >= 0)
+            {
+                label = PercentDecode(body.Substring(hash + 1));
+                body = body.Substring(0, hash);
+            }
+            string query = "";
+            int q = body.IndexOf('?');
+            if (q >= 0)
+            {
+                query = body.Substring(q + 1);
+                body = body.Substring(0, q);
+            }
+            var qs = ParseQueryPairs(query);
+            string username = "";
+            string password = "";
+            string host = "";
+            int port = 500;
+            int at = body.LastIndexOf('@');
+            if (at >= 0)
+            {
+                string userInfo = body.Substring(0, at);
+                int colon = userInfo.IndexOf(':');
+                username = PercentDecode(colon < 0 ? userInfo : userInfo.Substring(0, colon));
+                if (colon >= 0) password = PercentDecode(userInfo.Substring(colon + 1));
+                SplitHostPort(body.Substring(at + 1), out host, out port, 500);
+            }
+            else
+            {
+                SplitHostPort(body, out host, out port, 500);
+            }
+            if (host.Length == 0) host = QueryValue(qs, "server", "host", "address", "remote");
+            if (host.Length == 0)
+                return new TunnelParseResult { Kind = TunnelKind.Ipsec, Error = "This IKEv2 link has no server address." };
+
+            var profile = new JObject
+            {
+                ["type"] = "ipsec",
+                ["server"] = host,
+                ["server_port"] = ParseInt(QueryValue(qs, "port", "server_port"), port > 0 ? port : 500)
+            };
+            if (username.Length > 0) profile["username"] = username;
+            if (password.Length > 0) profile["password"] = password;
+            string psk = QueryValue(qs, "psk", "pre_shared_key", "preshared_key", "shared_secret");
+            if (psk.Length > 0) profile["psk"] = psk;
+            string mode = QueryValue(qs, "auth", "auth_method", "method");
+            if (mode.Length > 0) profile["auth"] = mode;
+            string remoteId = QueryValue(qs, "remote_id", "remote_identifier", "remoteid", "idr");
+            if (remoteId.Length > 0) profile["remote_id"] = remoteId;
+            string localId = QueryValue(qs, "local_id", "local_identifier", "localid", "idi");
+            if (localId.Length > 0) profile["local_id"] = localId;
+            string ca = QueryValue(qs, "ca", "ca_pem", "certificate_authority");
+            if (ca.Length > 0) profile["ca"] = DecodePemValue(ca);
+            string dns = QueryValue(qs, "dns", "dns_server");
+            if (dns.Length > 0) profile["dns"] = dns;
+            int mtu = ParseInt(QueryValue(qs, "mtu"), 0);
+            if (mtu > 0) profile["mtu"] = mtu;
+
+            var parsed = FromIpsecObject(profile);
+            if (parsed == null)
+                return new TunnelParseResult { Kind = TunnelKind.Ipsec, Error = "This IKEv2 link could not be read." };
+            if (label.Length == 0) label = QueryValue(qs, "name", "label", "tag");
+            if (label.Length > 0) parsed.Label = CleanLabel(label);
+            return parsed;
+        }
+
+        private static string DecodePemValue(string value)
+        {
+            string text = (value ?? "").Trim();
+            if (text.Length == 0) return "";
+            if (text.IndexOf("BEGIN CERTIFICATE", StringComparison.Ordinal) >= 0)
+                return text.Replace("\\n", "\n").Replace("\r\n", "\n").Trim();
+            try
+            {
+                byte[] raw = Convert.FromBase64String(text.Replace(' ', '+'));
+                string decoded = System.Text.Encoding.UTF8.GetString(raw).Replace("\r\n", "\n").Trim();
+                if (decoded.IndexOf("BEGIN CERTIFICATE", StringComparison.Ordinal) >= 0) return decoded;
+            }
+            catch { }
+            return text;
+        }
+
+        private static TunnelParseResult FromIpsecObject(JObject source)
+        {
+            if (source == null) return null;
+            if (HasCertificateAuth(source))
+                return new TunnelParseResult
+                {
+                    Kind = TunnelKind.Ipsec,
+                    Error = "EAP-TLS client certificates are not supported; use a username and password (EAP-MSCHAPv2) or a pre-shared key."
+                };
+
+            string server = FirstNonEmpty(
+                Str(source, "server"), Str(source, "host"), Str(source, "address"),
+                Str(source, "server_address"), Str(source, "remote"));
+            if (server.Length == 0)
+                return new TunnelParseResult { Kind = TunnelKind.Ipsec, Error = "This IKEv2 profile has no server." };
+            int slash = server.IndexOf('/');
+            if (slash > 0) server = server.Substring(0, slash);
+            SplitHostPort(server, out string host, out int embeddedPort, 500);
+            if (host.Length == 0)
+                return new TunnelParseResult { Kind = TunnelKind.Ipsec, Error = "This IKEv2 profile has no server." };
+            int port = ToInt(FirstToken(source, "server_port", "port", "remote_port"));
+            if (port <= 0 || port > 65535) port = embeddedPort > 0 ? embeddedPort : 500;
+
+            string username = FirstNonEmpty(Str(source, "username"), Str(source, "user"), Str(source, "login"), Str(source, "auth_name"), Str(source, "eap_user"));
+            string password = FirstNonEmpty(Str(source, "password"), Str(source, "pass"), Str(source, "auth_password"), Str(source, "eap_password"));
+            string psk = FirstNonEmpty(Str(source, "psk"), Str(source, "pre_shared_key"), Str(source, "preshared_key"), Str(source, "shared_secret"));
+            if (psk.Length > 0 && (username.Length > 0 || password.Length > 0))
+                return new TunnelParseResult
+                {
+                    Kind = TunnelKind.Ipsec,
+                    Error = "This IKEv2 profile mixes a pre-shared key with a username and password; use one or the other."
+                };
+
+            string mode = (Str(source, "auth") + " " + Str(source, "auth_method") + " " + Str(source, "authentication")).Trim().ToLowerInvariant();
+            bool pskMode;
+            if (mode.Length == 0) pskMode = psk.Length > 0 && username.Length == 0;
+            else if (mode.Contains("psk") || mode.Contains("pre-shared") || mode.Contains("pre_shared")) pskMode = true;
+            else if (mode.Contains("eap") || mode.Contains("mschap")) pskMode = false;
+            else if (mode.Contains("none"))
+            {
+                if (username.Length == 0)
+                    return new TunnelParseResult
+                    {
+                        Kind = TunnelKind.Ipsec,
+                        Error = "This IKEv2 profile authenticates with a certificate; use a username and password (EAP-MSCHAPv2) or a pre-shared key."
+                    };
+                pskMode = false;
+            }
+            else
+                return new TunnelParseResult { Kind = TunnelKind.Ipsec, Error = $"This IKEv2 profile uses an unknown authentication method \"{mode.Trim()}\"." };
+            if (pskMode && psk.Length == 0)
+                return new TunnelParseResult { Kind = TunnelKind.Ipsec, Error = "This IKEv2 profile uses a pre-shared key but none was provided." };
+
+            string remoteId = FirstNonEmpty(
+                Str(source, "remote_id"), Str(source, "remote_identifier"), Str(source, "remoteid"),
+                Str(source, "remote-id"), Str(source, "idr"), Str(source, "server_id"));
+            if (remoteId.Length == 0) remoteId = host;
+            string localId = FirstNonEmpty(
+                Str(source, "local_id"), Str(source, "local_identifier"), Str(source, "localid"),
+                Str(source, "local-id"), Str(source, "idi"));
+            if (localId.Length == 0 && !pskMode) localId = username;
+
+            string ca = FirstNonEmpty(Str(source, "ca"), Str(source, "ca_pem"), Str(source, "certificate_authority"), Str(source, "server_ca"));
+            if (ca.Length > 0) ca = DecodePemValue(ca);
+            string dns = FirstNonEmpty(Str(source, "dns"), Str(source, "dns_server"));
+            if (dns.Length > 0 && !IsUsableDns(dns))
+            {
+                SimpleLogger.Log($"[Tunnel] Ignoring the IKEv2 DNS \"{dns}\": it has to be an IP address.");
+                dns = "";
+            }
+            return BuildIpsecEndpoint(source, host, port, pskMode, username, password, psk, remoteId, localId, ca, dns);
+        }
+
+        private static TunnelParseResult BuildIpsecEndpoint(
+            JObject source, string host, int port, bool pskMode, string username, string password,
+            string psk, string remoteId, string localId, string ca, string dns)
+        {
+            var endpoint = new JObject
+            {
+                ["type"] = "ipsec",
+                ["server"] = host,
+                ["server_port"] = port,
+                ["auth"] = pskMode ? "psk" : "eap"
+            };
+            if (username.Length > 0) endpoint["username"] = username;
+            if (password.Length > 0) endpoint["password"] = password;
+            if (psk.Length > 0) endpoint["psk"] = psk;
+            if (remoteId.Length > 0) endpoint["remote_id"] = remoteId;
+            if (localId.Length > 0) endpoint["local_id"] = localId;
+            if (ca.Length > 0) endpoint["ca"] = ca;
+            if (dns.Length > 0) endpoint["dns"] = dns;
+            int mtu = ToInt(FirstToken(source, "mtu"));
+            if (mtu > 0) endpoint["mtu"] = mtu;
+
+            var result = new TunnelParseResult
+            {
+                Kind = TunnelKind.Ipsec,
+                Endpoint = endpoint,
+                RequiresIpsec = true,
+                Label = CleanLabel(FirstNonEmpty(Str(source, "name"), Str(source, "label"), Str(source, "tag")))
+            };
+            result.User = username;
+            result.Password = password;
+            result.NeedsCredentials = !pskMode && (username.Length == 0 || password.Length == 0);
+            return result;
+        }
+
+        private static string Str(JObject source, string key)
+        {
+            var token = source?[key];
+            if (token == null || token.Type == JTokenType.Null) return "";
+            if (token.Type == JTokenType.Object || token.Type == JTokenType.Array) return "";
+            return (token.ToString() ?? "").Trim();
+        }
+
+        private static bool HasCertificateAuth(JObject source)
+        {
+            if (source == null) return false;
+            string mode = (Str(source, "auth") + " " + Str(source, "auth_method") + " " + Str(source, "authentication")).ToLowerInvariant();
+            if (mode.Contains("eap-tls") || mode.Contains("tls") || mode.Contains("cert")) return true;
+            foreach (string key in new[] { "cert", "client_cert", "client_certificate", "identity", "identity_certificate", "p12", "pkcs12" })
+            {
+                if (Str(source, key).Length > 0) return true;
+            }
+            return false;
+        }
+
+        private static bool IsUsableDns(string value)
+        {
+            string text = (value ?? "").Trim();
+            if (text.Length == 0) return false;
+            SplitHostPort(text, out string host, out _, 53);
+            return System.Net.IPAddress.TryParse(host, out _);
+        }
+
+        private static TunnelParseResult ParseMobileConfig(string text)
+        {
+            XDocument doc;
+            try { doc = XDocument.Parse(text); }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log($"[Tunnel] Could not read this IKEv2 profile: {ex.Message}");
+                return new TunnelParseResult { Kind = TunnelKind.Ipsec, Error = "This .mobileconfig file is not valid XML." };
+            }
+
+            var caParts = new List<string>();
+            JObject profile = null;
+            foreach (var dict in doc.Descendants().Where(e => e.Name.LocalName == "dict"))
+            {
+                var entries = DictEntries(dict);
+                if (entries.TryGetValue("PayloadType", out string payloadType)
+                    && payloadType.Equals("com.apple.security.root", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (entries.TryGetValue("PayloadContent", out string data) && data.Length > 0)
+                    {
+                        try
+                        {
+                            byte[] der = Convert.FromBase64String(data);
+                            caParts.Add("-----BEGIN CERTIFICATE-----\n"
+                                + Convert.ToBase64String(der, Base64FormattingOptions.InsertLineBreaks)
+                                + "\n-----END CERTIFICATE-----");
+                        }
+                        catch { }
+                    }
+                    continue;
+                }
+                if (profile != null) continue;
+                if (!entries.TryGetValue("VPNType", out string vpnType)) continue;
+                if (vpnType.IndexOf("IKEv2", StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                profile = new JObject { ["type"] = "ipsec" };
+                CopyEntry(entries, profile, "server", "ServerAddress");
+                CopyEntry(entries, profile, "remote_id", "RemoteIdentifier");
+                CopyEntry(entries, profile, "local_id", "LocalIdentifier");
+                CopyEntry(entries, profile, "username", "Username", "AuthName");
+                CopyEntry(entries, profile, "password", "Password", "AuthPassword");
+                CopyEntry(entries, profile, "psk", "SharedSecret");
+                CopyEntry(entries, profile, "name", "UserDefinedName", "PayloadDisplayName");
+                CopyEntry(entries, profile, "auth_method", "AuthenticationMethod");
+            }
+
+            if (profile == null)
+                return new TunnelParseResult { Kind = TunnelKind.Ipsec, Error = "This .mobileconfig file has no IKEv2 VPN entry." };
+            if (caParts.Count > 0) profile["ca"] = string.Join("\n", caParts);
+
+            var parsed = FromIpsecObject(profile);
+            if (parsed == null)
+                return new TunnelParseResult { Kind = TunnelKind.Ipsec, Error = "This .mobileconfig file could not be read." };
+            bool hasUsername = Str(profile, "username").Length > 0;
+            bool hasPsk = Str(profile, "psk").Length > 0;
+            if (parsed.Endpoint != null && !hasUsername && !hasPsk)
+                return new TunnelParseResult
+                {
+                    Kind = TunnelKind.Ipsec,
+                    Error = "This .mobileconfig file authenticates with a certificate; use a profile with a username and password (EAP-MSCHAPv2) or a pre-shared key."
+                };
+            return parsed;
+        }
+
+        private static void CopyEntry(Dictionary<string, string> entries, JObject target, string targetKey, params string[] keys)
+        {
+            foreach (string key in keys)
+            {
+                if (entries.TryGetValue(key, out string value) && !string.IsNullOrWhiteSpace(value))
+                {
+                    target[targetKey] = value.Trim();
+                    return;
+                }
+            }
+        }
+
+        private static Dictionary<string, string> DictEntries(XElement dict)
+        {
+            var entries = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var child in dict.Elements())
+            {
+                if (child.Name.LocalName != "key") continue;
+                var value = child.ElementsAfterSelf().FirstOrDefault();
+                if (value == null) continue;
+                string name = (child.Value ?? "").Trim();
+                if (name.Length == 0 || entries.ContainsKey(name)) continue;
+                entries[name] = (value.Value ?? "").Trim();
+            }
+            return entries;
         }
     }
 }

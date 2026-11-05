@@ -97,18 +97,43 @@ namespace CrimsonX.Services
             catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
         }
 
+        private static bool IsEngineName(string name)
+            => name.IndexOf("xray", StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("sing-box", StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("sing_box", StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("amnezia-box", StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("crimsonipsec", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        public static void KillOrphanEngines()
+        {
+            int self = Environment.ProcessId;
+            Process[] all;
+            try { all = Process.GetProcesses(); }
+            catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); return; }
+            foreach (var process in all)
+            {
+                try
+                {
+                    if (process.Id == self) continue;
+                    if (!IsEngineName(process.ProcessName)) continue;
+                    process.Kill();
+                    process.WaitForExit(1000);
+                }
+                catch { }
+                finally
+                {
+                    try { process.Dispose(); } catch { }
+                }
+            }
+        }
+
         public static void KillVpnProcess(int? pid)
         {
             if (pid == null) return;
             try
             {
                 using var p = Process.GetProcessById(pid.Value);
-                var name = p.ProcessName;
-                if ((name.IndexOf("xray",     StringComparison.OrdinalIgnoreCase) >= 0 ||
-                     name.IndexOf("sing-box", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                     name.IndexOf("sing_box", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                     name.IndexOf("amnezia-box", StringComparison.OrdinalIgnoreCase) >= 0) &&
-                    !p.HasExited)
+                if (IsEngineName(p.ProcessName) && !p.HasExited)
                 {
                     p.Kill();
                     p.WaitForExit(1000);
@@ -124,12 +149,7 @@ namespace CrimsonX.Services
             try
             {
                 using var p = Process.GetProcessById(pid.Value);
-                var name = p.ProcessName;
-                if ((name.IndexOf("xray",     StringComparison.OrdinalIgnoreCase) >= 0 ||
-                     name.IndexOf("sing-box", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                     name.IndexOf("sing_box", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                     name.IndexOf("amnezia-box", StringComparison.OrdinalIgnoreCase) >= 0) &&
-                    !p.HasExited)
+                if (IsEngineName(p.ProcessName) && !p.HasExited)
                 {
                     p.Kill();
                     using var cts = new CancellationTokenSource(1000);

@@ -32,6 +32,8 @@ namespace CrimsonX.Services
         public List<object> RouteRules { get; } = new List<object>();
         public List<object> Outbounds  { get; } = new List<object>();
         public List<object> DnsRules   { get; } = new List<object>();
+
+        public List<object> ResolveRules { get; } = new List<object>();
         public List<object> RuleSets   { get; } = new List<object>();
 
         public List<object> DnsServers { get; } = new List<object>();
@@ -103,37 +105,11 @@ namespace CrimsonX.Services
                 }
                 string tcpOutbound = ResolveOutbound(rule, rule.TcpRouting, rule.TcpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys, proxyTag);
                 string udpOutbound = ResolveOutbound(rule, rule.UdpRouting, rule.UdpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys, proxyTag);
-                result.RouteRules.Add(new
-                {
-                    process_name = namesArray,
-                    network = "tcp",
-                    action = "route",
-                    outbound = tcpOutbound
-                });
-                result.RouteRules.Add(new
-                {
-                    process_name = namesArray,
-                    network = "udp",
-                    action = "route",
-                    outbound = udpOutbound
-                });
-                bool tcpCustom = IsCustomRouting(rule.TcpRouting);
-                bool udpCustom = IsCustomRouting(rule.UdpRouting);
-                bool tcpCustomTag = tcpCustom && tcpOutbound.StartsWith("custom-", StringComparison.Ordinal);
-                bool udpCustomTag = udpCustom && udpOutbound.StartsWith("custom-", StringComparison.Ordinal);
-                bool fullyCustom = tcpCustomTag && udpCustomTag && tcpOutbound == udpOutbound;
-                bool fullyProxied = IsProxyRouting(rule.TcpRouting) && IsProxyRouting(rule.UdpRouting);
-                string dnsServer = fullyCustom ? "dns-" + tcpOutbound
-                                 : tcpCustomTag ? "dns-" + tcpOutbound
-                                 : udpCustomTag ? "dns-" + udpOutbound
-                                 : fullyProxied ? "dns_proxy"
-                                 : "dns_direct";
-                result.DnsRules.Add(new
-                {
-                    process_name = namesArray,
-                    action = "route",
-                    server = dnsServer
-                });
+                result.RouteRules.Add(ProcessRouteRule(namesArray, "tcp", tcpOutbound));
+                result.RouteRules.Add(ProcessRouteRule(namesArray, "udp", udpOutbound));
+                string dnsServer = DnsServerFor(rule.TcpRouting, rule.UdpRouting, tcpOutbound, udpOutbound);
+                result.DnsRules.Add(ProcessDnsRule(namesArray, dnsServer));
+                result.ResolveRules.Add(ProcessResolveRule(namesArray, dnsServer));
                 var domains = rule.Domains != null
                     ? rule.Domains.Where(d => !string.IsNullOrWhiteSpace(d)).Select(d => d.Trim()).ToArray()
                     : Array.Empty<string>();
@@ -210,10 +186,31 @@ namespace CrimsonX.Services
         private static bool IsCustomRouting(string routing)
             => string.Equals(routing, "Custom", StringComparison.OrdinalIgnoreCase);
 
-        private static bool IsProxyRouting(string routing)
-            => string.IsNullOrEmpty(routing)
-            || string.Equals(routing, "Proxy", StringComparison.OrdinalIgnoreCase)
-            || IsCustomRouting(routing);
+        private static bool IsDirectRouting(string routing)
+            => string.Equals(routing, "Direct", StringComparison.OrdinalIgnoreCase);
+
+        internal static string DnsServerFor(string tcpRouting, string udpRouting, string tcpOutbound, string udpOutbound)
+        {
+            if (IsCustomRouting(tcpRouting) && tcpOutbound.StartsWith("custom-", StringComparison.Ordinal)) return "dns-" + tcpOutbound;
+            if (IsCustomRouting(udpRouting) && udpOutbound.StartsWith("custom-", StringComparison.Ordinal)) return "dns-" + udpOutbound;
+            if (IsDirectRouting(tcpRouting) && IsDirectRouting(udpRouting)) return "dns_direct";
+            return "dns_proxy";
+        }
+
+        internal static object ProcessRouteRule(string[] names, string network, string outbound)
+            => new { process_name = names, network = network, action = "route", outbound = outbound };
+
+        internal static object ProcessDnsRule(string[] names, string server)
+            => new { process_name = names, action = "route", server = server };
+
+        internal static object ProcessResolveRule(string[] names, string server)
+            => new Dictionary<string, object>
+            {
+                ["process_name"] = names,
+                ["ip_cidr"] = new[] { "198.18.0.0/15" },
+                ["action"] = "resolve",
+                ["server"] = server
+            };
 
         private static string ResolveCustomOutbound(AppGameRule rule, string adapter,
             Dictionary<string, string> adapterIps, AppRulesSingboxResult result, ISet<string> skipCustomKeys)
@@ -246,11 +243,13 @@ namespace CrimsonX.Services
                 result.CustomLabels[tunnelTag] = tunnel.Label;
                 result.DnsServers.Add(new
                 {
-                    tag    = "dns-" + tunnelTag,
-                    type   = "https",
-                    server = "dns.google",
-                    path   = "/dns-query",
-                    detour = tunnelTag
+                    tag     = "dns-" + tunnelTag,
+                    type    = "https",
+                    server  = "8.8.8.8",
+                    path    = "/resolve",
+                    headers = new { Host = "dns.google" },
+                    tls     = new { server_name = "dns.google" },
+                    detour  = tunnelTag
                 });
                 return tunnelTag;
             }
@@ -289,8 +288,10 @@ namespace CrimsonX.Services
             {
                 tag     = "dns-" + tag,
                 type    = "https",
-                server  = "dns.google",
-                path    = "/dns-query",
+                server  = "8.8.8.8",
+                path    = "/resolve",
+                headers = new { Host = "dns.google" },
+                tls     = new { server_name = "dns.google" },
                 detour  = tag
             });
             return tag;
@@ -356,7 +357,18 @@ namespace CrimsonX.Services
             return TunnelEngine.PortFor(TunnelEngine.GroupRules, key);
         }
 
+        public static int? RuleTunnelPort(TunnelTarget target)
+        {
+            if (target == null || string.IsNullOrWhiteSpace(target.Key)) return null;
+            if (TunnelEngine.GroupServes(TunnelEngine.GroupCustom, target.Key, target.AdapterName, target.AdapterIp))
+                return TunnelEngine.PortFor(TunnelEngine.GroupCustom, target.Key);
+            return TunnelEngine.PortFor(TunnelEngine.GroupRules, target.Key);
+        }
+
         public static bool EnsureRuleTunnels(AppConfig config, out string error)
+            => EnsureRuleTunnels(config, CancellationToken.None, out error);
+
+        public static bool EnsureRuleTunnels(AppConfig config, CancellationToken token, out string error)
         {
             error = "";
             var targets = CollectTunnelTargets(config);
@@ -371,7 +383,7 @@ namespace CrimsonX.Services
                 SimpleLogger.Log($"[AppRules] {targets.Count} app-rule tunnel(s) reuse the custom-config engine.");
                 return true;
             }
-            bool ok = TunnelEngine.EnsureTargetsStarted(config, TunnelEngine.GroupRules, targets, "", "", out error);
+            bool ok = TunnelEngine.EnsureTargetsStarted(config, TunnelEngine.GroupRules, targets, "", "", token, out error);
             if (!ok) SimpleLogger.Log($"[AppRules] The app-rule tunnel group could not be started: {error}");
             return ok;
         }

@@ -18,6 +18,14 @@
 
 namespace CrimsonX.Services
 {
+    public enum GeoFailure
+    {
+        None,
+        Timeout,
+        Failed,
+        Cancelled
+    }
+
     public sealed class GeoTraceResult
     {
         public string Country       { get; init; } = "";
@@ -27,6 +35,7 @@ namespace CrimsonX.Services
         public string Ip            { get; init; } = "";
         public long   PingMs        { get; init; }
         public string Error         { get; init; } = "";
+        public GeoFailure Failure   { get; init; }
     }
 
     public sealed class StatsSnapshot

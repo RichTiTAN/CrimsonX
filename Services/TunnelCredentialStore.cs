@@ -169,19 +169,29 @@ namespace CrimsonX.Services
         {
             if (tunnel == null || tunnel.Endpoint == null) return false;
             string type = tunnel.Endpoint["type"]?.ToString() ?? "";
-            if (!type.Equals("openvpn-client", StringComparison.OrdinalIgnoreCase)) return false;
             if (!tunnel.NeedsCredentials) return false;
-            return (tunnel.Endpoint["username"]?.ToString() ?? "").Length == 0;
+            if (type.Equals("openvpn-client", StringComparison.OrdinalIgnoreCase))
+                return (tunnel.Endpoint["username"]?.ToString() ?? "").Length == 0;
+            if (type.Equals("ipsec", StringComparison.OrdinalIgnoreCase))
+            {
+                string mode = tunnel.Endpoint["auth"]?.ToString() ?? "eap";
+                if (mode.Equals("psk", StringComparison.OrdinalIgnoreCase)) return false;
+                return (tunnel.Endpoint["username"]?.ToString() ?? "").Length == 0
+                    || (tunnel.Endpoint["password"]?.ToString() ?? "").Length == 0;
+            }
+            return false;
         }
 
         public static async Task<bool> ApplyAsync(TunnelParseResult tunnel)
         {
             if (tunnel == null || tunnel.Endpoint == null) return false;
             string type = tunnel.Endpoint["type"]?.ToString() ?? "";
-            if (!type.Equals("openvpn-client", StringComparison.OrdinalIgnoreCase)) return true;
+            bool openVpn = type.Equals("openvpn-client", StringComparison.OrdinalIgnoreCase);
+            bool ipsec = type.Equals("ipsec", StringComparison.OrdinalIgnoreCase);
+            if (!openVpn && !ipsec) return true;
             string user = tunnel.Endpoint["username"]?.ToString() ?? "";
             string password = tunnel.Endpoint["password"]?.ToString() ?? "";
-            if (user.Length > 0 || !tunnel.NeedsCredentials) return true;
+            if (!NeedsCredentials(tunnel)) return true;
             string key = TunnelConfigParser.Normalize(tunnel.Raw);
             var stored = TunnelCredentialStore.Get(key);
             if (stored != null && stored.User.Length > 0)

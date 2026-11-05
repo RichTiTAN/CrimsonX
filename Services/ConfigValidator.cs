@@ -110,6 +110,17 @@ namespace CrimsonX.Services
 
         private static ConfigCheckResult CheckTunnelOffline(string sbDir, TunnelParseResult tunnel, ConfigCheckResult result)
         {
+            if (tunnel.RequiresIpsec)
+            {
+                if (!IpsecEngine.IsInstalled(sbDir))
+                {
+                    result.Ok = false;
+                    result.Reason = "the IKEv2 engine (crimsonipsec.exe) is not installed";
+                    return result;
+                }
+                result.Ok = true;
+                return result;
+            }
             string endpointJson = (tunnel.Endpoint ?? new JObject()).ToString(Formatting.None);
             string engine = TunnelEngine.EngineExe(null, tunnel.RequiresAwg, sbDir);
             if (tunnel.RequiresAwg && (string.IsNullOrWhiteSpace(engine) || !System.IO.File.Exists(engine)))

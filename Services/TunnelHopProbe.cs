@@ -17,6 +17,8 @@
  */
 
 using System;
+using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -28,8 +30,26 @@ namespace CrimsonX.Services
     {
         public const int DefaultTimeoutMs = 6000;
 
-        private static readonly byte[] HttpRequest =
-            Encoding.ASCII.GetBytes("HEAD / HTTP/1.0\r\nHost: 1.1.1.1\r\n\r\n");
+        internal sealed class Target
+        {
+            public string Host { get; init; } = "";
+
+            public int Port { get; init; }
+
+            public byte[] Request { get; init; } = Array.Empty<byte>();
+
+            public string Label => $"{Host}:{Port}";
+        }
+
+        private static byte[] HttpHead(string host) =>
+            Encoding.ASCII.GetBytes($"HEAD / HTTP/1.0\r\nHost: {host}\r\n\r\n");
+
+        internal static IReadOnlyList<Target> Targets { get; } = new[]
+        {
+            new Target { Host = "1.1.1.1",        Port = 80, Request = HttpHead("1.1.1.1") },
+            new Target { Host = "208.67.220.220", Port = 80, Request = HttpHead("208.67.220.220") },
+            new Target { Host = "1.0.0.1",        Port = 80, Request = HttpHead("1.0.0.1") },
+        };
 
         public sealed class TResult
         {
@@ -37,7 +57,11 @@ namespace CrimsonX.Services
 
             public long Ms { get; set; } = -1;
 
+            public string Target { get; set; } = "";
+
             public string Error { get; set; } = "";
+
+            internal bool Definitive { get; set; }
         }
 
         public static async Task<TResult> ProbeAsync(int port, int timeoutMs = DefaultTimeoutMs, CancellationToken ct = default,
@@ -49,12 +73,57 @@ namespace CrimsonX.Services
                 result.Error = "no socks port";
                 return result;
             }
+            var failures = new List<string>();
+            foreach (var target in Targets)
+            {
+                var attempt = await ProbeTargetAsync(port, target, timeoutMs, ct, user, password).ConfigureAwait(false);
+                if (attempt.Ok)
+                {
+                    result.Ok = true;
+                    result.Ms = attempt.Ms;
+                    result.Target = target.Label;
+                    return result;
+                }
+                if (ct.IsCancellationRequested)
+                {
+                    result.Error = "the probe was cancelled";
+                    return result;
+                }
+                failures.Add($"{target.Label}: {attempt.Error}");
+                if (attempt.Definitive)
+                {
+                    result.Definitive = true;
+                    break;
+                }
+            }
+            result.Error = string.Join("; ", failures);
+            return result;
+        }
+
+        private static async Task<TResult> ProbeTargetAsync(int port, Target target, int timeoutMs, CancellationToken ct,
+            string user, string password)
+        {
+            var result = new TResult();
             using var client = new TcpClient();
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeoutMs);
             try
             {
                 await client.ConnectAsync(System.Net.IPAddress.Loopback, port, cts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                result.Error = $"the {target.Label} hop did not respond within {timeoutMs} ms";
+                return result;
+            }
+            catch (SocketException ex)
+            {
+                result.Error = ex.Message;
+                result.Definitive = true;
+                return result;
+            }
+            try
+            {
                 var stream = client.GetStream();
                 stream.ReadTimeout = timeoutMs;
                 stream.WriteTimeout = timeoutMs;
@@ -94,13 +163,7 @@ namespace CrimsonX.Services
                     result.Error = "the socks inbound did not accept a no-auth handshake";
                     return result;
                 }
-                var connect = new byte[]
-                {
-                    0x05, 0x01, 0x00, 0x01,
-                    0x01, 0x01, 0x01, 0x01,
-                    (byte)(80 >> 8), (byte)(80 & 0xFF)
-                };
-                await stream.WriteAsync(connect, cts.Token).ConfigureAwait(false);
+                await stream.WriteAsync(BuildConnect(target), cts.Token).ConfigureAwait(false);
                 var reply = await ReadAsync(stream, 10, cts.Token).ConfigureAwait(false);
                 if (reply == null || reply.Length < 2 || reply[1] != 0x00)
                 {
@@ -110,7 +173,7 @@ namespace CrimsonX.Services
                     return result;
                 }
                 var watch = System.Diagnostics.Stopwatch.StartNew();
-                await stream.WriteAsync(HttpRequest, cts.Token).ConfigureAwait(false);
+                await stream.WriteAsync(target.Request, cts.Token).ConfigureAwait(false);
                 var first = await ReadAsync(stream, 1, cts.Token).ConfigureAwait(false);
                 watch.Stop();
                 if (first == null || first.Length == 0)
@@ -124,7 +187,13 @@ namespace CrimsonX.Services
             }
             catch (OperationCanceledException)
             {
-                result.Error = $"the hop did not respond within {timeoutMs} ms";
+                result.Error = $"the {target.Label} hop did not respond within {timeoutMs} ms";
+                return result;
+            }
+            catch (SocketException ex)
+            {
+                result.Error = ex.Message;
+                result.Definitive = ex.SocketErrorCode == SocketError.ConnectionRefused;
                 return result;
             }
             catch (Exception ex)
@@ -132,6 +201,20 @@ namespace CrimsonX.Services
                 result.Error = ex.Message;
                 return result;
             }
+        }
+
+        private static byte[] BuildConnect(Target target)
+        {
+            var address = IPAddress.Parse(target.Host).GetAddressBytes();
+            var packet = new byte[4 + address.Length + 2];
+            packet[0] = 0x05;
+            packet[1] = 0x01;
+            packet[2] = 0x00;
+            packet[3] = address.Length == 16 ? (byte)0x04 : (byte)0x01;
+            Buffer.BlockCopy(address, 0, packet, 4, address.Length);
+            packet[4 + address.Length] = (byte)(target.Port >> 8);
+            packet[5 + address.Length] = (byte)(target.Port & 0xFF);
+            return packet;
         }
 
         private static async Task<byte[]> ReadAsync(NetworkStream stream, int count, CancellationToken ct)

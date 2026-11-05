@@ -132,7 +132,17 @@ namespace CrimsonX.Services
             catch { }
         }
 
-        public static bool EnableLogging { get; set; } = true;
+        public static bool EnableLogging { get; set; } = false;
+
+        public static void LogFatal(Exception ex)
+        {
+            try
+            {
+                string msg = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] FATAL {ex}\n\n";
+                _logChannel.Writer.TryWrite(msg);
+            }
+            catch { }
+        }
 
         public static void Log(Exception ex)
         {

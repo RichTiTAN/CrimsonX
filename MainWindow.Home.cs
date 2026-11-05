@@ -199,8 +199,12 @@ public partial class MainWindow
             StopGeoWatchdog();
             _state.IsGeoTracing = false;
             if (!_state.IsConnected) return;
-            if (result.Error.Length > 0)
-                ShowToast(CrimsonX.Localization.AppStrings.ToastGeoFailed + result.Error, ToastKind.Error);
+            if (result.Error.Length > 0 && result.Failure != CrimsonX.Services.GeoFailure.Cancelled)
+                ShowToast(
+                    result.Failure == CrimsonX.Services.GeoFailure.Timeout
+                        ? CrimsonX.Localization.AppStrings.ToastPingTimedOut
+                        : CrimsonX.Localization.AppStrings.ToastPingFailed,
+                    ToastKind.Error);
             var lblCountry = this.FindControl<TextBlock>("lblCountryName");
             var lblPing    = this.FindControl<TextBlock>("lblPing");
             var lblPublicIp = this.FindControl<TextBlock>("lblPublicIp");
@@ -327,6 +331,7 @@ public partial class MainWindow
     private readonly System.Collections.Generic.List<global::Avalonia.Point> _ptsDnCache = new System.Collections.Generic.List<global::Avalonia.Point>(40);
     private global::Avalonia.Threading.DispatcherTimer? _graphAnimTimer;
     private global::Avalonia.Threading.DispatcherTimer? _sparkHideTimer;
+    private bool _sparkFoldWanted;
     private DateTime _graphAnimStartTime;
     private double _graphAnimStep;
     private global::Avalonia.Media.TranslateTransform? _graphUpTransform;
@@ -403,6 +408,7 @@ public partial class MainWindow
         var dn = this.FindControl<global::Avalonia.Controls.Button>("cellSparkDn");
         var up = this.FindControl<global::Avalonia.Controls.Button>("cellSparkUp");
         if (dn == null || up == null) return;
+        _sparkFoldWanted = !show;
         _sparkHideTimer?.Stop();
         if (show)
         {
@@ -427,7 +433,7 @@ public partial class MainWindow
     private void OnSparkHideTick(object? sender, EventArgs e)
     {
         _sparkHideTimer?.Stop();
-        if (_state.IsConnected) return;
+        if (!_sparkFoldWanted) return;
         var dn = this.FindControl<global::Avalonia.Controls.Button>("cellSparkDn");
         var up = this.FindControl<global::Avalonia.Controls.Button>("cellSparkUp");
         if (dn != null) dn.IsVisible = false;

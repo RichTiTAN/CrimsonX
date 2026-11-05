@@ -45,6 +45,8 @@ namespace CrimsonX.Services
         public string AdapterName { get; set; } = "";
 
         public string AdapterIp { get; set; } = "";
+
+        public string ServerOverride { get; set; } = "";
     }
 
     public enum TunnelTestState
@@ -105,15 +107,21 @@ namespace CrimsonX.Services
 
         public static bool IsRunning(string group)
         {
-            lock (Sync) { return IsRunningLocked(State(group)) || IsRunningLocked(State(group, true)); }
+            lock (Sync)
+            {
+                if (IsRunningLocked(State(group)) || IsRunningLocked(State(group, true))) return true;
+            }
+            return IpsecTunnelEngine.IsRunning(group);
         }
 
         public static int? PortFor(string group, string key)
         {
             lock (Sync)
             {
-                return PortIn(State(group), key) ?? PortIn(State(group, true), key);
+                int? stock = PortIn(State(group), key) ?? PortIn(State(group, true), key);
+                if (stock != null) return stock;
             }
+            return IpsecTunnelEngine.PortFor(group, key);
         }
 
         private static int? PortIn(GroupState state, string key)
@@ -131,8 +139,10 @@ namespace CrimsonX.Services
         {
             lock (Sync)
             {
-                return PortInId(State(group), id) ?? PortInId(State(group, true), id);
+                int? stock = PortInId(State(group), id) ?? PortInId(State(group, true), id);
+                if (stock != null) return stock;
             }
+            return IpsecTunnelEngine.PortForId(group, id);
         }
 
         private static int? PortInId(GroupState state, string id)
@@ -145,8 +155,10 @@ namespace CrimsonX.Services
         {
             lock (Sync)
             {
-                return TagIn(State(group), key) ?? TagIn(State(group, true), key) ?? "";
+                string tag = TagIn(State(group), key) ?? TagIn(State(group, true), key);
+                if (tag != null) return tag;
             }
+            return IpsecTunnelEngine.TagFor(group, key) ?? "";
         }
 
         private static string TagIn(GroupState state, string key)
@@ -167,9 +179,10 @@ namespace CrimsonX.Services
             if (string.IsNullOrWhiteSpace(key)) return false;
             lock (Sync)
             {
-                return ServesIn(State(group), key, adapterName, adapterIp)
-                    || ServesIn(State(group, true), key, adapterName, adapterIp);
+                if (ServesIn(State(group), key, adapterName, adapterIp)
+                    || ServesIn(State(group, true), key, adapterName, adapterIp)) return true;
             }
+            return IpsecTunnelEngine.GroupServes(group, key, adapterName, adapterIp);
         }
 
         private static bool ServesIn(GroupState state, string key, string adapterName, string adapterIp)
@@ -183,8 +196,34 @@ namespace CrimsonX.Services
                 StringComparison.OrdinalIgnoreCase);
         }
 
+        public static List<TunnelTarget> ActiveTargets(string group)
+        {
+            var found = new List<TunnelTarget>();
+            lock (Sync)
+            {
+                CollectActive(State(group), found);
+                CollectActive(State(group, true), found);
+            }
+            foreach (var target in IpsecTunnelEngine.ActiveTargets(group))
+            {
+                if (target != null && !found.Contains(target)) found.Add(target);
+            }
+            return found;
+        }
+
+        private static void CollectActive(GroupState state, List<TunnelTarget> into)
+        {
+            if (!IsRunningLocked(state)) return;
+            foreach (var target in state.Active.Values)
+            {
+                if (target == null || target.Port <= 0) continue;
+                if (!into.Contains(target)) into.Add(target);
+            }
+        }
+
         public static string Describe(string group)
         {
+            string ipsec = IpsecTunnelEngine.Describe(group);
             lock (Sync)
             {
                 var stock = State(group);
@@ -192,6 +231,7 @@ namespace CrimsonX.Services
                 var parts = new List<string>();
                 if (IsRunningLocked(stock)) parts.Add(DescribeOne(stock));
                 if (IsRunningLocked(awg)) parts.Add(DescribeOne(awg));
+                if (ipsec.Length > 0) parts.Add(ipsec);
                 return parts.Count == 0 ? "none" : string.Join("; ", parts);
             }
         }
@@ -225,6 +265,10 @@ namespace CrimsonX.Services
         }
 
         public static bool EnsureTargetsStarted(AppConfig cfg, string group, List<TunnelTarget> targets, string adapterName, string adapterIp, out string error)
+            => EnsureTargetsStarted(cfg, group, targets, adapterName, adapterIp, CancellationToken.None, out error);
+
+        public static bool EnsureTargetsStarted(AppConfig cfg, string group, List<TunnelTarget> targets, string adapterName, string adapterIp,
+            CancellationToken token, out string error)
         {
             error = "";
             if (targets == null || targets.Count == 0)
@@ -244,14 +288,17 @@ namespace CrimsonX.Services
                 if (string.IsNullOrWhiteSpace(targets[i].AdapterName)) targets[i].AdapterName = adapterName ?? "";
                 if (string.IsNullOrWhiteSpace(targets[i].AdapterIp)) targets[i].AdapterIp = adapterIp ?? "";
             }
-            var stock = targets.Where(t => t.Parsed == null || !t.Parsed.RequiresAwg).ToList();
+            var ipsec = targets.Where(t => t.Parsed != null && t.Parsed.RequiresIpsec).ToList();
+            var stock = targets.Where(t => t.Parsed == null || (!t.Parsed.RequiresAwg && !t.Parsed.RequiresIpsec)).ToList();
             var awg = targets.Where(t => t.Parsed != null && t.Parsed.RequiresAwg).ToList();
             bool started = false;
             string stockError = "";
             string awgError = "";
+            string ipsecError = "";
             if (stock.Count > 0) started |= EnsureEngineStarted(cfg, sbDir, group, false, stock, out stockError);
             if (awg.Count > 0) started |= EnsureEngineStarted(cfg, sbDir, group, true, awg, out awgError);
-            error = stockError.Length > 0 ? stockError : awgError;
+            if (ipsec.Count > 0) started |= IpsecTunnelEngine.EnsureStarted(cfg, sbDir, group, ipsec, token, out ipsecError);
+            error = stockError.Length > 0 ? stockError : awgError.Length > 0 ? awgError : ipsecError;
             return started;
         }
 
@@ -307,6 +354,7 @@ namespace CrimsonX.Services
 
         public static void Stop()
         {
+            IpsecTunnelEngine.StopAll();
             lock (Sync)
             {
                 foreach (var name in Groups.Keys.ToList()) StopLocked(State(name));
@@ -315,6 +363,7 @@ namespace CrimsonX.Services
 
         public static void Stop(string group)
         {
+            IpsecTunnelEngine.Stop(group);
             lock (Sync)
             {
                 StopLocked(State(group));
@@ -368,6 +417,8 @@ namespace CrimsonX.Services
             port = 0;
             lease = null;
             error = "";
+            if (tunnel != null && tunnel.Success && tunnel.RequiresIpsec)
+                return IpsecTunnelEngine.StartTransient(sbDir, tunnel, adapterName, adapterIp, out port, out lease, out error);
             if (tunnel == null || !tunnel.Success || tunnel.Endpoint == null)
             {
                 error = tunnel?.Error is { Length: > 0 } tunnelParseError ? tunnelParseError : "this is not an OpenVPN / WireGuard config";
@@ -670,6 +721,7 @@ namespace CrimsonX.Services
                     ["listen_port"] = target.Port
                 });
                 var endpoint = (JObject)target.Parsed.Endpoint.DeepClone();
+                TunnelHostRepair.Apply(endpoint);
                 TunnelConfigParser.WithTag(endpoint, target.Tag, target.AdapterName, target.AdapterIp);
                 TunnelObfuscator.Apply(cfg, target, endpoint, relays, out string obfuscationError);
                 if (obfuscationError.Length > 0)

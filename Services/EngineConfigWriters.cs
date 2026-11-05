@@ -608,6 +608,76 @@ namespace CrimsonX.Services
         internal static bool SplitListIsProxied(AppConfig config)
             => string.Equals(config?.SplitTunnelMode, "INCLUSIVE", StringComparison.Ordinal);
 
+        internal static object BuildDirectDnsServer()
+            => new { tag = "dns_direct", type = "https", server = "1.1.1.1", path = "/dns-query" };
+
+        internal static string SboxLogLevel()
+        {
+            string level = (Environment.GetEnvironmentVariable("CRIMSONX_SB_LOG") ?? "").Trim().ToLowerInvariant();
+            if (level == "debug" || level == "info" || level == "warn" || level == "error") return level;
+            return "fatal";
+        }
+
+        internal static object BuildProxyDnsServer(string url)
+        {
+            url = (url ?? "").Trim();
+            if (url.Length == 0) return ProxyDoh("1.1.1.1", "/dns-query");
+            if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                switch (url)
+                {
+                    case "8.8.8.8":
+                    case "8.8.4.4": return GoogleDoh();
+                    case "1.1.1.1":
+                    case "1.0.0.1": return ProxyDoh("1.1.1.1", "/dns-query");
+                    case "9.9.9.9": return ProxyDoh("9.9.9.9", "/dns-query");
+                    case "94.140.14.14":
+                    case "94.140.15.15": return ProxyDoh("94.140.14.14", "/dns-query");
+                    default: return new { tag = "dns_proxy", type = "tcp", server = url, detour = "proxy" };
+                }
+            }
+            Uri parsed;
+            if (!Uri.TryCreate(url, UriKind.Absolute, out parsed)) return ProxyDoh("1.1.1.1", "/dns-query");
+            switch (parsed.Host.ToLowerInvariant())
+            {
+                case "cloudflare-dns.com":
+                case "1.1.1.1":
+                case "1.0.0.1": return ProxyDoh("1.1.1.1", "/dns-query");
+                case "dns.google":
+                case "8.8.8.8":
+                case "8.8.4.4": return GoogleDoh();
+                case "dns.quad9.net":
+                case "9.9.9.9": return ProxyDoh("9.9.9.9", "/dns-query");
+                case "dns.adguard-dns.com":
+                case "94.140.14.14": return ProxyDoh("94.140.14.14", "/dns-query");
+            }
+            string path = parsed.AbsolutePath == "/" ? "/dns-query" : parsed.PathAndQuery;
+            return new { tag = "dns_proxy", type = "https", server = parsed.Host, path = path, detour = "proxy" };
+        }
+
+        internal static object BuildExperimental(string controller, string secret, bool fakeIp)
+        {
+            var experimental = new Dictionary<string, object>
+            {
+                ["clash_api"] = new { external_controller = controller, secret = secret }
+            };
+            if (fakeIp)
+            {
+                experimental["cache_file"] = new Dictionary<string, object>
+                {
+                    ["enabled"] = true,
+                    ["store_fakeip"] = true
+                };
+            }
+            return experimental;
+        }
+
+        private static object ProxyDoh(string server, string path)
+            => new { tag = "dns_proxy", type = "https", server = server, path = path, detour = "proxy" };
+
+        private static object GoogleDoh()
+            => new { tag = "dns_proxy", type = "https", server = "8.8.8.8", path = "/resolve", headers = new { Host = "dns.google" }, tls = new { server_name = "dns.google" }, detour = "proxy" };
+
         internal static object BuildTunInbound()
             => BuildTunInbound(false);
 
@@ -646,7 +716,9 @@ namespace CrimsonX.Services
             {
                 currentExe, "conjure-client.exe", "dnstt-client.exe",
                 "xray.exe", "xray",
-                "sing-box.exe", "sing-box"
+                "sing-box.exe", "sing-box",
+                "amnezia-box.exe", "amnezia-box",
+                "crimsonipsec.exe", "crimsonipsec"
             };
             if (currentExe.Length > 0 && !systemBypassApps.Contains(currentExe.ToLowerInvariant()))
                 systemBypassApps.Add(currentExe.ToLowerInvariant());
@@ -691,6 +763,7 @@ namespace CrimsonX.Services
                     new { port = new[] { 53 }, network = "udp", action = "hijack-dns" },
                     new { port = new[] { 53 }, network = "tcp", action = "hijack-dns" }
                 };
+                bool fakeIp = config.EnableDirect && config.SplitTunnelMode == "INCLUSIVE";
                 if (exitChained)
                 {
                     sbRules.Add(new { inbound = new[] { ExitNodeChain.InboundTag }, ip_is_private = true, action = "route", outbound = "direct" });
@@ -700,7 +773,7 @@ namespace CrimsonX.Services
                 {
                     if (tunnelIpv6)
                     {
-                        var engineApps = new List<string> { "xray.exe", "xray", "sing-box.exe", "sing-box", "amnezia-box.exe", "amnezia-box", "conjure-client.exe", "dnstt-client.exe" };
+                        var engineApps = new List<string> { "xray.exe", "xray", "sing-box.exe", "sing-box", "amnezia-box.exe", "amnezia-box", "crimsonipsec.exe", "crimsonipsec", "conjure-client.exe", "dnstt-client.exe" };
                         sbRules.Add(new { inbound = new[] { TunInboundTag }, process_name = engineApps.ToArray(), ip_cidr = new[] { "::/0" }, action = "route", outbound = "direct" });
                         sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
                         sbRules.Add(new { ip_cidr = new[] { "::/0" }, action = "reject" });
@@ -709,6 +782,11 @@ namespace CrimsonX.Services
                 }
                 if (!tunnelIpv6)
                     sbRules.Add(new { ip_is_private = true, action = "route", outbound = "direct" });
+                if (fakeIp)
+                {
+                    if (rules.ResolveRules.Count > 0) sbRules.AddRange(rules.ResolveRules);
+                    sbRules.Add(new { ip_cidr = new[] { "198.18.0.0/15" }, action = "resolve", server = "dns_direct" });
+                }
                 if (rules.RouteRules.Count > 0)
                     sbRules.AddRange(rules.RouteRules);
                 bool splitListProxied  = SplitListIsProxied(config);
@@ -735,54 +813,17 @@ namespace CrimsonX.Services
                 // ── Upstream resolvers ───────────────────────────────────────────────────────────────
                 var dnsServers = new List<object>
                 {
-                    new { tag = "dns_direct", type = "udp", server = "8.8.8.8" }
+                    BuildDirectDnsServer()
                 };
+                if (fakeIp) dnsServers.Add(new { tag = "dns_fake", type = "fakeip", inet4_range = "198.18.0.0/15" });
                 if (rules.DnsServers.Count > 0)
                     dnsServers.AddRange(rules.DnsServers);
-                if (config.EnableUpstreamDoh && !string.IsNullOrWhiteSpace(config.UpstreamDohUrl))
-                {
-                    if (config.UpstreamDohUrl.StartsWith("https://"))
-                    {
-                        try
-                        {
-                            var u = new Uri(config.UpstreamDohUrl);
-                            var dPath = u.AbsolutePath == "/" ? "/dns-query" : u.PathAndQuery;
-                            dnsServers.Add(new { tag = "dns_proxy", type = "https", server = u.Host, path = dPath, detour = "proxy" });
-                        }
-                        catch
-                        {
-                            dnsServers.Add(new { tag = "dns_proxy", type = "tcp", server = "1.1.1.1", detour = "proxy" });
-                        }
-                    }
-                    else
-                    {
-                        if (config.UpstreamDohUrl == "8.8.8.8" || config.UpstreamDohUrl == "8.8.4.4") 
-                        {
-                            dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "dns.google", path = "/dns-query", detour = "proxy" });
-                        }
-                        else if (config.UpstreamDohUrl == "1.1.1.1" || config.UpstreamDohUrl == "1.0.0.1") 
-                        {
-                            dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "cloudflare-dns.com", path = "/dns-query", detour = "proxy" });
-                        }
-                        else if (config.UpstreamDohUrl == "9.9.9.9")
-                        {
-                            dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "dns.quad9.net", path = "/dns-query", detour = "proxy" });
-                        }
-                        else 
-                        {
-                            dnsServers.Add(new { tag = "dns_proxy", type = "tcp", server = config.UpstreamDohUrl, detour = "proxy" });
-                        }
-                    }
-                }
-                else
-                {
-                    dnsServers.Add(new { tag = "dns_proxy", type = "https", server = "dns.google", path = "/dns-query", detour = "proxy" });
-                }
+                dnsServers.Add(BuildProxyDnsServer(config.EnableUpstreamDoh ? config.UpstreamDohUrl : ""));
                 var dnsRules = new List<object>
                 {
                     new { domain_keyword = new[] { "stun", "cdn77", "datapacket" }, action = "route", server = "dns_direct" }
                 };
-                if (rules.DnsRules.Count > 0)
+                if (!fakeIp && rules.DnsRules.Count > 0)
                     dnsRules.AddRange(rules.DnsRules);
 
                 // ── Catch-all: DNS dependency follows traffic dependency ─────────────────────────────
@@ -792,7 +833,7 @@ namespace CrimsonX.Services
                     {
                         dnsRules.Add(new { process_name = userApps.ToArray(), action = "route", server = "dns_proxy" });
                     }
-                    dnsRules.Add(new { action = "route", server = "dns_direct" });
+                    dnsRules.Add(new { action = "route", server = "dns_fake" });
                 }
                 else if (config.EnableDirect && config.SplitTunnelMode == "EXCLUSIVE")
                 {
@@ -810,7 +851,7 @@ namespace CrimsonX.Services
                 string clashSecret     = SingboxClashApi.EnsureSecret();
                 var sbConfig = new
                 {
-                    log = new { level = "fatal" },
+                    log = new { level = SboxLogLevel() },
                     dns = new
                     {
                         servers = dnsServers.ToArray(),
@@ -835,14 +876,7 @@ namespace CrimsonX.Services
                         auto_detect_interface = true,
                         find_process = true
                     },
-                    experimental = new
-                    {
-                        clash_api = new
-                        {
-                            external_controller = clashController,
-                            secret              = clashSecret
-                        }
-                    }
+                    experimental = BuildExperimental(clashController, clashSecret, fakeIp)
                 };
                 if (!exitChained) return sbConfig;
                 var document = JObject.FromObject(sbConfig);

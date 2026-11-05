@@ -43,6 +43,7 @@ namespace CrimsonX.Services
                 CustomConfig2 = config.CustomConfig2,
                 FetchConfigWhenOneProvided = config.FetchConfigWhenOneProvided,
                 EnableCustomConfigObfuscation = config.EnableCustomConfigObfuscation,
+                ShowIpsecProfileButton = config.ShowIpsecProfileButton,
                 EnablePerConfigAdapters = config.EnablePerConfigAdapters,
                 AdapterBindingBeforePerConfig = config.AdapterBindingBeforePerConfig,
                 CustomConfig1Adapter = config.CustomConfig1Adapter,

@@ -201,6 +201,11 @@ namespace CrimsonX.Services
                 error = $"An AmneziaWG config cannot be used as the exit node.";
                 return null;
             }
+            if (tunnel.RequiresIpsec)
+            {
+                error = "An IKEv2 config cannot be used as the exit node.";
+                return null;
+            }
             if (!TunnelCredentialResolver.ApplyStored(tunnel))
             {
                 error = $"'{tunnel.Label}' needs OpenVPN credentials before it can act as the exit node.";
@@ -211,6 +216,7 @@ namespace CrimsonX.Services
             endpoint.Remove("bind_interface");
             endpoint.Remove("inet4_bind_address");
             endpoint.Remove("inet6_bind_address");
+            TunnelHostRepair.Apply(endpoint);
             endpoint["tag"]    = EndpointTag;
             endpoint["detour"] = TransportTag;
             chained = true;

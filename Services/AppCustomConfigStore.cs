@@ -257,6 +257,48 @@ namespace CrimsonX.Services
             return result;
         }
 
+        public static bool Replace(AppConfig cfg, string oldRaw, string newRaw, out string reason)
+        {
+            reason = "";
+            if (string.IsNullOrWhiteSpace(oldRaw) || string.IsNullOrWhiteSpace(newRaw))
+            {
+                reason = "empty config";
+                return false;
+            }
+            newRaw = newRaw.Trim();
+            if (!TunnelConfigParser.TryParse(newRaw, out var tunnel) || tunnel == null || !tunnel.Success)
+            {
+                reason = tunnel?.Error is { Length: > 0 } error ? error : "this profile could not be read";
+                return false;
+            }
+            lock (_lock)
+            {
+                var entries = LoadCore(cfg);
+                string oldKey = NormalizeKey(oldRaw.Trim());
+                var existing = entries.FirstOrDefault(e => NormalizeKey(e.Raw) == oldKey);
+                if (existing == null)
+                {
+                    reason = "the saved config was not found";
+                    return false;
+                }
+                string newKey = NormalizeKey(newRaw);
+                if (entries.Any(e => !ReferenceEquals(e, existing) && NormalizeKey(e.Raw) == newKey))
+                {
+                    reason = "another saved config already holds this profile";
+                    return false;
+                }
+                existing.Raw = newRaw;
+                existing.Label = LabelAfterEdit(existing.Label, newRaw);
+                existing.SavedUtc = DateTime.UtcNow;
+                SaveCore(entries);
+            }
+            TunnelCredentialPruner.Sweep(cfg, AppRulesService.Load());
+            return true;
+        }
+
+        internal static string LabelAfterEdit(string currentLabel, string newRaw)
+            => string.IsNullOrWhiteSpace(currentLabel) ? ConfigConverter.LabelFor(newRaw) : currentLabel;
+
         public static int Delete(AppConfig cfg, string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return 0;

@@ -50,6 +50,8 @@ public partial class MainWindow : IDisposable
         _trayWidget = null;
 
         // ── Services 
+        try { CrimsonX.Services.IpsecTunnelEngine.KillNow(); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
+        try { CrimsonX.Services.ProcessService.KillOrphanEngines(); } catch (Exception ex) { CrimsonX.Services.SimpleLogger.Log(ex); }
         _session.Dispose();
         _netDiag.Dispose();
         DisposeTrayIcon();

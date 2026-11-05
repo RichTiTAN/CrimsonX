@@ -490,12 +490,15 @@ public partial class MainWindow
         int? sbDebugPid = _sbDebugPid; _sbDebugPid = null;
         int? xrayPid = _xrayPid; _xrayPid = null;
         int? sbPid = _sbPid; _sbPid = null;
+        StopTunnelWatch();
+        CrimsonX.Services.IpsecTunnelEngine.KillNow();
         var killTask = Task.Run(() => {
             CrimsonX.Services.ProcessService.KillVpnProcess(xrayDebugPid);
             CrimsonX.Services.ProcessService.KillVpnProcess(sbDebugPid);
             CrimsonX.Services.ProcessService.KillVpnProcess(xrayPid);
             CrimsonX.Services.ProcessService.KillVpnProcess(sbPid);
             CrimsonX.Services.TunnelEngine.Stop();
+            CrimsonX.Services.IpsecTunnelEngine.StopAll();
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log"));
             TryDeleteFile(GetAppPath(@"Data\Xray\error.log"));
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log.tmp"));
@@ -504,6 +507,7 @@ public partial class MainWindow
         if (isClosing)
         {
             killTask.Wait(3000);
+            CrimsonX.Services.ProcessService.KillOrphanEngines();
             CrimsonX.Services.JobManager.Shutdown();
         }
         else
@@ -655,8 +659,7 @@ public partial class MainWindow
             if (!_state.IsConnected && (DateTime.UtcNow - _lastEngineChangeUtc).TotalMilliseconds < ConnectSettleWindowMs)
             {
                 CrimsonX.Services.SimpleLogger.Log(
-                    $"[Connect] the click landed within {ConnectSettleWindowMs} ms of a fresh connect; ignored so the engine is not torn down.");
-                return;
+                    $"[Connect] the click landed within {ConnectSettleWindowMs} ms of a fresh connect; the start is cancelled rather than waited out.");
             }
             CrimsonX.Services.SimpleLogger.Log($"[Connect] disconnecting on request (guard={guard}).");
             StopAllEngines();
@@ -859,6 +862,11 @@ public partial class MainWindow
             ShowToast(CrimsonX.Localization.AppStrings.ToastNoFlowingConfig, ToastKind.Error);
             StopAllEngines();
         }
+        catch (Exception ex) when (IsUserAbort(ex))
+        {
+            CrimsonX.Services.SimpleLogger.Log("[Connect] the connect was cancelled before it finished; no error is shown.");
+            StopAllEngines();
+        }
         catch (Exception ex)
         {
             CrimsonX.Services.SimpleLogger.Log(ex);
@@ -867,11 +875,109 @@ public partial class MainWindow
         }
     }
 
-    private const int RestartExitNodeTimeoutSeconds = 15;
+    private bool IsUserAbort(Exception ex)
+        => ex is OperationCanceledException or TaskCanceledException
+           || (_pipelineCts?.IsCancellationRequested ?? false);
+
+    private const int RestartExitNodeTimeoutSeconds = 30;
 
     private readonly System.Threading.SemaphoreSlim _singBoxRestartLock = new System.Threading.SemaphoreSlim(1, 1);
 
     private CancellationTokenSource? _reapplyCts;
+
+    private CancellationTokenSource? _tunnelWatchCts;
+
+    private readonly System.Threading.SemaphoreSlim _tunnelRecoveryLock = new System.Threading.SemaphoreSlim(1, 1);
+
+    private bool _tunnelRecovering;
+
+    private void StartTunnelWatch()
+    {
+        StopTunnelWatch();
+        var cts = new CancellationTokenSource();
+        _tunnelWatchCts = cts;
+        var token = cts.Token;
+        _ = Task.Run(() => CrimsonX.Services.TunnelHealthMonitor.RunAsync(
+            () => _state.IsConnected,
+            () => _state.IsReconnecting || _tunnelRecovering,
+            group => _ = RecoverTunnelGroupAsync(group, token),
+            token));
+    }
+
+    private void StopTunnelWatch()
+    {
+        try { _tunnelWatchCts?.Cancel(); } catch { }
+        _tunnelWatchCts?.Dispose();
+        _tunnelWatchCts = null;
+    }
+
+    private async Task RecoverTunnelGroupAsync(string group, CancellationToken token)
+    {
+        if (!await _tunnelRecoveryLock.WaitAsync(0).ConfigureAwait(false)) return;
+        _tunnelRecovering = true;
+        bool main = string.Equals(group, CrimsonX.Services.TunnelEngine.GroupCustom, StringComparison.OrdinalIgnoreCase);
+        try
+        {
+            var targets = CrimsonX.Services.TunnelEngine.ActiveTargets(group);
+            if (targets.Count == 0) return;
+            if (!_state.IsConnected || token.IsCancellationRequested) return;
+            CrimsonX.Services.SimpleLogger.Log($"[Tunnel] ({group}) recovering {targets.Count} tunnel(s) after a dead hop.");
+            if (main)
+            {
+                _state.IsReconnecting = true;
+                SetConnectVisualState(true);
+            }
+            int delaySeconds = 10;
+            for (int attempt = 1; !token.IsCancellationRequested && _state.IsConnected; attempt++)
+            {
+                CrimsonX.Services.TunnelEngine.Stop(group);
+                string startError = "";
+                bool started = await Task.Run(() => CrimsonX.Services.TunnelEngine.EnsureTargetsStarted(
+                    _cfg, group, targets, "", "", token, out startError), token).ConfigureAwait(false);
+                if (!started)
+                    CrimsonX.Services.SimpleLogger.Log($"[Tunnel] ({group}) recovery attempt {attempt} failed: {startError}");
+                else if (await AwaitGroupHopsAsync(targets, token).ConfigureAwait(false))
+                {
+                    CrimsonX.Services.SimpleLogger.Log($"[Tunnel] ({group}) recovered on attempt {attempt}.");
+                    return;
+                }
+                if (token.IsCancellationRequested || !_state.IsConnected) break;
+                try { await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token).ConfigureAwait(false); }
+                catch { break; }
+                delaySeconds = Math.Min(30, delaySeconds + 10);
+            }
+        }
+        finally
+        {
+            _tunnelRecovering = false;
+            if (main)
+            {
+                _state.IsReconnecting = false;
+                if (_state.IsConnected) SetConnectVisualState(false);
+            }
+            _tunnelRecoveryLock.Release();
+        }
+    }
+
+    private async Task<bool> AwaitGroupHopsAsync(IReadOnlyList<CrimsonX.Services.TunnelTarget> targets, CancellationToken token)
+    {
+        var started = DateTime.UtcNow;
+        while (!token.IsCancellationRequested && _state.IsConnected)
+        {
+            var pending = targets.Where(target => target != null && target.Port > 0).ToList();
+            if (pending.Count == 0) return false;
+            foreach (var target in pending)
+            {
+                var probe = await CrimsonX.Services.TunnelHopProbe.ProbeAsync(target.Port, 2500, token).ConfigureAwait(false);
+                if (!probe.Ok) return false;
+                CrimsonX.Services.SimpleLogger.Log(
+                    $"[Tunnel] hop '{target.Parsed?.Label}' answers again through 127.0.0.1:{target.Port} after " +
+                    $"{(int)(DateTime.UtcNow - started).TotalMilliseconds} ms");
+            }
+            return true;
+        }
+        return false;
+    }
 
     internal void SetConnectVisualState(bool connecting)
     {
@@ -887,6 +993,8 @@ public partial class MainWindow
                 }
                 if (_connectConnectedText != null) _connectConnectedText.Opacity = 0;
                 _connectBox?.Classes.Remove("connected");
+                SetSparklinesVisible(false);
+                SetReadoutTilesGrown(false);
                 SetConnectButtonProgress(ConnectProgress.Discovery);
                 return;
             }
@@ -919,7 +1027,7 @@ public partial class MainWindow
             if (showConnecting) SetConnectVisualState(true);
             var ruleTunnels = await Task.Run(() =>
             {
-                bool ok = CrimsonX.Services.AppRulesSingboxBuilder.EnsureRuleTunnels(_cfg, out string error);
+                bool ok = CrimsonX.Services.AppRulesSingboxBuilder.EnsureRuleTunnels(_cfg, ct, out string error);
                 return (ok, error);
             }, ct);
             string ruleTunnelError = ruleTunnels.error;
@@ -1017,6 +1125,49 @@ public partial class MainWindow
         }
     }
 
+    private async Task AwaitRuleTunnelsEstablishedAsync(CancellationToken ct)
+    {
+        var targets = CrimsonX.Services.AppRulesSingboxBuilder.CollectTunnelTargets(_cfg);
+        if (targets.Count == 0) return;
+        var pending = new List<CrimsonX.Services.TunnelTarget>(targets);
+        var missingSince = new Dictionary<CrimsonX.Services.TunnelTarget, DateTime>();
+        var started = DateTime.UtcNow;
+        var lastToast = started;
+        while (pending.Count > 0 && !ct.IsCancellationRequested)
+        {
+            foreach (var target in pending.ToList())
+            {
+                int? port = CrimsonX.Services.AppRulesSingboxBuilder.RuleTunnelPort(target);
+                if (port == null)
+                {
+                    if (!missingSince.TryGetValue(target, out var since)) missingSince[target] = DateTime.UtcNow;
+                    else if ((DateTime.UtcNow - since).TotalSeconds >= 8)
+                    {
+                        CrimsonX.Services.SimpleLogger.Log(
+                            $"[AppRules] '{target.Parsed?.Label}' has no socks port; the rule tunnel is not running, so the apply stops waiting for it.");
+                        pending.Remove(target);
+                    }
+                    continue;
+                }
+                missingSince.Remove(target);
+                var probe = await CrimsonX.Services.TunnelHopProbe.ProbeAsync(port.Value, 4000, ct);
+                if (!probe.Ok) continue;
+                CrimsonX.Services.SimpleLogger.Log(
+                    $"[AppRules] established '{target.Parsed?.Label}' via 127.0.0.1:{port.Value} using {probe.Target} after " +
+                    $"{(int)(DateTime.UtcNow - started).TotalMilliseconds} ms (hop reply in {probe.Ms} ms)");
+                pending.Remove(target);
+            }
+            if (pending.Count == 0) break;
+            if ((DateTime.UtcNow - lastToast).TotalSeconds >= 15)
+            {
+                lastToast = DateTime.UtcNow;
+                Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastStillConnecting));
+            }
+            try { await Task.Delay(750, ct); }
+            catch { break; }
+        }
+    }
+
     internal async Task<bool> RestartSingBoxOnlyAsync()
     {
         if (_cfg.LastXrayMode != "VPN Mode" || !_state.IsConnected || _state.IsReconnecting) return false;
@@ -1028,18 +1179,12 @@ public partial class MainWindow
         SetConnectButtonProgress(ConnectProgress.Discovery);
         try
         {
-            var restart = StartOrRestartSingBoxVerifiedAsync(killRunning: true, RestartExitNodeTimeoutSeconds, ct);
-            int progress = ConnectProgress.Discovery;
-            while (!restart.IsCompleted && !ct.IsCancellationRequested && progress < 90)
-            {
-                try { await Task.Delay(150); } catch { }
-                if (restart.IsCompleted) break;
-                progress += 5;
-                SetConnectButtonProgress(progress);
-            }
-            bool ok = await restart;
+            bool ok = await StartOrRestartSingBoxVerifiedAsync(killRunning: true, RestartExitNodeTimeoutSeconds, ct);
             if (ok)
             {
+                SetConnectButtonProgress(ConnectProgress.EngineStart);
+                await AwaitRuleTunnelsEstablishedAsync(ct);
+                if (ct.IsCancellationRequested) return false;
                 CrimsonX.Services.SimpleLogger.Log($"[SingBox] Restarted with updated app rules (pid={_sbPid}).");
                 CrimsonX.Services.UiEventBus.Instance.PublishRulesApplied();
             }

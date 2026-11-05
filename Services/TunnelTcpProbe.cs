@@ -78,6 +78,12 @@ namespace CrimsonX.Services
         public static bool IsOpenVpn(TunnelParseResult tunnel)
             => tunnel != null && tunnel.Success && tunnel.Kind == TunnelKind.OpenVpn;
 
+        public static bool IsIpsec(TunnelParseResult tunnel)
+            => tunnel != null && tunnel.Success && tunnel.Kind == TunnelKind.Ipsec;
+
+        public static bool IsTcpProbeKind(TunnelParseResult tunnel)
+            => IsOpenVpn(tunnel) || IsIpsec(tunnel);
+
         public static bool IsWireGuard(TunnelParseResult tunnel)
             => tunnel != null && tunnel.Success && tunnel.Kind == TunnelKind.WireGuard;
 
@@ -102,15 +108,18 @@ namespace CrimsonX.Services
             var candidates = new List<Candidate>();
             foreach (var remote in remotes.Take(MaxRemotes))
             {
-                foreach (var address in Resolve(remote.Item1))
+                foreach (int port in Ports(remote.Item2, remote.Item3))
                 {
-                    candidates.Add(new Candidate
+                    foreach (var address in Resolve(remote.Item1))
                     {
-                        Address = address,
-                        Host = remote.Item1,
-                        Port = remote.Item2,
-                        Network = remote.Item3
-                    });
+                        candidates.Add(new Candidate
+                        {
+                            Address = address,
+                            Host = remote.Item1,
+                            Port = port,
+                            Network = remote.Item3
+                        });
+                    }
                 }
             }
             if (candidates.Count == 0)
@@ -122,7 +131,7 @@ namespace CrimsonX.Services
                 .OrderBy(c => string.Equals(c.Network, "tcp", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
                 .ToList();
             var gate = new object();
-            var finished = new ManualResetEventSlim(false);
+            using var finished = new ManualResetEventSlim(false);
             string failure = "";
             bool sawTimeout = false;
             int pending = candidates.Count;
@@ -182,11 +191,20 @@ namespace CrimsonX.Services
             string where = string.Join(", ", parts);
             return route.Name.Length > 0 ? $"{route.Name} ({where})" : where;
         }
-        private static List<Tuple<string, int, string>> Remotes(TunnelParseResult tunnel)
+        internal static IEnumerable<int> Ports(int port, string network)
+        {
+            yield return port;
+            if (string.Equals(network ?? "", "tcp", StringComparison.OrdinalIgnoreCase)) yield break;
+            if (port != 443) yield return 443;
+            if (port != 80) yield return 80;
+        }
+
+        internal static List<Tuple<string, int, string>> Remotes(TunnelParseResult tunnel)
         {
             var list = new List<Tuple<string, int, string>>();
             try
             {
+                string endpointNetwork = tunnel?.Endpoint?["network"]?.ToString() ?? "";
                 if (tunnel?.Endpoint?["servers"] is JArray servers)
                 {
                     foreach (var item in servers.OfType<JObject>())
@@ -195,6 +213,7 @@ namespace CrimsonX.Services
                         int port = 0;
                         int.TryParse(item["server_port"]?.ToString() ?? "", out port);
                         string network = item["network"]?.ToString() ?? "";
+                        if (network.Length == 0) network = endpointNetwork;
                         if (host.Length == 0 || port <= 0 || port > 65535) continue;
                         if (list.Any(r => r.Item1 == host && r.Item2 == port)) continue;
                         list.Add(Tuple.Create(host, port, network));
@@ -205,7 +224,7 @@ namespace CrimsonX.Services
                     string host = tunnel?.Endpoint?["server"]?.ToString() ?? "";
                     int port = 0;
                     int.TryParse(tunnel?.Endpoint?["server_port"]?.ToString() ?? "", out port);
-                    if (host.Length > 0 && port > 0 && port <= 65535) list.Add(Tuple.Create(host, port, ""));
+                    if (host.Length > 0 && port > 0 && port <= 65535) list.Add(Tuple.Create(host, port, endpointNetwork));
                 }
             }
             catch (Exception ex)

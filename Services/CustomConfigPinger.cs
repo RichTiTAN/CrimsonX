@@ -34,7 +34,7 @@ namespace CrimsonX.Services
             string bindIp = !string.IsNullOrWhiteSpace(adapterIp)
                 ? adapterIp.Trim()
                 : XrayConfigWriter.ProbeSendThrough(cfg);
-            if (TunnelConfigParser.TryParse(text, out var tunnel) && tunnel != null && TunnelTcpProbe.IsOpenVpn(tunnel))
+            if (TunnelConfigParser.TryParse(text, out var tunnel) && tunnel != null && TunnelTcpProbe.IsTcpProbeKind(tunnel))
             {
                 var tcp = await Task.Run(() => TunnelTcpProbe.Probe(tunnel, bindIp, TunnelTcpProbe.DefaultTimeoutMs), ct).ConfigureAwait(false);
                 string route = TunnelTcpProbe.RouteText(bindIp);
