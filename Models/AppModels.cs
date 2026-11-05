@@ -32,9 +32,11 @@ namespace CrimsonX.Models
         public string CustomConfig2 { get; set; } = "";
         public bool FetchConfigWhenOneProvided { get; set; } = false;
         public bool EnableCustomConfigObfuscation { get; set; } = false;
+        public bool ShowIpsecProfileButton { get; set; } = false;
 
         public bool EnablePerConfigAdapters { get; set; } = false;
         public bool AdapterBindingBeforePerConfig { get; set; } = false;
+        public bool AdapterBalanceBeforePerConfig { get; set; } = false;
         public string CustomConfig1Adapter { get; set; } = "";
         public string CustomConfig2Adapter { get; set; } = "";
 

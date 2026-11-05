@@ -78,6 +78,8 @@ namespace CrimsonX.Pages
         private bool CustomConfigTextDirty(AppConfig? cfg)
         {
             if (cfg == null) return _customConfigsTextDirty;
+            var perTogDirty = this.FindControl<ToggleButton>("togPerConfigAdapter");
+            if (perTogDirty != null && perTogDirty.IsChecked != cfg.EnablePerConfigAdapters) return true;
             if (_customConfigDraftActive
                 && (!string.Equals(_draftConfig1 ?? "", cfg.CustomConfig1 ?? "", StringComparison.Ordinal)
                     || !string.Equals(_draftConfig2 ?? "", cfg.CustomConfig2 ?? "", StringComparison.Ordinal)))
@@ -502,7 +504,7 @@ namespace CrimsonX.Pages
                     AllowMultiple = false,
                     FileTypeFilter = new[]
                     {
-                        new global::Avalonia.Platform.Storage.FilePickerFileType("Config Files") { Patterns = new[] { "*.ovpn", "*.conf", "*.json", "*.txt" } },
+                        new global::Avalonia.Platform.Storage.FilePickerFileType("Config Files") { Patterns = new[] { "*.ovpn", "*.conf", "*.json", "*.mobileconfig", "*.plist", "*.txt" } },
                         new global::Avalonia.Platform.Storage.FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
                     }
                 });

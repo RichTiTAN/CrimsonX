@@ -32,11 +32,6 @@ namespace CrimsonX.Pages
             var cfg = main?.Config;
             if (main == null || cfg == null) return;
             PrunePerConfigAdapterConfig();
-            if (!cfg.EnableCustomConfigs && cfg.EnablePerConfigAdapters)
-            {
-                LeavePerConfigMode(cfg);
-                main.RequestConfigSave();
-            }
             bool wasInit = _isInitializingSettings;
             _isInitializingSettings = true;
             try
@@ -44,8 +39,8 @@ namespace CrimsonX.Pages
                 var tog = this.FindControl<ToggleButton>("togPerConfigAdapter");
                 if (tog != null)
                 {
-                    tog.IsEnabled = cfg.EnableCustomConfigs;
-                    tog.IsChecked = cfg.EnableCustomConfigs && cfg.EnablePerConfigAdapters;
+                    tog.IsEnabled = true;
+                    tog.IsChecked = cfg.EnablePerConfigAdapters;
                 }
                 ApplyPerConfigAdapterVisibility();
                 RefreshPerConfigAdapterCombos();
@@ -165,13 +160,9 @@ namespace CrimsonX.Pages
             var main = MainWindow.Instance;
             var cfg = main?.Config;
             if (main == null || cfg == null) return;
-            if (tog.IsChecked == true && !cfg.EnableCustomConfigs)
-            {
-                Dispatcher.UIThread.Post(() => { tog.IsChecked = false; });
-                return;
-            }
             ApplyPerConfigAdapterVisibility();
             RecalculateCustomConfigsDirty();
+            UpdateCustomConfigsSubmitVisibility();
         }
 
         private void NotifyPerConfigAdapterChanged()
@@ -184,7 +175,10 @@ namespace CrimsonX.Pages
         {
             if (cfg == null) return;
             if (!cfg.EnablePerConfigAdapters)
+            {
                 cfg.AdapterBindingBeforePerConfig = cfg.EnableAdapterBinding;
+                cfg.AdapterBalanceBeforePerConfig = cfg.EnableLoadBalanceAdapters;
+            }
             cfg.EnablePerConfigAdapters = true;
             cfg.EnableAdapterBinding = false;
             cfg.EnableLoadBalanceAdapters = false;
@@ -194,10 +188,15 @@ namespace CrimsonX.Pages
         {
             if (cfg == null || !cfg.EnablePerConfigAdapters) return false;
             cfg.EnablePerConfigAdapters = false;
-            bool restore = cfg.AdapterBindingBeforePerConfig
+            bool restore = (cfg.AdapterBindingBeforePerConfig || cfg.AdapterBalanceBeforePerConfig)
                            && !string.IsNullOrWhiteSpace(cfg.SelectedAdapterIp);
+            if (restore)
+            {
+                cfg.EnableAdapterBinding = cfg.AdapterBindingBeforePerConfig;
+                cfg.EnableLoadBalanceAdapters = cfg.AdapterBalanceBeforePerConfig;
+            }
             cfg.AdapterBindingBeforePerConfig = false;
-            if (restore) cfg.EnableAdapterBinding = true;
+            cfg.AdapterBalanceBeforePerConfig = false;
             return restore;
         }
 

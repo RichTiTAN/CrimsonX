@@ -1,0 +1,136 @@
+<!--
+  CrimsonX - A GUI VPN client that fetches, tests and load-balances multiple xray configs suited for your network.
+  Copyright (C) 2026 RichTiTAN
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dialogs="clr-namespace:CrimsonX.Dialogs"
+        x:Class="CrimsonX.Dialogs.IpsecProfileDialog"
+        x:DataType="dialogs:IpsecProfileDialog"
+        Width="368" SizeToContent="Height"
+        CanResize="False" CanMinimize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E" Foreground="White"
+        FontFamily="Segoe UI, Tahoma, sans-serif"
+        KeyDown="Dialog_KeyDown">
+
+    <LayoutTransformControl>
+        <LayoutTransformControl.LayoutTransform>
+            <ScaleTransform ScaleX="0.8" ScaleY="0.8"/>
+        </LayoutTransformControl.LayoutTransform>
+        <ScrollViewer MaxHeight="620">
+        <StackPanel Margin="25" Spacing="6">
+
+            <TextBlock x:Name="lblIpsecTitle" FontWeight="Bold" FontSize="15" Foreground="#E2E8F0" Margin="0,0,0,10"/>
+
+            <TextBlock Text="SERVER" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1"/>
+            <Grid ColumnDefinitions="*,8,90">
+                <TextBox x:Name="txtIpsecServer" Grid.Column="0" Height="28" FontFamily="Consolas" FontSize="12"
+                         Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                         Foreground="#E2E8F0" Padding="8,4" VerticalContentAlignment="Center"/>
+                <TextBox x:Name="txtIpsecPort" Grid.Column="2" Height="28" FontFamily="Consolas" FontSize="12"
+                         Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                         Foreground="#E2E8F0" Padding="8,4" VerticalContentAlignment="Center" PlaceholderText="500"/>
+            </Grid>
+
+            <TextBlock Text="AUTHENTICATION" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1" Margin="0,8,0,0"/>
+            <ComboBox x:Name="cmbIpsecAuth" Height="28" HorizontalAlignment="Stretch"
+                      Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                      Foreground="#E2E8F0" FontSize="12">
+                <ComboBoxItem Content="IKEv2 · username and password (EAP-MSCHAPv2)"/>
+                <ComboBoxItem Content="IKEv2 · pre-shared key (PSK)"/>
+            </ComboBox>
+
+            <TextBlock Text="USERNAME" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1" Margin="0,8,0,0"/>
+            <TextBox x:Name="txtIpsecUser" Height="28" FontFamily="Consolas" FontSize="12"
+                     Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                     Foreground="#E2E8F0" Padding="8,4" VerticalContentAlignment="Center"/>
+
+            <TextBlock Text="PASSWORD" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1" Margin="0,8,0,0"/>
+            <TextBox x:Name="txtIpsecPass" Height="28" FontFamily="Consolas" FontSize="12" PasswordChar="●"
+                     Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                     Foreground="#E2E8F0" Padding="8,4" VerticalContentAlignment="Center"/>
+
+            <TextBlock Text="PRE-SHARED KEY" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1" Margin="0,8,0,0"/>
+            <TextBox x:Name="txtIpsecPsk" Height="28" FontFamily="Consolas" FontSize="12" PasswordChar="●"
+                     Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                     Foreground="#E2E8F0" Padding="8,4" VerticalContentAlignment="Center"/>
+
+            <Grid ColumnDefinitions="*,8,*" Margin="0,8,0,0">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="REMOTE ID" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1"/>
+                    <TextBox x:Name="txtIpsecRemoteId" Height="28" FontFamily="Consolas" FontSize="12" PlaceholderText="Same as hostname"
+                             Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                             Foreground="#E2E8F0" Padding="8,4" VerticalContentAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="4">
+                    <TextBlock Text="LOCAL ID" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1"/>
+                    <TextBox x:Name="txtIpsecLocalId" Height="28" FontFamily="Consolas" FontSize="12" PlaceholderText="Same as username"
+                             Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                             Foreground="#E2E8F0" Padding="8,4" VerticalContentAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Text="SERVER CA (PEM)" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1" Margin="0,8,0,0"/>
+            <TextBox x:Name="txtIpsecCa" Height="64" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="10"
+                     PlaceholderText="Leave empty to trust the system roots"
+                     Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                     Foreground="#E2E8F0" Padding="8,4"/>
+
+            <Grid ColumnDefinitions="*,8,*" Margin="0,8,0,0">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="DNS" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1"/>
+                    <TextBox x:Name="txtIpsecDns" Height="28" FontFamily="Consolas" FontSize="12" PlaceholderText="Server default"
+                             Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                             Foreground="#E2E8F0" Padding="8,4" VerticalContentAlignment="Center"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="4">
+                    <TextBlock Text="MTU" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" LetterSpacing="1"/>
+                    <TextBox x:Name="txtIpsecMtu" Height="28" FontFamily="Consolas" FontSize="12"
+                             PlaceholderText="Default 1400"
+                             Background="#1A1C20" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4"
+                             Foreground="#E2E8F0" Padding="8,4" VerticalContentAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+
+            <TextBlock x:Name="lblIpsecError" FontSize="11" Foreground="#F87171" TextWrapping="Wrap" IsVisible="False" Margin="0,8,0,0"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,14,0,0">
+                <Button x:Name="btnIpsecSave" Click="Save_Click"
+                        Background="#3A3F44" Foreground="#E2E8F0" FontWeight="Bold" Padding="20,6"
+                        FontSize="11" Cursor="Hand" CornerRadius="4" Content="SAVE">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+                <Button x:Name="btnIpsecCancel" Click="Cancel_Click"
+                        Background="#2D3748" Foreground="#A0AEC0" Padding="20,6"
+                        FontSize="11" Cursor="Hand" CornerRadius="4" Content="CANCEL">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+    </LayoutTransformControl>
+</Window>

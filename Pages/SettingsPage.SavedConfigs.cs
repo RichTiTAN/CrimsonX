@@ -30,6 +30,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using CrimsonX.Dialogs;
 using CrimsonX.Localization;
 using CrimsonX.Services;
 
@@ -73,6 +74,8 @@ namespace CrimsonX.Pages
         }
 
         public bool ShowLabel => !_isRenaming;
+        public bool CanEditProfile { get; set; }
+        public string EditTip { get; set; } = "";
         public string CopyTip { get; set; } = "";
         public string DeleteTip { get; set; } = "";
         public string PingTip { get; set; } = "";
@@ -237,11 +240,15 @@ namespace CrimsonX.Pages
                     if (entry == null || string.IsNullOrWhiteSpace(entry.Raw)) continue;
                     string raw = entry.Raw.Trim();
                     string label = string.IsNullOrWhiteSpace(entry.Label) ? ConfigConverter.LabelFor(raw) : entry.Label;
+                    bool isIpsec = TunnelConfigParser.TryParse(raw, out var parsed)
+                                   && string.Equals(parsed?.Endpoint?["type"]?.ToString(), "ipsec", StringComparison.OrdinalIgnoreCase);
                     _savedConfigs.Add(new SavedConfigItem
                     {
                         Raw = raw,
                         Label = label,
                         Detail = raw.Length > 300 ? raw.Substring(0, 300) + "..." : raw,
+                        CanEditProfile = isIpsec,
+                        EditTip = AppStrings.TtSavedConfigsEditProfile,
                         CopyTip = AppStrings.TtSavedConfigsCopy,
                         DeleteTip = AppStrings.TtSavedConfigsDelete,
                         PingTip = AppStrings.TtSavedConfigsPing,
@@ -379,6 +386,32 @@ namespace CrimsonX.Pages
                 if (btn != null) btn.IsEnabled = true;
                 _isSavedConfigPinging = false;
             }
+        }
+
+        private async void SavedConfigEdit_Click(object? sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            if ((sender as Control)?.DataContext is not SavedConfigItem item || !item.CanEditProfile) return;
+            var cfg = MainWindow.Instance?.Config;
+            if (cfg == null) return;
+            string oldRaw = item.Raw;
+            string? profile = await IpsecProfileDialog.ShowAsync(oldRaw);
+            if (string.IsNullOrWhiteSpace(profile)) return;
+            string updated = profile!.Trim();
+            if (!AppCustomConfigStore.Replace(cfg, oldRaw, updated, out string reason))
+            {
+                MainWindow.Instance?.ShowToast(AppStrings.SavedConfigEditFailed + ": " + reason, ToastKind.Error);
+                return;
+            }
+            for (int slot = 1; slot <= 2; slot++)
+            {
+                string current = slot == 2 ? cfg.CustomConfig2 ?? "" : cfg.CustomConfig1 ?? "";
+                if (!AppCustomConfigStore.SameConfig(current, oldRaw)) continue;
+                SetConfigRaw(cfg, slot, updated);
+                ShowCustomConfigSlot(slot, updated);
+            }
+            RefreshSavedConfigs();
+            MainWindow.Instance?.RequestConfigSave();
         }
 
         private void SavedConfigCopy_Click(object? sender, RoutedEventArgs e)

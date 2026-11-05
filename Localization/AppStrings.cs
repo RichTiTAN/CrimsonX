@@ -209,7 +209,9 @@ namespace CrimsonX.Localization
 
         public static string GeoTimeout             => IsPersian ? "ناموفق"          : "Timeout";
 
-        public static string ToastGeoFailed         => IsPersian ? "ردیابی موقعیت ناموفق بود: " : "The location trace failed: ";
+        public static string ToastPingFailed        => IsPersian ? "پینگ ناموفق بود" : "Ping failed";
+
+        public static string ToastPingTimedOut      => IsPersian ? "زمان پینگ تمام شد" : "Ping timed out";
 
         // ── Split Tunneling ──
 
@@ -488,6 +490,29 @@ namespace CrimsonX.Localization
         public static string PaneExitNode => IsPersian ? "نود خروجی" : "EXIT NODE";
 
         public static string PaneCustomConfig => IsPersian ? "کانفیگ دلخواه" : "CUSTOM CONFIG";
+
+        public static string PaneAppRules => IsPersian ? "برنامه ها و بازی ها" : "APPS & GAMES";
+
+        public static string ShowIpsec => IsPersian ? "نمایش IKEv2" : "SHOW IKEv2";
+
+        public static string HideIpsec => IsPersian ? "پنهان کردن IKEv2" : "HIDE IKEv2";
+
+        public static string TtShowIpsec => IsPersian
+            ? "دکمه ساخت پروفایل IKEv2 را در کانفیگ های دلخواه نشان بده یا پنهان کن"
+            : "Show or hide the IKEv2 profile button in the custom configs";
+
+        public static string TtIpsecProfile => IsPersian
+            ? "ساخت پروفایل IKEv2 (نام کاربری/رمز یا کلید مشترک)"
+            : "Build an IKEv2 profile (EAP-MSCHAPv2 or a pre-shared key)";
+
+        public static string IpsecProfileTitle => IsPersian ? "پروفایل IKEv2" : "IKEV2 PROFILE";
+
+        public static string IpsecMtuHint => IsPersian ? "پیش فرض 1400" : "Default 1400";
+
+        public static string ToastIpsecEngineMissing => IsPersian
+            ? "موتور IKEv2 نصب نشده است (crimsonipsec.exe)."
+            : "The IKEv2 engine is not installed (crimsonipsec.exe).";
+
         public static string FetchConfigWhenOneProvided => IsPersian ? "دریافت کانفیگ در صورت وجود تنها یک کانفیگ" : "FETCH A CONFIG IF ONLY ONE IS PROVIDED";
 
         public static string CustomConfigObfuscationTitle => IsPersian ? "مبهم سازی" : "OBFUSCATION";
@@ -550,6 +575,10 @@ namespace CrimsonX.Localization
         public static string ToastExitNodeFailed => IsPersian
             ? "اتصال به نود خروجی برقرار نشد؛ بدون آن متصل شدید."
             : "The exit node did not come up - connected without it.";
+
+        public static string ToastExitNodeLocationFailed => IsPersian
+            ? "location پاسخ نداد - بازگشت به خودکار"
+            : "Location failed - falling back to auto.";
 
         public static string ToastStillConnecting => IsPersian
             ? "در حال تلاش برای اتصال..."
@@ -1031,6 +1060,10 @@ namespace CrimsonX.Localization
         public static string TtSavedConfigsPing => IsPersian ? "آزمایش این کانفیگ" : "Test this config";
 
         public static string TtSavedConfigsCopy => IsPersian ? "کپی کانفیگ" : "Copy config";
+
+        public static string TtSavedConfigsEditProfile => IsPersian ? "ویرایش پروفایل IKEv2" : "Edit the IKEv2 profile";
+
+        public static string SavedConfigEditFailed => IsPersian ? "پروفایل ذخیره شده ویرایش نشد" : "The saved profile could not be updated";
 
         public static string TtSavedConfigsDelete => IsPersian ? "حذف از لیست ذخیره شده" : "Remove from the saved list";
 

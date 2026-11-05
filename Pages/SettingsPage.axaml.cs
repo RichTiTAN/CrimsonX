@@ -118,6 +118,9 @@ namespace CrimsonX.Pages
             if (togFetchConfigWhenOne != null && !_customConfigsDirty) togFetchConfigWhenOne.IsChecked = _cfg.FetchConfigWhenOneProvided;
             var togObfuscation = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togCustomConfigObfuscation");
             if (togObfuscation != null && !_customConfigsDirty) togObfuscation.IsChecked = _cfg.EnableCustomConfigObfuscation;
+            var togShowIpsec = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togShowIpsec");
+            if (togShowIpsec != null && !_customConfigsDirty) togShowIpsec.IsChecked = _cfg.ShowIpsecProfileButton;
+            ApplyIpsecProfileVisibility();
             if (!_customConfigsDirty) SyncPerConfigAdapterPanel();
             var togXrayExitNode = this.FindControl<global::Avalonia.Controls.ToggleSwitch>("togXrayExitNode");
             if (togXrayExitNode != null) togXrayExitNode.IsChecked = _cfg.EnableV2rayChain;
@@ -217,6 +220,8 @@ namespace CrimsonX.Pages
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togFetchConfigWhenOne"), CrimsonX.Localization.AppStrings.FetchConfigWhenOneProvidedTooltip);
             CrimsonX.Localization.AppStrings.ApplyBtn(this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togCustomConfigObfuscation"), CrimsonX.Localization.AppStrings.CustomConfigObfuscationTitle);
             CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togCustomConfigObfuscation"), CrimsonX.Localization.AppStrings.CustomConfigObfuscationTooltip);
+            CrimsonX.Localization.AppStrings.ApplyToolTip(this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togShowIpsec"), CrimsonX.Localization.AppStrings.TtShowIpsec);
+            ApplyIpsecProfileVisibility();
             var btn1 = B("btnCustomConfigsPing1");
             if (btn1 != null) btn1.Content = CrimsonX.Localization.AppStrings.PingBtn;
             var btn2 = B("btnCustomConfigsPing2");
@@ -371,7 +376,13 @@ namespace CrimsonX.Pages
             MainWindow.Instance.Config.EnableCustomConfigs = tog.IsChecked.Value;
             if (tog.IsChecked != true)
             {
-                ClearPerConfigAdapterMode(save: false);
+                if (MainWindow.Instance.Config.EnablePerConfigAdapters)
+                {
+                    MainWindow.Instance.Config.EnableAdapterBinding = MainWindow.Instance.Config.AdapterBindingBeforePerConfig;
+                    MainWindow.Instance.Config.EnableLoadBalanceAdapters = MainWindow.Instance.Config.AdapterBalanceBeforePerConfig;
+                    MainWindow.Instance.Config.AdapterBindingBeforePerConfig = false;
+                    MainWindow.Instance.Config.AdapterBalanceBeforePerConfig = false;
+                }
                 SyncPerConfigAdapterPanel();
             }
             else
@@ -487,6 +498,8 @@ namespace CrimsonX.Pages
                          !string.IsNullOrWhiteSpace(cfg.CustomConfig2);
         if (togFetchConfig != null) cfg.FetchConfigWhenOneProvided = fetchOn;
         if (togObfuscation != null) cfg.EnableCustomConfigObfuscation = togObfuscation.IsChecked == true;
+        var togShowIpsec = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togShowIpsec");
+        if (togShowIpsec != null) cfg.ShowIpsecProfileButton = togShowIpsec.IsChecked == true;
         cfg.EnableCustomConfigs = hasConfig;
         bool perConfigWasOn = cfg.EnablePerConfigAdapters;
         bool perConfigNow = perConfigReady && perOn && hasConfig;
@@ -1128,8 +1141,14 @@ namespace CrimsonX.Pages
                         CrimsonX.Localization.AppStrings.ToastLoadBalanceNeedsTwoAdapters, ToastKind.Error);
                     return;
                 }
-                ClearPerConfigAdapterMode(save: false, restoreBinding: false);
+                if (cfg.EnablePerConfigAdapters)
+                {
+                    cfg.EnablePerConfigAdapters = false;
+                    var perTogOff = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togPerConfigAdapter");
+                    if (perTogOff != null) global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { perTogOff.IsChecked = false; });
+                }
                 cfg.AdapterBindingBeforePerConfig = false;
+                cfg.AdapterBalanceBeforePerConfig = false;
                 if (cfg.EnableAdapterBinding)
                 {
                     cfg.EnableAdapterBinding = false;
@@ -1344,6 +1363,12 @@ namespace CrimsonX.Pages
             if (tunnel != null && tunnel.RequiresAwg)
             {
                 CrimsonX.Services.SimpleLogger.Log("[ExitNode] An AmneziaWG config cannot be used as the exit node.");
+                MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastNotSupportedPrefix + CrimsonX.Localization.AppStrings.PaneExitNode, ToastKind.Error);
+                return false;
+            }
+            if (tunnel != null && tunnel.RequiresIpsec)
+            {
+                CrimsonX.Services.SimpleLogger.Log("[ExitNode] An IKEv2 config cannot be used as the exit node.");
                 MainWindow.Instance?.ShowToast(CrimsonX.Localization.AppStrings.ToastNotSupportedPrefix + CrimsonX.Localization.AppStrings.PaneExitNode, ToastKind.Error);
                 return false;
             }
@@ -1843,8 +1868,14 @@ namespace CrimsonX.Pages
                 }
                 else if (!MainWindow.Instance.Config.EnableAdapterBinding)
                 {
-                    ClearPerConfigAdapterMode(save: false, restoreBinding: false);
-                    MainWindow.Instance.Config.AdapterBindingBeforePerConfig = false;
+                    if (MainWindow.Instance.Config.EnablePerConfigAdapters)
+                    {
+                        MainWindow.Instance.Config.EnablePerConfigAdapters = false;
+                        MainWindow.Instance.Config.AdapterBindingBeforePerConfig = false;
+                        MainWindow.Instance.Config.AdapterBalanceBeforePerConfig = false;
+                        var perTogOff = this.FindControl<global::Avalonia.Controls.Primitives.ToggleButton>("togPerConfigAdapter");
+                        if (perTogOff != null) global::Avalonia.Threading.Dispatcher.UIThread.Post(() => { perTogOff.IsChecked = false; });
+                    }
                     MainWindow.Instance.Config.EnableAdapterBinding = true;
                     MainWindow.Instance.RequestConfigSave();
                     if (MainWindow.Instance.State.IsEngineRunning)
