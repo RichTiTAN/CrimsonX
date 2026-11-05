@@ -45,8 +45,7 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 3. Extract the folder to your preferred location.
 4. Run `CrimsonX.exe`.
 
-*Note: CrimsonX requires Windows 10 or newer.  
-You can find the [Linux version here](https://github.com/RichTiTAN/CrimsonX-Linux).*
+*Note: CrimsonX requires Windows 10 or newer.*
 
 ###  Building from source
 Private worker URLs and a built-in encryption key live in a **gitignored** file (`Services/AppSecrets.cs`) so they never end up in the public repository. After cloning, create it from the template before building:
@@ -67,12 +66,18 @@ At runtime the stores in `Data\cache\*.bin` are encrypted with a 32-byte key tha
 - **Clear Proxy Mode:** Disables the system proxy settings, allowing direct connection to the internet. while exposing the proxy to apps that support manual proxy configuration.
 
 ### 2. Custom Configs
-If you don't want to rely on the automated scrapers, you can inject up to 2 of your own configs directly in the Settings tab: VLESS/VMESS/Shadowsocks/Socks share links, xray/sing-box outbound JSON, or full **OpenVPN** (`.ovpn`, with inline `<ca>`/`<tls-crypt>`/`<tls-auth>` blocks) and **WireGuard** configs (`.conf`, `wireguard://` share links, sing-box endpoint JSON or xray `wireguard` outbound JSON).
+If you don't want to rely on the automated scrapers, you can inject up to 2 of your own configs directly in the Settings tab: VLESS/VMESS/Shadowsocks/Socks share links, xray/sing-box outbound JSON, or full **OpenVPN** (`.ovpn`, with inline `<ca>`/`<tls-crypt>`/`<tls-auth>` blocks), **WireGuard** configs (`.conf`, `wireguard://` share links, sing-box endpoint JSON or xray `wireguard` outbound JSON) and **IKEv2** profiles (profile JSON, `ikev2://` share links, `.mobileconfig` files, or the **IKEV2** button under the custom configs).
 
 Just paste them in (**Ctrl+V**), press the **+** button to import a file, or pick one of your saved configs.
+
+Every entry in **SAVED CONFIGS** can be copied back out - the copy icon on its row, or a click on the row itself - and you get the config exactly as you imported it, `.ovpn` comments and `.conf` keys included. A remembered OpenVPN username and password are never part of that text: they are kept separately in the app's encrypted credential store and only attached to the endpoint when the tunnel starts.
 The same configs can also be used per app in the **Apps & Games** tab (custom proxy per rule). 
 
 The **CUSTOM CONFIGS** section also carries a **PER-CONFIG ADAPTER** switch. With it on, each of the two boxes gets its own adapter picker and each config leaves through the adapter it was given.
+
+The panel's third switch, **OBFUSCATION**, sends a burst of decoy datagrams before every OpenVPN / WireGuard handshake so the tunnel never opens with a recognisable first packet (UDP only, TCP configs are left alone; the server drops the decoys). Like its two neighbours it is staged and waits for **SUBMIT**.
+
+**AmneziaWG** configs (`.conf` or a sing-box `awg` endpoint JSON, with `Jc`/`Jmin`/`Jmax`, `S1`-`S4`, `H1`-`H4`, `I1`-`I5`, `Hpk`, `Cpa`, the AWG 3 timings and `RandomTrailers`/`DisableCookies`) run on a second engine, `Data\awg\amnezia-box.exe` - Amnezia's sing-box fork - while every other config keeps using the bundled sing-box. They work in the custom config boxes and in the Apps & Games rules, and they are refused as an exit node. A `DNS =` line in an AmneziaWG config is honoured inside that tunnel (names it resolves go to the config's resolver, through the tunnel); plain WireGuard and OpenVPN configs still leave DNS to CrimsonX.
 
 ### 3. Load Balance Policies
 Head to the **Settings** tab to adjust how CrimsonX distributes connections. If you're downloading large files, **Least Ping** or **Round Robin** is recommended.  
