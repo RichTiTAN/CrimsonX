@@ -29,26 +29,28 @@ namespace CrimsonX.Services
     {
         internal static Func<string, IReadOnlyList<string>> SystemResolver = DefaultSystem;
 
-        internal static Func<string, IReadOnlyList<string>> DohResolver = BootstrapDns.Resolve;
+        internal static Func<string, string, IReadOnlyList<string>> DohResolver = TunnelResolver.Resolve;
 
-        public static void Apply(JObject endpoint)
+        public static void Apply(JObject endpoint) => Apply(endpoint, "");
+
+        public static void Apply(JObject endpoint, string sourceAddress)
         {
             if (endpoint == null) return;
             string type = endpoint["type"]?.ToString() ?? "";
             if (string.Equals(type, "openvpn-client", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(type, "openvpn", StringComparison.OrdinalIgnoreCase))
             {
-                RepairOpenVpn(endpoint);
+                RepairOpenVpn(endpoint, sourceAddress ?? "");
                 return;
             }
             if (string.Equals(type, "wireguard", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(type, "awg", StringComparison.OrdinalIgnoreCase))
             {
-                RepairPeers(endpoint);
+                RepairPeers(endpoint, sourceAddress ?? "");
             }
         }
 
-        private static void RepairOpenVpn(JObject endpoint)
+        private static void RepairOpenVpn(JObject endpoint, string sourceAddress)
         {
             if (string.Equals(endpoint["mode"]?.ToString(), "static_key", StringComparison.OrdinalIgnoreCase)) return;
             if (endpoint["servers"] is not JArray servers || servers.Count == 0) return;
@@ -60,7 +62,7 @@ namespace CrimsonX.Services
                 IReadOnlyList<string> addresses = Array.Empty<string>();
                 string localAnswer = "";
                 if (host.Length > 0 && !IPAddress.TryParse(host, out _))
-                    addresses = DohAddresses(host, out localAnswer);
+                    addresses = DohAddresses(host, sourceAddress, out localAnswer);
                 if (addresses.Count == 0)
                 {
                     AddServer(rebuilt, seen, server, null);
@@ -73,14 +75,14 @@ namespace CrimsonX.Services
             endpoint["servers"] = rebuilt;
         }
 
-        private static void RepairPeers(JObject endpoint)
+        private static void RepairPeers(JObject endpoint, string sourceAddress)
         {
             if (endpoint["peers"] is not JArray peers) return;
             foreach (var peer in peers.OfType<JObject>())
             {
                 string host = peer["address"]?.ToString() ?? "";
                 if (host.Length == 0 || IPAddress.TryParse(host, out _)) continue;
-                var addresses = DohAddresses(host, out string localAnswer);
+                var addresses = DohAddresses(host, sourceAddress, out string localAnswer);
                 if (addresses.Count == 0) continue;
                 peer["address"] = addresses[0];
                 KeepServerName(endpoint, host);
@@ -106,19 +108,30 @@ namespace CrimsonX.Services
                 tls["server_name"] = host;
         }
 
-        private static IReadOnlyList<string> DohAddresses(string host, out string localAnswer)
+        private static IReadOnlyList<string> DohAddresses(string host, string sourceAddress, out string localAnswer)
         {
             localAnswer = "";
             var system = SafeResolve(SystemResolver, host);
             if (system.Count == 0) return Array.Empty<string>();
             if (system.Any(address => !BootstrapDns.IsPrivateAddress(address))) return Array.Empty<string>();
             localAnswer = system[0];
-            var doh = SafeResolve(DohResolver, host);
+            var doh = SafeResolve(DohResolver, host, sourceAddress);
             if (doh.Count == 0) return Array.Empty<string>();
             return doh.Where(address => !string.IsNullOrWhiteSpace(address))
                       .Select(address => address.Trim())
+                      .Where(address => !BootstrapDns.IsPrivateAddress(address))
                       .Distinct(StringComparer.Ordinal)
                       .ToArray();
+        }
+
+        private static IReadOnlyList<string> SafeResolve(Func<string, string, IReadOnlyList<string>> resolver, string host, string sourceAddress)
+        {
+            try { return resolver(host, sourceAddress ?? "") ?? Array.Empty<string>(); }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log(ex);
+                return Array.Empty<string>();
+            }
         }
 
         private static IReadOnlyList<string> SafeResolve(Func<string, IReadOnlyList<string>> resolver, string host)

@@ -127,6 +127,7 @@ namespace CrimsonX.Services
                     }
                 }
                 TunnelCredentialPruner.Sweep(config, AppRulesService.Load());
+                TunnelHostPruner.Sweep(config, AppRulesService.Load(), force: true);
             }
             catch (Exception ex)
             {

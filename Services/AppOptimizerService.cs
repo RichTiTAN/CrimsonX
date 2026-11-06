@@ -48,6 +48,10 @@ namespace CrimsonX.Services
         private const int StabilityDurationMs = 10000;
         private const int StabilityIntervalMs = 500;
 
+        internal const long MaxPingMs = 300;
+
+        internal static bool TooSlow(ConfigTestResult result) => SortPing(result) >= MaxPingMs;
+
         public static async Task<AppOptimizeResult> RunAsync(AppConfig cfg, string adapterIp, int concurrency, IProgress<double> progress, CancellationToken ct, bool alternate = false, string region = "")
         {
             int batch = Math.Max(1, concurrency);
@@ -125,6 +129,7 @@ namespace CrimsonX.Services
                 var queue = new ConcurrentQueue<string>(configs);
                 var links = new List<string>(batch);
                 int added = 0;
+                int slow = 0;
                 while (added < WorkingGoal && collected.Count < WorkingGoal)
                 {
                     links.Clear();
@@ -143,10 +148,20 @@ namespace CrimsonX.Services
                         if (!string.IsNullOrWhiteSpace(region)
                             && !string.Equals(r.Continent, region, StringComparison.OrdinalIgnoreCase)) continue;
                         if (SingboxCannotDial(r.Link) || SingboxCannotDial(r.OutboundJson)) continue;
+                        if (TooSlow(r))
+                        {
+                            slow++;
+                            continue;
+                        }
                         if (collected.Any(f => string.Equals(f.OutboundJson, r.OutboundJson, StringComparison.Ordinal))) continue;
                         collected.Add(r);
                         added++;
                         LogFound();
+                    }
+                    if (slow > 0)
+                    {
+                        LogLine($"dropped {slow} config(s) at {MaxPingMs} ms or higher");
+                        slow = 0;
                     }
                     Report(0.6 * Math.Min(1.0, (sourcesRead + Math.Min(1.0, added / (double)WorkingGoal)) / sourceCount));
                 }

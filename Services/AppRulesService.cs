@@ -79,6 +79,7 @@ namespace CrimsonX.Services
                 SecureJsonStore.Save(path, rules);
                 Remember(path, rules);
                 TunnelCredentialPruner.Sweep(MainWindow.Instance?.Config, rules);
+                TunnelHostPruner.Sweep(MainWindow.Instance?.Config, rules, force: true);
             }
             catch { }
         }

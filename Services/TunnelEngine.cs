@@ -47,6 +47,8 @@ namespace CrimsonX.Services
         public string AdapterIp { get; set; } = "";
 
         public string ServerOverride { get; set; } = "";
+
+        public string Budget { get; set; } = "";
     }
 
     public enum TunnelTestState
@@ -85,6 +87,7 @@ namespace CrimsonX.Services
             public string Signature = "";
             public readonly Dictionary<string, TunnelTarget> Active = new Dictionary<string, TunnelTarget>(StringComparer.Ordinal);
             public List<TunnelObfuscator> Relays = new List<TunnelObfuscator>();
+            public List<TunnelTarget> Planned = new List<TunnelTarget>();
         }
 
         private static readonly object Sync = new object();
@@ -113,6 +116,54 @@ namespace CrimsonX.Services
             }
             return IpsecTunnelEngine.IsRunning(group);
         }
+
+        internal static bool IsAlive(string group, bool awg)
+        {
+            lock (Sync)
+            {
+                return IsRunningLocked(State(group, awg));
+            }
+        }
+
+        internal static List<TunnelTarget> PlannedTargets(string group)
+        {
+            var found = new List<TunnelTarget>();
+            lock (Sync)
+            {
+                CollectActive(State(group), found);
+                CollectActive(State(group, true), found);
+                CollectPlanned(State(group), found);
+                CollectPlanned(State(group, true), found);
+            }
+            foreach (var target in IpsecTunnelEngine.PlannedTargets(group))
+            {
+                if (target != null && !found.Contains(target)) found.Add(target);
+            }
+            return found;
+        }
+
+        private static void CollectPlanned(GroupState state, List<TunnelTarget> into)
+        {
+            foreach (var target in state.Planned)
+            {
+                if (target == null || target.Port <= 0) continue;
+                if (!into.Contains(target)) into.Add(target);
+            }
+        }
+
+        private static void ClearPlanned(GroupState state)
+        {
+            if (state != null) state.Planned = new List<TunnelTarget>();
+        }
+
+        private static int _rebuilding;
+
+        internal static bool IsRebuilding
+            => Volatile.Read(ref _rebuilding) > 0 || IpsecTunnelEngine.IsRebuilding;
+
+        private static void BeginRebuild() => Interlocked.Increment(ref _rebuilding);
+
+        private static void EndRebuild() => Interlocked.Decrement(ref _rebuilding);
 
         public static int? PortFor(string group, string key)
         {
@@ -270,6 +321,20 @@ namespace CrimsonX.Services
         public static bool EnsureTargetsStarted(AppConfig cfg, string group, List<TunnelTarget> targets, string adapterName, string adapterIp,
             CancellationToken token, out string error)
         {
+            BeginRebuild();
+            try
+            {
+                return EnsureTargetsStartedCore(cfg, group, targets, adapterName, adapterIp, token, out error);
+            }
+            finally
+            {
+                EndRebuild();
+            }
+        }
+
+        private static bool EnsureTargetsStartedCore(AppConfig cfg, string group, List<TunnelTarget> targets, string adapterName, string adapterIp,
+            CancellationToken token, out string error)
+        {
             error = "";
             if (targets == null || targets.Count == 0)
             {
@@ -322,6 +387,7 @@ namespace CrimsonX.Services
                     if (state.Active.TryGetValue(IdOf(target), out var previous)) target.Port = previous.Port;
                 }
                 StopLocked(state);
+                state.Planned = new List<TunnelTarget>(targets);
                 string dir = Path.Combine(sbDir, "tunnel", GroupDir(group) + (awg ? "-awg" : ""));
                 state.Dir = dir;
                 if (TryStartBatch(cfg, sbDir, state, targets, out error))
@@ -354,20 +420,39 @@ namespace CrimsonX.Services
 
         public static void Stop()
         {
-            IpsecTunnelEngine.StopAll();
-            lock (Sync)
+            BeginRebuild();
+            try
             {
-                foreach (var name in Groups.Keys.ToList()) StopLocked(State(name));
+                IpsecTunnelEngine.StopAll();
+                lock (Sync)
+                {
+                    foreach (var name in Groups.Keys.ToList()) StopLocked(State(name));
+                    foreach (var name in Groups.Keys.ToList()) ClearPlanned(State(name));
+                }
+            }
+            finally
+            {
+                EndRebuild();
             }
         }
 
         public static void Stop(string group)
         {
-            IpsecTunnelEngine.Stop(group);
-            lock (Sync)
+            BeginRebuild();
+            try
             {
-                StopLocked(State(group));
-                StopLocked(State(group, true));
+                IpsecTunnelEngine.Stop(group);
+                lock (Sync)
+                {
+                    StopLocked(State(group));
+                    StopLocked(State(group, true));
+                    ClearPlanned(State(group));
+                    ClearPlanned(State(group, true));
+                }
+            }
+            finally
+            {
+                EndRebuild();
             }
         }
 
@@ -721,7 +806,7 @@ namespace CrimsonX.Services
                     ["listen_port"] = target.Port
                 });
                 var endpoint = (JObject)target.Parsed.Endpoint.DeepClone();
-                TunnelHostRepair.Apply(endpoint);
+                TunnelHostRepair.Apply(endpoint, TunnelResolver.SourceOf(target));
                 TunnelConfigParser.WithTag(endpoint, target.Tag, target.AdapterName, target.AdapterIp);
                 TunnelObfuscator.Apply(cfg, target, endpoint, relays, out string obfuscationError);
                 if (obfuscationError.Length > 0)

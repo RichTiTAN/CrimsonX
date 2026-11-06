@@ -253,7 +253,10 @@ namespace CrimsonX.Services
                 }
             }
             if (result != CustomConfigSaveResult.PoolFull)
+            {
                 TunnelCredentialPruner.Sweep(cfg, AppRulesService.Load());
+                TunnelHostPruner.Sweep(cfg, AppRulesService.Load(), force: true);
+            }
             return result;
         }
 
@@ -293,6 +296,7 @@ namespace CrimsonX.Services
                 SaveCore(entries);
             }
             TunnelCredentialPruner.Sweep(cfg, AppRulesService.Load());
+            TunnelHostPruner.Sweep(cfg, AppRulesService.Load(), force: true);
             return true;
         }
 
@@ -311,7 +315,10 @@ namespace CrimsonX.Services
                 if (removed > 0) SaveCore(entries);
             }
             if (removed > 0)
+            {
                 TunnelCredentialPruner.Sweep(cfg, AppRulesService.Load());
+                TunnelHostPruner.Sweep(cfg, AppRulesService.Load(), force: true);
+            }
             return removed;
         }
 

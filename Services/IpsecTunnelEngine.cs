@@ -60,6 +60,8 @@ namespace CrimsonX.Services
 
             public readonly Dictionary<string, TunnelTarget> Active = new Dictionary<string, TunnelTarget>(StringComparer.Ordinal);
 
+            public List<TunnelTarget> Planned = new List<TunnelTarget>();
+
             public readonly Dictionary<string, string> LocalIps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             public CancellationTokenSource StartCts;
@@ -113,11 +115,38 @@ namespace CrimsonX.Services
             }
         }
 
+        private static int _rebuilding;
+
+        internal static bool IsRebuilding => Volatile.Read(ref _rebuilding) > 0;
+
+        private static void BeginRebuild() => Interlocked.Increment(ref _rebuilding);
+
+        private static void EndRebuild() => Interlocked.Decrement(ref _rebuilding);
+
         public static int? PortFor(string group, string key)
         {
             lock (Sync)
             {
                 return PortIn(State(group), key);
+            }
+        }
+
+        internal static List<TunnelTarget> PlannedTargets(string group)
+        {
+            lock (Sync)
+            {
+                var state = State(group);
+                var found = new List<TunnelTarget>();
+                foreach (var target in state.Planned)
+                {
+                    if (target != null && target.Port > 0) found.Add(target);
+                }
+                foreach (var target in state.Active.Values)
+                {
+                    if (target == null || target.Port <= 0) continue;
+                    if (!found.Contains(target)) found.Add(target);
+                }
+                return found;
             }
         }
 
@@ -220,6 +249,20 @@ namespace CrimsonX.Services
         public static bool EnsureStarted(AppConfig cfg, string sbDir, string group, List<TunnelTarget> targets,
             CancellationToken token, out string error)
         {
+            BeginRebuild();
+            try
+            {
+                return EnsureStartedCore(cfg, sbDir, group, targets, token, out error);
+            }
+            finally
+            {
+                EndRebuild();
+            }
+        }
+
+        private static bool EnsureStartedCore(AppConfig cfg, string sbDir, string group, List<TunnelTarget> targets,
+            CancellationToken token, out string error)
+        {
             error = "";
             if (targets == null || targets.Count == 0)
             {
@@ -293,10 +336,19 @@ namespace CrimsonX.Services
                 return false;
             }
             var attempts = BuildAttempts(targets);
-            int maxAttempts = MaxAttempts(attempts);
+            int maxAttempts = Math.Max(1, MaxAttempts(attempts));
+            lock (Sync)
+            {
+                state.Planned = new List<TunnelTarget>(targets);
+            }
             string budget = attempts.Any(a => a.Addresses.Count > 1) ? FailoverTimeout : "";
             SimpleLogger.Log($"[Tunnel] ({group}) ikev2 start: {attempts.Count} tunnel(s), {maxAttempts} attempt(s) - " +
                              $"{string.Join(", ", attempts.Select(a => $"{a.Tag}: {a.Addresses.Count} address(es)"))}.");
+            foreach (var entry in attempts)
+            {
+                string resolved = entry.Addresses.Count > 0 ? string.Join(", ", entry.Addresses) : "no address";
+                SimpleLogger.Log($"[Tunnel] ({group}) {entry.Tag} {entry.Host} -> {resolved}");
+            }
             IpsecGroupPlan plan = null;
             EngineProcess engine = null;
             for (int attempt = 0; attempt < maxAttempts; attempt++)
@@ -309,9 +361,11 @@ namespace CrimsonX.Services
                 }
                 foreach (var entry in attempts)
                 {
-                    if (entry.Target != null) entry.Target.ServerOverride = AddressAt(entry);
+                    if (entry.Target == null) continue;
+                    entry.Target.ServerOverride = AddressAt(entry);
+                    entry.Target.Budget = entry.Addresses.Count > 1 ? FailoverTimeout : "";
                 }
-                plan = IpsecConfigWriter.Write(sbDir, group, targets, budget);
+                plan = IpsecConfigWriter.Write(sbDir, group, targets, "");
                 if (plan == null)
                 {
                     error = "the IKEv2 config could not be written";
@@ -326,8 +380,18 @@ namespace CrimsonX.Services
                     error = startError;
                     return false;
                 }
-                if (WaitForPorts(engine, targets, plan.StatusPath, token)) break;
+                if (WaitForPorts(engine, targets, plan.StatusPath, token))
+                {
+                    foreach (var entry in attempts) TunnelHostMemory.MarkSucceeded(entry.Host);
+                    PersistCursors(attempts);
+                    break;
+                }
                 bool cancelled = token.IsCancellationRequested;
+                var states = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var entry in attempts)
+                {
+                    states[entry.Tag] = ReadStatusStateForTag(plan.StatusPath, entry.Tag);
+                }
                 string reason = cancelled ? "cancelled by the user" : FirstReason(ReadStatusError(plan.StatusPath), LastEngineError(engine));
                 StopProcess(engine);
                 TryDeleteDirectory(plan.WorkingDirectory);
@@ -338,11 +402,12 @@ namespace CrimsonX.Services
                     SimpleLogger.Log($"[Tunnel] ({group}) ikev2 start cancelled by the user.");
                     return false;
                 }
-                if (!AdvanceFailed(attempts, tag => ReadStatusStateForTag(plan.StatusPath, tag)))
+                if (!AdvanceFailed(attempts, tag => states.TryGetValue(tag, out string state) ? state : ""))
                 {
                     SimpleLogger.Log($"[Tunnel] ({group}) ikev2 {dialing} failed ({error}); no address is left to try.");
                     break;
                 }
+                PersistCursors(attempts);
                 SimpleLogger.Log($"[Tunnel] ({group}) ikev2 {dialing} failed ({error}); retrying " +
                                  $"{string.Join(", ", attempts.Select(a => $"{a.Tag} → {DialText(a)}"))}.");
             }
@@ -379,37 +444,55 @@ namespace CrimsonX.Services
 
         public static void Stop(string group)
         {
-            EngineProcess detached;
-            EngineProcess[] live;
-            lock (Sync)
+            BeginRebuild();
+            try
             {
-                var state = State(group);
-                state.Epoch++;
-                try { state.StartCts?.Cancel(); } catch { }
-                detached = DetachLocked(state);
+                EngineProcess detached;
+                EngineProcess[] live;
+                lock (Sync)
+                {
+                    var state = State(group);
+                    state.Epoch++;
+                    state.Planned = new List<TunnelTarget>();
+                    try { state.StartCts?.Cancel(); } catch { }
+                    detached = DetachLocked(state);
+                }
+                live = TakeLive(group);
+                if (detached != null) StopProcess(detached);
+                foreach (var engine in live) StopProcess(engine);
             }
-            live = TakeLive(group);
-            if (detached != null) StopProcess(detached);
-            foreach (var engine in live) StopProcess(engine);
+            finally
+            {
+                EndRebuild();
+            }
         }
 
         public static void StopAll()
         {
-            var detached = new List<EngineProcess>();
-            EngineProcess[] live;
-            lock (Sync)
+            BeginRebuild();
+            try
             {
-                foreach (var state in Groups.Values)
+                var detached = new List<EngineProcess>();
+                EngineProcess[] live;
+                lock (Sync)
                 {
-                    state.Epoch++;
-                    try { state.StartCts?.Cancel(); } catch { }
-                    var engine = DetachLocked(state);
-                    if (engine != null) detached.Add(engine);
+                    foreach (var state in Groups.Values)
+                    {
+                        state.Epoch++;
+                        state.Planned = new List<TunnelTarget>();
+                        try { state.StartCts?.Cancel(); } catch { }
+                        var engine = DetachLocked(state);
+                        if (engine != null) detached.Add(engine);
+                    }
                 }
+                live = TakeLive(null);
+                foreach (var engine in detached) StopProcess(engine);
+                foreach (var engine in live) StopProcess(engine);
             }
-            live = TakeLive(null);
-            foreach (var engine in detached) StopProcess(engine);
-            foreach (var engine in live) StopProcess(engine);
+            finally
+            {
+                EndRebuild();
+            }
         }
 
         private static EngineProcess[] TakeLive(string group)
@@ -680,7 +763,49 @@ namespace CrimsonX.Services
             }
         }
 
-        internal static Func<string, IReadOnlyList<string>> BootstrapResolver = BootstrapDns.Resolve;
+        internal static Func<string, string, IReadOnlyList<string>> Resolver = TunnelResolver.Resolve;
+
+        private static readonly Dictionary<string, int> AddressCursor = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        internal static string CursorKey(TunnelTarget target) => TunnelEngine.IdOf(target);
+
+        internal static int CursorOf(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return 0;
+            lock (Sync) return AddressCursor.TryGetValue(key, out int index) ? index : 0;
+        }
+
+        internal static void SetCursor(string key, int index)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return;
+            lock (Sync) AddressCursor[key] = Math.Max(0, index);
+        }
+
+        internal static void RotateToNextAddress(IEnumerable<TunnelTarget> targets)
+            => RotateToNextAddress(targets, Resolver);
+
+        internal static void RotateToNextAddress(IEnumerable<TunnelTarget> targets, Func<string, string, IReadOnlyList<string>> resolver)
+        {
+            var updates = new List<(string Key, int Next)>();
+            foreach (var target in targets ?? Enumerable.Empty<TunnelTarget>())
+            {
+                string key = CursorKey(target);
+                if (key.Length == 0) continue;
+                int count = AddressesFor(target, resolver).Count;
+                if (count <= 1) continue;
+                updates.Add((key, (CursorOf(key) + 1) % count));
+            }
+            foreach (var update in updates) SetCursor(update.Key, update.Next);
+        }
+
+        internal static void PersistCursors(IEnumerable<IpsecStartAttempt> attempts)
+        {
+            foreach (var attempt in attempts ?? Enumerable.Empty<IpsecStartAttempt>())
+            {
+                if (attempt?.Target == null) continue;
+                SetCursor(CursorKey(attempt.Target), attempt.Index);
+            }
+        }
 
         internal sealed class IpsecStartAttempt
         {
@@ -696,41 +821,41 @@ namespace CrimsonX.Services
         }
 
         internal static IReadOnlyList<string> AddressesFor(TunnelTarget target)
+            => AddressesFor(target, Resolver);
+
+        internal static IReadOnlyList<string> AddressesFor(TunnelTarget target, Func<string, string, IReadOnlyList<string>> resolver)
         {
-            var found = new List<string>();
             string host = ServerHostOf(target);
-            if (host.Length > 0)
-            {
-                try
-                {
-                    foreach (string address in BootstrapResolver(host) ?? Array.Empty<string>())
-                    {
-                        if (string.IsNullOrWhiteSpace(address)) continue;
-                        string text = address.Trim();
-                        if (!found.Contains(text)) found.Add(text);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    SimpleLogger.Log(ex);
-                }
-            }
-            if (found.Count == 0) found.Add("");
-            return found;
+            if (host.Length == 0) return Array.Empty<string>();
+            var found = resolver(host, TunnelResolver.SourceOf(target)) ?? Array.Empty<string>();
+            if (found.Count > 0) return found;
+            SimpleLogger.Log($"[Tunnel] no public address for {host}; the tunnel will dial the hostname");
+            return Array.Empty<string>();
         }
 
         internal static List<IpsecStartAttempt> BuildAttempts(IEnumerable<TunnelTarget> targets)
+            => BuildAttempts(targets, Resolver);
+
+        internal static List<IpsecStartAttempt> BuildAttempts(IEnumerable<TunnelTarget> targets, Func<string, string, IReadOnlyList<string>> resolver)
         {
+            var list = (targets ?? Enumerable.Empty<TunnelTarget>()).ToList();
+            var resolved = list.AsParallel().AsOrdered().Select(target => AddressesFor(target, resolver)).ToArray();
             var attempts = new List<IpsecStartAttempt>();
-            foreach (var target in targets ?? Enumerable.Empty<TunnelTarget>())
+            for (int i = 0; i < list.Count; i++)
             {
-                attempts.Add(new IpsecStartAttempt
+                var target = list[i];
+                var attempt = new IpsecStartAttempt
                 {
                     Target = target,
                     Tag = target?.Tag ?? "",
                     Host = ServerHostOf(target),
-                    Addresses = AddressesFor(target)
-                });
+                    Addresses = resolved[i]
+                };
+                if (attempt.Addresses.Count > 0)
+                {
+                    attempt.Index = CursorOf(CursorKey(target)) % attempt.Addresses.Count;
+                }
+                attempts.Add(attempt);
             }
             return attempts;
         }
@@ -772,11 +897,14 @@ namespace CrimsonX.Services
         }
 
         internal static List<string> ServerCandidates(IEnumerable<TunnelTarget> targets)
+            => ServerCandidates(targets, Resolver);
+
+        internal static List<string> ServerCandidates(IEnumerable<TunnelTarget> targets, Func<string, string, IReadOnlyList<string>> resolver)
         {
             var candidates = new List<string>();
             foreach (var target in targets ?? Enumerable.Empty<TunnelTarget>())
             {
-                foreach (string address in AddressesFor(target))
+                foreach (string address in AddressesFor(target, resolver))
                 {
                     if (!candidates.Contains(address)) candidates.Add(address);
                 }

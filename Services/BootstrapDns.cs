@@ -63,27 +63,37 @@ namespace CrimsonX.Services
 
         private static readonly Dictionary<string, Entry> Cache = new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase);
 
+        private static readonly Dictionary<string, DateTime> FailedUntil = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+
         private static readonly object Sync = new object();
 
         private static HttpClient _client;
 
-        private static DateTime _cooldownUntilUtc;
+        private static readonly Dictionary<string, HttpClient> BoundClients = new Dictionary<string, HttpClient>(StringComparer.OrdinalIgnoreCase);
 
         internal static Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? Sender { get; set; }
 
-        public static IReadOnlyList<string> Resolve(string host)
+        public static IReadOnlyList<string> Resolve(string host) => Resolve(host, "");
+
+        public static IReadOnlyList<string> Resolve(string host, string sourceAddress)
         {
             if (string.IsNullOrWhiteSpace(host)) return Array.Empty<string>();
             host = host.Trim();
             if (IPAddress.TryParse(host, out _)) return new[] { host };
+            string source = (sourceAddress ?? "").Trim();
+            string key = source.Length > 0 ? host + "@" + source : host;
             lock (Sync)
             {
-                if (Cache.TryGetValue(host, out var cached) && cached.ExpiresUtc > DateTime.UtcNow) return cached.Addresses;
-                if (_cooldownUntilUtc > DateTime.UtcNow) return Array.Empty<string>();
+                if (Cache.TryGetValue(key, out var cached) && cached.ExpiresUtc > DateTime.UtcNow) return cached.Addresses;
+                if (FailedUntil.TryGetValue(key, out var failedUntil) && failedUntil > DateTime.UtcNow) return Array.Empty<string>();
             }
-            var addresses = ResolveCore(host);
+            var addresses = ResolveCore(host, source, key);
             if (addresses.Count == 0) return addresses;
-            lock (Sync) Cache[host] = new Entry { Addresses = addresses, ExpiresUtc = DateTime.UtcNow + Ttl };
+            lock (Sync)
+            {
+                Cache[key] = new Entry { Addresses = addresses, ExpiresUtc = DateTime.UtcNow + Ttl };
+                FailedUntil.Remove(key);
+            }
             return addresses;
         }
 
@@ -92,17 +102,18 @@ namespace CrimsonX.Services
             lock (Sync)
             {
                 Cache.Clear();
-                _cooldownUntilUtc = DateTime.MinValue;
+                FailedUntil.Clear();
             }
         }
 
-        private static IReadOnlyList<string> ResolveCore(string host)
+        private static IReadOnlyList<string> ResolveCore(string host, string sourceAddress, string key)
         {
+            var client = ClientFor(sourceAddress);
             foreach (var endpoint in Endpoints)
             {
                 try
                 {
-                    var found = QueryEndpoint(host, endpoint);
+                    var found = QueryEndpoint(host, endpoint, client);
                     if (found.Count > 0)
                     {
                         SimpleLogger.Log($"[DoH] {host} -> {string.Join(", ", found)} via {new Uri(endpoint.Url).Host}");
@@ -114,12 +125,12 @@ namespace CrimsonX.Services
                     SimpleLogger.Log($"[DoH] {endpoint.Url} could not answer for {host}: {ex.Message}");
                 }
             }
-            lock (Sync) _cooldownUntilUtc = DateTime.UtcNow + Cooldown;
-            SimpleLogger.Log($"[DoH] every resolver failed for {host}; skipping DoH for {(int)Cooldown.TotalMinutes} minutes");
+            lock (Sync) FailedUntil[key] = DateTime.UtcNow + Cooldown;
+            SimpleLogger.Log($"[DoH] every resolver failed for {host}; skipping DoH for that name for {(int)Cooldown.TotalMinutes} minutes");
             return Array.Empty<string>();
         }
 
-        private static IReadOnlyList<string> QueryEndpoint(string host, Endpoint endpoint)
+        private static IReadOnlyList<string> QueryEndpoint(string host, Endpoint endpoint, HttpClient client)
         {
             string url = endpoint.Url + "?name=" + Uri.EscapeDataString(host) + "&type=A";
             using var cts = new CancellationTokenSource(QueryTimeout);
@@ -128,11 +139,50 @@ namespace CrimsonX.Services
             if (endpoint.Host.Length > 0) request.Headers.TryAddWithoutValidation("host", endpoint.Host);
 
             Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> sender = Sender;
-            Task<HttpResponseMessage> pending = sender != null ? sender(request, cts.Token) : Client.SendAsync(request, cts.Token);
+            Task<HttpResponseMessage> pending = sender != null ? sender(request, cts.Token) : client.SendAsync(request, cts.Token);
             using var response = pending.GetAwaiter().GetResult();
             if (!response.IsSuccessStatusCode) return Array.Empty<string>();
             string body = response.Content.ReadAsStringAsync(cts.Token).GetAwaiter().GetResult();
             return ParseAnswers(body);
+        }
+
+        private static HttpClient ClientFor(string sourceAddress)
+        {
+            if (sourceAddress.Length == 0) return Client;
+            lock (Sync)
+            {
+                if (BoundClients.TryGetValue(sourceAddress, out var existing)) return existing;
+            }
+            IPAddress source;
+            if (!IPAddress.TryParse(sourceAddress, out source)) return Client;
+            var handler = new SocketsHttpHandler
+            {
+                ConnectTimeout = QueryTimeout,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                UseProxy = false,
+                ConnectCallback = async (context, token) =>
+                {
+                    var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+                    try
+                    {
+                        socket.Bind(new IPEndPoint(source, 0));
+                        await socket.ConnectAsync(context.DnsEndPoint, token).ConfigureAwait(false);
+                        return new NetworkStream(socket, true);
+                    }
+                    catch
+                    {
+                        socket.Dispose();
+                        throw;
+                    }
+                }
+            };
+            var bound = new HttpClient(handler) { Timeout = QueryTimeout };
+            lock (Sync)
+            {
+                if (BoundClients.Count >= 4) BoundClients.Clear();
+                BoundClients[sourceAddress] = bound;
+            }
+            return bound;
         }
 
         public static bool IsPrivateAddress(string value)

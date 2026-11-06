@@ -899,8 +899,9 @@ public partial class MainWindow
         var token = cts.Token;
         _ = Task.Run(() => CrimsonX.Services.TunnelHealthMonitor.RunAsync(
             () => _state.IsConnected,
-            () => _state.IsReconnecting || _tunnelRecovering,
-            group => _ = RecoverTunnelGroupAsync(group, token),
+            () => CrimsonX.Services.TunnelEngine.IsRebuilding,
+            hop => _ = OnTunnelHopLostAsync(hop, token),
+            () => OnTunnelsAnswered(),
             token));
     }
 
@@ -911,34 +912,65 @@ public partial class MainWindow
         _tunnelWatchCts = null;
     }
 
-    private async Task RecoverTunnelGroupAsync(string group, CancellationToken token)
+    private const int IpsecRecoveryAttempts = 4;
+
+    private async Task OnTunnelHopLostAsync(CrimsonX.Services.TunnelHealthMonitor.Hop hop, CancellationToken token)
+    {
+        if (hop == null || token.IsCancellationRequested || !_state.IsConnected) return;
+        bool main = string.Equals(hop.Group, CrimsonX.Services.TunnelEngine.GroupCustom, StringComparison.OrdinalIgnoreCase);
+        if (main)
+        {
+            _state.IsReconnecting = true;
+            SetConnectVisualState(true);
+        }
+        if (hop.Kind == CrimsonX.Services.TunnelHealthMonitor.HopKind.Ipsec)
+        {
+            await RecoverIpsecGroupAsync(hop.Group, token).ConfigureAwait(false);
+            return;
+        }
+        bool awg = hop.Kind == CrimsonX.Services.TunnelHealthMonitor.HopKind.Awg;
+        if (CrimsonX.Services.TunnelEngine.IsAlive(hop.Group, awg))
+        {
+            CrimsonX.Services.SimpleLogger.Log(
+                $"[Tunnel] ({hop.Group}) '{hop.Label}' is silent but its engine is alive; the client redials on its own, so it is left running.");
+            return;
+        }
+        await RestartTunnelEngineAsync(hop, token).ConfigureAwait(false);
+    }
+
+    private void OnTunnelsAnswered()
+    {
+        if (!_state.IsConnected) return;
+        _state.IsReconnecting = false;
+        CrimsonX.Services.SimpleLogger.Log("[Tunnel] every hop answers again; the session is back to connected.");
+        Dispatcher.UIThread.Post(() => SetConnectVisualState(false));
+    }
+
+    private async Task RecoverIpsecGroupAsync(string group, CancellationToken token)
     {
         if (!await _tunnelRecoveryLock.WaitAsync(0).ConfigureAwait(false)) return;
         _tunnelRecovering = true;
-        bool main = string.Equals(group, CrimsonX.Services.TunnelEngine.GroupCustom, StringComparison.OrdinalIgnoreCase);
         try
         {
-            var targets = CrimsonX.Services.TunnelEngine.ActiveTargets(group);
+            var targets = CrimsonX.Services.TunnelEngine.PlannedTargets(group)
+                .Where(t => t != null && t.Parsed != null && t.Parsed.RequiresIpsec).ToList();
             if (targets.Count == 0) return;
-            if (!_state.IsConnected || token.IsCancellationRequested) return;
-            CrimsonX.Services.SimpleLogger.Log($"[Tunnel] ({group}) recovering {targets.Count} tunnel(s) after a dead hop.");
-            if (main)
-            {
-                _state.IsReconnecting = true;
-                SetConnectVisualState(true);
-            }
+            CrimsonX.Services.SimpleLogger.Log(
+                $"[Tunnel] ({group}) restarting {targets.Count} IKEv2 tunnel(s) on their next address.");
             int delaySeconds = 10;
-            for (int attempt = 1; !token.IsCancellationRequested && _state.IsConnected; attempt++)
+            for (int attempt = 1; attempt <= IpsecRecoveryAttempts && !token.IsCancellationRequested && _state.IsConnected; attempt++)
             {
-                CrimsonX.Services.TunnelEngine.Stop(group);
+                CrimsonX.Services.IpsecTunnelEngine.Stop(group);
+                CrimsonX.Services.IpsecTunnelEngine.RotateToNextAddress(targets);
                 string startError = "";
-                bool started = await Task.Run(() => CrimsonX.Services.TunnelEngine.EnsureTargetsStarted(
-                    _cfg, group, targets, "", "", token, out startError), token).ConfigureAwait(false);
+                bool started = await Task.Run(() => CrimsonX.Services.IpsecTunnelEngine.EnsureStarted(
+                    _cfg, _cfg.SbDir, group, targets, token, out startError), token).ConfigureAwait(false);
                 if (!started)
-                    CrimsonX.Services.SimpleLogger.Log($"[Tunnel] ({group}) recovery attempt {attempt} failed: {startError}");
+                    CrimsonX.Services.SimpleLogger.Log($"[Tunnel] ({group}) ikev2 recovery attempt {attempt} failed: {startError}");
                 else if (await AwaitGroupHopsAsync(targets, token).ConfigureAwait(false))
                 {
-                    CrimsonX.Services.SimpleLogger.Log($"[Tunnel] ({group}) recovered on attempt {attempt}.");
+                    CrimsonX.Services.SimpleLogger.Log(
+                        $"[Tunnel] ({group}) ikev2 recovered on attempt {attempt} from a new address.");
                     return;
                 }
                 if (token.IsCancellationRequested || !_state.IsConnected) break;
@@ -946,15 +978,39 @@ public partial class MainWindow
                 catch { break; }
                 delaySeconds = Math.Min(30, delaySeconds + 10);
             }
+            if (_state.IsConnected && !token.IsCancellationRequested)
+                CrimsonX.Services.SimpleLogger.Log(
+                    $"[Tunnel] ({group}) ikev2 did not come back after {IpsecRecoveryAttempts} attempts; it keeps redialling on its own.");
         }
         finally
         {
             _tunnelRecovering = false;
-            if (main)
-            {
-                _state.IsReconnecting = false;
-                if (_state.IsConnected) SetConnectVisualState(false);
-            }
+            _tunnelRecoveryLock.Release();
+        }
+    }
+
+    private async Task RestartTunnelEngineAsync(CrimsonX.Services.TunnelHealthMonitor.Hop hop, CancellationToken token)
+    {
+        if (!await _tunnelRecoveryLock.WaitAsync(0).ConfigureAwait(false)) return;
+        _tunnelRecovering = true;
+        try
+        {
+            bool awg = hop.Kind == CrimsonX.Services.TunnelHealthMonitor.HopKind.Awg;
+            var targets = CrimsonX.Services.TunnelEngine.PlannedTargets(hop.Group)
+                .Where(t => t != null && t.Parsed?.RequiresIpsec != true && (t.Parsed?.RequiresAwg == true) == awg)
+                .ToList();
+            if (targets.Count == 0) return;
+            CrimsonX.Services.SimpleLogger.Log(
+                $"[Tunnel] ({hop.Group}) the tunnel engine exited; starting it again with the same config.");
+            string startError = "";
+            bool started = await Task.Run(() => CrimsonX.Services.TunnelEngine.EnsureTargetsStarted(
+                _cfg, hop.Group, targets, "", "", token, out startError), token).ConfigureAwait(false);
+            if (!started)
+                CrimsonX.Services.SimpleLogger.Log($"[Tunnel] ({hop.Group}) the tunnel engine could not be started again: {startError}");
+        }
+        finally
+        {
+            _tunnelRecovering = false;
             _tunnelRecoveryLock.Release();
         }
     }

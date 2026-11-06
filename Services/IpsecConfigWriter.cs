@@ -113,7 +113,10 @@ namespace CrimsonX.Services
             Copy(endpoint, tunnel, "ike_rekey");
             Copy(endpoint, tunnel, "dpd");
             string ownTimeout = endpoint["timeout"]?.ToString() ?? "";
-            string budget = ownTimeout.Trim().Length > 0 ? ownTimeout : (timeout ?? "");
+            string targetBudget = target?.Budget ?? "";
+            string budget = ownTimeout.Trim().Length > 0 ? ownTimeout
+                          : targetBudget.Trim().Length > 0 ? targetBudget
+                                                            : (timeout ?? "");
             if (budget.Trim().Length > 0) tunnel["timeout"] = budget.Trim();
             int mtu = ToInt(endpoint["mtu"]);
             if (mtu > 0) tunnel["mtu"] = mtu;

@@ -216,7 +216,7 @@ namespace CrimsonX.Services
             endpoint.Remove("bind_interface");
             endpoint.Remove("inet4_bind_address");
             endpoint.Remove("inet6_bind_address");
-            TunnelHostRepair.Apply(endpoint);
+            TunnelHostRepair.Apply(endpoint, TunnelResolver.SourceOf(config));
             endpoint["tag"]    = EndpointTag;
             endpoint["detour"] = TransportTag;
             chained = true;
