@@ -200,6 +200,10 @@ namespace CrimsonX.Pages
         {
             if (e.Property != ComboBox.TextProperty) return;
             if (_isInitializingSettings || _suppressConfigComboSync || ConfigBoxes.Suppressed) return;
+            var box = sender as ComboBox;
+            string raw = box?.Text ?? "";
+            if (string.Equals(box?.Name, ConfigComboName(2), StringComparison.Ordinal)) CrimsonX.Services.TunnelDrafts.SetSlot(2, raw);
+            else if (string.Equals(box?.Name, ConfigComboName(1), StringComparison.Ordinal)) CrimsonX.Services.TunnelDrafts.SetSlot(1, raw);
             MarkCustomConfigsTextDirty();
         }
 
@@ -208,6 +212,7 @@ namespace CrimsonX.Pages
             if (e.Property != ComboBox.TextProperty) return;
             if (_isInitializingSettings || _suppressConfigComboSync || ConfigBoxes.Suppressed) return;
             string text = ((sender as ComboBox)?.Text ?? "").Trim();
+            CrimsonX.Services.TunnelDrafts.SetExitNode(text);
             _exitNodeNoneSelected = string.Equals(text, CrimsonX.Localization.AppStrings.CustomProxyNone, StringComparison.Ordinal);
             MarkExitNodeDirty();
         }
