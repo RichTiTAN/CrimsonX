@@ -1360,29 +1360,23 @@ namespace CrimsonX.Services
             int okCount = 0;
             using (var probeSocket = new UdpClient())
             {
-                if (warmUpFirst)
+                bool measure = !warmUpFirst || await WarmUpAsync(udpPort, probeSocket, ct, stun).ConfigureAwait(false);
+                if (measure)
                 {
-                    if (await WarmUpAsync(udpPort, probeSocket, ct, stun).ConfigureAwait(false))
-                    {
-                        var (ok, rtt) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun).ConfigureAwait(false);
-                        if (ok)
-                        {
-                            okCount++;
-                            bestPing = rtt;
-                        }
-                    }
-                }
-                else
-                {
+                    var samples = new long[ProbeAttempts];
+                    int taken = 0;
                     for (int i = 0; i < ProbeAttempts; i++)
                     {
                         ct.ThrowIfCancellationRequested();
                         var (ok, rtt) = await ProbeUdpAsync(udpPort, ct, TimeoutMs, probeSocket, requireNtpReply: !stun, stun: stun).ConfigureAwait(false);
-                        if (ok)
-                        {
-                            okCount++;
-                            if (rtt < bestPing) bestPing = rtt;
-                        }
+                        if (!ok) continue;
+                        okCount++;
+                        samples[taken++] = rtt;
+                    }
+                    if (taken > 0)
+                    {
+                        Array.Sort(samples, 0, taken);
+                        bestPing = warmUpFirst ? MedianOfSorted(samples, taken) : samples[0];
                     }
                 }
             }
@@ -1400,6 +1394,9 @@ namespace CrimsonX.Services
                 if (realPing > 0) res.Ping = realPing;
             }
         }
+
+        internal static long MedianOfSorted(long[] sorted, int count)
+            => count % 2 == 1 ? sorted[count / 2] : (sorted[count / 2 - 1] + sorted[count / 2]) / 2;
 
         private static async Task ProbeOverTcpAsync(ConfigTestResult res, int httpPort, CancellationToken ct)
         {

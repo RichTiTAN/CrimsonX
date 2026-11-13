@@ -131,6 +131,7 @@
         </Style>
         <Style Selector="ScrollViewer">
             <Setter Property="(behaviors:SmoothScrollBehavior.IsEnabled)" Value="True"/>
+            <Setter Property="(behaviors:SmoothScrollBehavior.Step)" Value="85"/>
             <Setter Property="BringIntoViewOnFocusChange" Value="False"/>
         </Style>
     

@@ -30,7 +30,7 @@ namespace CrimsonX.Services
 {
     public static class UpdateService
     {
-        public const string AppVersion = "3.3.1";
+        public const string AppVersion = "3.3.2";
         
         private static HttpClient BuildClient(TimeSpan timeout, bool throughApp)
         {

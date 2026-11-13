@@ -867,6 +867,13 @@ public partial class MainWindow
             CrimsonX.Services.SimpleLogger.Log("[Connect] the connect was cancelled before it finished; no error is shown.");
             StopAllEngines();
         }
+        catch (CrimsonX.Services.TunnelStartException ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+            CrimsonX.Services.SimpleLogger.Log("[Connect] the tunnel start failed: " + ex.Detail);
+            ShowToast(ex.Message, ToastKind.Error);
+            StopAllEngines();
+        }
         catch (Exception ex)
         {
             CrimsonX.Services.SimpleLogger.Log(ex);
@@ -912,7 +919,7 @@ public partial class MainWindow
         _tunnelWatchCts = null;
     }
 
-    private const int IpsecRecoveryAttempts = 4;
+    private const int IpsecGraceSeconds = 5;
 
     private async Task OnTunnelHopLostAsync(CrimsonX.Services.TunnelHealthMonitor.Hop hop, CancellationToken token)
     {
@@ -958,8 +965,26 @@ public partial class MainWindow
             CrimsonX.Services.SimpleLogger.Log(
                 $"[Tunnel] ({group}) restarting {targets.Count} IKEv2 tunnel(s) on their next address.");
             int delaySeconds = 10;
-            for (int attempt = 1; attempt <= IpsecRecoveryAttempts && !token.IsCancellationRequested && _state.IsConnected; attempt++)
+            for (int attempt = 1; !token.IsCancellationRequested && _state.IsConnected; attempt++)
             {
+                string engineState = CrimsonX.Services.IpsecTunnelEngine.EngineStateOf(group);
+                bool engineClaimsUp = CrimsonX.Services.IpsecTunnelEngine.IsRunning(group)
+                    && (engineState == "up" || engineState == "starting");
+                if (engineClaimsUp)
+                {
+                    try { await Task.Delay(TimeSpan.FromSeconds(IpsecGraceSeconds), token).ConfigureAwait(false); }
+                    catch { break; }
+                    if (await AwaitGroupHopsAsync(targets, token).ConfigureAwait(false))
+                    {
+                        CrimsonX.Services.SimpleLogger.Log(
+                            $"[Tunnel] ({group}) the running IKEv2 engine answered on attempt {attempt} " +
+                            $"(state: {engineState}); no restart was needed.");
+                        return;
+                    }
+                    CrimsonX.Services.SimpleLogger.Log(
+                        $"[Tunnel] ({group}) the IKEv2 engine reported {engineState} but stayed silent; " +
+                        "it is restarted on its next address.");
+                }
                 CrimsonX.Services.IpsecTunnelEngine.Stop(group);
                 CrimsonX.Services.IpsecTunnelEngine.RotateToNextAddress(targets);
                 string startError = "";
@@ -978,9 +1003,6 @@ public partial class MainWindow
                 catch { break; }
                 delaySeconds = Math.Min(30, delaySeconds + 10);
             }
-            if (_state.IsConnected && !token.IsCancellationRequested)
-                CrimsonX.Services.SimpleLogger.Log(
-                    $"[Tunnel] ({group}) ikev2 did not come back after {IpsecRecoveryAttempts} attempts; it keeps redialling on its own.");
         }
         finally
         {

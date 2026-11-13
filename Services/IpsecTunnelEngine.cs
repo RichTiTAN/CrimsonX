@@ -404,7 +404,9 @@ namespace CrimsonX.Services
                 }
                 if (!AdvanceFailed(attempts, tag => states.TryGetValue(tag, out string state) ? state : ""))
                 {
-                    SimpleLogger.Log($"[Tunnel] ({group}) ikev2 {dialing} failed ({error}); no address is left to try.");
+                    SimpleLogger.Log($"[Tunnel] ({group}) ikev2 {dialing} failed ({error}); every address was tried, " +
+                                     "the next round starts over from the first address.");
+                    StartNextRound(attempts);
                     break;
                 }
                 PersistCursors(attempts);
@@ -697,6 +699,16 @@ namespace CrimsonX.Services
             return "";
         }
 
+        public static string EngineStateOf(string group)
+        {
+            lock (Sync)
+            {
+                var state = State(group);
+                if (!IsRunningLocked(state) || string.IsNullOrWhiteSpace(state.Dir)) return "";
+                return ReadStatusState(Path.Combine(state.Dir, "status.json"));
+            }
+        }
+
         private sealed class StatusEntry
         {
             public string Tag = "";
@@ -804,6 +816,16 @@ namespace CrimsonX.Services
             {
                 if (attempt?.Target == null) continue;
                 SetCursor(CursorKey(attempt.Target), attempt.Index);
+            }
+        }
+
+        internal static void StartNextRound(IEnumerable<IpsecStartAttempt> attempts)
+        {
+            foreach (var attempt in attempts ?? Enumerable.Empty<IpsecStartAttempt>())
+            {
+                if (attempt?.Target == null) continue;
+                attempt.Index = 0;
+                SetCursor(CursorKey(attempt.Target), 0);
             }
         }
 

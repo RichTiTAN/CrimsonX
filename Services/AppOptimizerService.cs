@@ -37,18 +37,22 @@ namespace CrimsonX.Services
 
     public static class AppOptimizerService
     {
-        public const int WorkingGoal = 10;
+        public const int WorkingGoal = 15;
         public const int MinimumUsable = 4;
         public const int PatientSources = 3;
         public const int ConnectingConcurrency = 5;
         public const int ConnectedConcurrency = 10;
 
         private const long PingToleranceMs = 20;
-        private const int MinStabilityPercent = 80;
+        internal const int MinStabilityPercent = 100;
+        private const int FallbackStabilityPercent = 80;
         private const int StabilityDurationMs = 10000;
-        private const int StabilityIntervalMs = 500;
+        private const int StabilityIntervalMs = 250;
 
-        internal const long MaxPingMs = 300;
+        internal const long MaxPingMs = 200;
+        internal const int StabilityRejected = 0;
+        internal const int StabilityFallback = 1;
+        internal const int StabilityPerfect = 2;
 
         internal static bool TooSlow(ConfigTestResult result) => SortPing(result) >= MaxPingMs;
 
@@ -75,6 +79,12 @@ namespace CrimsonX.Services
 
             var collected = new List<ConfigTestResult>();
             var tried = new HashSet<string>(StringComparer.Ordinal);
+            AppOptimizeResult fallback = null;
+            long fallbackPing = long.MaxValue;
+            int fallbackRate = 0;
+            int fallbackOk = 0;
+            int fallbackSent = 0;
+            string fallbackPlace = "?";
             int sourceCount = Math.Max(1, main.ScanWorkerSourceCount + 1);
             int sourceIndex = -1;
             int sourcesRead = 0;
@@ -104,6 +114,14 @@ namespace CrimsonX.Services
                              : "?";
                 string count = collected.Count == 1 ? "1 working config found" : $"{collected.Count} working configs found";
                 LogLine($"{count} - best {SortPing(best)} ms ({place})");
+            }
+
+            AppOptimizeResult TakeFallback()
+            {
+                if (fallback == null) return null;
+                LogLine($"no config answered every probe - fell back to {fallbackPing} ms ({fallbackPlace}) at {fallbackRate}% stable ({fallbackOk}/{fallbackSent})");
+                Report(1.0);
+                return fallback;
             }
 
             async Task<bool> FetchFromSourceAsync()
@@ -204,7 +222,8 @@ namespace CrimsonX.Services
                         : await ConfigTester.TestUdpStabilityAsync(
                             key, cfg, ct, StabilityDurationMs, StabilityIntervalMs, null, adapterIp, stun: true);
                     Report(Math.Min(0.95, 0.6 + 0.35 * tried.Count / (double)Math.Max(1, collected.Count)));
-                    if (!PassesStability(candidate, stability)) continue;
+                    int rank = StabilityRank(candidate, stability);
+                    if (rank == StabilityRejected) continue;
                     string raw = string.IsNullOrWhiteSpace(candidate.Link) ? candidate.OutboundJson : candidate.Link;
                     string chained = raw;
                     if (alternate)
@@ -231,15 +250,27 @@ namespace CrimsonX.Services
                         carries = AppRulesCanCarry(cfg, raw);
                     }
                     if (!carries) continue;
-                    LogLine($"accepted {SortPing(candidate)} ms ({testingPlace}) - {(int)Math.Round(stability.SuccessRate * 100)}% stable");
-                    Report(1.0);
-                    return BuildResult(candidate, stability, chained);
+                    if (rank == StabilityPerfect)
+                    {
+                        LogLine($"accepted {SortPing(candidate)} ms ({testingPlace}) - {(int)Math.Round(stability.SuccessRate * 100)}% stable ({stability.Ok}/{stability.Sent})");
+                        Report(1.0);
+                        return BuildResult(candidate, stability, chained);
+                    }
+                    if (SortPing(candidate) < fallbackPing)
+                    {
+                        fallback = BuildResult(candidate, stability, chained);
+                        fallbackPing = SortPing(candidate);
+                        fallbackRate = (int)Math.Round(stability.SuccessRate * 100);
+                        fallbackOk = stability.Ok;
+                        fallbackSent = stability.Sent;
+                        fallbackPlace = testingPlace;
+                    }
                 }
 
                 if (collected.Count >= WorkingGoal)
                 {
                     LogLine($"no stable config in {collected.Count}, abandoned");
-                    return null;
+                    return TakeFallback();
                 }
 
                 if (exhausted)
@@ -247,7 +278,7 @@ namespace CrimsonX.Services
                     LogLine(collected.Count == 0
                         ? $"no working config found ({sourcesRead} source(s) read)"
                         : $"no stable config in {collected.Count} found");
-                    return null;
+                    return TakeFallback();
                 }
             }
             return null;
@@ -288,13 +319,17 @@ namespace CrimsonX.Services
             => result == null ? long.MaxValue : (result.UdpPing > 0 ? result.UdpPing : result.Ping);
 
         public static bool PassesStability(ConfigTestResult candidate, UdpStabilityResult stability)
+            => StabilityRank(candidate, stability) == StabilityPerfect;
+
+        public static int StabilityRank(ConfigTestResult candidate, UdpStabilityResult stability)
         {
-            if (candidate == null || stability == null || !stability.HasSamples || stability.Ok == 0) return false;
-            int rate = (int)Math.Round(stability.SuccessRate * 100);
-            if (rate < MinStabilityPercent) return false;
+            if (candidate == null || stability == null || !stability.HasSamples || stability.Ok == 0) return StabilityRejected;
             long basePing = candidate.UdpPing > 0 ? candidate.UdpPing : candidate.Ping;
-            if (basePing <= 0 || stability.AvgPingMs <= 0) return false;
-            return stability.AvgPingMs <= basePing + PingToleranceMs;
+            if (basePing <= 0 || stability.AvgPingMs <= 0) return StabilityRejected;
+            if (stability.AvgPingMs > basePing + PingToleranceMs) return StabilityRejected;
+            int rate = (int)Math.Round(stability.SuccessRate * 100);
+            if (stability.Ok == stability.Sent && rate >= MinStabilityPercent) return StabilityPerfect;
+            return rate >= FallbackStabilityPercent ? StabilityFallback : StabilityRejected;
         }
 
         internal static bool AppRulesCanCarry(AppConfig cfg, string raw)

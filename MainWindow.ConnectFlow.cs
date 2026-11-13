@@ -210,7 +210,7 @@ namespace CrimsonX
                                 if (port == null)
                                 {
                                     CrimsonX.Services.SimpleLogger.Log($"[Connect] Tunnel '{item.Tunnel.Label}' has no socks port in the engine; it cannot be added to the xray config.");
-                                    Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelFailed, ToastKind.Error));
+                                    Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelNoPort, ToastKind.Error));
                                     continue;
                                 }
                                 string socksJson = CrimsonX.Services.TunnelEngine.BuildXraySocksOutbound(port.Value)
@@ -242,9 +242,8 @@ namespace CrimsonX
                         else
                         {
                             CrimsonX.Services.SimpleLogger.Log($"[Connect] Tunnel engine failed after retries: {tunnelError}");
-                            if (!ct.IsCancellationRequested)
-                                Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelFailed, ToastKind.Error));
-                            throw new Exception("The custom tunnel could not be started: " + tunnelError);
+                            throw new CrimsonX.Services.TunnelStartException(
+                                CrimsonX.Services.TunnelFailureText.Friendly(tunnelError), tunnelError);
                         }
                     }
                 }
@@ -271,7 +270,8 @@ namespace CrimsonX
                 {
                     CrimsonX.Services.SimpleLogger.Log($"[Connect] App-rule tunnel group failed: {rulesError}");
                     if (!ct.IsCancellationRequested)
-                        Dispatcher.UIThread.Post(() => ShowToast(CrimsonX.Localization.AppStrings.ToastTunnelFailed, ToastKind.Error));
+                        Dispatcher.UIThread.Post(() => ShowToast(
+                            CrimsonX.Services.TunnelFailureText.Friendly(rulesError), ToastKind.Error));
                 }
             }
             else
