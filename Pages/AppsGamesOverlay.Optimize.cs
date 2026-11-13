@@ -1143,7 +1143,11 @@ namespace CrimsonX.Pages
             AppOptimizeStore.Save(_optState);
             ApplyOptimizeToChosenRules();
             if (_optState.Choices.Any(c => c.Chosen) && _state.IsEngineRunning) _optApplyRestartPending = true;
-            MainWindow.Instance?.ShowToast(string.Format(AS.ToastOptimizeReady, _optFoundPingMs), ToastKind.Success);
+            MainWindow.Instance?.ShowToast(
+                result.StabilityPercent >= AppOptimizerService.MinStabilityPercent
+                    ? string.Format(AS.ToastOptimizeReady, _optFoundPingMs)
+                    : string.Format(AS.ToastOptimizeFallback, _optFoundPingMs, result.StabilityPercent),
+                ToastKind.Success);
         }
 
         private void OptimizeRowPass()

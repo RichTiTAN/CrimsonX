@@ -555,8 +555,28 @@ namespace CrimsonX.Localization
             : "This OpenVPN config needs a username and password";
 
         public static string ToastTunnelFailed => IsPersian
-            ? "اجرای تانل اپن وی پی ان / وایرگارد ناموفق بود"
-            : "OpenVPN / WireGuard tunnel failed to start";
+            ? "تانل اجرا نشد"
+            : "The tunnel could not be started";
+
+        public static string ToastTunnelServerSilent => IsPersian
+            ? "سرور تانل پاسخ نداد"
+            : "The tunnel server did not answer";
+
+        public static string ToastTunnelLoginRejected => IsPersian
+            ? "سرور نام کاربری یا رمز را نپذیرفت"
+            : "The server rejected the username or password";
+
+        public static string ToastTunnelEngineMissing => IsPersian
+            ? "موتور تانل نصب نیست؛ برنامه را دوباره نصب کنید"
+            : "The tunnel engine is missing - reinstall CrimsonX";
+
+        public static string ToastTunnelConfigInvalid => IsPersian
+            ? "این کانفیگ تانل اجرا نمیشود"
+            : "This tunnel config could not be started";
+
+        public static string ToastTunnelNoPort => IsPersian
+            ? "پورت آزاد برای تانل پیدا نشد"
+            : "No free local port for the tunnel";
 
         public static string BrowseBtn => IsPersian ? "انتخاب فایل" : "BROWSE";
 
@@ -573,8 +593,8 @@ namespace CrimsonX.Localization
             : "OpenVPN / WireGuard exit nodes only chain in VPN mode.";
 
         public static string ToastExitNodeFailed => IsPersian
-            ? "اتصال به نود خروجی برقرار نشد؛ بدون آن متصل شدید."
-            : "The exit node did not come up - connected without it.";
+            ? "نود خروجی پاسخ نداد؛ ترافیک روی xray است."
+            : "The exit node did not answer - traffic stays on xray.";
 
         public static string ToastExitNodeLocationFailed => IsPersian
             ? "location پاسخ نداد - بازگشت به خودکار"
@@ -746,6 +766,7 @@ namespace CrimsonX.Localization
         public static string ToastOptimizeFailed => IsPersian ? "بهینه سازی ناموفق بود - کانفیگ پایداری پیدا نشد." : "Optimization failed - no stable config was found.";
 
         public static string ToastOptimizeReady => IsPersian ? "بهینه شد • {0} میلی ثانیه" : "Optimized • {0} ms";
+        public static string ToastOptimizeFallback => IsPersian ? "بهترین گزینه • {0} میلی ثانیه • {1}٪ پایدار" : "Best available • {0} ms • {1}% stable";
 
         // ── Settings - System ──
 
