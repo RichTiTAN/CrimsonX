@@ -691,6 +691,22 @@
                                                       </Grid>
                                                 </StackPanel>
                                             </Border>
+                                            <Border x:Name="panWarpProtocol" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,6,0,0">
+                                                <Grid ColumnDefinitions="*,Auto" MinHeight="36">
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                                        <PathIcon Data="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z" Width="14" Height="14" Foreground="#8B949E"/>
+                                                        <TextBlock x:Name="lblWarpProtocol" Classes="settingTitle" Text="WARP PROTOCOL" FontSize="11" FontWeight="SemiBold" LetterSpacing="1" VerticalAlignment="Center" ToolTip.Tip="{x:Static loc:AppStrings.TtWarpProtocol}"/>
+                                                    </StackPanel>
+                                                    <ComboBox x:Name="cmbWarpProtocol" Grid.Column="1" Width="143" Padding="8,0" FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center" MinHeight="26" Height="26" FontSize="11" VerticalContentAlignment="Center" SelectionChanged="cmbWarpProtocol_SelectionChanged" Background="#0A0C0F" Foreground="#E2E8F0" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4">
+                                                        <ComboBoxItem Content="MASQUE HTTP/2" Tag="masque-h2"/>
+                                                        <ComboBoxItem Content="MASQUE HTTP/3" Tag="masque-h3"/>
+                                                        <ComboBoxItem Content="WIREGUARD" Tag="wg"/>
+                                                        <ComboBoxItem Content="GOOL" Tag="gool"/>
+                                                        <ComboBoxItem Content="GOOL CLASSIC" Tag="gool-classic"/>
+                                                        <ComboBoxItem Content="MIM" Tag="mim"/>
+                                                    </ComboBox>
+                                                </Grid>
+                                            </Border>
                                         </StackPanel>
                                         <StackPanel Spacing="0">
                                             <Border x:Name="panUdpCapableToggle" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="12,8">

@@ -98,6 +98,9 @@ namespace CrimsonX.Models
         public string SelectedAdapterName { get; set; } = "";
         public string SelectedAdapterIp { get; set; } = "";
 
+        public bool EnableWarp { get; set; } = false;
+        public string WarpProtocol { get; set; } = "masque-h2";
+
         public bool EnableLoadBalanceAdapters { get; set; } = false;
 
         public bool EnableUdpCapableNodes { get; set; } = true;

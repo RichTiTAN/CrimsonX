@@ -1014,6 +1014,14 @@ namespace CrimsonX.Localization
 
         // ── Tooltips ──
 
+        public static string TtWarpTile => IsPersian
+            ? "همه ترافیک کانفیگ و تونل را از Cloudflare WARP عبور بده."
+            : "Route all config and tunnel traffic through Cloudflare WARP.";
+
+        public static string TtWarpProtocol => IsPersian
+            ? "پروتکل اتصال Aether به Cloudflare WARP را انتخاب می کند. MASQUE HTTP/2 پیش فرض است."
+            : "Chooses the protocol Aether uses to reach Cloudflare WARP. MASQUE HTTP/2 is the default.";
+
         public static string TtLbPolicy         => IsPersian ? "کنترل نحوه توزیع اتصالات توسط Xray بین پروکسی های شما." : "Controls how Xray distributes connections across your proxy nodes.";
 
         public static string TtLbLeastLoad      => IsPersian ? "هر اتصال جدید را به کم بارترین پروکسی هدایت می کند. بهترین برای ترافیک ترکیبی با حجم های متغیر." : "Distributes each new connection to the least-loaded proxy node. Best for mixed traffic with varying connection size.";

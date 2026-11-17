@@ -63,11 +63,31 @@ namespace CrimsonX.Pages
 
         // ── Page Sync & Localization ──
 
+        public void SyncWarpUI()
+        {
+            var cmb = this.FindControl<ComboBox>("cmbWarpProtocol");
+            if (cmb == null) return;
+            bool previous = _isInitializingSettings;
+            _isInitializingSettings = true;
+            try
+            {
+                string protocol = CrimsonX.Services.WarpProtocols.Normalise(
+                    MainWindow.Instance?.Config.WarpProtocol);
+                int index = Array.IndexOf(CrimsonX.Services.WarpProtocols.All, protocol);
+                cmb.SelectedIndex = index >= 0 ? index : 0;
+            }
+            finally
+            {
+                _isInitializingSettings = previous;
+            }
+        }
+
         public void SyncUI()
     {
         _isInitializingSettings = true;
         try 
         {
+            SyncWarpUI();
             RefreshCurrentLbPolicyLabel();
             var _cfg = MainWindow.Instance.Config;
             var cmbStartup = this.FindControl<global::Avalonia.Controls.ComboBox>("cmbStartupTab");
@@ -1051,6 +1071,20 @@ namespace CrimsonX.Pages
             RefreshLbAdapterCombos();
             if (!string.IsNullOrWhiteSpace(picked) && MainWindow.Instance.State.IsEngineRunning)
                 MainWindow.Instance.ShowToast(CrimsonX.Localization.AppStrings.ToastReconnectChanges);
+        }
+
+        private void cmbWarpProtocol_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
+        {
+            if (_isInitializingSettings) return;
+            if (sender is not ComboBox cmb || cmb.SelectedIndex < 0) return;
+            int index = Math.Min(cmb.SelectedIndex, CrimsonX.Services.WarpProtocols.All.Length - 1);
+            string protocol = CrimsonX.Services.WarpProtocols.All[index];
+            var window = MainWindow.Instance;
+            if (window == null || string.Equals(window.Config.WarpProtocol, protocol, StringComparison.Ordinal)) return;
+            window.Config.WarpProtocol = protocol;
+            window.RequestSave();
+            if (window.State.IsEngineRunning)
+                window.ShowToast("Reconnect to apply the WARP protocol.", CrimsonX.ToastKind.Info);
         }
 
         private void cmbLbPolicy_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
