@@ -49,6 +49,8 @@ namespace CrimsonX.Services
         public string ServerOverride { get; set; } = "";
 
         public string Budget { get; set; } = "";
+
+        public WarpEndpoint? WarpEndpoint { get; set; }
     }
 
     public enum TunnelTestState
@@ -783,13 +785,16 @@ namespace CrimsonX.Services
 
         // ── Config generation ───────────────────────────────────────────────────────────────
 
-        private static JObject BuildConfig(AppConfig? cfg, List<TunnelTarget> targets, List<TunnelObfuscator> relays)
+        internal static JObject BuildConfig(AppConfig? cfg, List<TunnelTarget> targets, List<TunnelObfuscator> relays, WarpPlan? warp = null)
         {
+            warp ??= WarpService.CurrentPlan;
             var inbounds = new JArray();
             var endpoints = new JArray();
             var routeRules = new JArray();
             var dnsServers = new JArray();
             var dnsRules = new JArray();
+            var outbounds = new JArray { new JObject { ["type"] = "direct", ["tag"] = "direct" } };
+            var warpTags = new HashSet<string>(StringComparer.Ordinal);
             bool usesIpv6 = false;
             foreach (var target in targets)
             {
@@ -811,6 +816,21 @@ namespace CrimsonX.Services
                 TunnelObfuscator.Apply(cfg, target, endpoint, relays, out string obfuscationError);
                 if (obfuscationError.Length > 0)
                     SimpleLogger.Log($"[Obfuscation] '{target.Parsed?.Label}' keeps a direct dial: {obfuscationError}");
+                var warpEndpoint = WarpForTunnel(target, warp);
+                if (warpEndpoint != null)
+                {
+                    endpoint.Remove("bind_interface");
+                    endpoint.Remove("inet4_bind_address");
+                    endpoint.Remove("inet6_bind_address");
+                    if ((endpoint["detour"]?.ToString() ?? "").Length == 0)
+                        endpoint["detour"] = warpEndpoint.Tag;
+                    if (warpTags.Add(warpEndpoint.Tag))
+                    {
+                        var warpOutbound = BuildSingboxSocksOutbound(warpEndpoint.SocksPort);
+                        warpOutbound["tag"] = warpEndpoint.Tag;
+                        outbounds.Add(warpOutbound);
+                    }
+                }
                 endpoints.Add(endpoint);
                 routeRules.Add(new JObject
                 {
@@ -859,7 +879,7 @@ namespace CrimsonX.Services
                 },
                 ["inbounds"] = inbounds,
                 ["endpoints"] = endpoints,
-                ["outbounds"] = new JArray { new JObject { ["type"] = "direct", ["tag"] = "direct" } },
+                ["outbounds"] = outbounds,
                 ["route"] = new JObject
                 {
                     ["rules"] = routeRules,
@@ -870,6 +890,16 @@ namespace CrimsonX.Services
         }
 
         // ── Helpers ─────────────────────────────────────────────────────────────────────────
+
+        private static WarpEndpoint? WarpForTunnel(TunnelTarget target, WarpPlan? warp = null)
+        {
+            warp ??= WarpService.CurrentPlan;
+            if (warp == null || !warp.Active) return null;
+            return target.WarpEndpoint
+                ?? warp.ForAdapter(target.AdapterName, target.AdapterIp)
+                ?? warp.Default
+                ?? warp.Endpoints.FirstOrDefault();
+        }
 
         private static string GroupDir(string group)
             => string.Equals(group?.Trim(), GroupRules, StringComparison.OrdinalIgnoreCase) ? GroupRules : GroupCustom;

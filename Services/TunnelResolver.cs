@@ -50,6 +50,8 @@ namespace CrimsonX.Services
 
         internal static Func<string, string, IReadOnlyList<string>> System { get; set; } = SystemDns;
 
+        internal static Func<string, string, IReadOnlyList<string>>? WarpDoh { get; set; }
+
         public static string SourceOf(TunnelTarget target)
             => target == null ? "" : SourceFor(target.AdapterName, target.AdapterIp);
 
@@ -76,7 +78,8 @@ namespace CrimsonX.Services
             if (IPAddress.TryParse(name, out _))
                 return new Result { Addresses = new[] { name }, Layer = "literal" };
 
-            string key = name + "@" + source;
+            bool warp = WarpDoh != null;
+            string key = name + "@" + source + (warp ? "@warp" : "");
             lock (Sync)
             {
                 if (Cache.TryGetValue(key, out var cached) && cached.ExpiresUtc > DateTime.UtcNow) return cached.Value;
@@ -84,12 +87,11 @@ namespace CrimsonX.Services
 
             bool poisoned = false;
             var failed = new List<string>();
-            var layers = new (string Name, Func<string, string, IReadOnlyList<string>> Run)[]
-            {
-                ("DoH", Doh),
-                ("plain DNS", Plain),
-                ("system DNS", System)
-            };
+            var layers = new List<(string Name, Func<string, string, IReadOnlyList<string>> Run)>();
+            if (WarpDoh != null) layers.Add(("WARP DoH", WarpDoh));
+            layers.Add(("DoH", Doh));
+            layers.Add(("plain DNS", Plain));
+            layers.Add(("system DNS", System));
             foreach (var layer in layers)
             {
                 if (layer.Run == null) continue;

@@ -208,6 +208,18 @@ namespace CrimsonX.Services
             if (source.Length > 0) outbound["sendThrough"] = source;
         }
 
+        public static void ClearXrayBinding(JObject outbound)
+        {
+            if (outbound == null) return;
+            outbound.Remove("sendThrough");
+            if (outbound["streamSettings"] is JObject stream && stream["sockopt"] is JObject sockopt)
+            {
+                sockopt.Remove("dialerProxy");
+                if (sockopt.Count == 0) stream.Remove("sockopt");
+                if (stream.Count == 0) outbound.Remove("streamSettings");
+            }
+        }
+
         public static void ApplySingboxBinding(JObject target, AdapterBinding binding)
         {
             if (target == null || binding == null || !binding.HasAny) return;

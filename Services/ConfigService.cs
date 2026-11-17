@@ -87,6 +87,8 @@ namespace CrimsonX.Services
                 QuickSetting2 = config.QuickSetting2,
                 LastAppVersion = config.LastAppVersion,
                 SelectedAdapterIp = config.SelectedAdapterIp,
+                EnableWarp = config.EnableWarp,
+                WarpProtocol = config.WarpProtocol,
                 EnableUpstreamDoh = config.EnableUpstreamDoh,
                 UpstreamDohUrl = config.UpstreamDohUrl,
                 EnableSystemDns = config.EnableSystemDns,

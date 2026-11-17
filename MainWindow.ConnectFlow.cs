@@ -55,6 +55,66 @@ namespace CrimsonX
 
         private static string CustomSlotId(int slot, string key) => "slot" + slot + "|" + (key ?? "");
 
+        private async Task<(List<string> Configs, List<WarpEndpoint?> Nodes)> VerifyWarpFinalistsAsync(
+            List<string> topConfigs, List<string> pool, WarpPlan plan, CancellationToken ct)
+        {
+            if (topConfigs.Count == 0 || plan.ConfigEndpoints.Count == 0)
+                return (topConfigs, new List<WarpEndpoint?>());
+
+            var candidates = topConfigs
+                .Concat(pool)
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            var chosen = new List<string>();
+            var nodes = new List<WarpEndpoint?>();
+            int endpointCount = Math.Min(topConfigs.Count, plan.ConfigEndpoints.Count);
+            for (int i = 0; i < endpointCount; i++)
+            {
+                var endpoint = plan.ConfigEndpoints[i];
+                try
+                {
+                    await CrimsonX.Services.WarpService.EnsureEndpointAsync(endpoint, ct);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (CrimsonX.Services.WarpStartException ex)
+                {
+                    CrimsonX.Services.SimpleLogger.Log($"[WARP] finalist endpoint failed: {ex.Message}");
+                    continue;
+                }
+
+                int probes = 0;
+                foreach (string candidate in candidates)
+                {
+                    if (chosen.Contains(candidate)) continue;
+                    if (++probes > 6) break;
+                    var result = await CrimsonX.Services.ConfigTester.TestConfigAsync(
+                        candidate, _cfg, ct, fetchGeo: false, verifyFlow: true, warp: endpoint);
+                    if (result.Success && result.Flowed)
+                    {
+                        chosen.Add(candidate);
+                        nodes.Add(endpoint);
+                        break;
+                    }
+                }
+            }
+
+            if (chosen.Count == 0)
+            {
+                CrimsonX.Services.SimpleLogger.Log("[WARP] finalist verification failed; keeping the normal selection.");
+                return (topConfigs, new List<WarpEndpoint?>());
+            }
+
+            foreach (string candidate in topConfigs)
+            {
+                if (chosen.Contains(candidate)) continue;
+                chosen.Add(candidate);
+                nodes.Add(null);
+            }
+            CrimsonX.Services.SimpleLogger.Log($"[WARP] finalists verified on {nodes.Count(node => node != null)} WARP endpoint(s).");
+            return (chosen, nodes);
+        }
+
     // ── Dynamic Connect Pipeline ──
 
         private async Task RunDynamicPipelineAsyncCore()
@@ -111,10 +171,35 @@ namespace CrimsonX
             await UpdateLanIpAsync();
             await CrimsonX.Services.SystemDnsService.ApplyAsync(_cfg);
             Dispatcher.UIThread.Post(() => SetConnectButtonProgress(ConnectProgress.Preparing));
+            WarpPlan? warp = null;
+            if (_cfg.EnableWarp)
+            {
+                try
+                {
+                    warp = await Task.Run(() => CrimsonX.Services.WarpService.StartAsync(_cfg, ct), ct);
+                    if (warp.Active && warp.FallbackReason.Length > 0)
+                    {
+                        CrimsonX.Services.SimpleLogger.Log(
+                            $"[WARP] {warp.FallbackReason} adapter is unavailable; using the default route.");
+                    }
+                }
+                catch (CrimsonX.Services.WarpStartException ex)
+                {
+                    CrimsonX.Services.SimpleLogger.Log($"[WARP] failed: {ex.Message}");
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        ShowToast(ex.Message, ToastKind.Error);
+                        SetConnectButtonProgress(-1);
+                    });
+                    _state.IsEngineRunning = false;
+                    return;
+                }
+            }
             ProxyService.SetSystemProxy(false);
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log"));
             bool customConfigApplied = false;
             List<string> customTopConfigs = new List<string>();
+            var customWarpNodes = new List<WarpEndpoint?>();
             var customTunnels = new List<(int Slot, CrimsonX.Services.TunnelParseResult Tunnel)>();
             _customOutboundJsons.Clear();
             if (_cfg.EnableCustomConfigs)
@@ -140,6 +225,7 @@ namespace CrimsonX
                         string chainDoc = CrimsonX.Services.ConfigConverter.BuildXrayChain(chainHops);
                         chainDoc = CrimsonX.Services.XrayConfigWriter.ApplySendThrough(chainDoc, slotAdapterIp);
                         customTopConfigs.Add(chainDoc);
+                        customWarpNodes.Add(warp?.ForSlot(slot));
                         _customOutboundJsons.Add(chainDoc);
                         CrimsonX.Services.SimpleLogger.Log($"[Connect] Custom config '{chainLabel}' is dialed by xray as a chain of {chainHops.Count} hops.");
                         return;
@@ -148,6 +234,7 @@ namespace CrimsonX
                     {
                         xrayDoc = CrimsonX.Services.XrayConfigWriter.ApplySendThrough(xrayDoc, slotAdapterIp);
                         customTopConfigs.Add(xrayDoc);
+                        customWarpNodes.Add(warp?.ForSlot(slot));
                         _customOutboundJsons.Add(xrayDoc);
                         CrimsonX.Services.SimpleLogger.Log($"[Connect] Custom config '{configLabel}' is dialed by xray.");
                         return;
@@ -194,7 +281,8 @@ namespace CrimsonX
                                 Parsed = item.Tunnel,
                                 Tag = "tunnel-" + targets.Count,
                                 AdapterName = item.AdapterName,
-                                AdapterIp = item.AdapterIp
+                                AdapterIp = item.AdapterIp,
+                                WarpEndpoint = warp?.ForSlot(item.Slot)
                             });
                         }
                         string tunnelError = "";
@@ -286,7 +374,7 @@ namespace CrimsonX
             if (customConfigApplied)
             {
                 Dispatcher.UIThread.Post(() => SetConnectButtonProgress(ConnectProgress.EngineStart));
-                if (!await Task.Run(() => XrayPipelineManager.StartXray(customTopConfigs, _cfg, _cfg.XrayDir)))
+                if (!await Task.Run(() => XrayPipelineManager.StartXray(customTopConfigs, _cfg, _cfg.XrayDir, customWarpNodes)))
                 {
                     throw new Exception("Xray process failed to start.");
                 }
@@ -308,7 +396,7 @@ namespace CrimsonX
                 }
                 if (!await VerifyFetchedLocationExitAsync(ct))
                 {
-                    if (!await Task.Run(() => XrayPipelineManager.StartXray(customTopConfigs, _cfg, _cfg.XrayDir)))
+                    if (!await Task.Run(() => XrayPipelineManager.StartXray(customTopConfigs, _cfg, _cfg.XrayDir, customWarpNodes)))
                         throw new Exception("Xray process failed to start.");
                 }
                 if (_cfg.LastXrayMode != "VPN Mode") ApplySystemProxyForMode();
@@ -635,6 +723,13 @@ namespace CrimsonX
             }
 
             var topConfigs = workingJson.Take(2).ToList();
+            var normalWarpNodes = new List<WarpEndpoint?>();
+            if (warp != null && warp.Active && warp.ConfigEndpoints.Count > 0)
+            {
+                var verified = await VerifyWarpFinalistsAsync(topConfigs, workingJson, warp, ct);
+                topConfigs = verified.Configs;
+                normalWarpNodes = verified.Nodes;
+            }
             int topFallback = finalConfigs.Take(2).Count(x => x.Speed <= 0);
             if (topFallback > 0)
             {
@@ -663,7 +758,7 @@ namespace CrimsonX
             FlushDroppedCache();
             var cleanWorkingJson = workingJson.Where(c => !_customOutboundJsons.Contains(c)).ToList();
             CrimsonX.Services.ConfigCache.SaveCache(GetAppPath(@"Data\cache\cache.bin"), cleanWorkingJson);
-            if (!await Task.Run(() => XrayPipelineManager.StartXray(topConfigs, _cfg, _cfg.XrayDir)))
+            if (!await Task.Run(() => XrayPipelineManager.StartXray(topConfigs, _cfg, _cfg.XrayDir, normalWarpNodes)))
             {
                 throw new Exception("Xray process failed to start.");
             }
@@ -685,7 +780,7 @@ namespace CrimsonX
             }
             if (!await VerifyFetchedLocationExitAsync(ct))
             {
-                if (!await Task.Run(() => XrayPipelineManager.StartXray(topConfigs, _cfg, _cfg.XrayDir)))
+                if (!await Task.Run(() => XrayPipelineManager.StartXray(topConfigs, _cfg, _cfg.XrayDir, normalWarpNodes)))
                     throw new Exception("Xray process failed to start.");
             }
             if (_cfg.LastXrayMode != "VPN Mode") ApplySystemProxyForMode();

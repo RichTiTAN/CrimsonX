@@ -35,14 +35,17 @@ namespace CrimsonX.Services
         private static int _generation;
         public static List<string> ActiveOutbounds { get; private set; } = new List<string>();
 
-        public static bool StartXray(List<string> outbounds, AppConfig config, string xrayDir)
+        public static List<WarpEndpoint?> ActiveWarpNodes { get; private set; } = new List<WarpEndpoint?>();
+
+        public static bool StartXray(List<string> outbounds, AppConfig config, string xrayDir, IReadOnlyList<WarpEndpoint?>? warpNodes = null)
         {
             lock (_lock)
             {
                 _generation++;
                 ActiveOutbounds = new List<string>(outbounds);
+                ActiveWarpNodes = warpNodes?.ToList() ?? new List<WarpEndpoint?>();
                 var chains = ParseOutbounds(outbounds, "StartXray");
-                if (!XrayConfigWriter.Write(config, xrayDir, chains))
+                if (!XrayConfigWriter.Write(config, xrayDir, chains, warp: WarpService.CurrentPlan, nodeWarp: ActiveWarpNodes))
                 {
                     return false;
                 }
@@ -116,7 +119,7 @@ namespace CrimsonX.Services
                 {
                     foreach (var outbound in chain) removed |= FinalMask.Strip(outbound);
                 }
-                if (!removed || !XrayConfigWriter.Write(config, xrayDir, chains)) return;
+                if (!removed || !XrayConfigWriter.Write(config, xrayDir, chains, warp: WarpService.CurrentPlan, nodeWarp: ActiveWarpNodes)) return;
                 string retry = XrayConfigValidator.TestFile(xrayDir, configPath);
                 if (retry.Length == 0)
                 {
@@ -175,7 +178,7 @@ namespace CrimsonX.Services
                         catch { }
                         tagsToRemove.AddRange(clonesToRemove);
                         tagsToRemove.AddRange(nodesToRemove);
-                        if (!XrayConfigWriter.Write(config, xrayDir, chains))
+                        if (!XrayConfigWriter.Write(config, xrayDir, chains, warp: WarpService.CurrentPlan, nodeWarp: ActiveWarpNodes))
                         {
                             return false;
                         }

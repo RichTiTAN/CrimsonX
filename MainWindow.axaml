@@ -23,6 +23,7 @@
         xmlns:local="clr-namespace:CrimsonX"
         xmlns:controls="clr-namespace:CrimsonX.Controls"
         xmlns:pages="clr-namespace:CrimsonX.Pages"
+        xmlns:loc="clr-namespace:CrimsonX.Localization"
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
         x:Class="CrimsonX.MainWindow"
         x:DataType="local:MainWindow"
@@ -174,6 +175,13 @@
                     <DoubleTransition Property="Width" Duration="0:0:0.25" Easing="CubicEaseOut"/>
                 </Transitions>
             </Setter>
+        </Style>
+        <Style Selector="Border.warpOn">
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSuccessBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Border.warpOn:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSuccessPointerOverBrush}"/>
         </Style>
         <Style Selector="Button.sidebarControl">
             <Setter Property="CornerRadius" Value="12"/>
@@ -525,6 +533,14 @@
                                 <StackPanel Spacing="10">
                                 <Border x:Name="panStats" Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Stretch" VerticalAlignment="Center">
                                     <StackPanel x:Name="panStatsView" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <Border x:Name="panStatWarp" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="5">
+                                          <Button x:Name="btnWarpToggle" Click="WarpToggle_Click" Classes="graphHover statTile" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" HorizontalContentAlignment="Left" CornerRadius="4" ToolTip.Tip="{x:Static loc:AppStrings.TtWarpTile}">
+                                              <StackPanel>
+                                                  <TextBlock x:Name="lblWarpLabel" Text="WARP" FontSize="10" FontWeight="Bold" Foreground="#A0AEC0" Margin="0,0,0,3"/>
+                                                  <TextBlock x:Name="lblWarpState" Text="OFF" FontSize="11" FontWeight="Bold" FontFamily="Consolas" Foreground="#8B949E"/>
+                                              </StackPanel>
+                                          </Button>
+                                        </Border>
                                         <Border x:Name="panStatLocation" Classes="hoverBox" Background="#CC0A0C0F" BorderThickness="1" CornerRadius="8" Padding="5">
                                           <!-- LOCATION (click re-traces) -->
                                           <Button x:Name="btnRefreshLocation" Click="RefreshPing_Click" Classes="graphHover statTile" Background="Transparent" BorderThickness="0" Padding="8,3" Cursor="Hand" HorizontalAlignment="Left" HorizontalContentAlignment="Left" CornerRadius="4">

@@ -313,7 +313,13 @@ namespace CrimsonX.Services
             if (previous != null) StopProcess(previous);
             try
             {
-                return StartCore(state, epoch, startCts.Token, sbDir, group, targets, signature, out error);
+                if (StartCore(state, epoch, startCts.Token, sbDir, group, targets, signature, out error, useWarp: true))
+                    return true;
+                if (!WarpService.Active || startCts.Token.IsCancellationRequested)
+                    return false;
+                SimpleLogger.Log($"[WARP] IKEv2 through WARP failed ({error}); retrying directly once.");
+                UiEventBus.Instance.PublishToast("IKEv2 could not use WARP; retrying directly.", false);
+                return StartCore(state, epoch, startCts.Token, sbDir, group, targets, signature, out error, useWarp: false);
             }
             finally
             {
@@ -326,7 +332,7 @@ namespace CrimsonX.Services
         }
 
         private static bool StartCore(GroupState state, int epoch, CancellationToken token, string sbDir, string group,
-            List<TunnelTarget> targets, string signature, out string error)
+            List<TunnelTarget> targets, string signature, out string error, bool useWarp = true)
         {
             error = "";
             string exe = IpsecEngine.ExecutablePath(sbDir);
@@ -365,7 +371,7 @@ namespace CrimsonX.Services
                     entry.Target.ServerOverride = AddressAt(entry);
                     entry.Target.Budget = entry.Addresses.Count > 1 ? FailoverTimeout : "";
                 }
-                plan = IpsecConfigWriter.Write(sbDir, group, targets, "");
+                plan = IpsecConfigWriter.Write(sbDir, group, targets, "", useWarp: useWarp);
                 if (plan == null)
                 {
                     error = "the IKEv2 config could not be written";
@@ -946,6 +952,8 @@ namespace CrimsonX.Services
                 string server = target?.Parsed?.Endpoint?["server"]?.ToString() ?? "";
                 if (server.Length == 0) continue;
                 if (IPAddress.TryParse(server, out _)) continue;
+                var publicAnswers = TunnelResolver.ResolveDetailed(server, TunnelResolver.SourceOf(target)).Addresses;
+                if (publicAnswers.Any(address => !BootstrapDns.IsPrivateAddress(address))) continue;
                 try
                 {
                     foreach (var address in Dns.GetHostAddresses(server))

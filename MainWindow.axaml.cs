@@ -710,6 +710,7 @@ public partial class MainWindow : Window
         ApplyModeUI(_pollMode);
         UpdateLanPortUI();
         ApplyLanguage();
+        ApplyWarpUI();
         CrimsonX.Pages.SettingsPage.Instance?.SyncUI();
         CrimsonX.Pages.SplitTunnelPage.Instance?.SyncUI();
     }

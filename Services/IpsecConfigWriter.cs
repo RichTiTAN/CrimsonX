@@ -42,10 +42,11 @@ namespace CrimsonX.Services
     {
         private static readonly Encoding NoBom = new UTF8Encoding(false);
 
-        public static IpsecGroupPlan Write(string sbDir, string group, IList<TunnelTarget> targets, string timeout = "")
+        public static IpsecGroupPlan Write(string sbDir, string group, IList<TunnelTarget> targets, string timeout = "", WarpPlan? warp = null, bool useWarp = true)
         {
             if (targets == null || targets.Count == 0) return null;
             if (string.IsNullOrWhiteSpace(sbDir)) return null;
+            warp = useWarp ? (warp ?? WarpService.CurrentPlan) : null;
             try
             {
                 string dir = Path.Combine(sbDir, "tunnel", DirectoryName(group));
@@ -57,7 +58,7 @@ namespace CrimsonX.Services
                     StatusPath = Path.Combine(dir, "status.json")
                 };
                 var tunnels = new JArray();
-                for (int i = 0; i < targets.Count; i++) tunnels.Add(BuildTunnel(plan, targets[i], i, timeout));
+                for (int i = 0; i < targets.Count; i++) tunnels.Add(BuildTunnel(plan, targets[i], i, timeout, warp));
                 var document = new JObject
                 {
                     ["log"] = new JObject { ["level"] = "info" },
@@ -75,7 +76,7 @@ namespace CrimsonX.Services
             }
         }
 
-        private static JObject BuildTunnel(IpsecGroupPlan plan, TunnelTarget target, int index, string timeout)
+        private static JObject BuildTunnel(IpsecGroupPlan plan, TunnelTarget target, int index, string timeout, WarpPlan? warp)
         {
             var endpoint = target?.Parsed?.Endpoint ?? new JObject();
             var tunnel = new JObject
@@ -84,8 +85,16 @@ namespace CrimsonX.Services
                 ["listen"] = "127.0.0.1:" + (target?.Port ?? 0),
                 ["server"] = ServerOf(target, endpoint)
             };
-            string bind = BindOf(target);
-            if (bind.Length > 0) tunnel["bind"] = bind;
+            var warpEndpoint = WarpFor(warp, target);
+            if (warpEndpoint != null)
+            {
+                tunnel["upstream"] = warpEndpoint.ProxyUrl;
+            }
+            else
+            {
+                string bind = BindOf(target);
+                if (bind.Length > 0) tunnel["bind"] = bind;
+            }
 
             bool psk = string.Equals(endpoint["auth"]?.ToString() ?? "", "psk", StringComparison.OrdinalIgnoreCase);
             var auth = new JObject { ["mode"] = psk ? "psk" : "eap" };
@@ -140,6 +149,14 @@ namespace CrimsonX.Services
             if (port <= 0) port = 500;
             bool literalV6 = host.Contains(':') && !host.StartsWith("[", StringComparison.Ordinal);
             return literalV6 ? "[" + host + "]:" + port : host + ":" + port;
+        }
+
+        private static WarpEndpoint? WarpFor(WarpPlan? warp, TunnelTarget target)
+        {
+            if (warp == null || !warp.Active) return null;
+            var endpoint = target?.WarpEndpoint
+                ?? warp.ForAdapter(target?.AdapterName, target?.AdapterIp);
+            return endpoint ?? warp.Default ?? warp.Endpoints.FirstOrDefault();
         }
 
         private static string BindOf(TunnelTarget target)

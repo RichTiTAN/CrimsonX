@@ -499,6 +499,7 @@ public partial class MainWindow
             CrimsonX.Services.ProcessService.KillVpnProcess(sbPid);
             CrimsonX.Services.TunnelEngine.Stop();
             CrimsonX.Services.IpsecTunnelEngine.StopAll();
+            CrimsonX.Services.WarpService.StopAll();
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log"));
             TryDeleteFile(GetAppPath(@"Data\Xray\error.log"));
             TryDeleteFile(GetAppPath(@"Data\Xray\access.log.tmp"));
@@ -622,6 +623,34 @@ public partial class MainWindow
         {
             StartGeoPing();
         }
+    }
+
+    private void WarpToggle_Click(object? sender, global::Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _cfg.EnableWarp = !_cfg.EnableWarp;
+        ApplyWarpUI();
+        RequestConfigSave();
+        if (_state.IsEngineRunning)
+            ShowToast("Reconnect to apply the WARP change.", ToastKind.Info);
+    }
+
+    internal void ApplyWarpUI()
+    {
+        bool on = _cfg.EnableWarp;
+        var state = this.FindControl<TextBlock>("lblWarpState");
+        if (state != null)
+        {
+            state.Text = on ? "ON" : "OFF";
+            state.Foreground = new SolidColorBrush(Color.Parse(on ? "#38A169" : "#8B949E"));
+        }
+        var panel = this.FindControl<Border>("panStatWarp");
+        if (panel != null)
+        {
+            panel.ClearValue(Border.BorderBrushProperty);
+            panel.Classes.Remove("warpOn");
+            if (on) panel.Classes.Add("warpOn");
+        }
+        CrimsonX.Pages.SettingsPage.Instance?.SyncWarpUI();
     }
 
     private DateTime _lastEngineChangeUtc = DateTime.MinValue;

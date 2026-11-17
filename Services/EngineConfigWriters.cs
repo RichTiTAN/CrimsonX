@@ -30,7 +30,7 @@ namespace CrimsonX.Services
 {
     public static class XrayConfigWriter
     {
-        public static bool Write(AppConfig config, string xrayDir, System.Collections.Generic.List<JObject>? activeOutbounds = null, Func<string, bool>? isAvailable = null)
+        public static bool Write(AppConfig config, string xrayDir, System.Collections.Generic.List<JObject>? activeOutbounds = null, Func<string, bool>? isAvailable = null, WarpPlan? warp = null, IReadOnlyList<WarpEndpoint?>? nodeWarp = null)
         {
             var chains = new System.Collections.Generic.List<System.Collections.Generic.List<JObject>>();
             if (activeOutbounds != null)
@@ -40,10 +40,10 @@ namespace CrimsonX.Services
                     chains.Add(new System.Collections.Generic.List<JObject> { outbound });
                 }
             }
-            return Write(config, xrayDir, chains, isAvailable);
+            return Write(config, xrayDir, chains, isAvailable, warp, nodeWarp);
         }
 
-        public static bool Write(AppConfig config, string xrayDir, System.Collections.Generic.List<System.Collections.Generic.List<JObject>> activeChains, Func<string, bool>? isAvailable = null)
+        public static bool Write(AppConfig config, string xrayDir, System.Collections.Generic.List<System.Collections.Generic.List<JObject>> activeChains, Func<string, bool>? isAvailable = null, WarpPlan? warp = null, IReadOnlyList<WarpEndpoint?>? nodeWarp = null)
         {
             int nodeCount = 1;
             if (activeChains != null && activeChains.Count > 0) nodeCount = activeChains.Count;
@@ -74,6 +74,20 @@ namespace CrimsonX.Services
             var loadBalanceBindings = adapterBindings.Count > 1
                 ? adapterBindings
                 : new System.Collections.Generic.List<AdapterBinding>();
+            bool warpActive = warp != null && warp.Active;
+            int warpCopyCount = warpActive && warp!.Copies.Count > 0 ? warp.Copies.Count : 0;
+            var usedWarpTags = new HashSet<string>(StringComparer.Ordinal);
+
+            string? WarpTag(int node, int copy)
+            {
+                if (!warpActive) return null;
+                if (warpCopyCount > 0)
+                    return warp!.Copies[Math.Min(copy - 1, warpCopyCount - 1)].Tag;
+                if (nodeWarp != null && node - 1 >= 0 && node - 1 < nodeWarp.Count && nodeWarp[node - 1] != null)
+                    return nodeWarp[node - 1]!.Tag;
+                var slot = warp!.ForSlot(node);
+                return slot?.Tag ?? warp.Default?.Tag ?? warp.Endpoints.FirstOrDefault()?.Tag;
+            }
             string selectedIp = (config.SelectedAdapterIp ?? "").Trim();
             AdapterBinding pinnedBinding = adapterBindings.Count == 1
                 ? adapterBindings[0]
@@ -172,7 +186,7 @@ namespace CrimsonX.Services
                     var exitHops = ResolveExitNodeHops(config.V2rayChainJson);
                     if (exitHops.Count > 0)
                     {
-                        int chainCopies = loadBalanceBindings.Count > 0 ? loadBalanceBindings.Count : 1;
+                        int chainCopies = warpCopyCount > 0 ? warpCopyCount : (loadBalanceBindings.Count > 0 ? loadBalanceBindings.Count : 1);
                         for (int slot = 0; slot < nodeCount * chainCopies; slot++)
                         {
                             int node = slot / chainCopies + 1;
@@ -206,7 +220,7 @@ namespace CrimsonX.Services
             var nodeOutboundTags = new List<string>();
             if (activeChains != null && activeChains.Count > 0)
             {
-                int nodeCopies = loadBalanceBindings.Count > 0 ? loadBalanceBindings.Count : 1;
+                int nodeCopies = warpCopyCount > 0 ? warpCopyCount : (loadBalanceBindings.Count > 0 ? loadBalanceBindings.Count : 1);
                 for (int slot = 0; slot < activeChains.Count * nodeCopies; slot++)
                 {
                     int node = slot / nodeCopies;
@@ -222,15 +236,28 @@ namespace CrimsonX.Services
                     {
                         var ob = (JObject)chain[h].DeepClone();
                         ob["tag"] = h == 0 ? tag : ExitHopTag(tag, h);
+                        string? warpTag = null;
                         if (h == chain.Count - 1 && !local)
                         {
-                            AdapterBindings.ApplyXrayBinding(ob, binding);
+                            warpTag = WarpTag(node + 1, copy);
+                            if (warpTag != null)
+                            {
+                                AdapterBindings.ClearXrayBinding(ob);
+                                ChainThroughDialer(ob, warpTag);
+                                usedWarpTags.Add(warpTag);
+                            }
+                            else
+                            {
+                                AdapterBindings.ApplyXrayBinding(ob, binding);
+                            }
                         }
                         if (h + 1 < chain.Count) ChainThroughDialer(ob, ExitHopTag(tag, h + 1));
                         else
                         {
                             ob.Remove("proxySettings");
-                            if (ob["streamSettings"] is JObject lastStream && lastStream["sockopt"] is JObject lastSockopt)
+                            if (string.IsNullOrEmpty(warpTag)
+                                && ob["streamSettings"] is JObject lastStream
+                                && lastStream["sockopt"] is JObject lastSockopt)
                             {
                                 lastSockopt.Remove("dialerProxy");
                                 if (lastSockopt.Count == 0) lastStream.Remove("sockopt");
@@ -239,6 +266,14 @@ namespace CrimsonX.Services
                         }
                         outbounds.Add(ob);
                     }
+                }
+            }
+            if (warpActive)
+            {
+                foreach (var endpoint in warp!.Endpoints)
+                {
+                    if (!usedWarpTags.Contains(endpoint.Tag) || endpoint.SocksPort <= 0) continue;
+                    outbounds.Add(WarpOutbound(endpoint));
                 }
             }
             if (config.EnableAdBlock || (config.EnableDirect && !string.IsNullOrWhiteSpace(config.LastBlockSplit)))
@@ -432,6 +467,21 @@ namespace CrimsonX.Services
                 return false;
             }
         }
+
+        public static JObject WarpOutbound(WarpEndpoint endpoint)
+            => new()
+            {
+                ["tag"] = endpoint.Tag,
+                ["protocol"] = "socks",
+                ["settings"] = new JObject
+                {
+                    ["servers"] = new JArray(new JObject
+                    {
+                        ["address"] = "127.0.0.1",
+                        ["port"] = endpoint.SocksPort
+                    })
+                }
+            };
 
         public static void ChainThroughDialer(JObject outbound, string dialerTag)
         {

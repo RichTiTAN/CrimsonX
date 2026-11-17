@@ -185,6 +185,35 @@ namespace CrimsonX.Services
             return bound;
         }
 
+        public static IReadOnlyList<string> ResolveViaProxy(string host, string proxyUrl)
+        {
+            string name = (host ?? "").Trim();
+            if (name.Length == 0) return Array.Empty<string>();
+            if (IPAddress.TryParse(name.Trim('[', ']'), out _)) return new[] { name };
+            if (string.IsNullOrWhiteSpace(proxyUrl)) return Array.Empty<string>();
+            try
+            {
+                var handler = new SocketsHttpHandler
+                {
+                    Proxy = new WebProxy(proxyUrl),
+                    UseProxy = true,
+                    ConnectTimeout = TimeSpan.FromSeconds(6),
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(2)
+                };
+                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+                string url = "https://dns.google/resolve?name=" + Uri.EscapeDataString(name) + "&type=A";
+                string body = client.GetStringAsync(url).GetAwaiter().GetResult();
+                var answers = ParseAnswers(body);
+                SimpleLogger.Log($"[WARP DNS] {name} -> {(answers.Count > 0 ? string.Join(", ", answers) : "nothing")} through {proxyUrl}");
+                return answers;
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log($"[WARP DNS] {name} could not be resolved through {proxyUrl}: {ex.Message}");
+                return Array.Empty<string>();
+            }
+        }
+
         public static bool IsPrivateAddress(string value)
         {
             if (!IPAddress.TryParse((value ?? "").Trim(), out var address)) return false;

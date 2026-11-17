@@ -424,13 +424,14 @@ namespace CrimsonX.Services
             return ("", ip);
         }
 
-        public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false, bool isActiveWatchdog = false, bool verifyFlow = false)
+        public static async Task<ConfigTestResult> TestConfigAsync(string link, AppConfig cfg, CancellationToken ct, bool isWatchdog = false, bool fetchGeo = false, bool isActiveWatchdog = false, bool verifyFlow = false, WarpEndpoint? warp = null)
         {
             var res = new ConfigTestResult { Link = link };
             string outboundJsonStr = string.Empty;
             var adapter = TestAdapter(cfg);
             string testAdapterName = adapter.Name;
             string testAdapterIp   = adapter.Ip;
+            warp ??= WarpService.ForProbe(testAdapterName, testAdapterIp);
             if (TunnelConfigParser.TryParse(link, out var openVpn) && TunnelTcpProbe.IsOpenVpn(openVpn))
             {
                 var tcp = await Task.Run(() => TunnelTcpProbe.Probe(openVpn, testAdapterIp, TunnelTcpProbe.DefaultTimeoutMs)).ConfigureAwait(false);
@@ -483,12 +484,7 @@ namespace CrimsonX.Services
             try
             {
                 var outboundJson = JObject.Parse(outboundJsonStr);
-                if (outboundJson["outbounds"] is JArray arr && arr.Count > 0)
-                {
-                    var outb = (JObject)arr[0];
-                    outb["tag"] = "proxy";
-                    AdapterBindings.ApplyXrayBinding(outb, XrayConfigWriter.ProbeBinding(cfg));
-                }
+                ApplyTestBinding(outboundJson, cfg, warp);
                 var fullConfig = new JObject
                 {
                     ["log"] = new JObject { ["loglevel"] = "error" },
@@ -528,7 +524,7 @@ namespace CrimsonX.Services
                             }
                         }
                     },
-                    ["outbounds"] = BuildSessionOutbounds(outboundJson),
+                    ["outbounds"] = BuildSessionOutbounds(outboundJson, warp),
                     ["routing"] = new JObject
                     {
                         ["rules"] = new JArray
@@ -685,9 +681,10 @@ namespace CrimsonX.Services
 
         public static async Task<SpeedStabilityResult> TestSpeedStabilityAsync(
             string outboundJsonStr, AppConfig cfg, CancellationToken ct,
-            string? preferredTarget = null, bool verifyFlow = true)
+            string? preferredTarget = null, bool verifyFlow = true, WarpEndpoint? warp = null)
         {
             var res = new SpeedStabilityResult();
+            warp ??= WarpService.CurrentPlan?.Default ?? WarpService.CurrentPlan?.Endpoints.FirstOrDefault();
             int port = GetFreePort();
             string tempId = Guid.NewGuid().ToString("N");
             string cfgPath = Path.Combine(cfg.XrayDir, $"test_{tempId}.json");
@@ -695,12 +692,7 @@ namespace CrimsonX.Services
             try
             {
                 var outboundJson = JObject.Parse(outboundJsonStr);
-                if (outboundJson["outbounds"] is JArray arr && arr.Count > 0)
-                {
-                    var outb = (JObject)arr[0];
-                    outb["tag"] = "proxy";
-                    AdapterBindings.ApplyXrayBinding(outb, XrayConfigWriter.ProbeBinding(cfg));
-                }
+                ApplyTestBinding(outboundJson, cfg, warp);
                 var fullConfig = new JObject
                 {
                     ["log"] = new JObject { ["loglevel"] = "none" },
@@ -714,7 +706,7 @@ namespace CrimsonX.Services
                             ["tag"] = "in"
                         }
                     },
-                    ["outbounds"] = BuildSessionOutbounds(outboundJson),
+                    ["outbounds"] = BuildSessionOutbounds(outboundJson, warp),
                     ["routing"] = new JObject
                     {
                         ["rules"] = new JArray
@@ -1150,7 +1142,16 @@ namespace CrimsonX.Services
             }
         }
 
-        internal static JArray BuildSessionOutbounds(JObject outboundJson)
+        private static void ApplyTestBinding(JObject outboundJson, AppConfig cfg, WarpEndpoint? warp)
+        {
+            if (outboundJson["outbounds"] is not JArray array || array.Count == 0) return;
+            var outbound = (JObject)array[0];
+            outbound["tag"] = "proxy";
+            if (warp == null || warp.SocksPort <= 0)
+                AdapterBindings.ApplyXrayBinding(outbound, XrayConfigWriter.ProbeBinding(cfg));
+        }
+
+        internal static JArray BuildSessionOutbounds(JObject outboundJson, WarpEndpoint? warp = null)
         {
             var list = new JArray();
             var hops = new List<JObject>();
@@ -1179,11 +1180,21 @@ namespace CrimsonX.Services
                 }
                 list.Add(hop);
             }
+            if (warp != null && warp.SocksPort > 0 && list.Count > 0)
+            {
+                var lastHop = list.OfType<JObject>().LastOrDefault();
+                if (lastHop != null && !XrayLinkParser.IsLocalOutbound(lastHop))
+                {
+                    AdapterBindings.ClearXrayBinding(lastHop);
+                    XrayConfigWriter.ChainThroughDialer(lastHop, warp.Tag);
+                    list.Add(XrayConfigWriter.WarpOutbound(warp));
+                }
+            }
             return list;
         }
 
         private static void LogBindNotice(string message) => SimpleLogger.LogFirst($"bind|{message}", message);
-        private static async Task<UdpTestSession> StartUdpTestSessionAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool stun = false)
+        private static async Task<UdpTestSession> StartUdpTestSessionAsync(string outboundJsonStr, AppConfig cfg, CancellationToken ct, string? sendThroughIp = null, bool stun = false, WarpEndpoint? warp = null)
         {
             var session = new UdpTestSession
             {
@@ -1247,7 +1258,7 @@ namespace CrimsonX.Services
                             }
                         }
                     },
-                    ["outbounds"] = BuildSessionOutbounds(outboundJson),
+                    ["outbounds"] = BuildSessionOutbounds(outboundJson, warp),
                     ["routing"] = new JObject
                     {
                         ["rules"] = new JArray
