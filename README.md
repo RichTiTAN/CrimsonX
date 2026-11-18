@@ -110,7 +110,8 @@ xray: https://github.com/xtls/xray-core
 Sing_Box: https://github.com/SagerNet/sing-box  
 Avalonia: https://github.com/avaloniaui  
 AETHER: https://github.com/CluvexStudio/Aether  
-go-ipsec: https://github.com/n0madic/go-ipsec
+go-ipsec: https://github.com/n0madic/go-ipsec  
+AMW: https://github.com/amnezia-vpn/amnezia-box
 
 __Donations:__ 
 - If you want to support the project or me you can do so by sending your desired amount to one of these wallet addresses:
