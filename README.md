@@ -108,7 +108,9 @@ Creator: [@itsTiTANVPN](https://t.me/itsTitanVPN)
 __Credits:__  
 xray: https://github.com/xtls/xray-core  
 Sing_Box: https://github.com/SagerNet/sing-box  
-Avalonia: https://github.com/avaloniaui
+Avalonia: https://github.com/avaloniaui  
+AETHER: https://github.com/CluvexStudio/Aether  
+go-ipsec: https://github.com/n0madic/go-ipsec
 
 __Donations:__ 
 - If you want to support the project or me you can do so by sending your desired amount to one of these wallet addresses:
