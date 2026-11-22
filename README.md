@@ -110,9 +110,9 @@ Creator: [@itsTiTANVPN](https://t.me/itsTitanVPN)
 __Credits:__  
 xray: https://github.com/xtls/xray-core  
 Sing_Box: https://github.com/SagerNet/sing-box  
-Avalonia: https://github.com/avaloniaui
-Aether: https://github.com/CluvexStudio/Aether
-go-ipsec: https://github.com/n0madic/go-ipsec
+Avalonia: https://github.com/avaloniaui  
+Aether: https://github.com/CluvexStudio/Aether  
+go-ipsec: https://github.com/n0madic/go-ipsec  
 amw: https://github.com/amnezia-vpn/amnezia-box
 
 __Donations:__ 
