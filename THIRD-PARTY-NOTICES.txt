@@ -1,0 +1,58 @@
+CrimsonX — Third-Party Notices
+
+CrimsonX ships the following third-party components next to the application.
+Each component remains under its own licence; the CrimsonX EULA does not
+change those terms. The licence text of every component is in the Licenses
+folder, and each component's upstream source is linked below.
+
+Xray-core
+  Component: xray.exe (Data\Xray\xray.exe)
+  Licence: Mozilla Public License 2.0
+  Licence text: Licenses\Xray-core-LICENSE.txt
+  Source: https://github.com/XTLS/Xray-core
+
+sing-box
+  Component: sing-box.exe (Data\sing_box\sing-box.exe)
+  Licence: GNU General Public License v3.0 with an additional naming condition
+  Licence text: Licenses\sing-box-LICENSE.txt
+  Source: https://github.com/SagerNet/sing-box
+
+amnezia-box (Amnezia's sing-box fork, AmneziaWG support)
+  Component: amnezia-box.exe (Data\awg\amnezia-box.exe)
+  Licence: GNU General Public License v3.0 with an additional naming condition
+  Licence text: Licenses\amnezia-box-LICENSE.txt
+  Source: https://github.com/amnezia-vpn/amnezia-box
+
+Aether (Cloudflare WARP client) and its bundled components
+  Component: aether.exe (Data\aether\aether.exe)
+  Licence: GNU Affero General Public License v3.0
+  Included components: psiphon-tunnel-core, lyrebird
+  Licence texts and third-party notices: Licenses\Aether
+  Source: https://github.com/CluvexStudio/Aether
+
+crimsonipsec (IKEv2 engine)
+  Component: crimsonipsec.exe (Data\ipsec\crimsonipsec.exe)
+  Licence: MIT, built from go-ipsec by n0madic
+  Licence text and notices: Licenses\crimsonipsec-THIRD-PARTY-NOTICES.txt
+  Source: https://github.com/n0madic/go-ipsec
+
+Avalonia UI
+  Licence: MIT
+  Copyright (c) AvaloniaUI OÜ
+  Licence text: Licenses\Avalonia-MIT.txt
+  Source: https://github.com/AvaloniaUI/Avalonia
+
+Newtonsoft.Json
+  Licence: MIT
+  Copyright (c) 2007 James Newton-King
+  Licence text: Licenses\Newtonsoft.Json-MIT.txt
+  Source: https://github.com/JamesNK/Newtonsoft.Json
+
+.NET runtime
+  Licence: MIT
+  Copyright (c) .NET Foundation and Contributors
+  Licence text: Licenses\dotnet-runtime-MIT.txt
+  Source: https://github.com/dotnet/runtime
+
+The corresponding source of the GPL, AGPL and MPL components is available from
+the upstream projects listed above.

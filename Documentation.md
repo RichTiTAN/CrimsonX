@@ -22,6 +22,8 @@ Located on the Home screen, this panel provides fast access to frequently toggle
 - **DIRECT UDP**
 - **EXIT-NODE**
 - **BIND ADAPTER**
+- **LOAD BALANCE ADAPTERS**
+- **UDP CAPABLE NODES**
 - **DOH**
 - **SYSTEM DNS**
 - **AD BLOCKER**
@@ -33,6 +35,8 @@ Located on the Home screen, this panel provides fast access to frequently toggle
 - **CUSTOM CONFIGS**
 - **DISABLE BACKGROUND CHECK**
 - **DISABLE SEAMLESS SWAP**
+
+**LOAD BALANCE ADAPTERS** is the slot that drives the Settings tab's own switch for the mode, so it needs two or more adapters picked there: turning it on from Home without them bounces the switch straight back off, opens the Load-Balance section for a pick and raises the same error toast the Settings row does.
 
 The panel has two views. **QUICK SETTINGS** is the list above; clicking the **CUSTOM CONFIGS** label beside it slides the panel across to the same custom-config body the Settings tab shows - both config boxes with their own **+** import, **PING** and **SAVE** buttons, and **SUBMIT**. Every one of those buttons goes through the Settings tab's own handler, so the two always show the same values and doing it here is exactly the same as doing it there. The first slot's switch is the Settings tab's own **CUSTOM CONFIGS** control, so flipping either one flips both.
 
@@ -115,7 +119,7 @@ The heart of CrimsonX's customization, broken down into specific sections:
   - **IKEv2**: paste a profile JSON (`{"type": "ipsec", "server": "...", ...}`), an `ikev2://` or `ipsec://` share link, or an Apple `.mobileconfig` file. The profile keys are `server`, `server_port` (500 by default), `auth` (`eap` or `psk`), `username`/`password` for EAP-MSCHAPv2, `psk` for a pre-shared key, `remote_id` (defaults to the server host - the *Remote ID: same as hostname* that Windows profiles use), `local_id` (defaults to the username), `ca` (inline PEM; when it is empty the system roots are trusted), `dns` (an IP address; when it is empty the server's own resolver is used), `mtu` (1400 by default, accepted between 576 and 1500) and optionally `rekey`, `ike_rekey` and `dpd`. The share links carry the same values: `ikev2://user:pass@host:500?remote_id=…&local_id=…&ca=…&dns=…&mtu=…&name=…` and `ipsec://host:500?psk=…&remote_id=…`. From a `.mobileconfig` the app reads `ServerAddress`, `RemoteIdentifier`, `LocalIdentifier`, `AuthName`/`AuthPassword` or `SharedSecret`, `AuthenticationMethod`, and turns a `com.apple.security.root` payload into the trusted CA. These profiles are dialed by `Data/ipsec/crimsonipsec` - a fork of go-ipsec built by `tools/build-ipsec-linux.ps1` - one process per group with one local socks inbound per config, so an IKEv2 config joins the balancer, split tunnelling, the stability test and the watchdog exactly like the other tunnels; the per-config adapter pick becomes the source address of the engine's outer UDP socket. Only EAP-MSCHAPv2 and pre-shared keys are supported: EAP-TLS and client certificates are refused with a message. NAT-T (UDP 4500) is required by the server, and the tunnel carries TCP and UDP (QUIC, games, VoIP, DNS) alike. IKEv2 configs are not offered as an exit node, which refuses them with `Config not supported in …`; they *are* accepted in Apps & Games, where a rule's app reaches its own IKEv2 tunnel through the rule engine (a second `crimsonipsec.exe` for that group, started the first time a rule needs it and stopped on disconnect), and **Apply** waits until that tunnel actually answers before the app reports the rules as applied.
   - **Networks that rewrite DNS**: where plain DNS is forged - a blocked name answers with a private address such as `10.10.34.36`, even when the query goes to `1.1.1.1` or `8.8.8.8` over UDP **or** TCP - CrimsonX resolves the IKEv2 server itself over DoH on port 443 to a literal resolver IP - `https://1.1.1.1/dns-query`, `https://1.0.0.1/dns-query`, `https://8.8.8.8/resolve` and `https://8.8.4.4/resolve` (`Host: dns.google`), `https://9.9.9.9/dns-query` (`Host: dns.quad9.net`), `https://94.140.14.14/dns-query` (`Host: dns.adguard-dns.com`) and `https://208.67.222.222/dns-query` (`Host: doh.opendns.com`) - and dials the resulting address while keeping the hostname as the IKEv2 remote ID, so the server certificate is still checked against the name. Each resolver is given three seconds, so the whole fallback stays inside ten; the lookup is logged as `[DoH] <host> -> <ip> via 1.1.1.1`, **every** address it returns becomes a candidate (five answers mean five attempts, not three), and the engine log lines follow. When none of the seven answers, the DoH path is switched off for five minutes (`[DoH] every resolver failed for <host>; skipping DoH for 5 minutes`) instead of paying seven timeouts on every attempt, and the hostname is handed to the engine so an ordinary network keeps working through the system resolver. IKEv2 itself only needs UDP 500 and 4500 to be open - a filtered DNS is enough to break it otherwise, which is exactly what this bypass avoids.
   - **OpenVPN and WireGuard on the same networks**: those two tunnels are dialed by sing-box, which resolves the endpoint name itself, so a forged answer can send them to a private address as well. The same DoH lookup repairs them, but only when it has to: the system answer is read first and the name is left exactly as written unless **every** address it returns is private, loopback, link-local or reserved. Only then is the name replaced - by **every** DoH address, each one becoming its own entry in that endpoint's `servers` list (a config that already lists four `remote` lines ends up with four sets of them, port and `network` copied per entry, in DoH order and de-duplicated, with no cap) - so the engine can move on to the next address when one does not answer, over UDP and TCP alike. An OpenVPN `tls.server_name` (the SNI the server expects) is filled in with the name that was replaced - an existing one is never overwritten - which is what keeps certificate validation on the name while the socket goes to an IP. WireGuard keeps a single address on purpose: its `peers` list means peers, so a second entry with the same key is not a failover candidate. A DoH failure means no change at all, so a normal network is never rewritten.
-  - **A live tunnel is re-probed**: ten seconds after the session comes up, and every ten seconds after that, each tunnel's own local socks hop is tested end to end - a SOCKS5 CONNECT plus an HTTP HEAD through it, to `1.1.1.1`, then `208.67.220.220`, then `1.0.0.1`. One failed round is forgiven and re-checked two seconds later; when the same hop fails twice in a row (so a dead tunnel is noticed in about 10-20 seconds) the app restarts just that tunnel group on the same loopback ports (the same address failover is tried again, and xray / sing-box keep running so traffic resumes the moment the tunnel answers) and shows CONNECTING, retrying with 10, 20 and then 30 second pauses until it does - a config that connects and then drops on its own is caught and rebuilt instead of being reported as a working session. A dead app-rule tunnel is restarted quietly with a toast, so the session you are using is not disturbed.
+  - **A live tunnel is re-probed**: the first two rounds run ten seconds after the session comes up and ten seconds apart, then once every 30 seconds; each tunnel's own local socks hop is tested end to end - a SOCKS5 CONNECT plus an HTTP HEAD through it, to `1.1.1.1`, then `208.67.220.220`, then `1.0.0.1`. A round that comes back empty is never trusted on its own: that hop is then probed five times inside a ten second window, and a single answer keeps the session connected, so a blocked probe target or a momentary stall never costs a reconnect. Only when all five attempts stay silent is the hop called down and the app shows CONNECTING; it keeps probing every ten seconds until the hop answers again, then returns to CONNECTED. What happens in that state depends on the client: sing-box (OpenVPN, WireGuard and AmneziaWG) is left running untouched because it redials its own servers with backoff, IKEv2 is restarted on its next resolved address and keeps cycling through every address for as long as the session is up (10, 20 and 30 second pauses; a restart is skipped while the engine still reports its tunnel as up) because crimsonipsec cannot walk its own address list, and an engine whose process actually exited is started again with the same config. xray and the sing-box TUN keep running throughout, so traffic resumes the moment the tunnel answers. A connect that runs through every address does not give up either: the next round starts over from the first address, so a server that answers later is still reached. A failure is reported in plain words - the tunnel server did not answer, it rejected the username or password, the engine is missing, no free local port - while the technical reason stays in the log.
   - **SHOW/HIDE IKEv2**: the switch under **OBFUSCATION** shows or hides the small **IKEV2** button that sits left of each slot's **+**. That button opens the profile dialog - server, port, authentication (username and password, or a pre-shared key), remote ID, local ID, server CA, DNS, and an MTU field whose hint is `Default 1400` - and saving it writes the profile into that slot. Hiding the button hides only the builder: pasting a profile or a share link, and importing a `.json` / `.mobileconfig` / `.plist` file with **+**, keep working.
   - **OBFUSCATION**: the panel's third switch sends decoy datagrams before every OpenVPN / WireGuard handshake - six random 64-768 byte packets, then the real one, from the same source port - so the tunnel never opens with a recognisable first packet. It is UDP only (a TCP config keeps its direct dial), the server drops the decoys, and an AmneziaWG config keeps its own obfuscation instead. The toggle is staged and waits for **SUBMIT**.
   - **TUNNEL PORT**: OpenVPN and WireGuard configs run on a dedicated headless sing-box instance that exposes a local socks inbound, and xray dials it as a normal outbound. The port is chosen dynamically on every connect (a free loopback port, kept for the session and logged as `[Tunnel] wireguard <server> → socks 127.0.0.1:<port>`), so it can never collide with other software and is never exposed to the LAN.
@@ -207,3 +211,82 @@ Allows you to personalize the visual aesthetic of the application.
 - Displays the currently installed version of CrimsonX.
 - Automatically checks for updates and handles the OTA (Over-The-Air) download and extraction of new versions from GitHub.
 - Provides quick links to the project's GitHub repository and community Telegram channels.
+
+## Cloudflare WARP
+- The **WARP** tile on Home toggles WARP for the next connection. While it is on, xray configs, sing-box tunnels, OpenVPN/WireGuard tunnels and IKEv2 tunnels leave through the bundled Aether client instead of the physical adapter.
+- **WARP PROTOCOL** in Settings selects MASQUE HTTP/2 (default), MASQUE HTTP/3, WireGuard, GOOL, GOOL Classic, or MASQUE-in-MASQUE.
+- The adapter picker and the load-balanced adapter list are reused: each adapter gets its own Aether instance through the xray adapter shim. Per-config adapters get one Aether per slot, and a config that has no adapter uses the default route.
+- The normal path uses one WARP endpoint per active config (`cx-warp-a` / `cx-warp-b`). The second endpoint is started lazily when two configs are selected. A single custom config box uses one endpoint; two custom boxes use two endpoints even when they share an adapter.
+- Aether lives at `Data\aether\aether.exe`; the adapter shim uses `Data\Xray\xray.exe`. IKEv2 uses the rebuilt `Data\ipsec\crimsonipsec.exe`, whose `upstream` field accepts a local SOCKS5 proxy.
+- IKEv2 tries WARP first and falls back to a direct dial once if the gateway cannot carry IKE. The fallback is logged and announced with a toast.
+- Third-party components are distributed under their own licenses: the licence text of every component is in the `Licenses` folder, and `THIRD-PARTY-NOTICES.txt` maps each one to its file and to its upstream project.
+
+## Transports
+
+Every link CrimsonX reads follows the v2rayN share-link conventions (`type`, `path`, `host`, `sni`, `fp`, `alpn`, `serviceName`, `headerType`, `pbk`, `sid`, `spx`, `flow`, `fm`); Xray itself does not define a link format.
+
+| Transport | Accepted | Notes |
+|-----------|----------|-------|
+| `raw` / `tcp` | yes | written as `raw`, with `headerType=http` for HTTP obfuscation |
+| `ws` | yes | `path` + `host` |
+| `grpc` | yes | `serviceName`, `authority`, `mode` |
+| `httpupgrade` | yes | `path` + `host` |
+| `xhttp` / `splithttp` | yes | both names are read; written as `xhttp` with `xhttpSettings` |
+| `kcp` / `mkcp` | yes | `mtu`, `tti`, `uplinkCapacity`, `downlinkCapacity`, `cwndMultiplier`, `maxSendingWindow` |
+| `masque` | yes | through the `masque://` scheme described below |
+| `h2`, `h3`, `http`, `quic` | no | removed from Xray; use `xhttp` with `alpn=h2` or `alpn=h3` |
+
+Where each transport can be used:
+
+- **Custom config** (raw JSON or a share link): everything above.
+- **Custom exit node**: xray-only transports are allowed, but UDP transports are not.
+- **Apps & Games custom proxy**: only transports that sing-box can dial, and only TCP ones.
+- **UDP transports** (`kcp`, `masque` over HTTP/3, `xhttp` with `alpn=h3`, `hysteria`): custom configs only, because chains and app rules hop through a local TCP proxy.
+
+`masque://` is a CrimsonX extension: neither Xray nor v2rayN defines a MASQUE share link, so other clients will not understand it. The JSON it produces is the standard Xray MASQUE outbound.
+
+```text
+masque://user:pass@host:443?path=<uri-template>&host=<authority>&sni=<name>&alpn=h2|h3&fp=<fingerprint>&rdns=<ip,ip>#label
+```
+
+- `path` defaults to `/.well-known/masque/ip/{target}/{ipproto}/` in Xray when omitted.
+- `alpn=h2` carries MASQUE over HTTP/2 (TCP); anything else, including the default, uses HTTP/3 (UDP).
+- TLS is mandatory and REALITY is not supported, so the parser always writes `security: tls`.
+- `rdns` fills `settings.remoteDNS`; WARP-over-MASQUE (`masqueSettings.warp`) is only available in raw JSON.
+
+### MASQUE config shape
+
+The same profile as raw JSON, which is what the link parser produces and what a custom config can contain directly:
+
+```json
+{
+  "protocol": "masque",
+  "settings": {
+    "address": "example.com",
+    "port": 443,
+    "remoteDNS": ["1.1.1.1", "2606:4700:4700::1111"]
+  },
+  "streamSettings": {
+    "method": "masque",
+    "masqueSettings": {
+      "host": "example.com",
+      "path": "/.well-known/masque/ip/{target}/{ipproto}/",
+      "user": "user",
+      "pass": "pass"
+    },
+    "security": "tls",
+    "tlsSettings": {
+      "serverName": "example.com",
+      "alpn": ["h2"]
+    }
+  }
+}
+```
+
+- `masqueSettings.host` is the `:authority` of the CONNECT-IP request; without it Xray falls back to `tlsSettings.serverName` and then to the outbound address.
+- `settings.remoteDNS` is optional and takes IP addresses only; domain names are resolved through the outbound's `targetStrategy`.
+- Duplicate `user`/`pass` into `masqueSettings.headers` only for non-basic authentication (`"Authorization": "Bearer …"`); the two cannot be combined with `user`/`pass`.
+- `"alpn": ["h3"]` switches to HTTP/3 over QUIC. That is a UDP carrier, so the profile then belongs to the custom-config-only group.
+- `masqueSettings.warp` (WireGuard keys plus the server-assigned addresses) is available in raw JSON only and is how CrimsonX reaches Cloudflare WARP over MASQUE.
+
+Stream settings are written with the current `method` field. Configs that still use the legacy `network` field keep working, because every reader accepts both.

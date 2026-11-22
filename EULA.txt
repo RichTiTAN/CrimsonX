@@ -1,0 +1,178 @@
+CRIMSONX END USER LICENSE AGREEMENT
+Version 1.0 - Effective 22 November 2026
+
+PLEASE READ THIS AGREEMENT CAREFULLY. BY INSTALLING, COPYING OR USING THE
+SOFTWARE, OR BY CLICKING "I ACCEPT", YOU AGREE TO BE BOUND BY THIS EULA.
+IF YOU DO NOT AGREE, DO NOT INSTALL OR USE THE SOFTWARE.
+
+1. PARTIES AND DEFINITIONS
+1.1 "Licensor" means RichTiTAN, the author and copyright holder of CrimsonX.
+1.2 "Software" means the CrimsonX application for Windows and Linux, including
+    updates and accompanying documentation, but excluding Third-Party
+    Components.
+1.3 "Third-Party Components" means the separate third-party programs and
+    libraries listed in Section 6 and in THIRD-PARTY-NOTICES.txt.
+1.4 "You" means the individual or entity using the Software.
+
+2. ACCEPTANCE
+2.1 You accept this EULA by installing, copying or using the Software, or by
+    clicking "I accept".
+2.2 If you accept on behalf of an organization, you represent that you have
+    authority to bind it.
+2.3 You must be of legal age in your jurisdiction to enter into this EULA.
+2.4 If you do not accept, you must not install or use the Software and must
+    remove any copies.
+
+3. LICENSE GRANT
+3.1 Subject to this EULA, Licensor grants you a limited, non-exclusive,
+    non-transferable, revocable, royalty-free license to install and use the
+    Software for your personal or internal business purposes on devices that
+    you own or control.
+3.2 You may make a reasonable number of backup copies for your own use.
+3.3 No other rights are granted, whether by implication, estoppel or otherwise.
+
+4. RESTRICTIONS
+You must not:
+(a) redistribute, publish, sell, rent, lease, sublicense, lend, host or
+    otherwise make the Software available to any third party;
+(b) modify, translate, reverse engineer, decompile or disassemble the
+    Software, except to the extent expressly permitted by applicable law;
+(c) remove, alter or obscure any copyright, license or proprietary notice;
+(d) circumvent or attempt to circumvent any license, update, security or
+    technical protection measure;
+(e) use the Software to develop or train a competing product;
+(f) use the Software in violation of any applicable law, regulation,
+    sanctions or third-party rights;
+(g) use the Software to gain unauthorized access to any network, system or
+    service;
+(h) use the Software in any way that could damage, disable, overburden or
+    impair it or any third-party service.
+
+5. OWNERSHIP
+5.1 The Software is licensed, not sold. Licensor retains all right, title and
+    interest in and to the Software and all intellectual property rights in it.
+5.2 If you provide feedback or suggestions, you grant Licensor a perpetual,
+    irrevocable, worldwide, royalty-free license to use them without
+    obligation to you.
+
+6. THIRD-PARTY COMPONENTS
+6.1 The Software includes separate Third-Party Components, including:
+    - Xray-core - Mozilla Public License 2.0 - https://github.com/XTLS/Xray-core
+    - sing-box - GNU GPL v3 with an additional naming condition -
+      https://github.com/SagerNet/sing-box
+    - amnezia-box (Amnezia's sing-box fork) - GNU GPL v3 with an additional
+      naming condition - https://github.com/amnezia-vpn/amnezia-box
+    - Aether - GNU AGPL v3 (including psiphon-tunnel-core and lyrebird under
+      GPL v3) - https://github.com/CluvexStudio/Aether
+    - crimsonipsec / go-ipsec - MIT - https://github.com/n0madic/go-ipsec
+    - Avalonia UI - MIT - https://github.com/AvaloniaUI/Avalonia
+    - Newtonsoft.Json - MIT - https://github.com/JamesNK/Newtonsoft.Json
+    - .NET runtime - MIT - https://github.com/dotnet/runtime
+6.2 Third-Party Components are governed exclusively by their own license
+    terms. If this EULA conflicts with those terms, those terms prevail for
+    the Third-Party Components. Nothing in this EULA limits or restricts any
+    rights you may have under those licenses, including rights to copy, modify
+    or redistribute the Third-Party Components under their terms.
+6.3 The license texts are included with the Software (see
+    THIRD-PARTY-NOTICES.txt and the LICENSES folders). Corresponding source
+    for GPL, AGPL and MPL components is available from the upstream projects
+    and release pages listed above.
+6.4 You must not use the names of the Third-Party Components or imply
+    association with their authors except as permitted by their licenses.
+
+7. NETWORK ACCESS AND DATA
+7.1 The Software may contact third-party servers to perform its functions,
+    including update checks (GitHub), configuration retrieval from third-party
+    sources, IP address and geographic lookup services (for example 1.1.1.1,
+    get.geojs.io, api.myip.com, api.ipify.org), and the proxy or VPN servers
+    you select.
+7.2 Those services may receive your IP address and request metadata and may
+    log it. Their own terms and privacy policies apply.
+7.3 The Software does not include third-party analytics or advertising SDKs.
+    Diagnostic logs written by the Software are stored locally on your device.
+7.4 You are responsible for the traffic you route through the Software and for
+    any content or services you access.
+
+8. UPDATES AND SUPPORT
+8.1 Licensor may provide updates or new versions. This EULA applies to updates
+    unless a new EULA accompanies them.
+8.2 Licensor has no obligation to provide updates, support or maintenance.
+8.3 If Licensor makes material changes to this EULA, you may be asked to
+    accept the updated EULA.
+
+9. PRIOR GPL VERSIONS
+9.1 Versions of the Software up to and including version 3.3.3 were
+    distributed under the GNU General Public License, version 3. Rights
+    granted to you for those versions remain in effect and are not revoked by
+    this EULA.
+9.2 The corresponding source for those versions remains available through the
+    release tags and releases of the project.
+9.3 This EULA applies to version 3.3.4 and later.
+
+10. NO WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR
+A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, ACCURACY, OR UNINTERRUPTED OR
+ERROR-FREE OPERATION. LICENSOR DOES NOT WARRANT THAT THE SOFTWARE WILL PROVIDE
+ANONYMITY, SECURITY, OR ACCESS TO ANY PARTICULAR SERVICE, OR THAT THIRD-PARTY
+CONFIGURATIONS OR PROXIES ARE SAFE, LAWFUL OR RELIABLE. YOU USE THE SOFTWARE
+AT YOUR OWN RISK.
+
+11. LIMITATION OF LIABILITY
+11.1 TO THE MAXIMUM EXTENT PERMITTED BY LAW, LICENSOR SHALL NOT BE LIABLE FOR
+     ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY OR PUNITIVE
+     DAMAGES, OR FOR LOSS OF PROFITS, DATA, GOODWILL OR BUSINESS OPPORTUNITY,
+     ARISING OUT OF OR RELATING TO THE SOFTWARE OR THIS EULA.
+11.2 LICENSOR'S TOTAL AGGREGATE LIABILITY UNDER THIS EULA SHALL NOT EXCEED THE
+     GREATER OF (A) THE AMOUNT YOU PAID TO LICENSOR FOR THE SOFTWARE IN THE
+     TWELVE MONTHS BEFORE THE CLAIM AND (B) USD 50.
+11.3 Nothing in this EULA limits liability that cannot be limited by
+     applicable law, or your statutory consumer rights.
+
+12. INDEMNITY
+You will indemnify and hold harmless Licensor from claims, damages,
+liabilities and expenses arising from your use of the Software in breach of
+this EULA or applicable law.
+
+13. TERMINATION
+13.1 This EULA terminates automatically if you breach it.
+13.2 On termination you must stop using the Software and delete all copies.
+13.3 Sections 5, 6, 10, 11, 12, 13, 15 and 16 survive termination.
+
+14. EXPORT AND SANCTIONS
+You must comply with all applicable export control and sanctions laws. You may
+not use the Software if you are located in, or acting on behalf of, a
+sanctioned country or party, or for any prohibited purpose.
+
+15. LAWFUL USE
+The Software is a proxy/VPN client. The use of proxy or VPN software may be
+restricted or regulated in your country. You are solely responsible for
+ensuring that your use is lawful and for complying with the laws and network
+policies that apply to you.
+
+16. GOVERNING LAW AND DISPUTES
+16.1 This EULA is governed by the laws of England and Wales, without regard to
+     conflict-of-law rules.
+16.2 The courts of England and Wales have exclusive jurisdiction, except that
+     Licensor may seek injunctive relief in any court of competent
+     jurisdiction.
+16.3 Before filing a claim, you agree to try to resolve the dispute informally
+     by contacting Licensor.
+16.4 Nothing in this section deprives you of the protection of mandatory
+     consumer law in your country of residence.
+
+17. GENERAL
+17.1 This EULA is the entire agreement between you and Licensor regarding the
+     Software and supersedes any prior agreements.
+17.2 If a provision is unenforceable, it will be limited to the minimum extent
+     necessary and the remaining provisions stay in effect.
+17.3 A failure to enforce a provision is not a waiver.
+17.4 You may not assign this EULA without Licensor's written consent; Licensor
+     may assign it.
+17.5 Headings are for convenience only.
+17.6 This EULA is provided in English; translations are for convenience.
+
+18. CONTACT
+Licensor: RichTiTAN
+GitHub: https://github.com/RichTiTAN
+Telegram: https://t.me/itsTitanVPN

@@ -1,0 +1,15 @@
+CrimsonX is proprietary software.
+
+Copyright (C) 2026 RichTiTAN. All rights reserved.
+
+Versions up to and including 3.3.3 were distributed under the GNU General
+Public License, version 3. Their corresponding source remains available in
+the corresponding release tags and releases.
+
+Versions from 3.3.4 onward are licensed under the CrimsonX End User License
+Agreement in EULA.txt. By installing or using those versions you agree to
+that EULA.
+
+Third-party components remain under their own licenses. Their licence texts
+are in the Licenses folder, and THIRD-PARTY-NOTICES.txt lists them together
+with their upstream projects.
