@@ -1,0 +1,43 @@
+CrimsonX ships the following third-party binaries next to the application.
+
+crimsonipsec.exe  (Data\ipsec\crimsonipsec.exe)
+------------------------------------------------
+A fork of go-ipsec: https://github.com/n0madic/go-ipsec
+Built by tools\build-ipsec.ps1 from the fork's cmd/crimsonipsec.
+
+  MIT License
+
+  Copyright (c) 2026 n0madic
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+go-tun2net  (a dependency compiled into crimsonipsec.exe)
+--------------------------------------------------------
+https://github.com/n0madic/go-tun2net - MIT License, Copyright (c) 2026 n0madic
+(the same permission notice as above applies)
+
+gVisor  (a dependency compiled into crimsonipsec.exe)
+-----------------------------------------------------
+https://gvisor.dev - Apache License 2.0
+
+golang.org/x/crypto, golang.org/x/sys, golang.org/x/text, golang.org/x/time
+--------------------------------------------------------------------------
+BSD 3-Clause License, Copyright the Go Authors
+
+layeh.com/radius - MIT License
