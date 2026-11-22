@@ -35,7 +35,7 @@
 
 ## 📸 اسکرین‌شات‌ها
 
-<img width="696" height="554" alt="Screenshot 2026-10-04 155541" src="https://github.com/user-attachments/assets/7b093fdb-5d37-4ee0-a75c-efadf7aa86b9" />
+<img width="694" height="552" alt="image" src="https://github.com/user-attachments/assets/44f37838-2a44-4aec-a0ea-4f48e6c47334" />
 
 ## 📥 نصب
 
@@ -79,7 +79,8 @@ copy Services\AppSecrets.cs.example Services\AppSecrets.cs
 تب **برنامه‌ها و بازی‌ها** پروفایل‌های مسیریابی از پیش پیکربندی شده‌ای را برای بازی‌های محبوب (مانند Valorant، CS2، League of Legends) و برنامه‌ها (مانند Discord، Telegram) ارائه می‌دهد. شما می‌توانید ترافیک TCP و UDP را به طور مستقل مسیریابی کنید، آن‌ها را به آداپتورهای شبکه خاص متصل کنید، یا بدون تأثیر بر VPN کلی سیستم خود، ریجن مچ‌میکینگ را تنظیم کنید.
 
 ### عیب‌یابی:
-- برای دستورالعمل‌های دقیق، فایل [گزارشات](./DOCUMENTATION_fa.md) را بررسی کنید.
+- برای دستورالعمل‌های دقیق، فایل [گزارشات](./Documentation_fa.md) را بررسی کنید.
+- فرمت لینک اشتراک و جیسون برای MASQUE، WireGuard، IKEv2 و OpenVPN در فایل [Transports](./Transports.md) است.
 
 ## 📜 لایسنس
 
@@ -100,7 +101,10 @@ Creator: [@itsTiTANVPN](https://t.me/itsTitanVPN)
 __Credits:__  
 xray: https://github.com/xtls/xray-core  
 Sing_Box: https://github.com/SagerNet/sing-box  
-Avalonia: https://github.com/avaloniaui
+Avalonia: https://github.com/avaloniaui  
+Aether: https://github.com/CluvexStudio/Aether  
+go-ipsec: https://github.com/n0madic/go-ipsec  
+amw: https://github.com/amnezia-vpn/amnezia-box
 
 __Donations:__ 
 - If you want to support the project or me you can do so by sending your desired amount to one of these wallet addresses:

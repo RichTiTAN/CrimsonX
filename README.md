@@ -88,11 +88,12 @@ The app constantly checks if your current configs are working and if they are no
 ### 5. Apps & Games Profile Routing
 The **Apps & Games** tab provides pre-configured routing profiles for popular games (Valorant, CS2, League of Legends, etc.) and applications (Discord, Telegram). You can seamlessly route TCP and UDP traffic independently, bind them to specific network adapters, or force regional matchmaking without affecting your global system VPN.  
 
-### 6. WARP  
+### 6. WARP
 If the need arises you can enable WARP from the main page of the app and route all the app's configs through Cloudflare WARP for better connectivity.
 
 ### TROUBLESHOOTING:
 - Check the [Documentation file](https://github.com/RichTiTAN/CrimsonX/blob/main/Documentation.md) for detailed instructions.
+- Share-link and JSON formats for MASQUE, WireGuard, IKEv2 and OpenVPN are in the [Transports file](https://github.com/RichTiTAN/CrimsonX/blob/main/Transports.md).
 
 ##  License
 
