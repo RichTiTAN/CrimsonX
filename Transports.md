@@ -26,6 +26,21 @@ Where each transport can be used:
 - **Apps & Games custom proxy**: only transports that sing-box can dial, and only TCP ones.
 - **UDP transports** (`kcp`, `masque` over HTTP/3, `xhttp` with `alpn=h3`): custom configs only, because chains and app rules hop through a local TCP proxy.
 
+### Tunnel configs in the exit node and the app proxy
+
+Both panes also take the tunnel configs from the sections below, as do the pool and the two custom-config slots. These are not Xray stream transports at all: the exit node keeps one as an endpoint inside the chain, and the app proxy runs it as a tunnel that exposes a loopback SOCKS port.
+
+| Tunnel config | Custom exit node | Apps & Games custom proxy |
+|---------------|------------------|---------------------------|
+| OpenVPN — `.ovpn` text or an `openvpn-client` endpoint, `udp` or `tcp` | yes | yes |
+| WireGuard — `wireguard://` link, `.conf`, Xray outbound or sing-box endpoint | yes | yes |
+| AmneziaWG — any `awg` key set, or `"type": "awg"` | no | yes |
+| IKEv2 — `ikev2://` link, profile JSON or `.mobileconfig` | no | yes |
+
+- The exit node is chained inside the sing-box instance and its endpoint is dialled through the chain's entry transport, so only the two kinds sing-box can hold as an endpoint qualify; AmneziaWG and IKEv2 need their own engines and are refused with "An AmneziaWG config cannot be used as the exit node" and "An IKEv2 config cannot be used as the exit node".
+- The app proxy runs every kind through the tunnel engine, which keeps stock sing-box endpoints, AmneziaWG and IKEv2 in separate instances and hands each config a loopback SOCKS port that the rules outbound dials. That is why AmneziaWG and IKEv2 do work there.
+- An OpenVPN exit node also needs its username and password stored before it can be chained; the chain drops any adapter binding the endpoint carries.
+
 ## MASQUE
 
 `masque://` is a CrimsonX extension: neither Xray nor v2rayN defines a MASQUE share link, so other clients will not understand it. The JSON it produces is the standard Xray MASQUE outbound.
@@ -209,31 +224,68 @@ There is no OpenVPN URI scheme: paste the `.ovpn` text, including its inline blo
   "mode": "tls",
   "network": "udp",
   "servers": [ { "server": "example.com", "server_port": 1194 } ],
+  "remote_random": false,
   "tls": {
-    "certificate": "<ca pem>",
-    "client_certificate": "<cert pem>",
-    "client_key": "<key pem>",
     "server_name": "vpn.example.com",
-    "control_wrap": { "type": "tls_crypt", "key": "<key>" }
+    "certificate": [
+      "-----BEGIN CERTIFICATE-----",
+      "MIIB… the CA",
+      "-----END CERTIFICATE-----"
+    ],
+    "client_certificate": [
+      "-----BEGIN CERTIFICATE-----",
+      "MIIB… the client certificate",
+      "-----END CERTIFICATE-----"
+    ],
+    "client_key": [
+      "-----BEGIN PRIVATE KEY-----",
+      "MIIE… the client key",
+      "-----END PRIVATE KEY-----"
+    ],
+    "remote_certificate_tls": "server",
+    "certificate_profile": "legacy",
+    "version_min": "1.2",
+    "control_wrap": {
+      "type": "tls_crypt",
+      "key": [
+        "-----BEGIN OpenVPN Static key V1-----",
+        "…",
+        "-----END OpenVPN Static key V1-----"
+      ]
+    }
   },
   "username": "user",
   "password": "pass"
 }
 ```
 
-The `tls` object is not a `ca`/`cert`/`key` trio; the inline blocks map like this:
+Every PEM-carrying field is an array of lines, which is how the sing-box documentation writes it. sing-box joins the entries with `\n` before parsing, so a single string that already contains the newlines is the same input — and that collapsed form is what CrimsonX stores internally, because `NormalizePem` folds a pasted endpoint down to one normalised string.
+
+The `tls` object is not a `ca`/`cert`/`key` trio. The inline blocks map like this:
 
 | Directive | Field |
 |-----------|-------|
 | `<ca>` | `tls.certificate` |
 | `<cert>` | `tls.client_certificate` |
 | `<key>` | `tls.client_key` |
-| `<tls-auth>` / `<tls-crypt>` / `<tls-crypt-v2>` | `tls.control_wrap` = `{ "type": "tls_auth" \| "tls_crypt" \| "tls_crypt_v2", "key": … }`, plus `direction` from `key-direction` for `tls_auth` |
-| `verify-x509-name` | `tls.server_name` (+ `tls.server_name_type`) |
+| `<tls-auth>` / `<tls-crypt>` / `<tls-crypt-v2>` | `tls.control_wrap` = `{ "type": "tls_auth" \| "tls_crypt" \| "tls_crypt_v2", "key": […] }`, plus `direction` from `key-direction` for `tls_auth` |
+| `verify-x509-name` | `tls.server_name` (+ `tls.server_name_type`, default `name`) |
 | `remote-cert-tls`, `ns-cert-type`, `remote-cert-ku`, `remote-cert-eku`, `peer-fingerprint` | `tls.remote_certificate_tls`, `tls.ns_certificate_type`, `tls.remote_certificate_ku`, `tls.remote_certificate_eku`, `tls.peer_fingerprint` |
 | `tls-version-min`, `tls-version-max`, `tls-cipher`, `tls-groups` | `tls.version_min`, `tls.version_max`, `tls.cipher`, `tls.groups` |
 
+What sing-box requires of those fields:
+
+- `tls` itself is required in `tls` mode.
+- One of `tls.certificate`, `tls.certificate_path` or `tls.peer_fingerprint` is required, and `certificate` conflicts with `certificate_path`.
+- `tls.client_certificate` and `tls.client_key` must both be set or both be empty; each has a `*_path` twin that conflicts with the content form.
+- `tls.peer_fingerprint` holds SHA-256 fingerprints of the server leaf: 64 lowercase hex characters, no separators.
+- `tls.remote_certificate_tls` is `server` by default and conflicts with `tls.remote_certificate_eku`, which takes an OpenSSL name, an OID or the aliases `server`/`client`.
+- `tls.certificate_profile` is `legacy` (default), `preferred`, `insecure` or `suiteb`; `tls.version_min` defaults to `1.2`.
+- `tls.control_wrap.type` is `tls_auth`, `tls_crypt` or `tls_crypt_v2`; `direction` (`server`/`client`) exists only for `tls_auth`, and the key is used bidirectionally when it is empty.
+
 The rest of the profile is carried through as endpoint fields: `proto` → `network` (with `servers[].network` on any `remote` line that names a different proto), `remote-random` → `remote_random`, `auth-user-pass` → `username`/`password`, `auth-retry` → `auth_retry`, `data-ciphers`/`cipher` → `data_ciphers`, `data-ciphers-fallback`, `auth` (upper-cased), `tun-mtu`/`mtu` → `mtu`, `mssfix` → `mss_fix` or `mss_fix_disabled`, `reneg-sec`/`reneg-bytes`/`reneg-pkts` → `renegotiate_interval`/`renegotiate_bytes`/`renegotiate_packets`, `ping`/`ping-restart` → `ping_interval`/`ping_restart`, `tls-timeout`, `handshake-window`, `explicit-exit-notify`, `fragment`, `comp-lzo` → `compression_lzo`, `compress` → `compression`, `allow-compression`, `redirect-gateway` (+ `redirect_gateway_flags`), `redirect-private`, `block-ipv6`, `route-nopull`, `pull-filter` → `pull_filters`.
+
+sing-box accepts more than the profile supplies, and CrimsonX leaves these empty: every `*_path` twin, `topology`, `peer_address_ipv6`, `routes`, `route_gateway`, `route_metric`, `replay_window`, `replay_window_time`, `mss_fix_mode`, `static_challenge`, `static_challenge_echo`, `system`, `name`, and `on_demand` (sing-box 1.15 and later).
 
 Static key mode:
 
@@ -243,12 +295,21 @@ Static key mode:
   "mode": "static_key",
   "network": "udp",
   "servers": [ { "server": "example.com", "server_port": 1194 } ],
-  "static_key": "<secret pem>",
-  "address": "10.8.0.2",
-  "peer_address": "10.8.0.1"
+  "static_key": [
+    "-----BEGIN OpenVPN Static key V1-----",
+    "…",
+    "-----END OpenVPN Static key V1-----"
+  ],
+  "address": ["10.8.0.2/32"],
+  "peer_address": "10.8.0.1",
+  "cipher": "AES-256-CBC",
+  "auth": "SHA256"
 }
 ```
 
+- `static_key` carries the content of the `<secret>` block; sing-box also accepts `static_key_path`, and `key_direction` (`server`/`client`) belongs to this mode — for `tls-auth` the direction goes on `tls.control_wrap.direction`.
+- `address` holds prefixes (`10.8.0.2/32`, `fd00::2/128`) and is required here; in `tls` mode the addresses can come from the server instead.
+- `cipher` is required in static-key mode — `data_ciphers` does not replace it — and `auth` (for example `SHA256`) is written when the profile names it. Static-key profiles carry no `tls` object at all.
 - `mode` becomes `tls` as soon as any TLS material is present (`client`, `tls-auth`, an inline `<ca>`/`<cert>`/`<key>`, `remote-cert-tls`); otherwise a `<secret>` block makes it `static_key`.
 - TAP configs (`dev tap*`, `dev-type tap`) are refused; use TUN.
 - Static key mode keeps a single remote — extra `remote` lines are dropped and logged — and needs both an inline `<secret>` and an `ifconfig` address.
