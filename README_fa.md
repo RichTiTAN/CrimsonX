@@ -104,7 +104,7 @@ Sing_Box: https://github.com/SagerNet/sing-box
 Avalonia: https://github.com/avaloniaui  
 Aether: https://github.com/CluvexStudio/Aether  
 go-ipsec: https://github.com/n0madic/go-ipsec  
-amw: https://github.com/amnezia-vpn/amnezia-box
+awg: https://github.com/amnezia-vpn/amnezia-box
 
 __Donations:__ 
 - If you want to support the project or me you can do so by sending your desired amount to one of these wallet addresses:
