@@ -47,16 +47,9 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 
 *Note: CrimsonX requires Windows 10 or newer.*
 
-###  Building from source
-Private worker URLs and a built-in encryption key live in a **gitignored** file (`Services/AppSecrets.cs`) so they never end up in the public repository. After cloning, create it from the template before building:
+###  CrimsonX is now a closed source project  
+- After version 3.3.3 by my decision the app was made closed source. older versions are still available for download alongside their source.
 
-```
-copy Services\AppSecrets.cs.example Services\AppSecrets.cs
-```
-
-Then open `Services/AppSecrets.cs` and fill in your own worker URLs plus a freshly generated 32-byte cache key and 16-byte IV.
-
-At runtime the stores in `Data\cache\*.bin` are encrypted with a 32-byte key that is generated on first use, wrapped with Windows DPAPI for the current Windows user, and kept in `Data\cache\data.key`. The key in `AppSecrets.cs` is only used to read stores written by older builds and as the fallback when DPAPI is unavailable, so an upgrade keeps your settings and saved credentials.
 
 ##  Configuration & Usage
 
