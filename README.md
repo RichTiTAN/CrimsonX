@@ -110,6 +110,7 @@ Third-party components remain under their own licenses: see [THIRD-PARTY-NOTICES
 
 # Credits and Donations  
 Creator: [@itsTiTANVPN](https://t.me/itsTitanVPN)  
+Contact: CrimsonVPN.Support@proton.me
 
 __Credits:__  
 xray: https://github.com/xtls/xray-core  
