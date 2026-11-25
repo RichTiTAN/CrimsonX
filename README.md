@@ -38,16 +38,16 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 The default connection path is not a tunnel you control. CrimsonX scrapes **publicly published proxy configurations** from remote sources, tests them, and load-balances your traffic across whichever ones currently answer.
 
 - Those servers belong to third parties. CrimsonX does not run them, and has **no control over how they are configured, who operates them, what they log, or whether they are safe**.
-- A scraped node can be misconfigured, malicious, or run by someone with an interest in what passes through it. It carries your traffic, and it is the only thing standing between your connection and the destination.
+- A scraped node can be misconfigured, malicious, or run by someone with an interest in what passes through it. It carries your traffic, and it is the only thing standing between your connection and the destination: it sees your address, the destinations you reach, your DNS queries and any traffic that is not TLS, and it can log all of it.
 - Treat the default path as fine for casual browsing, not as a privacy guarantee.
 
 If what you do needs to be trustworthy, use infrastructure you control:
 
-- **Exit node** — hand CrimsonX your own server as the exit. Traffic still travels over the scraped nodes, but it leaves through your server under the protocol you configured, so the public hop only carries an encrypted stream to it. That hop can still see that you connect and how much data moves, but not the content.
+- **Exit node** — hand CrimsonX your own server as the exit. Traffic still travels over the scraped nodes, but it leaves through your server under the protocol you configured — choose an encrypted one (VLESS+REALITY/TLS, Trojan, Hysteria2, WireGuard) — so the public hop only carries an encrypted stream to it. That hop can still see that you connect and how much data moves, but not the content.
 - **Custom config** — paste your own VLESS/VMess/Trojan/Shadowsocks, WireGuard, OpenVPN, IKEv2 or AmneziaWG configuration, either from a provider you trust or from a server you run. A custom config never touches the scraped pool.
 - **Your own server as the first hop, with split routing or WARP**, if that fits how you work.
 
-> **Please do not use the default connection for sensitive work.** Without an exit node or a custom config, anything you would not want a stranger to read — banking, work accounts, private messages — belongs on a server you run yourself: use it as the exit node, or import it as a custom config.
+> **Please do not use the default connection for sensitive work.** Without an exit node or a custom config, the operator of the node you land on learns your address, the sites and services you reach, and anything sent without TLS — and can log or act on it. Banking, work accounts and private messages belong on a server you run yourself: use it as the exit node, or import it as a custom config.
 
 ##  Screenshots
 
