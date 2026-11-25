@@ -33,6 +33,22 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 -  **LAN Sharing:** Share your VPN connection over the local network, with optional Username/Password authentication.
 -  **DNS Control:** Built-in support for secure DNS-over-HTTPS (DoH) and customizable System DNS fallbacks. Name resolution follows the traffic path - proxied apps resolve through the node, direct/bypassed apps resolve directly, so a dead node cannot take down DNS for the traffic that was never proxied.
 
+##  Security and trust
+
+The default connection path is not a tunnel you control. CrimsonX scrapes **publicly published proxy configurations** from remote sources, tests them, and load-balances your traffic across whichever ones currently answer.
+
+- Those servers belong to third parties. CrimsonX does not run them, and has **no control over how they are configured, who operates them, what they log, or whether they are safe**.
+- A scraped node can be misconfigured, malicious, or run by someone with an interest in what passes through it. It carries your traffic, and it is the only thing standing between your connection and the destination.
+- Treat the default path as fine for casual browsing, not as a privacy guarantee.
+
+If what you do needs to be trustworthy, use infrastructure you control:
+
+- **Exit node** — hand CrimsonX your own server as the exit. Traffic still travels over the scraped nodes, but it leaves through your server under the protocol you configured, so the public hop only carries an encrypted stream to it. That hop can still see that you connect and how much data moves, but not the content.
+- **Custom config** — paste your own VLESS/VMess/Trojan/Shadowsocks, WireGuard, OpenVPN, IKEv2 or AmneziaWG configuration, either from a provider you trust or from a server you run. A custom config never touches the scraped pool.
+- **Your own server as the first hop, with split routing or WARP**, if that fits how you work.
+
+> **Please do not use the default connection for sensitive work.** Without an exit node or a custom config, anything you would not want a stranger to read — banking, work accounts, private messages — belongs on a server you run yourself: use it as the exit node, or import it as a custom config.
+
 ##  Screenshots
 
 <img width="694" height="552" alt="image" src="https://github.com/user-attachments/assets/44f37838-2a44-4aec-a0ea-4f48e6c47334" />
