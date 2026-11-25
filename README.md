@@ -63,6 +63,8 @@ If what you do needs to be trustworthy, use infrastructure you control:
 
 *Note: CrimsonX requires Windows 10 or newer.*
 
+> **On Linux?** CrimsonX also runs natively on Linux — see the [CrimsonX-Linux repository](https://github.com/RichTiTAN/CrimsonX-Linux).
+
 ###  Source availability
 
 The source for CrimsonX 3.3.4 and later is published in this repository, so you can read exactly what the app does and build it yourself. It is not open source: it is licensed under the [PolyForm Strict License 1.0.0](LICENSE), which permits personal and other noncommercial use, and does not permit distributing the software or publishing modified versions.
