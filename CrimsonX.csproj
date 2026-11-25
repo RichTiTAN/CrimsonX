@@ -43,7 +43,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="EULA.txt" CopyToOutputDirectory="PreserveNewest" />
-    <None Update="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Update="LICENSE" CopyToOutputDirectory="PreserveNewest" />
     <None Update="THIRD-PARTY-NOTICES.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Licenses\**" CopyToOutputDirectory="PreserveNewest" />

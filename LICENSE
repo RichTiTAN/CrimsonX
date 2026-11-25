@@ -7,6 +7,14 @@ License 1.0.0, whose full text follows.
 Official CrimsonX builds published on the Releases page are licensed under the
 CrimsonX End User License Agreement in EULA.txt instead.
 
+Versions up to and including 3.3.3 were released under the GNU General Public
+License, version 3. Those rights are not revoked, and their corresponding source
+remains available in the matching release tags and releases.
+
+Bundled third-party components (Xray, sing-box, amnezia-box, Aether,
+crimsonipsec, Avalonia, Newtonsoft.Json, the .NET runtime) remain under their
+own licences: see THIRD-PARTY-NOTICES.txt and the Licenses folder.
+
 Commercial use, redistribution or any other licensing:
 CrimsonVPN.Support@proton.me
 
