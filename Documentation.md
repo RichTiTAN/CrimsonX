@@ -212,6 +212,38 @@ Allows you to personalize the visual aesthetic of the application.
 - Automatically checks for updates and handles the OTA (Over-The-Air) download and extraction of new versions from GitHub.
 - Provides quick links to the project's GitHub repository and community Telegram channels.
 
+## Security and trust
+
+The default connection path is a chain you do not control. CrimsonX scrapes publicly published Xray configurations, checks which of them answer, and balances your connections across them. The encryption those configs use (TLS/REALITY, VMess, Shadowsocks, WireGuard, ...) protects the link **between you and the node**. It ends at the node, and the node is your exit to the internet.
+
+### What the node operator can see
+
+| Data | Visible to the node |
+| --- | --- |
+| Your IP address, and when you connected | yes |
+| Destination IP addresses and ports | yes |
+| Hostnames (SNI) of the HTTPS sites you visit | yes - SNI travels in the clear unless ECH is used on both ends |
+| DNS queries, when they resolve through the tunnel | yes |
+| Anything that is not TLS at all (plain HTTP, plain SMTP/IMAP, many game and app protocols) | yes, in full - and it can be altered in transit |
+| Timing, volume and connection patterns | yes |
+| The body of an HTTPS session | no - the proxy forwards bytes, it does not terminate your TLS |
+| Payloads that are end-to-end encrypted inside that session (Signal, WhatsApp, password-manager sync) | no |
+
+The exposure is therefore **metadata plus plaintext**, not "the operator reads your bank page". That is still a lot: destination + SNI + your address + timestamps is a browsing history minus page contents, and it can be logged, sold or acted on.
+
+Because the node sits on-path it can also do more than watch: rewrite plain HTTP, answer plain DNS with whatever it likes, drop or delay specific destinations, and serve a phishing page in place of anything not protected by TLS. A forged certificate for a TLS site is rejected by your client, so TLS contents stay out of reach.
+
+### Reducing what a third party sees
+
+- **Exit node** - add your own server as the exit. The pooled node in front then only carries the encrypted link to your server, and the destinations move to a machine you administer. The node in front still sees your address, that you connect to your server, and how many bytes move.
+- **Custom config** - an outbound you supply (a provider you chose, or your own). It never enters the pooled path, so the only observer is whoever you picked.
+- **DNS** - name resolution follows the traffic path: proxied names are resolved at the node, direct names are resolved locally. Keep that in mind when writing split-tunneling and per-app rules.
+- **Sensitive accounts** - banking, work SSO and account recovery belong on an exit you control, or on a connection you trust.
+
+### What CrimsonX sends about you
+
+Config validation and speed tests connect **through** the configs being tested, so a node learns your address even if you never select it. The app also contacts the update endpoint (GitHub) and the sources it scrapes configurations from; both are listed in section 8 of the [EULA](EULA.txt). There is no analytics or advertising SDK.
+
 ## Cloudflare WARP
 - The **WARP** tile on Home toggles WARP for the next connection. While it is on, xray configs, sing-box tunnels, OpenVPN/WireGuard tunnels and IKEv2 tunnels leave through the bundled Aether client instead of the physical adapter.
 - **WARP PROTOCOL** in Settings selects MASQUE HTTP/2 (default), MASQUE HTTP/3, WireGuard, GOOL, GOOL Classic, or MASQUE-in-MASQUE.
