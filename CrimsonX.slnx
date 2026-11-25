@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="CrimsonX.csproj">
+    <BuildType Project="Debug" />
+  </Project>
+</Solution>

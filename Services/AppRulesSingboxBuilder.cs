@@ -1,0 +1,430 @@
+/*
+ * CrimsonX - source available software.
+ * Copyright (C) 2026 RichTiTAN. All rights reserved.
+ * Licensed under the PolyForm Strict License 1.0.0.
+ * https://polyformproject.org/licenses/strict/1.0.0
+ * Licensing: CrimsonVPN.Support@proton.me
+ */
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using CrimsonX.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace CrimsonX.Services
+{
+    public sealed class AppRulesSingboxResult
+    {
+        public List<object> RouteRules { get; } = new List<object>();
+        public List<object> Outbounds  { get; } = new List<object>();
+        public List<object> DnsRules   { get; } = new List<object>();
+
+        public List<object> ResolveRules { get; } = new List<object>();
+        public List<object> RuleSets   { get; } = new List<object>();
+
+        public List<object> DnsServers { get; } = new List<object>();
+
+        public List<CustomOutboundProbe> CustomProxies { get; } = new List<CustomOutboundProbe>();
+
+        internal Dictionary<string, string> CustomTags { get; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        public Dictionary<string, string> CustomLabels { get; } = new Dictionary<string, string>(StringComparer.Ordinal);
+    }
+
+    public static class AppRulesSingboxBuilder
+    {
+        private static readonly Dictionary<string, string> RegionToRuleSet = new Dictionary<string, string>
+        {
+            ["North America"] = "north-america",
+            ["South America"] = "south-america",
+            ["Europe"]        = "europe",
+            ["Asia"]          = "asia",
+            ["Africa"]        = "africa",
+            ["Oceania"]       = "oceania",
+        };
+
+        public static AppRulesSingboxResult Build(AppConfig config, ISet<string> skipCustomKeys = null, string proxyTag = "proxy")
+        {
+            var result = new AppRulesSingboxResult();
+            if (config == null || !config.EnableAppRules) return result;
+            List<AppGameRule> rules;
+            try { rules = AppRulesService.Load(); }
+            catch { return result; }
+            if (rules == null) return result;
+            var enabled = rules
+                .Where(r => r.IsEnabled
+                    && ((r.ProcessNames != null && r.ProcessNames.Count > 0) || !string.IsNullOrWhiteSpace(r.ExeName)))
+                .ToList();
+            if (enabled.Count == 0) return result;
+            var adapterTags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var adapterIps  = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            int adapterIndex = 1;
+            var usedRuleSets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var rule in enabled)
+            {
+                var nameSource = rule.ProcessNames != null && rule.ProcessNames.Count > 0
+                    ? rule.ProcessNames
+                    : new List<string> { rule.ExeName };
+                var names = BuildProcessNames(nameSource);
+                if (names.Count == 0) continue;
+                var namesArray = names.ToArray();
+                if (!string.IsNullOrWhiteSpace(rule.Region)
+                    && rule.Region != "ALL"
+                    && RegionToRuleSet.TryGetValue(rule.Region.Trim(), out var ruleSetFile))
+                {
+                    string ruleSetTag = "region-" + ruleSetFile;
+                    usedRuleSets.Add(ruleSetFile);
+                    result.RouteRules.Add(new
+                    {
+                        type = "logical",
+                        mode = "and",
+                        rules = new object[]
+                        {
+                            new { process_name = namesArray },
+                            new { network = "udp" },
+                            new { port = new[] { 3478, 5349 }, invert = true },
+                            new { ip_is_private = true, invert = true },
+                            new { rule_set = ruleSetTag, invert = true }
+                        },
+                        action = "reject"
+                    });
+                }
+                string tcpOutbound = ResolveOutbound(rule, rule.TcpRouting, rule.TcpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys, proxyTag);
+                string udpOutbound = ResolveOutbound(rule, rule.UdpRouting, rule.UdpAdapter, adapterTags, adapterIps, ref adapterIndex, result, skipCustomKeys, proxyTag);
+                result.RouteRules.Add(ProcessRouteRule(namesArray, "tcp", tcpOutbound));
+                result.RouteRules.Add(ProcessRouteRule(namesArray, "udp", udpOutbound));
+                string dnsServer = DnsServerFor(rule.TcpRouting, rule.UdpRouting, tcpOutbound, udpOutbound);
+                result.DnsRules.Add(ProcessDnsRule(namesArray, dnsServer));
+                result.ResolveRules.Add(ProcessResolveRule(namesArray, dnsServer));
+                var domains = rule.Domains != null
+                    ? rule.Domains.Where(d => !string.IsNullOrWhiteSpace(d)).Select(d => d.Trim()).ToArray()
+                    : Array.Empty<string>();
+                if (domains.Length > 0)
+                {
+                    result.RouteRules.Add(new
+                    {
+                        domain_suffix = domains,
+                        network = "tcp",
+                        action = "route",
+                        outbound = tcpOutbound
+                    });
+                    result.RouteRules.Add(new
+                    {
+                        domain_suffix = domains,
+                        network = "udp",
+                        action = "route",
+                        outbound = udpOutbound
+                    });
+                    result.DnsRules.Add(new
+                    {
+                        domain_suffix = domains,
+                        action = "route",
+                        server = dnsServer
+                    });
+                }
+            }
+            foreach (var file in usedRuleSets)
+            {
+                result.RuleSets.Add(new
+                {
+                    tag = "region-" + file,
+                    type = "local",
+                    format = "binary",
+                    path = "rule_sets/" + file + ".srs"
+                });
+            }
+            return result;
+        }
+
+        private static string ResolveOutbound(AppGameRule rule, string routing, string adapter,
+            Dictionary<string, string> adapterTags, Dictionary<string, string> adapterIps, ref int adapterIndex,
+            AppRulesSingboxResult result, ISet<string> skipCustomKeys, string proxyTag)
+        {
+            if (IsCustomRouting(routing))
+            {
+                string customTag = ResolveCustomOutbound(rule, adapter, adapterIps, result, skipCustomKeys);
+                return customTag.Length > 0 ? customTag : proxyTag;
+            }
+            bool direct = string.Equals(routing, "Direct", StringComparison.OrdinalIgnoreCase);
+            bool customAdapter = !string.IsNullOrWhiteSpace(adapter)
+                && !string.Equals(adapter, "Default", StringComparison.OrdinalIgnoreCase);
+            if (!direct) return proxyTag;
+            if (customAdapter)
+            {
+                if (adapterTags.TryGetValue(adapter, out var existing)) return existing;
+                string tag = "direct-adapter-" + adapterIndex++;
+                adapterTags[adapter] = tag;
+                var ob = new Dictionary<string, object>
+                {
+                    ["type"] = "direct",
+                    ["tag"] = tag,
+                    ["bind_interface"] = adapter
+                };
+                var binding = AdapterBindings.Resolve(adapter, CachedAdapterIp(adapterIps, adapter));
+                if (binding.HasV4) ob["inet4_bind_address"] = binding.Ipv4;
+                if (binding.HasV6) ob["inet6_bind_address"] = binding.Ipv6;
+                result.Outbounds.Add(ob);
+                return tag;
+            }
+            return "direct";
+        }
+
+        private static bool IsCustomRouting(string routing)
+            => string.Equals(routing, "Custom", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsDirectRouting(string routing)
+            => string.Equals(routing, "Direct", StringComparison.OrdinalIgnoreCase);
+
+        internal static string DnsServerFor(string tcpRouting, string udpRouting, string tcpOutbound, string udpOutbound)
+        {
+            if (IsCustomRouting(tcpRouting) && tcpOutbound.StartsWith("custom-", StringComparison.Ordinal)) return "dns-" + tcpOutbound;
+            if (IsCustomRouting(udpRouting) && udpOutbound.StartsWith("custom-", StringComparison.Ordinal)) return "dns-" + udpOutbound;
+            if (IsDirectRouting(tcpRouting) && IsDirectRouting(udpRouting)) return "dns_direct";
+            return "dns_proxy";
+        }
+
+        internal static object ProcessRouteRule(string[] names, string network, string outbound)
+            => new { process_name = names, network = network, action = "route", outbound = outbound };
+
+        internal static object ProcessDnsRule(string[] names, string server)
+            => new { process_name = names, action = "route", server = server };
+
+        internal static object ProcessResolveRule(string[] names, string server)
+            => new Dictionary<string, object>
+            {
+                ["process_name"] = names,
+                ["ip_cidr"] = new[] { "198.18.0.0/15" },
+                ["action"] = "resolve",
+                ["server"] = server
+            };
+
+        private static string ResolveCustomOutbound(AppGameRule rule, string adapter,
+            Dictionary<string, string> adapterIps, AppRulesSingboxResult result, ISet<string> skipCustomKeys)
+        {
+            string raw = rule?.CustomProxyRaw ?? "";
+            if (string.IsNullOrWhiteSpace(raw)) return "";
+            string key = CustomProxyKey(raw, adapter);
+            if (skipCustomKeys != null && skipCustomKeys.Contains(key)) return "";
+            if (result.CustomTags.TryGetValue(key, out var existing)) return existing;
+            JObject outbound;
+            if (TunnelConfigParser.TryParse(raw, out var tunnel))
+            {
+                if (tunnel == null || !tunnel.Success)
+                {
+                    SimpleLogger.Log($"[AppRules] Tunnel custom proxy rejected: {tunnel?.Error}");
+                    return "";
+                }
+                int? tunnelPort = RuleTunnelPort(key, adapter, adapterIps);
+                if (tunnelPort == null)
+                {
+                    SimpleLogger.Log($"[AppRules] Tunnel '{tunnel.Label}' is not running; that rule keeps the default outbound.");
+                    return "";
+                }
+                string tunnelTag = "custom-" + result.CustomProxies.Count;
+                outbound = TunnelEngine.BuildSingboxSocksOutbound(tunnelPort.Value);
+                outbound["tag"] = tunnelTag;
+                result.Outbounds.Add(outbound);
+                result.CustomProxies.Add(new CustomOutboundProbe { Key = key, OutboundJson = outbound.ToString(Formatting.None) });
+                result.CustomTags[key] = tunnelTag;
+                result.CustomLabels[tunnelTag] = tunnel.Label;
+                result.DnsServers.Add(new
+                {
+                    tag     = "dns-" + tunnelTag,
+                    type    = "https",
+                    server  = "8.8.8.8",
+                    path    = "/resolve",
+                    headers = new { Host = "dns.google" },
+                    tls     = new { server_name = "dns.google" },
+                    detour  = tunnelTag
+                });
+                return tunnelTag;
+            }
+            if (!ConfigConverter.TrySingboxChain(raw, out var hops, out string label, out _) || hops.Count == 0)
+            {
+                return "";
+            }
+            string tag = "custom-" + result.CustomProxies.Count;
+            var tags = new List<string>();
+            for (int i = 0; i < hops.Count; i++) tags.Add(i == 0 ? tag : tag + "-" + i);
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            for (int i = 0; i < hops.Count; i++) map[hops[i]["tag"]?.ToString() ?? ""] = tags[i];
+            JObject head = null;
+            var chain = new JArray();
+            for (int i = 0; i < hops.Count; i++)
+            {
+                var hop = (JObject)hops[i].DeepClone();
+                hop["tag"] = tags[i];
+                string detour = hops[i]["detour"]?.ToString() ?? "";
+                if (detour.Length > 0 && map.TryGetValue(detour, out string mappedDetour)) hop["detour"] = mappedDetour;
+                if (i == 0) head = hop;
+                else chain.Add(hop);
+                if (i == hops.Count - 1)
+                    SingboxLinkParser.WithTagAndDial(hop, tags[i], adapter, CachedAdapterIp(adapterIps, adapter));
+                result.Outbounds.Add(hop);
+            }
+            result.CustomProxies.Add(new CustomOutboundProbe
+            {
+                Key = key,
+                OutboundJson = head.ToString(Formatting.None),
+                ChainJson = chain.Count > 0 ? chain.ToString(Formatting.None) : ""
+            });
+            result.CustomTags[key] = tag;
+            result.CustomLabels[tag] = label;
+            result.DnsServers.Add(new
+            {
+                tag     = "dns-" + tag,
+                type    = "https",
+                server  = "8.8.8.8",
+                path    = "/resolve",
+                headers = new { Host = "dns.google" },
+                tls     = new { server_name = "dns.google" },
+                detour  = tag
+            });
+            return tag;
+        }
+
+        // ── Tunnel (OpenVPN / WireGuard) custom proxies ─────────────────────────────────────
+
+        public static string CustomProxyKey(string raw, string adapter)
+            => ConfigConverter.KeyFor(raw, adapter);
+
+        public static string LabelOf(string raw)
+            => ConfigConverter.LabelFor(raw);
+
+        public static List<TunnelTarget> CollectTunnelTargets(AppConfig config)
+        {
+            var targets = new List<TunnelTarget>();
+            if (config == null || !config.EnableAppRules) return targets;
+            List<AppGameRule> rules;
+            try { rules = AppRulesService.Load(); }
+            catch { return targets; }
+            if (rules == null) return targets;
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var adapterIps = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var rule in rules)
+            {
+                if (rule == null || !rule.IsEnabled) continue;
+                if ((rule.ProcessNames == null || rule.ProcessNames.Count == 0) && string.IsNullOrWhiteSpace(rule.ExeName)) continue;
+                string raw = rule.CustomProxyRaw ?? "";
+                if (raw.Length == 0) continue;
+                if (IsCustomRouting(rule.TcpRouting)) AddTunnelTarget(targets, seen, adapterIps, raw, rule.TcpAdapter);
+                if (IsCustomRouting(rule.UdpRouting)) AddTunnelTarget(targets, seen, adapterIps, raw, rule.UdpAdapter);
+            }
+            return targets;
+        }
+
+        private static void AddTunnelTarget(List<TunnelTarget> targets, HashSet<string> seen,
+            Dictionary<string, string> adapterIps, string raw, string adapter)
+        {
+            if (!TunnelConfigParser.TryParse(raw, out var tunnel) || tunnel == null || !tunnel.Success) return;
+            string name = string.IsNullOrWhiteSpace(adapter) ? "Default" : adapter.Trim();
+            string key = TunnelConfigParser.KeyOf(raw, name);
+            if (!seen.Add(key)) return;
+            if (!TunnelCredentialResolver.ApplyStored(tunnel))
+            {
+                SimpleLogger.Log($"[AppRules] '{tunnel.Label}' needs a username and password; that rule keeps the default outbound.");
+                return;
+            }
+            targets.Add(new TunnelTarget
+            {
+                Key = key,
+                Parsed = tunnel,
+                Tag = "tunnel-" + targets.Count,
+                AdapterName = name,
+                AdapterIp = CachedAdapterIp(adapterIps, name)
+            });
+        }
+
+        private static int? RuleTunnelPort(string key, string adapter, Dictionary<string, string> adapterIps)
+        {
+            string adapterIp = CachedAdapterIp(adapterIps, adapter);
+            if (TunnelEngine.GroupServes(TunnelEngine.GroupCustom, key, adapter, adapterIp))
+                return TunnelEngine.PortFor(TunnelEngine.GroupCustom, key);
+            return TunnelEngine.PortFor(TunnelEngine.GroupRules, key);
+        }
+
+        public static int? RuleTunnelPort(TunnelTarget target)
+        {
+            if (target == null || string.IsNullOrWhiteSpace(target.Key)) return null;
+            if (TunnelEngine.GroupServes(TunnelEngine.GroupCustom, target.Key, target.AdapterName, target.AdapterIp))
+                return TunnelEngine.PortFor(TunnelEngine.GroupCustom, target.Key);
+            return TunnelEngine.PortFor(TunnelEngine.GroupRules, target.Key);
+        }
+
+        public static bool EnsureRuleTunnels(AppConfig config, out string error)
+            => EnsureRuleTunnels(config, CancellationToken.None, out error);
+
+        public static bool EnsureRuleTunnels(AppConfig config, CancellationToken token, out string error)
+        {
+            error = "";
+            var targets = CollectTunnelTargets(config);
+            if (targets.Count == 0)
+            {
+                TunnelEngine.Stop(TunnelEngine.GroupRules);
+                return true;
+            }
+            if (targets.All(t => TunnelEngine.GroupServes(TunnelEngine.GroupCustom, t.Key, t.AdapterName, t.AdapterIp)))
+            {
+                TunnelEngine.Stop(TunnelEngine.GroupRules);
+                SimpleLogger.Log($"[AppRules] {targets.Count} app-rule tunnel(s) reuse the custom-config engine.");
+                return true;
+            }
+            bool ok = TunnelEngine.EnsureTargetsStarted(config, TunnelEngine.GroupRules, targets, "", "", token, out error);
+            if (!ok) SimpleLogger.Log($"[AppRules] The app-rule tunnel group could not be started: {error}");
+            return ok;
+        }
+
+        internal static List<string> BuildProcessNames(IEnumerable<string> processNames)
+        {
+            var result = new List<string>();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            void AddUnique(string value)
+            {
+                if (value.Length > 0 && seen.Add(value)) result.Add(value);
+            }
+            foreach (var raw in processNames)
+            {
+                if (raw == null) continue;
+                string exe = raw.Trim();
+                if (exe.Length == 0) continue;
+                AddUnique(exe);
+                AddUnique(exe.ToLowerInvariant());
+                if (exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    string baseName = exe.Substring(0, exe.Length - 4);
+                    AddUnique(baseName);
+                    AddUnique(baseName.ToLowerInvariant());
+                }
+            }
+            return result;
+        }
+        private static string CachedAdapterIp(Dictionary<string, string> cache, string adapterName)
+        {
+            if (cache.TryGetValue(adapterName, out var cached)) return cached;
+            string ip = ResolveAdapterIp(adapterName);
+            cache[adapterName] = ip;
+            return ip;
+        }
+
+        private static string ResolveAdapterIp(string adapterName)
+        {
+            try
+            {
+                var nic = NetworkInterface.GetAllNetworkInterfaces()
+                    .FirstOrDefault(n => n.Name == adapterName && n.OperationalStatus == OperationalStatus.Up);
+                if (nic == null) return "";
+                return nic.GetIPProperties().UnicastAddresses
+                    .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork)?
+                    .Address?.ToString() ?? "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+    }
+}

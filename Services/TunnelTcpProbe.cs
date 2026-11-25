@@ -1,0 +1,398 @@
+/*
+ * CrimsonX - source available software.
+ * Copyright (C) 2026 RichTiTAN. All rights reserved.
+ * Licensed under the PolyForm Strict License 1.0.0.
+ * https://polyformproject.org/licenses/strict/1.0.0
+ * Licensing: CrimsonVPN.Support@proton.me
+ */
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+
+namespace CrimsonX.Services
+{
+    public static class TunnelTcpProbe
+    {
+        public const int DefaultTimeoutMs = 1500;
+
+        private const int MaxRemotes = 8;
+
+        private const int IpUnicastIf = 31;
+
+        public sealed class TResult
+        {
+            public bool Ok { get; set; }
+
+            public long Ms { get; set; } = -1;
+
+            public string Target { get; set; } = "";
+
+            public bool TimedOut { get; set; }
+
+            public string Error { get; set; } = "";
+        }
+
+        private sealed class Candidate
+        {
+            public IPAddress Address { get; set; }
+
+            public string Host { get; set; } = "";
+
+            public int Port { get; set; }
+
+            public string Network { get; set; } = "";
+
+            public string Write() => $"{Host}:{Port}";
+        }
+
+        private sealed class Route
+        {
+            public IPAddress? SourceV4 { get; set; }
+
+            public IPAddress? SourceV6 { get; set; }
+
+            public int IndexV4 { get; set; }
+
+            public int IndexV6 { get; set; }
+
+            public string Name { get; set; } = "";
+        }
+        public static bool IsOpenVpn(TunnelParseResult tunnel)
+            => tunnel != null && tunnel.Success && tunnel.Kind == TunnelKind.OpenVpn;
+
+        public static bool IsIpsec(TunnelParseResult tunnel)
+            => tunnel != null && tunnel.Success && tunnel.Kind == TunnelKind.Ipsec;
+
+        public static bool IsTcpProbeKind(TunnelParseResult tunnel)
+            => IsOpenVpn(tunnel) || IsIpsec(tunnel);
+
+        public static bool IsWireGuard(TunnelParseResult tunnel)
+            => tunnel != null && tunnel.Success && tunnel.Kind == TunnelKind.WireGuard;
+
+        public static string ServerText(TunnelParseResult tunnel)
+        {
+            try { return tunnel?.ServerText() ?? ""; }
+            catch { return ""; }
+        }
+
+        public static TResult Probe(TunnelParseResult tunnel, string adapterIp, int attemptTimeoutMs, int totalBudgetMs = 5000)
+        {
+            var result = new TResult();
+            var remotes = Remotes(tunnel);
+            if (remotes.Count == 0)
+            {
+                result.Error = "no remote server";
+                return result;
+            }
+            int timeout = attemptTimeoutMs > 0 ? attemptTimeoutMs : DefaultTimeoutMs;
+            int budget = totalBudgetMs > 0 ? totalBudgetMs : 5000;
+            var route = ResolveRoute(adapterIp);
+            var candidates = new List<Candidate>();
+            foreach (var remote in remotes.Take(MaxRemotes))
+            {
+                foreach (int port in Ports(remote.Item2, remote.Item3))
+                {
+                    foreach (var address in Resolve(remote.Item1))
+                    {
+                        candidates.Add(new Candidate
+                        {
+                            Address = address,
+                            Host = remote.Item1,
+                            Port = port,
+                            Network = remote.Item3
+                        });
+                    }
+                }
+            }
+            if (candidates.Count == 0)
+            {
+                result.Error = "the remote host could not be resolved";
+                return result;
+            }
+            candidates = candidates
+                .OrderBy(c => string.Equals(c.Network, "tcp", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ToList();
+            var gate = new object();
+            using var finished = new ManualResetEventSlim(false);
+            string failure = "";
+            bool sawTimeout = false;
+            int pending = candidates.Count;
+            foreach (var candidate in candidates)
+            {
+                var item = candidate;
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        if (TryConnect(item, route, timeout, out long ms, out bool timedOut, out string error))
+                        {
+                            lock (gate)
+                            {
+                                if (!result.Ok || ms < result.Ms)
+                                {
+                                    result.Ok = true;
+                                    result.Ms = ms;
+                                    result.Target = item.Write();
+                                }
+                            }
+                            finished.Set();
+                            return;
+                        }
+                        lock (gate)
+                        {
+                            if (timedOut) sawTimeout = true;
+                            if (failure.Length == 0) failure = error;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        lock (gate) { if (failure.Length == 0) failure = ex.Message; }
+                    }
+                    finally
+                    {
+                        if (Interlocked.Decrement(ref pending) == 0) finished.Set();
+                    }
+                });
+            }
+            finished.Wait(budget + timeout + 500);
+            if (!result.Ok)
+            {
+                result.TimedOut = sawTimeout;
+                result.Error = failure.Length > 0 ? failure : "no remote answered";
+            }
+            return result;
+        }
+
+        public static string RouteText(string adapterIp)
+        {
+            var route = ResolveRoute(adapterIp);
+            if (route == null) return "default route";
+            var parts = new List<string>();
+            if (route.SourceV4 != null) parts.Add($"{route.SourceV4} (ifIndex {route.IndexV4})");
+            if (route.SourceV6 != null) parts.Add($"{route.SourceV6} (ifIndex {route.IndexV6})");
+            string where = string.Join(", ", parts);
+            return route.Name.Length > 0 ? $"{route.Name} ({where})" : where;
+        }
+        internal static IEnumerable<int> Ports(int port, string network)
+        {
+            yield return port;
+            if (string.Equals(network ?? "", "tcp", StringComparison.OrdinalIgnoreCase)) yield break;
+            if (port != 443) yield return 443;
+            if (port != 80) yield return 80;
+        }
+
+        internal static List<Tuple<string, int, string>> Remotes(TunnelParseResult tunnel)
+        {
+            var list = new List<Tuple<string, int, string>>();
+            try
+            {
+                string endpointNetwork = tunnel?.Endpoint?["network"]?.ToString() ?? "";
+                if (tunnel?.Endpoint?["servers"] is JArray servers)
+                {
+                    foreach (var item in servers.OfType<JObject>())
+                    {
+                        string host = item["server"]?.ToString() ?? "";
+                        int port = 0;
+                        int.TryParse(item["server_port"]?.ToString() ?? "", out port);
+                        string network = item["network"]?.ToString() ?? "";
+                        if (network.Length == 0) network = endpointNetwork;
+                        if (host.Length == 0 || port <= 0 || port > 65535) continue;
+                        if (list.Any(r => r.Item1 == host && r.Item2 == port)) continue;
+                        list.Add(Tuple.Create(host, port, network));
+                    }
+                }
+                if (list.Count == 0)
+                {
+                    string host = tunnel?.Endpoint?["server"]?.ToString() ?? "";
+                    int port = 0;
+                    int.TryParse(tunnel?.Endpoint?["server_port"]?.ToString() ?? "", out port);
+                    if (host.Length > 0 && port > 0 && port <= 65535) list.Add(Tuple.Create(host, port, endpointNetwork));
+                }
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log(ex);
+            }
+            return list;
+        }
+
+        private static Route ResolveRoute(string adapterIp)
+        {
+            try
+            {
+                var nics = NetworkInterface.GetAllNetworkInterfaces();
+                IPAddress wanted = null;
+                IPAddress.TryParse((adapterIp ?? "").Trim(), out wanted);
+                if (wanted != null)
+                {
+                    foreach (var nic in nics)
+                    {
+                        if (nic.GetIPProperties().UnicastAddresses.Any(a => a.Address.Equals(wanted)))
+                            return RouteFor(nic);
+                    }
+                }
+                foreach (var nic in nics)
+                {
+                    if (nic.OperationalStatus != OperationalStatus.Up) continue;
+                    if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                    if (nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
+                    if (IsVirtual(nic)) continue;
+                    var addresses = nic.GetIPProperties().UnicastAddresses;
+                    if (!addresses.Any(a => a.Address.AddressFamily == AddressFamily.InterNetwork)
+                        && !addresses.Any(a => a.Address.AddressFamily == AddressFamily.InterNetworkV6)) continue;
+                    return RouteFor(nic);
+                }
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log(ex);
+            }
+            return null;
+        }
+
+        private static Route RouteFor(NetworkInterface nic)
+        {
+            int v4Index = 0;
+            int v6Index = 0;
+            IPAddress sourceV4 = null;
+            IPAddress sourceV6 = null;
+            try
+            {
+                var props = nic.GetIPProperties();
+                foreach (var info in props.UnicastAddresses)
+                {
+                    if (info.Address.AddressFamily == AddressFamily.InterNetwork && sourceV4 == null)
+                        sourceV4 = info.Address;
+                    if (info.Address.AddressFamily == AddressFamily.InterNetworkV6
+                        && !info.Address.IsIPv6LinkLocal && sourceV6 == null)
+                        sourceV6 = info.Address;
+                }
+                try { v4Index = props.GetIPv4Properties()?.Index ?? 0; } catch { }
+                try { v6Index = props.GetIPv6Properties()?.Index ?? 0; } catch { }
+            }
+            catch (Exception ex) { SimpleLogger.Log(ex); }
+            return new Route { SourceV4 = sourceV4, SourceV6 = sourceV6, IndexV4 = v4Index, IndexV6 = v6Index, Name = nic.Name };
+        }
+        private static bool IsVirtual(NetworkInterface nic)
+        {
+            string text = (nic.Name ?? "") + " " + (nic.Description ?? "");
+            string[] blocked =
+            {
+                "singbox", "sing-box", "tun", "wintun", "tap", "vpn", "wireguard", "virtual",
+                "vmware", "virtualbox", "hyper-v", "hyperv", "loopback", "bluetooth", "warp"
+            };
+            foreach (var word in blocked)
+            {
+                if (text.IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            }
+            return false;
+        }
+
+        private static List<IPAddress> Resolve(string host)
+        {
+            var list = new List<IPAddress>();
+            try
+            {
+                if (IPAddress.TryParse(host, out var literal))
+                {
+                    list.Add(literal);
+                    return list;
+                }
+                var found = Dns.GetHostAddresses(host) ?? new IPAddress[0];
+                list.AddRange(found.Where(a => a.AddressFamily == AddressFamily.InterNetwork));
+                list.AddRange(found.Where(a => a.AddressFamily == AddressFamily.InterNetworkV6));
+            }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log(ex);
+            }
+            return list;
+        }
+
+        private static bool TryConnect(Candidate candidate, Route route, int timeoutMs, out long ms, out bool timedOut, out string error)
+        {
+            if (TryConnectOnce(candidate, route, timeoutMs, out ms, out timedOut, out error)) return true;
+            string pinnedError = error;
+            bool pinnedTimeout = timedOut;
+            if (route == null) return false;
+            bool v6 = candidate.Address.AddressFamily == AddressFamily.InterNetworkV6;
+            if (v6 ? route.SourceV6 == null : route.SourceV4 == null) return false;
+            if (TryConnectOnce(candidate, null, timeoutMs, out ms, out timedOut, out error)) return true;
+            error = $"{error} (pinned to {route.Name}: {pinnedError}{(pinnedTimeout ? ", timed out" : "")})";
+            if (pinnedTimeout) timedOut = true;
+            return false;
+        }
+
+        private static string RouteName(Route route)
+        {
+            if (route == null) return "the default route";
+            var parts = new List<string>();
+            if (route.SourceV4 != null) parts.Add($"{route.SourceV4} (ifIndex {route.IndexV4})");
+            if (route.SourceV6 != null) parts.Add($"{route.SourceV6} (ifIndex {route.IndexV6})");
+            return $"{route.Name} ({string.Join(", ", parts)})";
+        }
+
+        private static bool TryConnectOnce(Candidate candidate, Route route, int timeoutMs, out long ms, out bool timedOut, out string error)
+        {
+            ms = -1;
+            timedOut = false;
+            error = "";
+            TcpClient client = null;
+            try
+            {
+                bool v6 = candidate.Address.AddressFamily == AddressFamily.InterNetworkV6;
+                client = new TcpClient(candidate.Address.AddressFamily);
+                IPAddress source = route == null ? null : (v6 ? route.SourceV6 : route.SourceV4);
+                int ifIndex = route == null ? 0 : (v6 ? route.IndexV6 : route.IndexV4);
+                if (source != null)
+                {
+                    try { client.Client.Bind(new IPEndPoint(source, 0)); }
+                    catch (Exception ex) { error = "bind to " + source + " failed: " + ex.Message; }
+                }
+                if (ifIndex > 0)
+                {
+                    try
+                    {
+                        var level = v6 ? SocketOptionLevel.IPv6 : SocketOptionLevel.IP;
+                        client.Client.SetSocketOption(level, (SocketOptionName)IpUnicastIf, ifIndex);
+                    }
+                    catch (Exception ex) { error = "pinning to interface " + ifIndex + " failed: " + ex.Message; }
+                }
+                var watch = Stopwatch.StartNew();
+                var connect = client.ConnectAsync(candidate.Address, candidate.Port);
+                if (!connect.Wait(timeoutMs))
+                {
+                    timedOut = true;
+                    error = $"{candidate.Write()} did not answer within {timeoutMs} ms";
+                    return false;
+                }
+                if (connect.IsFaulted)
+                {
+                    var inner = connect.Exception?.InnerException;
+                    error = $"{candidate.Write()} refused: {inner?.Message ?? "connect failed"}";
+                    return false;
+                }
+                watch.Stop();
+                ms = watch.ElapsedMilliseconds;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = $"{candidate.Write()} refused: {ex.Message}";
+                return false;
+            }
+            finally
+            {
+                try { client?.Close(); } catch { }
+            }
+        }
+    }
+}

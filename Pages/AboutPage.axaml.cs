@@ -1,0 +1,156 @@
+/*
+ * CrimsonX - source available software.
+ * Copyright (C) 2026 RichTiTAN. All rights reserved.
+ * Licensed under the PolyForm Strict License 1.0.0.
+ * https://polyformproject.org/licenses/strict/1.0.0
+ * Licensing: CrimsonVPN.Support@proton.me
+ */
+
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using System.Diagnostics;
+using System.Threading.Tasks;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
+
+namespace CrimsonX.Pages;
+
+public partial class AboutPage : UserControl
+{
+    internal static AboutPage? Instance { get; private set; }
+    internal static void ClearInstance() => Instance = null;
+
+    public AboutPage()
+    {
+        InitializeComponent();
+        Instance = this;
+        var lblVersion = this.FindControl<TextBlock>("lblVersion");
+        if (lblVersion != null)
+        {
+            lblVersion.Text = Services.UpdateService.AppVersion;
+        }
+    }
+
+    // ── External Links ──
+
+    private void BtnGithub_Click(object? sender, RoutedEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo("https://github.com/RichTiTAN") { UseShellExecute = true })?.Dispose();
+    }
+
+    private void BtnTelegram_Click(object? sender, RoutedEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo("https://t.me/itsTitanVPN") { UseShellExecute = true })?.Dispose();
+    }
+
+    private void BtnOtherApps_Click(object? sender, RoutedEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo("https://github.com/RichTiTAN/CrimsonOnion") { UseShellExecute = true })?.Dispose();
+    }
+
+    private void BtnDonateCard_Click(object? sender, RoutedEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo("https://buy.moonpay.com/?currencyCode=usdt_bsc&walletAddress=0xFc1d71C22DC2604f6C13Ca540ed842535cbE6d75") { UseShellExecute = true })?.Dispose();
+    }
+
+    private void BtnWalletToggle_Click(object? sender, RoutedEventArgs e)
+    {
+        var pan = this.FindControl<Border>("panWalletAddresses");
+        var ico = this.FindControl<PathIcon>("icoWalletExpander");
+        var panToggle = this.FindControl<Border>("panWalletToggle");
+        var btnToggle = this.FindControl<Button>("btnWalletToggle");
+        bool expanded = pan != null && pan.MaxHeight == 0;
+        if (pan != null) { pan.MaxHeight = expanded ? 260 : 0; pan.Opacity = expanded ? 1 : 0; }
+        if (ico != null) ico.RenderTransform = new global::Avalonia.Media.RotateTransform(expanded ? 180 : 0);
+        if (panToggle != null) panToggle.CornerRadius = expanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+        if (btnToggle != null) btnToggle.CornerRadius = expanded ? new global::Avalonia.CornerRadius(8, 8, 0, 0) : new global::Avalonia.CornerRadius(8);
+    }
+
+    // ── Language & Localization ──
+
+    public void ApplyLanguage()
+    {
+        var F = new System.Func<string, Avalonia.Controls.TextBlock>(name => this.FindControl<Avalonia.Controls.TextBlock>(name));
+        CrimsonX.Localization.AppStrings.Apply(F("lblOtherApps"), CrimsonX.Localization.AppStrings.OtherApps);
+    }
+
+    // ── Copy Wallet Address ──
+
+    private async void BtnCopyAddress_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+        if (sender is Button btn && btn.Content is string address)
+        {
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(address);
+                MainWindow.Instance.ShowToast(Localization.AppStrings.ToastCopiedToClipboard, kind: ToastKind.Success);
+            }
+        }
+        }
+        catch (Exception ex)
+        {
+            CrimsonX.Services.SimpleLogger.Log(ex);
+        }
+    }
+
+    // ── EULA ──
+
+    private void BtnViewEula_Click(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new CrimsonX.Dialogs.EulaDialog(acceptance: false);
+        _ = dialog.ShowDialog(MainWindow.Instance);
+    }
+
+    // ── Update Check & Status ──
+
+    private void BtnCheckUpdate_Click(object? sender, RoutedEventArgs e)
+    {
+        MainWindow.Instance.BtnCheckUpdate_Click(sender, e);
+    }
+    
+    internal void SetUpdateStatus(string status)
+    {
+        var btnCheckUpdate = this.FindControl<Button>("btnCheckUpdate");
+        if (btnCheckUpdate != null) btnCheckUpdate.Content = status;
+    }
+
+    // ── The pinned readout bar ──
+
+    private Avalonia.Thickness? _aboutCardMargin;
+
+    internal void SetReadoutInset(double barHeight)
+    {
+        var card = this.FindControl<Border>("aboutContentCard");
+        if (card != null)
+        {
+            _aboutCardMargin ??= card.Margin;
+            var margin = _aboutCardMargin.Value;
+            card.Margin = barHeight > 0
+                ? new Avalonia.Thickness(margin.Left, margin.Top + barHeight, margin.Right, margin.Bottom)
+                : margin;
+        }
+        var scroller = this.FindControl<ScrollViewer>("Scroller");
+        if (scroller != null) CrimsonX.Behaviors.ScrollScrimBehavior.SetTopInset(scroller, barHeight > 0 ? barHeight : 0);
+    }
+
+    // ── Localized Text Refresh ──
+
+    internal void UpdateLocalization()
+    {
+        var Apply = new System.Action<TextBlock?, string>((tb, s) => { if (tb != null) tb.Text = s; });
+        Apply(this.FindControl<TextBlock>("lblAboutVersion"), Localization.AppStrings.AboutVersion);
+        Apply(this.FindControl<TextBlock>("lblAboutCreator"), Localization.AppStrings.AboutCreator);
+        Apply(this.FindControl<TextBlock>("lblAboutLicense"), Localization.AppStrings.AboutLicense);
+        Apply(this.FindControl<TextBlock>("lblDonations"), Localization.AppStrings.DonationsTitle);
+        Apply(this.FindControl<TextBlock>("lblDonationsDesc"), Localization.AppStrings.DonationsDesc);
+        Apply(this.FindControl<TextBlock>("lblDonateCard"), Localization.AppStrings.DonateCardTitle);
+        Apply(this.FindControl<TextBlock>("lblWalletAddresses"), Localization.AppStrings.WalletAddressesTitle);
+        var btnViewEula = this.FindControl<Button>("btnViewEula");
+        if (btnViewEula != null) Localization.AppStrings.ApplyBtn(btnViewEula, Localization.AppStrings.EulaView);
+        var btnCheckUpdate = this.FindControl<Button>("btnCheckUpdate");
+        if (btnCheckUpdate != null) btnCheckUpdate.Content = Localization.AppStrings.CheckForUpdates;
+    }
+}

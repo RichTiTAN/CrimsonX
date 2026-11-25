@@ -1,0 +1,49 @@
+﻿<!--
+  CrimsonX - source available software.
+  Copyright (C) 2026 RichTiTAN. All rights reserved.
+  Licensed under the PolyForm Strict License 1.0.0.
+  https://polyformproject.org/licenses/strict/1.0.0
+  Licensing: CrimsonVPN.Support@proton.me
+-->
+
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dialogs="clr-namespace:CrimsonX.Dialogs"
+        x:Class="CrimsonX.Dialogs.ConfirmDialog"
+        x:DataType="dialogs:ConfirmDialog"
+        Title="{Binding DialogTitle}"
+        Width="440" SizeToContent="Height"
+        CanResize="False" CanMinimize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E" Foreground="White"
+        FontFamily="Segoe UI, Tahoma, sans-serif">
+
+    <Grid RowDefinitions="Auto,Auto" Margin="25">
+
+        <TextBlock Grid.Row="0" Text="{Binding DialogMessage}" TextWrapping="Wrap" FontSize="13"
+                   Margin="0,0,0,22" LineHeight="20" MaxWidth="390"/>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="{Binding YesText}" Click="Yes_Click"
+                    Background="#3A3F44" Foreground="#E2E8F0" FontWeight="Bold" Padding="20,6"
+                    FontSize="11" Cursor="Hand" CornerRadius="4">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#2AFFFFFF"/>
+                        <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+            <Button Content="{Binding NoText}" Click="No_Click"
+                    Background="#2D3748" Foreground="#A0AEC0" Padding="20,6"
+                    FontSize="11" Cursor="Hand" CornerRadius="4">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#2AFFFFFF"/>
+                        <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+
+    </Grid>
+</Window>

@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dialogs="clr-namespace:CrimsonX.Dialogs"
+        x:Class="CrimsonX.Dialogs.EulaDialog"
+        x:DataType="dialogs:EulaDialog"
+        Title="{Binding DialogTitle}"
+        Width="620" Height="620" MinWidth="480" MinHeight="420"
+        CanResize="True" CanMinimize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E" Foreground="White"
+        FontFamily="Segoe UI, Tahoma, sans-serif">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="22">
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="{Binding Intro}" FontSize="11" Foreground="#A0AEC0" TextWrapping="Wrap"
+                       MaxWidth="560" HorizontalAlignment="Left"/>
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
+                CornerRadius="6" Padding="10">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <SelectableTextBlock x:Name="txtEula" Text="{Binding EulaText}"
+                                     FontFamily="Consolas, Courier New, monospace" FontSize="11"
+                                     Foreground="#CBD5E0" TextWrapping="Wrap"/>
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,14,0,0">
+            <Button x:Name="btnAccept" Content="{Binding AcceptText}" Click="Accept_Click"
+                    Background="#3A3F44" Foreground="#E2E8F0" FontWeight="Bold" Padding="20,6"
+                    FontSize="11" Cursor="Hand" CornerRadius="4">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#2AFFFFFF"/>
+                        <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+            <Button x:Name="btnDecline" Content="{Binding DeclineText}" Click="Decline_Click"
+                    Background="#2D3748" Foreground="#A0AEC0" Padding="20,6"
+                    FontSize="11" Cursor="Hand" CornerRadius="4">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#2AFFFFFF"/>
+                        <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+            <Button x:Name="btnClose" Content="{Binding CloseText}" Click="Close_Click"
+                    Background="#2D3748" Foreground="#A0AEC0" Padding="20,6"
+                    FontSize="11" Cursor="Hand" CornerRadius="4">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#2AFFFFFF"/>
+                        <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+        </StackPanel>
+
+    </Grid>
+</Window>

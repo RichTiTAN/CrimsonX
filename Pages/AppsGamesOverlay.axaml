@@ -1,0 +1,880 @@
+﻿<!--
+  CrimsonX - source available software.
+  Copyright (C) 2026 RichTiTAN. All rights reserved.
+  Licensed under the PolyForm Strict License 1.0.0.
+  https://polyformproject.org/licenses/strict/1.0.0
+  Licensing: CrimsonVPN.Support@proton.me
+-->
+
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:CrimsonX.Pages"
+             xmlns:controls="clr-namespace:CrimsonX.Controls"
+             xmlns:behaviors="clr-namespace:CrimsonX.Behaviors"
+             xmlns:loc="clr-namespace:CrimsonX.Localization"
+             x:Class="CrimsonX.Pages.AppsGamesOverlay">
+
+    <UserControl.Styles>
+        <Style Selector="RadioButton">
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+        <Style Selector="RadioButton /template/ Ellipse">
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="Height" Value="10"/>
+        </Style>
+        <Style Selector="CheckBox /template/ Border#NormalRectangle">
+            <Setter Property="Width" Value="13"/>
+            <Setter Property="Height" Value="13"/>
+        </Style>
+        <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+            <Setter Property="Background" Value="{DynamicResource ThemeAccent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccent}"/>
+        </Style>
+        <Style Selector="ComboBox /template/ Popup">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.15" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ComboBox.customProxy /template/ TextBox">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="ComboBox.optGlyph:pointerover /template/ Border#Background">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="ComboBox.optGlyph:pressed /template/ Border#Background">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="ComboBox.optGlyph /template/ Border#HighlightBackground">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+            <Style Selector="RadioButton.pill">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderThickness="0"
+                            CornerRadius="4"
+                            Padding="6,6"
+                            HorizontalAlignment="Stretch">
+                        <TextBlock Text="{TemplateBinding Content}"
+                                   FontSize="10"
+                                   FontWeight="SemiBold"
+                                   Foreground="{TemplateBinding Foreground}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="RadioButton.pill:pointerover">
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+        </Style>
+        <Style Selector="RadioButton.pill:checked">
+            <Setter Property="Background" Value="#2D3748"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- ── Default-Rule Editor: section boxes, bars and joined fields ── -->
+
+        <Style Selector="Border.editBox">
+            <Setter Property="Background" Value="#141414"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8"/>
+        </Style>
+
+        <Style Selector="Border.editBar">
+            <Setter Property="Background" Value="#141414"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="6,4"/>
+        </Style>
+
+        <Style Selector="Border.editRow">
+            <Setter Property="Background" Value="#141414"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="4"/>
+        </Style>
+
+        <Style Selector="TextBlock.boxTitle">
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="LetterSpacing" Value="1"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="FlowDirection" Value="LeftToRight"/>
+        </Style>
+
+        <Style Selector="Border.fieldLabel">
+            <Setter Property="Background" Value="#0A0C0F"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1,1,0,1"/>
+            <Setter Property="CornerRadius" Value="4,0,0,4"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="Width" Value="36"/>
+        </Style>
+
+        <Style Selector="Border.fieldLabelWide">
+            <Setter Property="Width" Value="48"/>
+        </Style>
+
+        <Style Selector="Border.fieldLabel TextBlock">
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FlowDirection" Value="LeftToRight"/>
+        </Style>
+
+        <Style Selector="ComboBox.fieldCombo">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="Padding" Value="7,0,4,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#0A0C0F"/>
+            <Setter Property="BorderBrush" Value="#2D3748"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="0,4,4,0"/>
+        </Style>
+
+        <Style Selector="Button.seg">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#A0AEC0"/>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="Button.seg:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2AFFFFFF"/>
+            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <Style Selector="Button.seg PathIcon">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#A0AEC0"/>
+        </Style>
+
+        <Style Selector="Button.seg:pointerover PathIcon">
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <Style Selector="Button.iconBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="Button.iconBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2AFFFFFF"/>
+        </Style>
+
+        <Style Selector="TextBox.nameRename">
+            <Setter Property="Background" Value="#1A1C20"/>
+            <Setter Property="BorderBrush" Value="#3A3F44"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="MinHeight" Value="0"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FlowDirection" Value="LeftToRight"/>
+        </Style>
+        <Style Selector="Border.ruleCard">
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="ItemsControl.editing Border.ruleCard">
+            <Setter Property="Opacity" Value="0.3"/>
+        </Style>
+
+        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar#PART_VerticalScrollBar">
+            <Setter Property="Margin" Value="0,45,0,0"/>
+            <Setter Property="Opacity" Value="0"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+
+        <Style Selector="ScrollViewer#Scroller /template/ ScrollBar#PART_VerticalScrollBar:pointerover">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+
+        <Style Selector="ScrollViewer#Scroller.scrolling /template/ ScrollBar#PART_VerticalScrollBar">
+            <Setter Property="Opacity" Value="1"/>
+        </Style>
+
+    </UserControl.Styles>
+
+        <Grid RowDefinitions="*" Margin="6,3,0,0">
+                <!-- Rules Box -->
+                <Panel>
+                <Border x:Name="panRulesBox" Background="Transparent" BorderBrush="Transparent" BorderThickness="0" Padding="0" CornerRadius="0" Margin="0,0,0,0">
+                    <ScrollViewer x:Name="Scroller" BringIntoViewOnFocusChange="False"
+                                  VerticalScrollBarVisibility="Auto"
+                                  behaviors:SmoothScrollBehavior.Step="85"
+                                  behaviors:ScrollScrimBehavior.IsEnabled="True">
+                        <StackPanel Spacing="4" Margin="0,0,16,0">
+
+                            <Border Height="45"/>
+
+                            <!-- Rule List -->
+                            <ItemsControl x:Name="lstRules">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Spacing="4"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:AppRuleViewModel">
+                                    <StackPanel>
+                                        <Border x:Name="panRuleWrapper" MaxHeight="800" Opacity="1" ClipToBounds="True">
+<Border.Transitions>
+<Transitions>
+<DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+<DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+</Transitions>
+</Border.Transitions>
+<Border Classes="hoverBox ruleCard" Background="#CC0A0C0F"
+BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,0" IsVisible="{Binding !IsDefault}">
+                                            <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto, Auto">
+                                                <Panel x:Name="DragHandle" Grid.Column="0" Tag="{Binding RuleId}" Width="16" Height="24" Margin="0,0,8,0" VerticalAlignment="Center" Background="Transparent" Cursor="SizeAll">
+                                                    <PathIcon Data="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z" Width="14" Height="14" Foreground="#4A5568" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Panel>
+                                                <CheckBox Grid.Column="1" IsChecked="{Binding IsEnabled}"
+                                                          Margin="0,0,10,0" VerticalAlignment="Center"
+                                                          IsCheckedChanged="RuleEnabled_Changed"/>
+                                                <Panel Grid.Column="2" Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                    <Image Source="{Binding IconBitmap}" Width="24" Height="24" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality"
+                                                           IsVisible="{Binding HasIcon}"/>
+                                                    <Border Background="#2D3748" CornerRadius="6" Width="24" Height="24"
+                                                            IsVisible="{Binding !HasIcon}">
+                                                        <PathIcon Data="M20,4H4C2.89,4 2,4.89 2,6V18C2,19.1 2.9,20 4,20H20C21.1,20 22,19.1 22,18V6C22,4.89 21.1,4 20,4M20,18H4V6H20V18M8.5,15H11L12.5,11.5L14,15H16.5L13.5,10L16.5,5H14L12.5,8.5L11,5H8.5L11.5,10L8.5,15Z"
+                                                                  Width="12" Height="12" Foreground="#8B949E"
+                                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    </Border>
+                                                </Panel>
+                                                <TextBlock Grid.Column="3" Text="{Binding DisplayName}"
+                                                           FontSize="11" FontWeight="SemiBold" Foreground="#A0AEC0"
+                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                <Button Grid.Column="4" Tag="{Binding RuleId}"
+                                                        Click="DeleteRule_Click"
+                                                        Background="Transparent" BorderThickness="0"
+                                                        Padding="6,4" Cursor="Hand" ToolTip.Tip="{Binding DeleteTooltip}">
+                                                    <PathIcon Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                                                              Width="12" Height="12" Foreground="#E53E3E"/>
+                                                </Button>
+                                                <Button Grid.Column="5" Tag="{Binding RuleId}"
+                                                        Click="EditRule_Click"
+                                                        Background="Transparent" BorderThickness="0"
+                                                        Padding="6,4" Cursor="Hand" ToolTip.Tip="{Binding EditTooltip}">
+                                                    <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                                                              Width="12" Height="12" Foreground="#606060"/>
+                                                </Button>
+                                                <Button Grid.Column="6" Tag="{Binding RuleId}"
+                                                        Click="PinRule_Click"
+                                                        Background="Transparent" BorderThickness="0"
+                                                        Padding="6,4" Cursor="Hand" ToolTip.Tip="{Binding PinTooltip}">
+                                                    <Panel Width="12" Height="12">
+                                                        <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z"
+                                                                  Width="12" Height="12" Foreground="#E2E8F0" IsVisible="{Binding IsPinned}"/>
+                                                        <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.2,14L10,12.2V4H14V12.2L15.8,14H8.2Z"
+                                                                  Width="12" Height="12" Foreground="#606870" IsVisible="{Binding !IsPinned}"/>
+                                                    </Panel>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                        </Border>
+                                            <Border x:Name="panDefaultRuleWrapper" MaxHeight="800" Opacity="1" ClipToBounds="True">
+                                                <Border.Transitions>
+                                                    <Transitions>
+                                                        <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                        <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                                    </Transitions>
+                                                </Border.Transitions>
+                                                <Border Classes="hoverBox ruleCard" Background="#CC0A0C0F"
+                                                        BorderThickness="1" CornerRadius="6" Padding="15,9.5" Height="45" Margin="0,0,0,0"
+                                                        IsVisible="{Binding IsDefault}">
+                                                    <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto, Auto, Auto, Auto, Auto">
+                                                        <Panel x:Name="DragHandleDefault" Grid.Column="0" Tag="{Binding RuleId}" Width="16" Height="24" Margin="0,0,8,0" VerticalAlignment="Center" Background="Transparent" Cursor="SizeAll">
+                                                            <PathIcon Data="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z" Width="14" Height="14" Foreground="#4A5568" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Panel>
+                                                        <CheckBox Grid.Column="1" IsChecked="{Binding IsEnabled}"
+                                                                  Margin="0,0,10,0" VerticalAlignment="Center"
+                                                                  IsCheckedChanged="RuleEnabled_Changed"/>
+                                                        <Panel Grid.Column="2" Width="24" Height="24" Margin="0,0,10,0" VerticalAlignment="Center">
+                                                            <Image Source="{Binding IconBitmap}" Width="24" Height="24" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="HighQuality"
+                                                                   IsVisible="{Binding HasIcon}"/>
+                                                            <Border Background="#2D3748" CornerRadius="6" Width="24" Height="24"
+                                                                    IsVisible="{Binding !HasIcon}">
+                                                                <PathIcon Data="M20,4H4C2.89,4 2,4.89 2,6V18C2,19.1 2.9,20 4,20H20C21.1,20 22,19.1 22,18V6C22,4.89 21.1,4 20,4M20,18H4V6H20V18M8.5,15H11L12.5,11.5L14,15H16.5L13.5,10L16.5,5H14L12.5,8.5L11,5H8.5L11.5,10L8.5,15Z"
+                                                                      Width="12" Height="12" Foreground="#8B949E"
+                                                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            </Border>
+                                                        </Panel>
+                                                        <TextBlock Grid.Column="3" Text="{Binding DisplayName}"
+                                                                   FontSize="11" FontWeight="SemiBold" Foreground="#A0AEC0"
+                                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Grid.Column="4" Text="{Binding ConfigLabel}" FontSize="8" FontWeight="SemiBold" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,4,0" IsVisible="{Binding HasCountry}"/>
+                                                        <ComboBox x:Name="cbDefaultCountry" ItemsSource="{Binding CountryItems}" Grid.Column="5" Tag="{Binding RuleId}" IsVisible="{Binding HasCountry}"
+                                                                  SelectedIndex="{Binding CountryIndex, Mode=OneWay}"
+                                                                  SelectionChanged="DefaultCountry_SelectionChanged"
+                                                                  Width="90" MinHeight="22" Height="22"
+                                                                  Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
+                                                                  FontSize="9" Padding="6,0" VerticalContentAlignment="Center" CornerRadius="4"></ComboBox>
+                                                        <TextBlock Grid.Column="6" Text="{Binding RegionLabel}" FontSize="8" FontWeight="SemiBold" Foreground="#8B949E" VerticalAlignment="Center" Margin="8,0,4,0" IsVisible="{Binding HasRegion}" ToolTip.Tip="{Binding RegionTooltip}"/>
+                                                        <ComboBox x:Name="cbDefaultRegion" ItemsSource="{Binding RegionItems}" Grid.Column="7" Tag="{Binding RuleId}" IsVisible="{Binding HasRegion}"
+                                                                  SelectedIndex="{Binding RegionIndex, Mode=OneWay}"
+                                                                  SelectionChanged="DefaultRegion_SelectionChanged"
+                                                                  Width="90" MinHeight="22" Height="22"
+                                                                  Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1"
+                                                                  FontSize="9" Padding="6,0" VerticalContentAlignment="Center" CornerRadius="4"></ComboBox>
+                                                        <StackPanel Grid.Column="6" Orientation="Horizontal" Spacing="1" VerticalAlignment="Center" IsVisible="{Binding ShowsRoutingPill}" Margin="0,0,2,0">
+                                                            <Button Classes="optBtn" Classes.activeOpt="{Binding IsDirect}" Tag="{Binding RuleId}" Click="LauncherDirect_Click" Padding="9,3" CornerRadius="4,0,0,4">
+                                                                <TextBlock Text="{Binding DirectLabel}" FontSize="8" FontWeight="Bold" LetterSpacing="0.5"/>
+                                                            </Button>
+                                                            <Button Classes="optBtn" Classes.activeOpt="{Binding !IsDirect}" Tag="{Binding RuleId}" Click="LauncherProxy_Click" Padding="9,3" CornerRadius="0,4,4,0">
+                                                                <TextBlock Text="{Binding ProxyLabel}" FontSize="8" FontWeight="Bold" LetterSpacing="0.5"/>
+                                                            </Button>
+                                                        </StackPanel>
+                                                        <Button Grid.Column="8" Tag="{Binding RuleId}" IsVisible="{Binding ShowAdapterEditor}"
+                                                                Click="EditDefaultRule_Click"
+                                                                Background="Transparent" BorderThickness="0"
+                                                                Margin="10,0,0,0"
+                                                                Padding="6,4" Cursor="Hand" ToolTip.Tip="{Binding EditTooltip}">
+                                                            <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                                                                      Width="12" Height="12" Foreground="#606060"/>
+                                                        </Button>
+                                                        <Button Grid.Column="9" Tag="{Binding RuleId}"
+                                                                Click="PinRule_Click"
+                                                                Background="Transparent" BorderThickness="0"
+                                                                Padding="6,4" Cursor="Hand" ToolTip.Tip="{Binding PinTooltip}">
+                                                            <Panel Width="12" Height="12">
+                                                                <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z"
+                                                                          Width="12" Height="12" Foreground="#E2E8F0" IsVisible="{Binding IsPinned}"/>
+                                                                <PathIcon Data="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12M8.2,14L10,12.2V4H14V12.2L15.8,14H8.2Z"
+                                                                          Width="12" Height="12" Foreground="#606870" IsVisible="{Binding !IsPinned}"/>
+                                                            </Panel>
+                                                        </Button>
+                                                    </Grid>
+                                                </Border>
+                                            </Border>
+
+                                        <ContentControl x:Name="EditContainer" Margin="0" IsVisible="False"/>
+                                    </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- INLINE EDITOR -->
+                            <Border x:Name="panOuterAdd" Background="Transparent" BorderThickness="0" ClipToBounds="True">
+                            <StackPanel>
+                                <Border x:Name="panAddToggleWrapper" MaxHeight="800" Opacity="1" ClipToBounds="True">
+<Border.Transitions>
+<Transitions>
+<DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+<DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+</Transitions>
+</Border.Transitions>
+<Border x:Name="panAddToggle" Classes="hoverBox" Background="#CC0A0C0F"  BorderThickness="1" CornerRadius="6" Padding="15,10" Height="45" Cursor="Hand" PointerPressed="AddToggle_Click">
+                                    <TextBlock x:Name="lblAddToggle" Text="ADD +" FontSize="11" FontWeight="Bold" Foreground="#8B949E" HorizontalAlignment="Center" VerticalAlignment="Center" LetterSpacing="1"/>
+                                </Border>
+                                </Border>
+
+                                <!-- The Expanded Editor -->
+                                <Border x:Name="panEditor" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                                    <Border.Transitions>
+                                        <Transitions>
+                                            <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                            <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                        </Transitions>
+                                    </Border.Transitions>
+                                    <Border Background="#CC0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="8">
+                                        <Grid RowDefinitions="Auto, 8, Auto, 8, Auto, 8, Auto">
+
+                                            <!-- Title bar: program icon + name + browse + submit / cancel -->
+                                            <Border Grid.Row="0" Classes="editBar hoverBox">
+                                                <Grid ColumnDefinitions="Auto, Auto, Auto, *, Auto, Auto" MinHeight="26">
+                                                    <Panel x:Name="panAppIcon" Grid.Column="0" Width="24" Height="24" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                        <Image x:Name="imgAppIcon" Width="24" Height="24" Stretch="Uniform" IsVisible="False"
+                                                               RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                        <Border x:Name="iconPlaceholder" Width="24" Height="24" Background="#1A1C20"
+                                                                BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" IsVisible="False"/>
+                                                    </Panel>
+                                                    <TextBlock x:Name="lblExeName" Grid.Column="1" Text="" FontSize="11" FontWeight="Bold"
+                                                               Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center"
+                                                               MaxWidth="230" TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight"
+                                                               Cursor="Ibeam" PointerPressed="NameLabel_PointerPressed"/>
+                                                    <TextBox x:Name="txtDisplayName" Grid.Column="1" Classes="nameRename" Width="220"
+                                                             IsVisible="False" KeyDown="NameEdit_KeyDown" LostFocus="NameEdit_LostFocus"/>
+                                                    <TextBlock x:Name="lblEditorHeader" Grid.Column="2" Text="ADD PROGRAM" FontSize="11" FontWeight="Bold"
+                                                               Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center"/>
+                                                    <Border Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                            Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
+                                                        <Button x:Name="btnBrowse" Classes="seg" Content="BROWSE" Click="BtnBrowse_Click" Padding="14,0"/>
+                                                    </Border>
+                                                    <Button x:Name="btnEditorIconSubmit" Grid.Column="4" Classes="iconBtn" Margin="6,0,2,0" Click="BtnSubmit_Click">
+                                                        <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="13" Height="13" Foreground="#68D391"/>
+                                                    </Button>
+                                                    <Button x:Name="btnEditorIconCancel" Grid.Column="5" Classes="iconBtn" Click="BtnCancel_Click">
+                                                        <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Width="13" Height="13" Foreground="#E53E3E"/>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Sections: routing / adapter / custom proxy -->
+                                            <Grid Grid.Row="2" ColumnDefinitions="*, 8, *, 8, *">
+
+                                                <!-- ROUTING -->
+                                                <Border Grid.Column="0" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblRouting" Classes="boxTitle" Text="ROUTING"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="TCP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbTcpRouting" Grid.Column="1" Classes="fieldCombo"
+                                                                      SelectionChanged="Routing_SelectionChanged"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="UDP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbUdpRouting" Grid.Column="1" Classes="fieldCombo"
+                                                                      SelectionChanged="Routing_SelectionChanged"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- ADAPTER -->
+                                                <Border Grid.Column="2" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblAdapter" Classes="boxTitle" Text="ADAPTER"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="TCP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbTcpAdapter" Grid.Column="1" Classes="fieldCombo"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="UDP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbUdpAdapter" Grid.Column="1" Classes="fieldCombo"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <!-- CUSTOM PROXY -->
+                                                <Border Grid.Column="4" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblCustomProxy" Classes="boxTitle" Text="CUSTOM PROXY"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel fieldLabelWide">
+                                                                <TextBlock x:Name="lblCustomProxyConfigRow" Text="CONFIG" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbCustomProxy" Grid.Column="1" Classes="customProxy fieldCombo" IsEditable="True"
+                                                                      SelectedIndex="-1" FontFamily="Consolas" FontSize="9" Padding="4,3,2,2"
+                                                                      Background="#1A1C20"
+                                                                      PlaceholderText="vless:// / wireguard:// / .ovpn / sing-box JSON"
+                                                                      ToolTip.Tip="{x:Static loc:AppStrings.CustomProxyTooltip}"
+                                                                      SelectionChanged="CustomProxySaved_SelectionChanged"/>
+                                                        </Grid>
+                                                        <Grid Height="26" ColumnDefinitions="*, *, *, *">
+                                                            <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4">
+                                                                <Button x:Name="btnCustomProxyPing" Classes="seg" Click="CustomProxyPing_Click" ToolTip.Tip="{x:Static loc:AppStrings.PingBtn}">
+                                                                    <PathIcon Data="M12,21L15.6,16.2C14.6,15.45 13.35,15 12,15C10.65,15 9.4,15.45 8.4,16.2L12,21M12,3C7.95,3 4.12,4.34 1,6.6L3.2,9.2C5.61,7.55 8.68,6.6 12,6.6C15.32,6.6 18.39,7.55 20.8,9.2L23,6.6C19.88,4.34 16.05,3 12,3M12,9C9.3,9 6.81,9.89 4.8,11.4L6.6,13.5C8.08,12.28 9.95,11.6 12,11.6C14.05,11.6 15.92,12.28 17.4,13.5L19.2,11.4C17.19,9.89 14.7,9 12,9Z"/>
+                                                                </Button>
+                                                            </Border>
+                                                            <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
+                                                                <Button x:Name="btnCustomProxySave" Classes="seg" Click="CustomProxySave_Click" ToolTip.Tip="{x:Static loc:AppStrings.SaveToPoolTooltip}">
+                                                                    <PathIcon Data="M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M15,9H5V5H15V9Z"/>
+                                                                </Button>
+                                                            </Border>
+                                                            <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
+                                                                <Button x:Name="btnCustomProxyHint" Classes="seg" Click="CustomProxyHint_Click" ToolTip.Tip="{x:Static loc:AppStrings.HintBtn}">
+                                                                    <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z"/>
+                                                                </Button>
+                                                            </Border>
+                                                            <Border Grid.Column="3" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0">
+                                                                <Button x:Name="btnCustomProxyImport" Classes="seg" Click="CustomProxyImport_Click"
+                                                                        ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}">
+                                                                    <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12"/>
+                                                                </Button>
+                                                            </Border>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+
+                                            <!--Type / region -->
+                                            <Grid Grid.Row="4" ColumnDefinitions="*, 8, *, 8, *">
+
+                                                <!-- TYPE -->
+                                                <Border Grid.Column="0" Classes="editRow hoverBox">
+                                                    <Grid ColumnDefinitions="Auto, *">
+                                                        <Border Grid.Column="0" Classes="fieldLabel">
+                                                            <TextBlock x:Name="lblType" Text="TYPE" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                                        </Border>
+                                                        <ComboBox x:Name="cbAppType" Grid.Column="1" Classes="fieldCombo"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- REGION -->
+                                                <Border Grid.Column="2" Classes="editRow hoverBox">
+                                                    <Grid ColumnDefinitions="Auto, *">
+                                                        <Border Grid.Column="0" Classes="fieldLabel fieldLabelWide">
+                                                            <TextBlock x:Name="lblConnectionRegion" Text="REGION" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                                        </Border>
+                                                        <ComboBox x:Name="cbRegion" Grid.Column="1" Classes="fieldCombo"
+                                                                  SelectionChanged="Region_SelectionChanged"/>
+                                                    </Grid>
+                                                </Border>
+
+                                                <Border Grid.Column="4" Classes="editRow hoverBox">
+                                                    <Grid ColumnDefinitions="Auto, *">
+                                                        <Border Grid.Column="0" Classes="fieldLabel fieldLabelWide">
+                                                            <TextBlock x:Name="lblDomain" Text="DOMAIN" HorizontalAlignment="Center" TextAlignment="Center"/>
+                                                        </Border>
+                                                        <TextBox x:Name="txtDomains" Grid.Column="1" Height="26" MinHeight="26" FontSize="9"
+                                                                 Padding="7,0,4,0" VerticalContentAlignment="Center"
+                                                                 Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="0,4,4,0"
+                                                                 Foreground="#A0AEC0" FlowDirection="LeftToRight"
+                                                                 PlaceholderText="(Optional) e.g. google.com, youtube.com"/>
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <!-- Bottom bar: scan adapters + submit / cancel -->
+                                            <Border Grid.Row="6" Classes="editRow hoverBox">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="26">
+                                                    <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
+                                                        <Button x:Name="btnScanAdapters" Classes="seg" Content="SCAN ADAPTERS" Click="BtnScanAdapters_Click" Padding="12,0"/>
+                                                    </Border>
+                                                    <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
+                                                        <Grid ColumnDefinitions="Auto, 1, Auto">
+                                                            <Button x:Name="btnSubmit" Grid.Column="0" Classes="seg" Content="SUBMIT" Click="BtnSubmit_Click"
+                                                                    Foreground="#E2E8F0" Padding="24,0" CornerRadius="4,0,0,4"/>
+                                                            <Border Grid.Column="1" Background="#2D3748"/>
+                                                            <Button x:Name="btnCancel" Grid.Column="2" Classes="seg" Content="CANCEL" Click="BtnCancel_Click"
+                                                                    Padding="24,0" CornerRadius="0,4,4,0"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </Border>
+                                <!-- The Default-Rule Editor (adapters) -->
+                                <Border x:Name="panDefaultEditor" MaxHeight="0" Opacity="0" ClipToBounds="True">
+                                    <Border.Transitions>
+                                        <Transitions>
+                                            <DoubleTransition Property="MaxHeight" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                            <DoubleTransition Property="Opacity" Duration="0:0:0.3" Easing="CubicEaseOut"/>
+                                        </Transitions>
+                                    </Border.Transitions>
+                                    <Border Background="#CC0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="8" Padding="8">
+                                        <Grid RowDefinitions="Auto, 8, Auto, 8, Auto">
+
+                                            <!-- ── Title bar: app icon + name + submit / cancel ── -->
+                                            <Border Grid.Row="0" Classes="editBar hoverBox">
+                                                <Grid ColumnDefinitions="Auto, *, Auto, Auto" MinHeight="26">
+                                                    <Panel Grid.Column="0" Width="24" Height="24" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                        <Image x:Name="imgDefaultEditorIcon" Width="24" Height="24" Stretch="Uniform" IsVisible="False"
+                                                               RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                                                        <Border x:Name="defaultEditorIconPlaceholder" Width="24" Height="24" Background="#1A1C20"
+                                                                BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" IsVisible="False"/>
+                                                    </Panel>
+                                                    <TextBlock x:Name="lblDefaultEditorHeader" Grid.Column="1" Text="APP" FontSize="11" FontWeight="Bold"
+                                                               Foreground="#E2E8F0" LetterSpacing="1" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight"/>
+                                                    <Button x:Name="btnDefaultIconSubmit" Grid.Column="2" Classes="iconBtn" Margin="6,0,2,0" Click="DefaultSubmit_Click">
+                                                        <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="13" Height="13" Foreground="#68D391"/>
+                                                    </Button>
+                                                    <Button x:Name="btnDefaultIconCancel" Grid.Column="3" Classes="iconBtn" Click="DefaultCancel_Click">
+                                                        <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Width="13" Height="13" Foreground="#E53E3E"/>
+                                                    </Button>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- ── Sections: routing / adapter / custom proxy ── -->
+                                            <Grid Grid.Row="2" ColumnDefinitions="*, 8, *, 8, *">
+
+                                                <!-- ROUTING -->
+                                                <Border x:Name="panDefaultRouting" Grid.Column="0" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblDefaultRoutingHeader" Classes="boxTitle" Text="ROUTING"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="TCP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbDefaultTcpRouting" Grid.Column="1" Classes="fieldCombo"
+                                                                      SelectionChanged="DefaultRouting_SelectionChanged"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="UDP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbDefaultUdpRouting" Grid.Column="1" Classes="fieldCombo"
+                                                                      SelectionChanged="DefaultRouting_SelectionChanged"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                                <!-- ADAPTER -->
+                                                <Border Grid.Column="2" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblDefaultAdapterHeader" Classes="boxTitle" Text="ADAPTER"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="TCP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbDefaultTcpAdapter" Grid.Column="1" Classes="fieldCombo"/>
+                                                        </Grid>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel">
+                                                                <TextBlock Text="UDP"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbDefaultUdpAdapter" Grid.Column="1" Classes="fieldCombo"/>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                                <!-- CUSTOM PROXY -->
+                                                <Border Grid.Column="4" Classes="editBox hoverBox">
+                                                    <StackPanel Spacing="8">
+                                                        <TextBlock x:Name="lblDefaultCustomProxy" Classes="boxTitle" Text="CUSTOM PROXY"/>
+                                                        <Grid ColumnDefinitions="Auto, *">
+                                                            <Border Grid.Column="0" Classes="fieldLabel fieldLabelWide">
+                                                                <TextBlock x:Name="lblDefaultConfigRow" Text="CONFIG"/>
+                                                            </Border>
+                                                            <ComboBox x:Name="cbDefaultCustomProxy" Grid.Column="1" Classes="customProxy fieldCombo" IsEditable="True"
+                                                                      SelectedIndex="-1" FontFamily="Consolas" FontSize="9" Padding="4,3,2,2"
+                                                                      Background="#1A1C20"
+                                                                      PlaceholderText="vless:// / wireguard:// / .ovpn / sing-box JSON"
+                                                                      ToolTip.Tip="{x:Static loc:AppStrings.CustomProxyTooltip}"
+                                                                      SelectionChanged="CustomProxySaved_SelectionChanged"/>
+                                                        </Grid>
+                                                        <Grid Height="26" ColumnDefinitions="*, *, *, *">
+                                                            <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4">
+                                                                <Button x:Name="btnDefaultCustomProxyPing" Classes="seg" Click="CustomProxyPing_Click" ToolTip.Tip="{x:Static loc:AppStrings.PingBtn}">
+                                                                    <PathIcon Data="M12,21L15.6,16.2C14.6,15.45 13.35,15 12,15C10.65,15 9.4,15.45 8.4,16.2L12,21M12,3C7.95,3 4.12,4.34 1,6.6L3.2,9.2C5.61,7.55 8.68,6.6 12,6.6C15.32,6.6 18.39,7.55 20.8,9.2L23,6.6C19.88,4.34 16.05,3 12,3M12,9C9.3,9 6.81,9.89 4.8,11.4L6.6,13.5C8.08,12.28 9.95,11.6 12,11.6C14.05,11.6 15.92,12.28 17.4,13.5L19.2,11.4C17.19,9.89 14.7,9 12,9Z"/>
+                                                                </Button>
+                                                            </Border>
+                                                            <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
+                                                                <Button x:Name="btnDefaultCustomProxySave" Classes="seg" Click="CustomProxySave_Click" ToolTip.Tip="{x:Static loc:AppStrings.SaveToPoolTooltip}">
+                                                                    <PathIcon Data="M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M15,9H5V5H15V9Z"/>
+                                                                </Button>
+                                                            </Border>
+                                                            <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0">
+                                                                <Button x:Name="btnDefaultHint" Classes="seg" Click="CustomProxyHint_Click" ToolTip.Tip="{x:Static loc:AppStrings.HintBtn}">
+                                                                    <PathIcon Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z"/>
+                                                                </Button>
+                                                            </Border>
+                                                            <Border Grid.Column="3" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0">
+                                                                <Button x:Name="btnDefaultCustomProxyImport" Classes="seg" Click="CustomProxyImport_Click"
+                                                                        ToolTip.Tip="{x:Static loc:AppStrings.ImportConfigTooltip}">
+                                                                    <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12"/>
+                                                                </Button>
+                                                            </Border>
+                                                        </Grid>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+                                            <!-- ── Bottom bar: restore / scan + submit / cancel ── -->
+                                            <Border Grid.Row="4" Classes="editRow hoverBox">
+                                                <Grid ColumnDefinitions="Auto, *, Auto" MinHeight="26">
+                                                    <Grid Grid.Column="0" Height="26" ColumnDefinitions="Auto, Auto">
+                                                        <Border Grid.Column="0" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4,0,0,4">
+                                                            <Button x:Name="btnDefaultRestore" Classes="seg" Content="RESTORE DEFAULTS" Click="DefaultRestore_Click" Padding="12,0"/>
+                                                        </Border>
+                                                        <Border Grid.Column="1" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="0,1,1,1" CornerRadius="0,4,4,0">
+                                                            <Button x:Name="btnDefaultScanAdapters" Classes="seg" Content="SCAN ADAPTERS" Click="BtnScanAdapters_Click" Padding="12,0"/>
+                                                        </Border>
+                                                    </Grid>
+                                                    <Border Grid.Column="2" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Height="26">
+                                                        <Grid ColumnDefinitions="Auto, 1, Auto">
+                                                            <Button x:Name="btnDefaultSubmit" Grid.Column="0" Classes="seg" Content="SUBMIT" Click="DefaultSubmit_Click"
+                                                                    Foreground="#E2E8F0" Padding="24,0" CornerRadius="4,0,0,4"/>
+                                                            <Border Grid.Column="1" Background="#2D3748"/>
+                                                            <Button x:Name="btnDefaultCancel" Grid.Column="2" Classes="seg" Content="CANCEL" Click="DefaultCancel_Click"
+                                                                    Padding="24,0" CornerRadius="0,4,4,0"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </Border>
+
+                            </StackPanel>
+
+                            </Border>
+
+                            <Border Height="53"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+
+                <Panel Margin="0" ClipToBounds="True">
+                    <Border x:Name="panSearchBarShadow" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                            Margin="0,0,16,0" Height="45" CornerRadius="6" IsHitTestVisible="False" Opacity="0"
+                            Background="#FF000000" BoxShadow="0 6 18 0 #E6000000">
+                        <Border.Transitions>
+                            <Transitions>
+                                <DoubleTransition Property="Opacity" Duration="0:0:0.2" Easing="CubicEaseOut"/>
+                            </Transitions>
+                        </Border.Transitions>
+                    </Border>
+                    <Border x:Name="panSearchBar" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                            Margin="0,0,16,0" Height="45" Classes="hoverBox" Background="#FF000000"
+                            BorderThickness="1" CornerRadius="6" ClipToBounds="True">
+                    <Grid ColumnDefinitions="Auto, *, Auto" Margin="10,8">
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Left" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBox x:Name="txtSearch" Width="100" Height="24" MinHeight="24" VerticalAlignment="Center" FontSize="10" Padding="8,0" VerticalContentAlignment="Center" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" Foreground="#A0AEC0" TextChanged="Search_TextChanged"/>
+                            <PathIcon Data="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <!-- Live rule telemetry -->
+                        <controls:OverlayStatsCluster x:Name="overlayStatsCluster" Grid.Column="1" VerticalAlignment="Center"/>
+
+                        <!-- Right: filter -->
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="0" VerticalAlignment="Center">
+                            <PathIcon Data="M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12H9.97L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3V3H19V3C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14.03,12H14Z" Width="12" Height="12" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <ComboBox x:Name="cbFilter" Classes="filterCombo" SelectedIndex="0" Width="100" Height="24" MinHeight="24" FontSize="10" FontWeight="SemiBold" Padding="8,0" VerticalContentAlignment="Center" Background="#0A0C0F" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="4" SelectionChanged="Filter_SelectionChanged">
+                                <ComboBoxItem x:Name="cbiFilterAll" Content="All" FontSize="10" FontWeight="SemiBold"/>
+                                <ComboBoxItem x:Name="cbiFilterGames" Content="Games" FontSize="10" FontWeight="SemiBold"/>
+                                <ComboBoxItem x:Name="cbiFilterLaunchers" Content="Launchers" FontSize="10" FontWeight="SemiBold"/>
+                                <ComboBoxItem x:Name="cbiFilterOther" Content="Other" FontSize="10" FontWeight="SemiBold"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+                </Panel>
+
+                <StackPanel x:Name="panOverlayBottomBar" Orientation="Horizontal" Spacing="6"
+                            HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,16,15">
+                    <StackPanel.Transitions>
+                        <Transitions>
+                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.28" Easing="CubicEaseOut"/>
+                        </Transitions>
+                    </StackPanel.Transitions>
+
+                    <Panel>
+                        <Border x:Name="panConnectShadow" Classes="shadowCarrier"/>
+
+                        <Border x:Name="panConnectBox" Classes="floatBox connectBox" Padding="0"
+                                ClipToBounds="True" Cursor="Hand"
+                                PointerPressed="ConnectBoxPress" PointerReleased="ConnectBoxRelease"
+                                PointerCaptureLost="ConnectBoxCaptureLost">
+                            <Panel x:Name="panConnectBoxInner" MinHeight="17" MinWidth="94" RenderTransformOrigin="50%,50%">
+                                <Panel.RenderTransform>
+                                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                                </Panel.RenderTransform>
+                                <Panel.Transitions>
+                                    <Transitions>
+                                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.075"/>
+                                    </Transitions>
+                                </Panel.Transitions>
+                                <Border CornerRadius="6,0,0,6" ClipToBounds="True" IsHitTestVisible="False"
+                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <Border x:Name="panOverlayConnectFill" Background="{DynamicResource ThemeGlowBrush}" Opacity="0"
+                                            IsHitTestVisible="False"
+                                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                            RenderTransformOrigin="0%,50%">
+                                        <Border.RenderTransform>
+                                            <ScaleTransform ScaleX="0" ScaleY="1"/>
+                                        </Border.RenderTransform>
+                                    </Border>
+                                </Border>
+                                <Border x:Name="panConnectBreath" Classes="connectBreath" Margin="-2"/>
+
+                                <Border x:Name="panConnectBoxPress" Background="{DynamicResource ButtonBackgroundPressed}" Opacity="0"
+                                        CornerRadius="5" IsHitTestVisible="False"
+                                        HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                                <TextBlock x:Name="txtOverlayConnect" Text="CONNECT" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                                           Foreground="#E2E8F0" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="txtOverlayConnectConnected" Text="CONNECTED" FontSize="10" FontWeight="Bold" LetterSpacing="0.5"
+                                           Foreground="{DynamicResource ThemeSuccessGlowBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Opacity="0" IsHitTestVisible="False"/>
+                            </Panel>
+                        </Border>
+                    </Panel>
+
+                    <Border Classes="floatBox">
+                        <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+                            <Button x:Name="btnOverlaySplitRegular" Classes="optBtn" Click="OverlaySplitTunnel_Click" Padding="9,3" CornerRadius="4,0,0,4">
+                                <TextBlock x:Name="lblOverlayRegular" Text="REGULAR" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"/>
+                            </Button>
+                            <Button x:Name="btnOverlaySplitInclusive" Classes="optBtn" Click="OverlaySplitTunnel_Click" Padding="9,3" CornerRadius="0,4,4,0">
+                                <TextBlock x:Name="lblOverlayInclusive" Text="INCLUSIVE" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="panMasterBox" Classes="floatBox">
+                        <StackPanel Orientation="Horizontal" Spacing="1" VerticalAlignment="Center">
+                            <Button x:Name="btnMasterOn" Classes="optBtn" Click="MasterPill_Click" Padding="9,3" CornerRadius="4,0,0,4">
+                                <TextBlock x:Name="lblMasterOn" Text="ON" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"/>
+                            </Button>
+                            <Button x:Name="btnMasterOff" Classes="optBtn" Click="MasterPill_Click" Padding="9,3" CornerRadius="0,4,4,0">
+                                <TextBlock x:Name="lblMasterOff" Text="OFF" FontSize="9" FontWeight="Bold" LetterSpacing="0.5"/>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="panOverlayAddBox" Classes="floatBox">
+                        <Button x:Name="btnOverlayAdd" Classes="optBtn" Click="OverlayAdd_Click" Padding="3" CornerRadius="4">
+                            <PathIcon Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Width="12" Height="12" Foreground="#A0AEC0"/>
+                        </Button>
+                    </Border>
+                    <Border x:Name="panApplyChangesBox" Classes="floatBox" BorderBrush="#DD6B20"
+                            Background="#FF000000" BorderThickness="2" CornerRadius="8" Padding="4"
+                            Opacity="0" IsHitTestVisible="False">
+                        <Border.Transitions>
+                            <Transitions>
+                                <DoubleTransition Property="Opacity" Duration="0:0:0.28" Easing="CubicEaseOut"/>
+                            </Transitions>
+                        </Border.Transitions>
+                        <Button x:Name="btnApplyChanges" Click="ApplyChanges_Click"
+                                Background="Transparent" BorderThickness="0" Cursor="Hand" CornerRadius="4" Padding="9,3"
+                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                            <TextBlock x:Name="txtApplyChanges" Text="APPLY" FontSize="9" FontWeight="Bold" LetterSpacing="0.5" Foreground="#DD6B20"/>
+                        </Button>
+                    </Border>
+                </StackPanel>
+
+                </Panel>
+            </Grid>
+</UserControl>

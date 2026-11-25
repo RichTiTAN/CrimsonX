@@ -1,0 +1,301 @@
+/*
+ * CrimsonX - source available software.
+ * Copyright (C) 2026 RichTiTAN. All rights reserved.
+ * Licensed under the PolyForm Strict License 1.0.0.
+ * https://polyformproject.org/licenses/strict/1.0.0
+ * Licensing: CrimsonVPN.Support@proton.me
+ */
+
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+
+namespace CrimsonX.Services
+{
+    internal static class SingboxClashApi
+    {
+        private static readonly object Sync = new();
+
+        private static string _controller = "";
+        private static string _secret = "";
+
+        internal static string Controller
+        {
+            get { lock (Sync) { return _controller; } }
+        }
+
+        internal static string Secret
+        {
+            get { lock (Sync) { return _secret; } }
+        }
+
+        internal static bool IsConfigured
+        {
+            get { lock (Sync) { return _controller.Length > 0 && _secret.Length > 0; } }
+        }
+
+        internal static string EnsureController()
+        {
+            lock (Sync)
+            {
+                if (_controller.Length == 0)
+                {
+                    int port = PickPort();
+                    _controller = "127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture);
+                }
+                return _controller;
+            }
+        }
+
+        internal static string ReallocateController()
+        {
+            lock (Sync)
+            {
+                int port = PickPort(CurrentPort());
+                _controller = "127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture);
+                return _controller;
+            }
+        }
+
+        private static int CurrentPort()
+        {
+            string controller = _controller;
+            int colon = controller.LastIndexOf(':');
+            return colon >= 0
+                && int.TryParse(controller.Substring(colon + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out int port)
+                ? port
+                : 0;
+        }
+
+        internal static string EnsureSecret()
+        {
+            lock (Sync)
+            {
+                if (_secret.Length == 0)
+                {
+                    var bytes = new byte[16];
+                    System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
+                    _secret = Convert.ToHexString(bytes).ToLowerInvariant();
+                }
+                return _secret;
+            }
+        }
+
+        private static int PickPort(int avoid = 0)
+        {
+            for (int attempt = 0; attempt < 16; attempt++)
+            {
+                int candidate = Random.Shared.Next(19090, 19290);
+                if (candidate != avoid && IsPortFree(candidate)) return candidate;
+            }
+            return avoid == 19091 ? 19092 : 19091;
+        }
+
+        private static bool IsPortFree(int port)
+        {
+            TcpListener? listener = null;
+            try
+            {
+                listener = new TcpListener(IPAddress.Loopback, port);
+                listener.Start();
+                return true;
+            }
+            catch { return false; }
+            finally
+            {
+                try { listener?.Stop(); } catch { }
+            }
+        }
+    }
+
+    internal sealed class RuleProcessTraffic
+    {
+        internal string ProcessName { get; set; } = "";
+        internal int ActiveConnections { get; set; }
+        internal int TcpConnections { get; set; }
+        internal int UdpConnections { get; set; }
+        internal long DownloadBytes { get; set; }
+        internal long UploadBytes { get; set; }
+    }
+
+    internal sealed class RuleConnectionsSnapshot
+    {
+        internal bool Available { get; set; }
+
+        internal int ActiveConnections { get; set; }
+
+        internal long DownloadBytes { get; set; }
+        internal long UploadBytes { get; set; }
+
+        internal long SessionDownloadBytes { get; set; }
+        internal long SessionUploadBytes { get; set; }
+
+        internal List<RuleProcessTraffic> Processes { get; set; } = new();
+    }
+
+    public sealed class EndpointConnectionBytes
+    {
+        public string Id { get; set; } = "";
+        public long DownloadBytes { get; set; }
+        public long UploadBytes { get; set; }
+    }
+
+    public sealed class EndpointChainSnapshot
+    {
+        public bool HasChains { get; set; }
+        public long SessionDownloadBytes { get; set; }
+        public long SessionUploadBytes { get; set; }
+        public List<EndpointConnectionBytes> Connections { get; set; } = new();
+
+        public static EndpointChainSnapshot Parse(string json, string chainTag)
+        {
+            var snapshot = new EndpointChainSnapshot();
+            JObject root;
+            try { root = JObject.Parse(json); }
+            catch (Exception ex) { SimpleLogger.Log(ex); return snapshot; }
+            snapshot.SessionDownloadBytes = root.Value<long?>("downloadTotal") ?? 0;
+            snapshot.SessionUploadBytes   = root.Value<long?>("uploadTotal") ?? 0;
+            if (root["connections"] is not JArray connections) return snapshot;
+            foreach (var item in connections)
+            {
+                if (item["chains"] is not JArray chains) continue;
+                snapshot.HasChains = true;
+                bool ridesChain = false;
+                foreach (var tag in chains)
+                {
+                    if (!string.Equals(tag?.ToString(), chainTag, StringComparison.Ordinal)) continue;
+                    ridesChain = true;
+                    break;
+                }
+                if (!ridesChain) continue;
+                snapshot.Connections.Add(new EndpointConnectionBytes
+                {
+                    Id            = item["id"]?.ToString() ?? "",
+                    DownloadBytes = item.Value<long?>("download") ?? 0,
+                    UploadBytes   = item.Value<long?>("upload")   ?? 0
+                });
+            }
+            return snapshot;
+        }
+    }
+
+    internal sealed class SingboxConnectionsClient : IDisposable
+    {
+        private readonly HttpClient _http;
+
+        internal SingboxConnectionsClient()
+        {
+            _http = new HttpClient(new HttpClientHandler { UseProxy = false })
+            {
+                Timeout = TimeSpan.FromSeconds(2)
+            };
+        }
+
+        internal async Task<RuleConnectionsSnapshot?> GetAsync(ISet<string> ruleProcessNames, CancellationToken token)
+        {
+            if (!SingboxClashApi.IsConfigured) return null;
+            try
+            {
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Get, "http://" + SingboxClashApi.Controller + "/connections");
+                request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + SingboxClashApi.Secret);
+                using var cts    = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
+                using var response = await _http.SendAsync(request, linked.Token).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode) return null;
+                string body = await response.Content.ReadAsStringAsync(linked.Token).ConfigureAwait(false);
+                return Parse(body, ruleProcessNames);
+            }
+            catch (OperationCanceledException) { return null; }
+            catch (Exception ex) { SimpleLogger.Log(ex); return null; }
+        }
+
+        internal static RuleConnectionsSnapshot Parse(string json, ISet<string> ruleProcessNames)
+        {
+            var snapshot = new RuleConnectionsSnapshot
+            {
+                Available = ruleProcessNames.Count > 0
+            };
+            JObject root;
+            try { root = JObject.Parse(json); }
+            catch (Exception ex)
+            {
+                SimpleLogger.Log(ex);
+                snapshot.Available = false;
+                return snapshot;
+            }
+            snapshot.SessionDownloadBytes = root.Value<long?>("downloadTotal") ?? 0;
+            snapshot.SessionUploadBytes   = root.Value<long?>("uploadTotal") ?? 0;
+            if (root["connections"] is not JArray connections) return snapshot;
+            var buckets = new Dictionary<string, RuleProcessTraffic>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in connections)
+            {
+                string exe = ProcessKey(item["metadata"]?["processPath"]?.ToString());
+                if (exe.Length == 0) continue;
+                if (!ruleProcessNames.Contains(exe)) continue;
+                if (!buckets.TryGetValue(exe, out var bucket))
+                {
+                    bucket = new RuleProcessTraffic { ProcessName = exe };
+                    buckets[exe] = bucket;
+                }
+                bucket.ActiveConnections++;
+                if (string.Equals(item["metadata"]?["network"]?.ToString(), "udp", StringComparison.OrdinalIgnoreCase))
+                    bucket.UdpConnections++;
+                else
+                    bucket.TcpConnections++;
+                bucket.DownloadBytes += item.Value<long?>("download") ?? 0;
+                bucket.UploadBytes   += item.Value<long?>("upload") ?? 0;
+            }
+            foreach (var bucket in buckets.Values)
+            {
+                snapshot.ActiveConnections += bucket.ActiveConnections;
+                snapshot.DownloadBytes     += bucket.DownloadBytes;
+                snapshot.UploadBytes       += bucket.UploadBytes;
+            }
+            snapshot.Processes = buckets.Values
+                .OrderByDescending(p => p.DownloadBytes + p.UploadBytes)
+                .ThenByDescending(p => p.ActiveConnections)
+                .ToList();
+            return snapshot;
+        }
+
+        internal async Task<EndpointChainSnapshot?> GetChainAsync(string chainTag, CancellationToken token)
+        {
+            if (!SingboxClashApi.IsConfigured || string.IsNullOrWhiteSpace(chainTag)) return null;
+            try
+            {
+                using var request = new HttpRequestMessage(
+                    HttpMethod.Get, "http://" + SingboxClashApi.Controller + "/connections");
+                request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + SingboxClashApi.Secret);
+                using var cts    = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, token);
+                using var response = await _http.SendAsync(request, linked.Token).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode) return null;
+                string body = await response.Content.ReadAsStringAsync(linked.Token).ConfigureAwait(false);
+                return EndpointChainSnapshot.Parse(body, chainTag);
+            }
+            catch (OperationCanceledException) { return null; }
+            catch (Exception ex) { SimpleLogger.Log(ex); return null; }
+        }
+
+        internal static string ProcessKey(string? processPath)
+        {
+            if (string.IsNullOrWhiteSpace(processPath)) return "";
+            string name = processPath.Trim();
+            int slash = name.LastIndexOfAny(new[] { '\\', '/' });
+            if (slash >= 0) name = name.Substring(slash + 1);
+            if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                name = name.Substring(0, name.Length - 4);
+            return name.ToLowerInvariant();
+        }
+
+        public void Dispose() => _http.Dispose();
+    }
+}

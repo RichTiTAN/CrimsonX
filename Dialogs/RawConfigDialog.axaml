@@ -1,0 +1,62 @@
+<!--
+  CrimsonX - source available software.
+  Copyright (C) 2026 RichTiTAN. All rights reserved.
+  Licensed under the PolyForm Strict License 1.0.0.
+  https://polyformproject.org/licenses/strict/1.0.0
+  Licensing: CrimsonVPN.Support@proton.me
+-->
+
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dialogs="clr-namespace:CrimsonX.Dialogs"
+        x:Class="CrimsonX.Dialogs.RawConfigDialog"
+        x:DataType="dialogs:RawConfigDialog"
+        Width="420" Height="560" MinWidth="360" MinHeight="320"
+        CanResize="True" CanMinimize="False" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E" Foreground="White"
+        FontFamily="Segoe UI, Tahoma, sans-serif"
+        KeyDown="Dialog_KeyDown">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="22">
+
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,10">
+            <TextBlock x:Name="lblRawHint" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap" LineHeight="17"/>
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="#14161A" BorderBrush="#2D3748" BorderThickness="1" CornerRadius="6" Padding="4">
+            <TextBox x:Name="txtRawConfig" AcceptsReturn="True" TextWrapping="Wrap"
+                     FontFamily="Consolas" FontSize="11" Background="Transparent" BorderThickness="0"
+                     Foreground="#E2E8F0" Padding="6,4" VerticalContentAlignment="Top"
+                     KeyDown="Text_KeyDown"/>
+        </Border>
+
+        <Grid Grid.Row="2" RowDefinitions="Auto,Auto" Margin="0,10,0,0">
+            <TextBlock x:Name="lblRawError" Grid.Row="0" FontSize="11" Foreground="#F87171"
+                       TextWrapping="Wrap" IsVisible="False"/>
+
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+                <Button x:Name="btnRawSave" Click="Save_Click"
+                        Background="#3A3F44" Foreground="#E2E8F0" FontWeight="Bold" Padding="20,6"
+                        FontSize="11" Cursor="Hand" CornerRadius="4" Content="SAVE">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+                <Button x:Name="btnRawCancel" Click="Cancel_Click"
+                        Background="#2D3748" Foreground="#A0AEC0" Padding="20,6"
+                        FontSize="11" Cursor="Hand" CornerRadius="4" Content="CANCEL">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="#2AFFFFFF"/>
+                            <Setter Property="TextBlock.Foreground" Value="#FFFFFF"/>
+                        </Style>
+                    </Button.Styles>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+    </Grid>
+</Window>

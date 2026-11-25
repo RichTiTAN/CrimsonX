@@ -47,9 +47,37 @@ Unlike standard clients, CrimsonX features a **dynamic pipeline** that constantl
 
 *Note: CrimsonX requires Windows 10 or newer.*
 
-###  CrimsonX is now a closed source project  
-- After version 3.3.3 by my decision the app was made closed source. older versions are still available for download alongside their source.
+###  Source availability
 
+The source for CrimsonX 3.3.4 and later is published in this repository, so you can read exactly what the app does and build it yourself. It is not open source: it is licensed under the [PolyForm Strict License 1.0.0](LICENSE), which permits personal and other noncommercial use, and does not permit distributing the software or publishing modified versions.
+
+| | |
+| --- | --- |
+| Read the code | yes |
+| Build and run it unmodified, for personal or other noncommercial use | yes |
+| Publish a fork or a patched build | no |
+| Use it commercially | ask first: CrimsonVPN.Support@proton.me |
+| Official release builds | governed by the [CrimsonX EULA](EULA.txt), which also covers business use |
+
+Versions up to and including 3.3.3 were released under the **GNU General Public License (v3)**. That grant is not revoked, and their source stays available in the matching release tags and releases.
+
+###  Building from source
+
+You need the .NET 10 SDK. Private worker URLs and a built-in encryption key live in a **gitignored** file (`Services/AppSecrets.cs`), so create it from the template before building:
+
+```
+copy Services\AppSecrets.cs.example Services\AppSecrets.cs
+```
+
+Then open `Services/AppSecrets.cs`, fill in your own worker URLs plus a freshly generated 32-byte cache key and 16-byte IV, and build:
+
+```
+dotnet build CrimsonX.slnx
+```
+
+The proxy engines (`Data\xray`, `Data\sing_box`, `Data\awg`, `Data\aether`, `Data\ipsec`) are not part of the repository: the release package ships prebuilt binaries. Without them the app starts, but it cannot tunnel. The engine build scripts and the test suite are not part of this repository.
+
+At runtime the stores in `Data\cache\*.bin` are encrypted with a 32-byte key that is generated on first use, wrapped with Windows DPAPI for the current Windows user, and kept in `Data\cache\data.key`. The key in `AppSecrets.cs` is only used to read stores written by older builds and as the fallback when DPAPI is unavailable, so an upgrade keeps your settings and saved credentials.
 
 ##  Configuration & Usage
 
@@ -90,7 +118,7 @@ If the need arises you can enable WARP from the main page of the app and route a
 
 ##  License
 
-CrimsonX 3.3.4 and later are proprietary software, licensed under the [CrimsonX End User License Agreement](EULA.txt). By installing or using those versions you agree to that EULA.
+CrimsonX 3.3.4 and later are source available. The source code is licensed under the [PolyForm Strict License 1.0.0](LICENSE); the builds published on the Releases page are licensed under the [CrimsonX End User License Agreement](EULA.txt), and by installing or using those builds you agree to that EULA. Commercial use, redistribution or any other licensing: **CrimsonVPN.Support@proton.me**.
 
 Versions up to and including 3.3.3 were released under the **GNU General Public License (v3)**. Their rights are not revoked, and their corresponding source remains available in the matching release tags and releases.
 

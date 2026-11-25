@@ -1,15 +1,26 @@
-CrimsonX is proprietary software.
-
+CrimsonX - source available software.
 Copyright (C) 2026 RichTiTAN. All rights reserved.
 
+SOURCE CODE
+Versions from 3.3.4 onward are published in this repository. The source code is
+licensed under the PolyForm Strict License 1.0.0, reproduced in LICENSE. That
+licence permits personal and other noncommercial use, and does not permit
+distributing the software or making changes or new works based on it.
+Commercial use, redistribution or any other licensing:
+CrimsonVPN.Support@proton.me
+
+OFFICIAL BUILDS
+The builds published on the Releases page are licensed under the CrimsonX End
+User License Agreement in EULA.txt. By installing or using those builds you
+agree to that EULA.
+
+OLDER VERSIONS
 Versions up to and including 3.3.3 were distributed under the GNU General
-Public License, version 3. Their corresponding source remains available in
-the corresponding release tags and releases.
+Public License, version 3. Those rights are not revoked, and their
+corresponding source remains available in the matching release tags and
+releases.
 
-Versions from 3.3.4 onward are licensed under the CrimsonX End User License
-Agreement in EULA.txt. By installing or using those versions you agree to
-that EULA.
-
-Third-party components remain under their own licenses. Their licence texts
-are in the Licenses folder, and THIRD-PARTY-NOTICES.txt lists them together
-with their upstream projects.
+THIRD-PARTY COMPONENTS
+Third-party components remain under their own licenses. Their licence texts are
+in the Licenses folder, and THIRD-PARTY-NOTICES.txt lists them together with
+their upstream projects.

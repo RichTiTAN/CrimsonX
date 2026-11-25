@@ -1,0 +1,209 @@
+/*
+ * CrimsonX - source available software.
+ * Copyright (C) 2026 RichTiTAN. All rights reserved.
+ * Licensed under the PolyForm Strict License 1.0.0.
+ * https://polyformproject.org/licenses/strict/1.0.0
+ * Licensing: CrimsonVPN.Support@proton.me
+ */
+
+using System;
+using System.Threading.Tasks;
+using CrimsonX.Localization;
+using CrimsonX.Models;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+
+namespace CrimsonX.Services
+{
+    public enum ConfigCheckLevel
+    {
+        Offline,
+
+        Live
+    }
+
+    public sealed class ConfigCheckResult
+    {
+        public bool Ok { get; set; }
+
+        public bool Unreadable { get; set; }
+
+        public bool NeedsCredentials { get; set; }
+
+        public bool IsTunnel { get; set; }
+
+        public string Reason { get; set; } = "";
+
+        public string Label { get; set; } = "";
+
+        public string MaskNote { get; set; } = "";
+
+        public string WithoutMask { get; set; } = "";
+
+        public string EngineJson { get; set; } = "";
+    }
+
+    public static class ConfigValidator
+    {
+        private const string ProbeTag = "custom-probe";
+
+        public static async Task<ConfigCheckResult> CheckAsync(string raw, AppConfig cfg, ConfigTarget target,
+            ConfigCheckLevel level = ConfigCheckLevel.Offline, string adapterName = "", string adapterIp = "", string sbDirOverride = "", bool exitNode = false)
+        {
+            var result = new ConfigCheckResult();
+            string text = (raw ?? "").Trim();
+            if (text.Length == 0)
+            {
+                result.Unreadable = true;
+                result.Reason = "empty config";
+                return result;
+            }
+            string sbDir = !string.IsNullOrWhiteSpace(sbDirOverride) ? sbDirOverride : cfg?.SbDir ?? "";
+            if (ConfigConverter.TryTunnel(text, out var tunnel, out _))
+            {
+                result.IsTunnel = true;
+                result.Label = tunnel.Label ?? "";
+                if (exitNode && tunnel.RequiresAwg)
+                {
+                    result.Unreadable = true;
+                    result.Reason = "an AmneziaWG config cannot be used as the exit node";
+                    return result;
+                }
+                return level == ConfigCheckLevel.Live
+                    ? await CheckTunnelLiveAsync(sbDir, tunnel, adapterName, adapterIp, result).ConfigureAwait(false)
+                    : CheckTunnelOffline(sbDir, tunnel, result);
+            }
+            switch (target)
+            {
+                case ConfigTarget.Xray:
+                    return await CheckForXrayAsync(text, cfg, result).ConfigureAwait(false);
+                case ConfigTarget.Singbox:
+                    return await CheckForSingboxAsync(text, sbDir, adapterName, adapterIp, result).ConfigureAwait(false);
+                default:
+                    result.Ok = ConfigConverter.TryAcceptFor(text, ConfigTarget.Pool, out string poolError);
+                    if (result.Ok) result.Label = ConfigConverter.LabelFor(text);
+                    else { result.Unreadable = true; result.Reason = poolError; }
+                    return result;
+            }
+        }
+
+        public static string ShortReason(string reason, int max = 150)
+        {
+            string text = (reason ?? "").Trim();
+            return text.Length <= max ? text : text.Substring(0, max).Trim() + "…";
+        }
+
+        public static string RefusalSuffix(string reason)
+            => string.IsNullOrWhiteSpace(reason)
+                ? ""
+                : " " + AppStrings.InvalidConfigReason + ShortReason(reason);
+
+        private static ConfigCheckResult CheckTunnelOffline(string sbDir, TunnelParseResult tunnel, ConfigCheckResult result)
+        {
+            if (tunnel.RequiresIpsec)
+            {
+                if (!IpsecEngine.IsInstalled(sbDir))
+                {
+                    result.Ok = false;
+                    result.Reason = "the IKEv2 engine (crimsonipsec.exe) is not installed";
+                    return result;
+                }
+                result.Ok = true;
+                return result;
+            }
+            string endpointJson = (tunnel.Endpoint ?? new JObject()).ToString(Formatting.None);
+            string engine = TunnelEngine.EngineExe(null, tunnel.RequiresAwg, sbDir);
+            if (tunnel.RequiresAwg && (string.IsNullOrWhiteSpace(engine) || !System.IO.File.Exists(engine)))
+            {
+                result.Ok = false;
+                result.Reason = "the AmneziaWG engine (amnezia-box.exe) is not installed";
+                return result;
+            }
+            result.Ok = SingboxConfigValidator.CheckEndpoint(sbDir, endpointJson, engine);
+            if (!result.Ok)
+                result.Reason = tunnel.RequiresAwg
+                    ? "amnezia-box rejected this AmneziaWG config"
+                    : "sing-box rejected this OpenVPN / WireGuard config";
+            return result;
+        }
+
+        private static async Task<ConfigCheckResult> CheckTunnelLiveAsync(string sbDir, TunnelParseResult tunnel, string adapterName, string adapterIp, ConfigCheckResult result)
+        {
+            if (!TunnelCredentialResolver.ApplyStored(tunnel))
+            {
+                result.NeedsCredentials = true;
+                result.Reason = "this tunnel needs a username and password";
+                return result;
+            }
+            int port = 0;
+            IDisposable lease = null;
+            string tunnelError = "";
+            bool started = await Task.Run(() => TunnelEngine.StartTransient(sbDir, tunnel, adapterName, adapterIp, out port, out lease, out tunnelError)).ConfigureAwait(false);
+            try { lease?.Dispose(); } catch { }
+            result.Ok = started;
+            if (!started) result.Reason = tunnelError.Length > 0 ? tunnelError : "the tunnel could not be started";
+            return result;
+        }
+
+        private static async Task<ConfigCheckResult> CheckForXrayAsync(string text, AppConfig cfg, ConfigCheckResult result)
+        {
+            if (!ConfigConverter.TryXrayChain(text, out var hops, out string chainLabel, out string convertError) || hops.Count == 0)
+            {
+                result.Unreadable = true;
+                result.Reason = convertError;
+                return result;
+            }
+            if (hops.Count == 1 && ConfigConverter.TryXrayOutbound(text, out string xrayDoc, out string singleLabel, out _))
+            {
+                result.EngineJson = xrayDoc;
+                result.Label = singleLabel;
+            }
+            else
+            {
+                result.EngineJson = ConfigConverter.BuildXrayChain(hops);
+                result.Label = chainLabel;
+            }
+            bool rebuiltChain = hops.Count > 1 && result.EngineJson.Length > 0;
+            var xrayCheck = await XrayConfigValidator.CheckDetailedAsync(cfg, rebuiltChain ? result.EngineJson : text).ConfigureAwait(false);
+            result.Ok          = xrayCheck.Ok;
+            result.MaskNote    = xrayCheck.MaskNote;
+            result.WithoutMask = xrayCheck.WithoutMask;
+            if (!result.Ok) result.Reason = xrayCheck.Error;
+            return result;
+        }
+
+        private static async Task<ConfigCheckResult> CheckForSingboxAsync(string text, string sbDir, string adapterName, string adapterIp, ConfigCheckResult result)
+        {
+            if (!ConfigConverter.TrySingboxChain(text, out var hops, out string label, out string convertError) || hops.Count == 0)
+            {
+                result.Unreadable = true;
+                result.Reason = convertError.Length > 0 ? convertError : "this config cannot be used here";
+                return result;
+            }
+            result.EngineJson = hops[0].ToString(Formatting.None);
+            result.Label = label;
+            bool ok;
+            try
+            {
+                var tagged = SingboxLinkParser.WithTagAndDial((JObject)hops[0].DeepClone(), ProbeTag, adapterName, adapterIp);
+                string probe = tagged.ToString(Formatting.None);
+                string chain = "";
+                if (hops.Count > 1)
+                {
+                    var tail = new JArray();
+                    for (int i = 1; i < hops.Count; i++) tail.Add(hops[i]);
+                    chain = tail.ToString(Formatting.None);
+                }
+                ok = await Task.Run(() => SingboxConfigValidator.CheckChainOutbound(sbDir, probe, chain)).ConfigureAwait(false);
+            }
+            catch
+            {
+                result.Unreadable = true;
+                return result;
+            }
+            result.Ok = ok;
+            if (!ok) result.Reason = "sing-box rejected this config";
+            return result;
+        }
+    }
+}
