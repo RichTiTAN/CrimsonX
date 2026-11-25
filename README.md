@@ -43,7 +43,7 @@ The default connection path is not a tunnel you control. CrimsonX scrapes **publ
 
 If what you do needs to be trustworthy, use infrastructure you control:
 
-- **Exit node** — hand CrimsonX your own server as the exit. Traffic still travels over the scraped nodes, but it leaves through your server under the protocol you configured — choose an encrypted one (VLESS+REALITY/TLS, Trojan, Hysteria2, WireGuard) — so the public hop only carries an encrypted stream to it. That hop can still see that you connect and how much data moves, but not the content.
+- **Exit node** — hand CrimsonX your own server as the exit. Traffic still travels over the scraped nodes, but it leaves through your server under the protocol you configured — choose an encrypted one (VLESS+REALITY/TLS, Trojan, Hysteria2, WireGuard, OpenVPN) — so the public hop only carries an encrypted stream to it. That hop can still see that you connect and how much data moves, but not the content.
 - **Custom config** — paste your own VLESS/VMess/Trojan/Shadowsocks, WireGuard, OpenVPN, IKEv2 or AmneziaWG configuration, either from a provider you trust or from a server you run. A custom config never touches the scraped pool.
 - **Your own server as the first hop, with split routing or WARP**, if that fits how you work.
 
